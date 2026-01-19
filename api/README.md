@@ -15,6 +15,12 @@ uvicorn src.main:app --reload --port 8000
 
 # Test
 pytest -v
+
+# Linting
+ruff check .
+
+# Type checking
+mypy src
 ```
 
 ## Endpoints
