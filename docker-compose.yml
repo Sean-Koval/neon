@@ -4,7 +4,7 @@ services:
   # PostgreSQL database
   postgres:
     image: postgres:16-alpine
-    container_name: agenteval-postgres
+    container_name: neon-postgres
     environment:
       POSTGRES_USER: agenteval
       POSTGRES_PASSWORD: agenteval
@@ -19,10 +19,10 @@ services:
       timeout: 5s
       retries: 5
 
-  # MLflow tracking server
+  # MLflow tracking server (3.7+ for tracing features)
   mlflow:
-    image: ghcr.io/mlflow/mlflow:v2.19.0
-    container_name: agenteval-mlflow
+    image: ghcr.io/mlflow/mlflow:v3.7.0
+    container_name: neon-mlflow
     command: >
       mlflow server
       --backend-store-uri postgresql://agenteval:agenteval@postgres:5432/mlflow
@@ -34,17 +34,30 @@ services:
     volumes:
       - mlflow_artifacts:/mlflow/artifacts
     depends_on:
+      postgres-init:
+        condition: service_completed_successfully
+    environment:
+      MLFLOW_TRACKING_URI: http://localhost:5000
+
+  # Initialize MLflow database
+  postgres-init:
+    image: postgres:16-alpine
+    container_name: neon-postgres-init
+    depends_on:
       postgres:
         condition: service_healthy
     environment:
-      MLFLOW_TRACKING_URI: postgresql://agenteval:agenteval@postgres:5432/mlflow
+      PGPASSWORD: agenteval
+    command: >
+      psql -h postgres -U agenteval -d agenteval -c "CREATE DATABASE mlflow;" || true
+    restart: "no"
 
   # AgentEval API
   api:
     build:
       context: ./api
       dockerfile: Dockerfile
-    container_name: agenteval-api
+    container_name: neon-api
     ports:
       - "8000:8000"
     environment:
@@ -67,7 +80,7 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    container_name: agenteval-frontend
+    container_name: neon-frontend
     ports:
       - "3000:3000"
     environment:
