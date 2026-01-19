@@ -6,8 +6,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from src.models.eval import EvalCase, EvalCaseCreate, EvalSuite, EvalSuiteCreate, ScorerType
 from src.models.db import EvalCaseModel, EvalSuiteModel
+from src.models.eval import EvalCase, EvalCaseCreate, EvalSuite, EvalSuiteCreate, ScorerType
 
 
 class SuiteService:

@@ -8,7 +8,6 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.config import settings
 from src.models.db import EvalCaseModel, EvalResultModel, EvalRunModel, EvalSuiteModel
 from src.models.eval import EvalRunStatus
 from src.scorers.base import Scorer
@@ -118,7 +117,7 @@ class EvalRunner:
                         "evidence": result.evidence,
                     }
 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             status = "timeout"
             error = f"Execution timed out after {case.timeout_seconds}s"
         except Exception as e:
@@ -150,7 +149,7 @@ class EvalRunner:
 
     async def _calculate_summary(self, run_id: UUID) -> dict[str, Any]:
         """Calculate summary statistics for a run."""
-        from sqlalchemy import select, func
+        from sqlalchemy import select
 
         # Get all results
         results = await self.db.execute(
