@@ -1,0 +1,131 @@
+name: 'Agent Evaluation'
+description: 'Run agent evaluation suite and check for regressions'
+author: 'AgentEval'
+
+branding:
+  icon: 'check-circle'
+  color: 'blue'
+
+inputs:
+  api-key:
+    description: 'AgentEval API key'
+    required: true
+  suite:
+    description: 'Eval suite to run (name or path to YAML file)'
+    required: true
+  agent:
+    description: 'Agent module path (e.g., myagent:run)'
+    required: false
+  baseline:
+    description: 'Baseline to compare against (run ID or "latest")'
+    default: 'latest'
+  threshold:
+    description: 'Regression threshold (0-1)'
+    default: '0.05'
+  fail-on-regression:
+    description: 'Fail the action if regressions detected'
+    default: 'true'
+  api-url:
+    description: 'AgentEval API URL (for self-hosted)'
+    default: 'https://api.agent-eval.example.com'
+
+outputs:
+  run-id:
+    description: 'The eval run ID'
+    value: ${{ steps.eval.outputs.run-id }}
+  passed:
+    description: 'Whether the evaluation passed (no regressions)'
+    value: ${{ steps.compare.outputs.passed }}
+  score:
+    description: 'Average score'
+    value: ${{ steps.eval.outputs.score }}
+  regressions:
+    description: 'Number of regressions detected'
+    value: ${{ steps.compare.outputs.regressions }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install agent-eval CLI
+      shell: bash
+      run: pip install agent-eval
+
+    - name: Run evaluation
+      id: eval
+      shell: bash
+      env:
+        AGENT_EVAL_API_KEY: ${{ inputs.api-key }}
+        AGENT_EVAL_API_URL: ${{ inputs.api-url }}
+      run: |
+        # Build command
+        CMD="agent-eval run start ${{ inputs.suite }}"
+        CMD="$CMD --agent-version ${{ github.sha }}"
+        CMD="$CMD --output json"
+
+        if [ -n "${{ inputs.agent }}" ]; then
+          CMD="$CMD --agent ${{ inputs.agent }}"
+        fi
+
+        # Run and capture output
+        $CMD > eval-result.json
+
+        # Extract values
+        echo "run-id=$(jq -r '.id' eval-result.json)" >> $GITHUB_OUTPUT
+        echo "score=$(jq -r '.summary.avg_score // 0' eval-result.json)" >> $GITHUB_OUTPUT
+        echo "passed=$(jq -r '.summary.passed // 0' eval-result.json)" >> $GITHUB_OUTPUT
+        echo "total=$(jq -r '.summary.total_cases // 0' eval-result.json)" >> $GITHUB_OUTPUT
+
+    - name: Compare with baseline
+      id: compare
+      shell: bash
+      env:
+        AGENT_EVAL_API_KEY: ${{ inputs.api-key }}
+        AGENT_EVAL_API_URL: ${{ inputs.api-url }}
+      run: |
+        # Compare with baseline
+        agent-eval compare runs ${{ inputs.baseline }} ${{ steps.eval.outputs.run-id }} \
+          --threshold ${{ inputs.threshold }} \
+          --output json > compare-result.json
+
+        PASSED=$(jq -r '.passed' compare-result.json)
+        REGRESSIONS=$(jq -r '.regressions | length' compare-result.json)
+        IMPROVEMENTS=$(jq -r '.improvements | length' compare-result.json)
+        DELTA=$(jq -r '.overall_delta' compare-result.json)
+
+        echo "passed=$PASSED" >> $GITHUB_OUTPUT
+        echo "regressions=$REGRESSIONS" >> $GITHUB_OUTPUT
+        echo "improvements=$IMPROVEMENTS" >> $GITHUB_OUTPUT
+        echo "delta=$DELTA" >> $GITHUB_OUTPUT
+
+        # Fail if regressions detected and flag is set
+        if [ "$PASSED" = "false" ] && [ "${{ inputs.fail-on-regression }}" = "true" ]; then
+          echo "::error::Regression detected! $REGRESSIONS test(s) regressed with delta $DELTA"
+          exit 1
+        fi
+
+    - name: Post summary
+      shell: bash
+      run: |
+        echo "## Agent Evaluation Results" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "| Metric | Value |" >> $GITHUB_STEP_SUMMARY
+        echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+        echo "| Run ID | \`${{ steps.eval.outputs.run-id }}\` |" >> $GITHUB_STEP_SUMMARY
+        echo "| Score | ${{ steps.eval.outputs.score }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| Passed | ${{ steps.eval.outputs.passed }}/${{ steps.eval.outputs.total }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| Regressions | ${{ steps.compare.outputs.regressions }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| Improvements | ${{ steps.compare.outputs.improvements }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| Overall Delta | ${{ steps.compare.outputs.delta }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| Status | ${{ steps.compare.outputs.passed == 'true' && 'Passed' || 'Failed' }} |" >> $GITHUB_STEP_SUMMARY
+
+        if [ "${{ steps.compare.outputs.regressions }}" != "0" ]; then
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Regressions" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          jq -r '.regressions[] | "- **\(.case_name)** (\(.scorer)): \(.baseline_score) -> \(.candidate_score) (\(.delta))"' compare-result.json >> $GITHUB_STEP_SUMMARY
+        fi
