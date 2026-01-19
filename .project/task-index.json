@@ -1,0 +1,92 @@
+{
+  "tasks": {
+    "FND-001": {
+      "file": "tasks/FND-001.json",
+      "status": "completed",
+      "phase_id": "phase-1-foundation",
+      "title": "Setup FastAPI project structure"
+    },
+    "FND-002": {
+      "file": "tasks/FND-002.json",
+      "status": "completed",
+      "phase_id": "phase-1-foundation",
+      "title": "Define Pydantic models for eval entities"
+    },
+    "FND-003": {
+      "file": "tasks/FND-003.json",
+      "status": "pending",
+      "phase_id": "phase-1-foundation",
+      "title": "Create SQLAlchemy database models"
+    },
+    "FND-004": {
+      "file": "tasks/FND-004.json",
+      "status": "pending",
+      "phase_id": "phase-1-foundation",
+      "title": "Create database migrations"
+    },
+    "FND-005": {
+      "file": "tasks/FND-005.json",
+      "status": "completed",
+      "phase_id": "phase-1-foundation",
+      "title": "MLflow integration spike"
+    },
+    "SCR-001": {
+      "file": "tasks/SCR-001.json",
+      "status": "completed",
+      "phase_id": "phase-2-scorers",
+      "title": "Implement ToolSelectionScorer"
+    },
+    "SCR-002": {
+      "file": "tasks/SCR-002.json",
+      "status": "pending",
+      "phase_id": "phase-2-scorers",
+      "title": "Implement ReasoningScorer"
+    },
+    "SCR-003": {
+      "file": "tasks/SCR-003.json",
+      "status": "pending",
+      "phase_id": "phase-2-scorers",
+      "title": "Implement GroundingScorer"
+    }
+  },
+  "dependency_graph": {
+    "FND-001": [],
+    "FND-002": ["FND-001"],
+    "FND-003": ["FND-002"],
+    "FND-004": ["FND-003"],
+    "FND-005": ["FND-001"],
+    "SCR-001": ["FND-005"],
+    "SCR-002": ["FND-005"],
+    "SCR-003": ["FND-005"]
+  },
+  "parallel_groups": [
+    {
+      "group_id": "foundation-parallel",
+      "tasks": ["FND-002", "FND-005"],
+      "reason": "Both only depend on FND-001, no inter-dependencies"
+    },
+    {
+      "group_id": "scorers-parallel",
+      "tasks": ["SCR-001", "SCR-002", "SCR-003"],
+      "reason": "All three scorers can be implemented in parallel"
+    }
+  ],
+  "ready_tasks": ["FND-003", "SCR-002", "SCR-003"],
+  "critical_path": [
+    "FND-001",
+    "FND-002",
+    "FND-003",
+    "FND-004",
+    "FND-005",
+    "SCR-001"
+  ],
+  "metrics": {
+    "total_tasks": 8,
+    "pending": 4,
+    "in_progress": 0,
+    "completed": 4,
+    "estimated_hours_total": 26,
+    "estimated_hours_parallel": 15
+  },
+  "last_computed": "2026-01-19T00:00:00Z"
+}

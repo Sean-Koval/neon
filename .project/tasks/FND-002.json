@@ -1,0 +1,54 @@
+{
+  "id": "FND-002",
+  "title": "Define Pydantic models for eval entities",
+  "description": "Create Pydantic models for EvalSuite, EvalCase, EvalRun, and EvalResult based on architecture spec.",
+  "phase_id": "phase-1-foundation",
+  "type": "implementation",
+  "status": "completed",
+  "scope": {
+    "primary_files": [
+      "api/src/models/eval.py"
+    ],
+    "test_files": [
+      "api/tests/models/test_eval.py"
+    ],
+    "related_files": [
+      "docs/research/02-concept/architecture-spec.md"
+    ]
+  },
+  "dependencies": {
+    "blocked_by": [
+      "FND-001"
+    ],
+    "blocks": [
+      "FND-003",
+      "FND-004"
+    ],
+    "parallel_with": []
+  },
+  "acceptance_criteria": [
+    "EvalSuite model with name, description, agent_id, default_scorers, cases",
+    "EvalCase model with input, expected_tools, expected_output_contains, scorers, min_score",
+    "EvalRun model with suite_id, status, summary, timestamps",
+    "EvalResult model with scores, score_details, passed",
+    "ScorerType enum defined",
+    "Models serialize to/from JSON correctly",
+    "Unit tests cover validation edge cases"
+  ],
+  "context": {
+    "research_refs": [
+      "docs/research/02-concept/architecture-spec.md#test-case-schema"
+    ],
+    "code_refs": []
+  },
+  "estimated_hours": 3,
+  "created_at": "2026-01-19T00:00:00Z",
+  "started_at": "2026-01-19T15:54:49-05:00",
+  "completed_at": "2026-01-19T22:10:34Z",
+  "pr_merged": "https://github.com/Sean-Koval/neon/pull/4",
+  "worktree": {
+    "branch": "task/FND-002",
+    "path": "/home/seanm/repos/neon-task-FND-002",
+    "created_at": "2026-01-19T15:54:49-05:00"
+  }
+}
