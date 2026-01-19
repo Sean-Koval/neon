@@ -1,1 +1,1 @@
-"""AgentEval API tests."""
+"""Neon API tests."""

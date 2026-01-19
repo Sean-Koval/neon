@@ -9,6 +9,14 @@ from httpx import ASGITransport, AsyncClient
 from src.config import Settings
 
 
+def pytest_configure(config):
+    """Configure custom pytest markers."""
+    config.addinivalue_line(
+        "markers",
+        "integration: marks tests as integration tests (require external services)",
+    )
+
+
 @pytest.fixture
 def test_settings() -> Settings:
     """Create test settings without database dependencies."""
@@ -27,13 +35,12 @@ def app_no_lifespan() -> FastAPI:
 
     This avoids database initialization for tests that don't need it.
     """
-    from fastapi import FastAPI
     from fastapi.middleware.cors import CORSMiddleware
 
     from src.config import settings
 
     test_app = FastAPI(
-        title="AgentEval API",
+        title="Neon API",
         description="Agent evaluation platform built on MLflow",
         version="0.1.0",
     )
@@ -53,7 +60,7 @@ def app_no_lifespan() -> FastAPI:
     @test_app.get("/")
     async def root() -> dict[str, str]:
         return {
-            "name": "AgentEval API",
+            "name": "Neon API",
             "version": "0.1.0",
             "docs": "/docs",
         }
