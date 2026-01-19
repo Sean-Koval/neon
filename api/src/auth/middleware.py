@@ -1,7 +1,7 @@
 """API key authentication middleware."""
 
+from collections.abc import Callable
 from datetime import datetime
-from typing import Callable
 
 import bcrypt
 from fastapi import Depends, HTTPException, status

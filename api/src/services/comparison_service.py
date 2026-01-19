@@ -5,8 +5,8 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.models.db import EvalResultModel, EvalRunModel, EvalCaseModel
-from src.routers.compare import CompareResponse, RegressionItem, RunReference
+from src.models.compare import CompareResponse, RegressionItem, RunReference
+from src.models.db import EvalCaseModel, EvalResultModel, EvalRunModel
 
 
 class ComparisonService:

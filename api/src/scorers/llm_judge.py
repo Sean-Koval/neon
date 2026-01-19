@@ -26,7 +26,7 @@ class LLMJudge:
                 )
                 self._client = GenerativeModel(self.model)
             except Exception as e:
-                raise RuntimeError(f"Failed to initialize Vertex AI: {e}")
+                raise RuntimeError(f"Failed to initialize Vertex AI: {e}") from e
 
         return self._client
 

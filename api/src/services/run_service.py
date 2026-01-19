@@ -7,6 +7,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from src.models.db import EvalCaseModel, EvalResultModel, EvalRunModel, EvalSuiteModel
 from src.models.eval import (
     EvalResult,
     EvalRun,
@@ -15,7 +16,6 @@ from src.models.eval import (
     EvalRunSummary,
     ScoreDetail,
 )
-from src.models.db import EvalCaseModel, EvalResultModel, EvalRunModel, EvalSuiteModel
 
 
 class RunService:

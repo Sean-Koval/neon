@@ -5,7 +5,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.auth.middleware import require_scope, verify_api_key
+from src.auth.middleware import require_scope
 from src.db.session import get_db
 from src.models.auth import ApiKey, ApiKeyCreate, ApiKeyList, ApiKeyResponse, ApiKeyScope
 from src.services.auth_service import AuthService
