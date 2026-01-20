@@ -1,0 +1,44 @@
+{
+  "id": "concept-scorer",
+  "name": "Scorer",
+  "type": "pattern",
+  "description": "Base class for all evaluation scorers. Scorers evaluate agent output against expected behavior and return a score with reasoning.",
+  "schema": {
+    "name": "string - scorer identifier",
+    "description": "string - what this scorer evaluates",
+    "score()": {
+      "args": {
+        "case": "EvalCaseModel",
+        "output": "dict[str, Any] - agent output with tools_called, output, etc.",
+        "config": "dict[str, Any] | None - scorer-specific config"
+      },
+      "returns": "ScorerResult"
+    }
+  },
+  "scorer_result": {
+    "score": "float (0.0 to 1.0)",
+    "reason": "string - explanation of score",
+    "evidence": "list[str] - supporting evidence"
+  },
+  "implementations": [
+    {
+      "name": "ToolSelectionScorer",
+      "task": "SCR-001",
+      "evaluates": "Whether agent selected appropriate tools"
+    },
+    {
+      "name": "ReasoningScorer",
+      "task": "SCR-002",
+      "evaluates": "Quality of reasoning chain"
+    },
+    {
+      "name": "GroundingScorer",
+      "task": "SCR-003",
+      "evaluates": "Whether output is grounded in context"
+    }
+  ],
+  "related_tasks": ["SCR-001", "SCR-002", "SCR-003"],
+  "research_refs": [
+    "docs/research/02-concept/architecture-spec.md"
+  ]
+}

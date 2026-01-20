@@ -1,0 +1,162 @@
+{
+  "project": "neon",
+  "version": "mvp",
+  "description": "Agent evaluation platform built on MLflow 3.7+ - MVP implementation",
+  "generated_at": "2026-01-19T00:00:00Z",
+  "source_research": [
+    "docs/research/README.md",
+    "docs/research/02-concept/scope.md",
+    "docs/research/02-concept/architecture-spec.md",
+    "docs/research/BUILD-READY.md"
+  ],
+  "phases": [
+    {
+      "id": "phase-1-foundation",
+      "name": "Foundation",
+      "description": "Project setup, data models, database schema, MLflow integration spike",
+      "status": "completed",
+      "objectives": [
+        "FastAPI project structure ready",
+        "PostgreSQL schema deployed",
+        "Pydantic models defined",
+        "MLflow integration validated"
+      ],
+      "success_criteria": [
+        "API server starts and responds to health check",
+        "Database migrations run successfully",
+        "Can create/read eval suite via API",
+        "MLflow trace capture works end-to-end"
+      ],
+      "depends_on": [],
+      "research_refs": [
+        "docs/research/02-concept/architecture-spec.md",
+        "docs/research/BUILD-READY.md"
+      ],
+      "estimated_days": 1
+    },
+    {
+      "id": "phase-2-scorers",
+      "name": "Scorers",
+      "description": "Implement the three core agent-specific scorers",
+      "status": "completed",
+      "objectives": [
+        "ToolSelectionScorer implemented",
+        "ReasoningScorer implemented",
+        "GroundingScorer implemented",
+        "All scorers tested with real traces"
+      ],
+      "success_criteria": [
+        "ToolSelectionScorer correctly scores tool choice quality",
+        "ReasoningScorer evaluates reasoning chain coherence",
+        "GroundingScorer checks response grounding in context",
+        "Unit tests pass for all scorers"
+      ],
+      "depends_on": ["phase-1-foundation"],
+      "research_refs": [
+        "docs/research/02-concept/architecture-spec.md#scorers"
+      ],
+      "estimated_days": 1
+    },
+    {
+      "id": "phase-3-runner-cli",
+      "name": "Eval Runner & CLI",
+      "description": "Evaluation execution engine and command-line interface",
+      "status": "not_started",
+      "objectives": [
+        "Eval runner executes suite against agent",
+        "Results stored with MLflow trace references",
+        "CLI commands: run, compare, suite",
+        "Regression detection algorithm working"
+      ],
+      "success_criteria": [
+        "agent-eval run <suite> executes and returns results",
+        "agent-eval compare <run1> <run2> shows regressions",
+        "Results persist to database",
+        "Regression threshold logic works"
+      ],
+      "depends_on": ["phase-2-scorers"],
+      "research_refs": [
+        "docs/research/02-concept/architecture-spec.md#cli-specification"
+      ],
+      "estimated_days": 1
+    },
+    {
+      "id": "phase-4-api-auth",
+      "name": "API & Authentication",
+      "description": "REST API endpoints and API key authentication",
+      "status": "not_started",
+      "objectives": [
+        "All API endpoints implemented",
+        "API key authentication working",
+        "Project scoping enforced",
+        "Rate limiting in place"
+      ],
+      "success_criteria": [
+        "Can CRUD suites/cases via API",
+        "Can trigger runs via API",
+        "Can compare runs via API",
+        "Invalid API keys rejected"
+      ],
+      "depends_on": ["phase-3-runner-cli"],
+      "research_refs": [
+        "docs/research/02-concept/architecture-spec.md#api-specification",
+        "docs/research/02-concept/architecture-spec.md#decision-2-authentication-model"
+      ],
+      "estimated_days": 1
+    },
+    {
+      "id": "phase-5-frontend",
+      "name": "Frontend Dashboard",
+      "description": "Next.js web UI for viewing results and comparisons",
+      "status": "not_started",
+      "objectives": [
+        "Dashboard overview page",
+        "Suite list and detail views",
+        "Run results with score breakdown",
+        "Regression comparison view"
+      ],
+      "success_criteria": [
+        "Can view all suites and runs",
+        "Score breakdown visible per case",
+        "Regression diff clearly shows changes",
+        "UI is responsive and functional"
+      ],
+      "depends_on": ["phase-4-api-auth"],
+      "research_refs": [
+        "docs/research/BUILD-READY.md#project-structure"
+      ],
+      "estimated_days": 1
+    },
+    {
+      "id": "phase-6-cicd-deploy",
+      "name": "CI/CD & Deployment",
+      "description": "GitHub Action and deployment infrastructure",
+      "status": "not_started",
+      "objectives": [
+        "GitHub Action working",
+        "Docker Compose for local dev",
+        "Documentation complete",
+        "Demo suite ready"
+      ],
+      "success_criteria": [
+        "GitHub Action blocks PR on regression",
+        "docker-compose up starts full stack",
+        "README quickstart works",
+        "Demo passes end-to-end"
+      ],
+      "depends_on": ["phase-5-frontend"],
+      "research_refs": [
+        "docs/research/02-concept/architecture-spec.md#github-action-specification"
+      ],
+      "estimated_days": 1
+    }
+  ],
+  "metrics": {
+    "total_phases": 6,
+    "phases_completed": 2,
+    "total_tasks": 8,
+    "estimated_hours": 26,
+    "completed_tasks": 8
+  },
+  "last_updated": "2026-01-20T00:35:00Z"
+}

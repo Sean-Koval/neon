@@ -1,0 +1,283 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "neon-project-schema-v1",
+  "title": "Neon Project Management Schema",
+  "description": "Schema definitions for 3-stage AI development lifecycle",
+
+  "$defs": {
+    "TaskStatus": {
+      "enum": ["pending", "ready", "in_progress", "blocked", "completed", "cancelled"]
+    },
+
+    "TaskType": {
+      "enum": ["implementation", "testing", "documentation", "infrastructure", "research", "review"]
+    },
+
+    "PhaseStatus": {
+      "enum": ["not_started", "active", "completed", "on_hold"]
+    },
+
+    "Task": {
+      "type": "object",
+      "required": ["id", "title", "phase_id", "type", "status"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Z]+-[0-9]{3}$",
+          "description": "Task ID format: PREFIX-NNN (e.g., SCR-001)"
+        },
+        "title": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "description": {
+          "type": "string"
+        },
+        "phase_id": {
+          "type": "string",
+          "description": "Reference to parent phase"
+        },
+        "type": {
+          "$ref": "#/$defs/TaskType"
+        },
+        "status": {
+          "$ref": "#/$defs/TaskStatus"
+        },
+        "scope": {
+          "type": "object",
+          "properties": {
+            "primary_files": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Files to create or modify"
+            },
+            "test_files": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "related_files": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Files to reference but not modify"
+            }
+          }
+        },
+        "dependencies": {
+          "type": "object",
+          "properties": {
+            "blocked_by": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Task IDs that must complete first"
+            },
+            "blocks": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Task IDs waiting on this"
+            },
+            "parallel_with": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Tasks that can run concurrently"
+            }
+          }
+        },
+        "acceptance_criteria": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "context": {
+          "type": "object",
+          "properties": {
+            "research_refs": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Paths to relevant research docs"
+            },
+            "code_refs": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Code references (file:symbol)"
+            },
+            "concept_refs": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "References to concept files"
+            }
+          }
+        },
+        "estimated_hours": {
+          "type": "number"
+        },
+        "worktree": {
+          "type": "object",
+          "description": "Git worktree tracking",
+          "properties": {
+            "branch": { "type": "string" },
+            "path": { "type": "string" },
+            "created_at": { "type": "string", "format": "date-time" }
+          }
+        },
+        "pr": {
+          "type": "object",
+          "properties": {
+            "number": { "type": "integer" },
+            "url": { "type": "string" },
+            "status": { "enum": ["draft", "open", "merged", "closed"] }
+          }
+        },
+        "created_at": { "type": "string", "format": "date-time" },
+        "started_at": { "type": "string", "format": "date-time" },
+        "completed_at": { "type": "string", "format": "date-time" }
+      }
+    },
+
+    "Phase": {
+      "type": "object",
+      "required": ["id", "name", "status"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^phase-[0-9]+(-[a-z]+)?$"
+        },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "status": { "$ref": "#/$defs/PhaseStatus" },
+        "objectives": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "success_criteria": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "depends_on": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Phase IDs that must complete first"
+        },
+        "research_refs": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+
+    "Concept": {
+      "type": "object",
+      "required": ["id", "name", "type"],
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "type": {
+          "enum": ["data_model", "api_endpoint", "component", "service", "infrastructure", "pattern"]
+        },
+        "description": { "type": "string" },
+        "schema": {
+          "type": "object",
+          "description": "For data models, the schema definition"
+        },
+        "related_tasks": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "research_refs": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+
+    "Roadmap": {
+      "type": "object",
+      "required": ["project", "version", "phases"],
+      "properties": {
+        "project": { "type": "string" },
+        "version": { "type": "string" },
+        "description": { "type": "string" },
+        "generated_at": { "type": "string", "format": "date-time" },
+        "source_research": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Research docs used to generate this roadmap"
+        },
+        "phases": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/Phase" }
+        },
+        "metrics": {
+          "type": "object",
+          "properties": {
+            "total_phases": { "type": "integer" },
+            "total_tasks": { "type": "integer" },
+            "estimated_hours": { "type": "number" },
+            "completed_tasks": { "type": "integer" }
+          }
+        }
+      }
+    },
+
+    "TaskIndex": {
+      "type": "object",
+      "required": ["tasks", "dependency_graph"],
+      "properties": {
+        "tasks": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "file": { "type": "string" },
+              "status": { "$ref": "#/$defs/TaskStatus" },
+              "phase_id": { "type": "string" }
+            }
+          }
+        },
+        "dependency_graph": {
+          "type": "object",
+          "description": "Adjacency list for task dependencies"
+        },
+        "parallel_groups": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "description": "Groups of tasks that can execute in parallel"
+        },
+        "ready_tasks": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Tasks with no blocking dependencies"
+        }
+      }
+    },
+
+    "ProjectState": {
+      "type": "object",
+      "required": ["stage"],
+      "properties": {
+        "stage": {
+          "enum": ["research", "planning", "implementation"],
+          "description": "Current development stage"
+        },
+        "current_phase": { "type": "string" },
+        "active_tasks": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "active_worktrees": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "task_id": { "type": "string" },
+              "branch": { "type": "string" },
+              "path": { "type": "string" }
+            }
+          }
+        },
+        "last_updated": { "type": "string", "format": "date-time" }
+      }
+    }
+  }
+}

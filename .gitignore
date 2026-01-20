@@ -89,3 +89,10 @@ logs/
 *.pyc
 *.pyo
 *.whl
+
+# Worktree sessions (ephemeral)
+.worktree-sessions.json
+.task-session.json
+
+# Serena cache
+.serena/cache/

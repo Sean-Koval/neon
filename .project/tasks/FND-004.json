@@ -1,0 +1,41 @@
+{
+  "id": "FND-004",
+  "title": "Create database migrations",
+  "description": "Set up Alembic and create initial migration for all tables.",
+  "phase_id": "phase-1-foundation",
+  "type": "infrastructure",
+  "status": "completed",
+  "completed_at": "2026-01-20T00:30:34Z",
+  "pr_merged": "https://github.com/Sean-Koval/neon/pull/8",
+  "scope": {
+    "primary_files": [
+      "api/alembic.ini",
+      "api/alembic/env.py",
+      "api/alembic/versions/001_initial.py"
+    ],
+    "test_files": [],
+    "related_files": [
+      "api/src/models/db.py"
+    ]
+  },
+  "dependencies": {
+    "blocked_by": ["FND-003"],
+    "blocks": ["FND-005"],
+    "parallel_with": []
+  },
+  "acceptance_criteria": [
+    "Alembic configured for async SQLAlchemy",
+    "Initial migration creates all tables",
+    "make db-migrate runs successfully",
+    "make db-revision creates new migrations",
+    "Migrations are reversible"
+  ],
+  "context": {
+    "research_refs": [
+      "docs/research/BUILD-READY.md#local-development-setup"
+    ],
+    "code_refs": []
+  },
+  "estimated_hours": 2,
+  "created_at": "2026-01-19T00:00:00Z"
+}

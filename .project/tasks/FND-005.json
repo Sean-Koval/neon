@@ -1,0 +1,59 @@
+{
+  "id": "FND-005",
+  "title": "MLflow integration spike",
+  "description": "Validate MLflow 3.7+ integration: tracing, span capture, experiment management.",
+  "phase_id": "phase-1-foundation",
+  "type": "research",
+  "status": "completed",
+  "completed_at": "2026-01-19T16:30:00-05:00",
+  "scope": {
+    "primary_files": [
+      "api/src/services/mlflow_client.py"
+    ],
+    "test_files": [
+      "api/tests/services/test_mlflow.py"
+    ],
+    "related_files": [
+      "docker-compose.yml"
+    ]
+  },
+  "dependencies": {
+    "blocked_by": [
+      "FND-001"
+    ],
+    "blocks": [
+      "SCR-001",
+      "SCR-002",
+      "SCR-003",
+      "RUN-001"
+    ],
+    "parallel_with": [
+      "FND-002",
+      "FND-003",
+      "FND-004"
+    ]
+  },
+  "acceptance_criteria": [
+    "MLflow tracking server configured in docker-compose",
+    "Can set experiment programmatically",
+    "Can start/end runs with tags",
+    "Can capture traces from agent execution",
+    "Can query traces by tag",
+    "TraceSummary extraction working"
+  ],
+  "context": {
+    "research_refs": [
+      "docs/research/02-concept/architecture-spec.md#decision-3-mlflow-integration-pattern",
+      "docs/research/01-research/technical/feasibility.md"
+    ],
+    "code_refs": []
+  },
+  "estimated_hours": 4,
+  "created_at": "2026-01-19T00:00:00Z",
+  "started_at": "2026-01-19T15:54:40-05:00",
+  "worktree": {
+    "branch": "task/FND-005",
+    "path": "/home/seanm/repos/neon-task-FND-005",
+    "created_at": "2026-01-19T15:54:40-05:00"
+  }
+}

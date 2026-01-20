@@ -1,0 +1,61 @@
+{
+  "id": "SCR-001",
+  "title": "Implement ToolSelectionScorer",
+  "description": "Create scorer that evaluates whether the agent selected appropriate tools for the task.",
+  "phase_id": "phase-2-scorers",
+  "type": "implementation",
+  "status": "completed",
+  "completed_at": "2026-01-19T17:00:00-05:00",
+  "scope": {
+    "primary_files": [
+      "api/src/scorers/tool_selection.py"
+    ],
+    "test_files": [
+      "api/tests/scorers/test_tool_selection.py"
+    ],
+    "related_files": [
+      "api/src/scorers/base.py",
+      "api/src/models/eval.py"
+    ]
+  },
+  "dependencies": {
+    "blocked_by": [
+      "FND-005"
+    ],
+    "blocks": [
+      "RUN-001"
+    ],
+    "parallel_with": [
+      "SCR-002",
+      "SCR-003"
+    ]
+  },
+  "acceptance_criteria": [
+    "Extends Scorer base class",
+    "score() method returns ScorerResult with score 0-1",
+    "Evaluates expected_tools against actual tools_called",
+    "Evaluates expected_tool_sequence when provided",
+    "Partial matches get proportional scores",
+    "Extra tool calls reduce score appropriately",
+    "Clear reasoning in ScorerResult.reason",
+    "Unit tests: exact match, partial match, sequence order, no tools expected",
+    "make lint && make typecheck passes"
+  ],
+  "context": {
+    "research_refs": [
+      "docs/research/02-concept/architecture-spec.md"
+    ],
+    "code_refs": [
+      "api/src/scorers/base.py:Scorer",
+      "api/src/scorers/base.py:ScorerResult"
+    ]
+  },
+  "estimated_hours": 4,
+  "created_at": "2026-01-19T00:00:00Z",
+  "started_at": "2026-01-19T16:43:16-05:00",
+  "worktree": {
+    "branch": "task/SCR-001",
+    "path": "/home/seanm/repos/neon-task-SCR-001",
+    "created_at": "2026-01-19T16:43:16-05:00"
+  }
+}

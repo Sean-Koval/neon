@@ -1,0 +1,61 @@
+{
+  "id": "SCR-002",
+  "title": "Implement ReasoningScorer",
+  "description": "Create scorer that evaluates the quality of agent's reasoning chain using LLM judge.",
+  "phase_id": "phase-2-scorers",
+  "type": "implementation",
+  "status": "completed",
+  "completed_at": "2026-01-19T23:16:03Z",
+  "pr_merged": "https://github.com/Sean-Koval/neon/pull/5",
+  "scope": {
+    "primary_files": [
+      "api/src/scorers/reasoning.py"
+    ],
+    "test_files": [
+      "api/tests/scorers/test_reasoning.py"
+    ],
+    "related_files": [
+      "api/src/scorers/base.py",
+      "api/src/scorers/llm_judge.py"
+    ]
+  },
+  "dependencies": {
+    "blocked_by": [
+      "FND-005"
+    ],
+    "blocks": [
+      "RUN-001"
+    ],
+    "parallel_with": [
+      "SCR-001",
+      "SCR-003"
+    ]
+  },
+  "acceptance_criteria": [
+    "Extends Scorer base class",
+    "Uses Vertex AI SDK for LLM judge calls",
+    "Evaluates reasoning coherence and completeness",
+    "Checks for logical fallacies or gaps",
+    "Configurable rubric/criteria",
+    "Returns score with detailed reasoning",
+    "Handles cases with no explicit reasoning",
+    "Unit tests with mocked LLM responses",
+    "make lint && make typecheck passes"
+  ],
+  "context": {
+    "research_refs": [
+      "docs/research/02-concept/architecture-spec.md"
+    ],
+    "code_refs": [
+      "api/src/scorers/base.py:Scorer"
+    ]
+  },
+  "estimated_hours": 4,
+  "created_at": "2026-01-19T00:00:00Z",
+  "started_at": "2026-01-19T17:20:53-05:00",
+  "worktree": {
+    "branch": "task/SCR-002",
+    "path": "/home/seanm/repos/neon-task-SCR-002",
+    "created_at": "2026-01-19T17:20:53-05:00"
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "id": "concept-eval-suite",
+  "name": "EvalSuite",
+  "type": "data_model",
+  "description": "A collection of test cases for evaluating an agent. Defines default scorers, thresholds, and execution settings.",
+  "schema": {
+    "name": "string (required)",
+    "description": "string (optional)",
+    "agent_id": "string (required) - identifier for the agent being tested",
+    "default_scorers": ["tool_selection", "reasoning", "grounding"],
+    "default_min_score": "float (0.7)",
+    "default_timeout_seconds": "integer (300)",
+    "cases": "EvalCase[]",
+    "parallel": "boolean (true)",
+    "stop_on_failure": "boolean (false)"
+  },
+  "related_tasks": ["FND-002", "FND-003", "API-001"],
+  "research_refs": [
+    "docs/research/02-concept/architecture-spec.md#test-case-schema"
+  ],
+  "api_endpoints": [
+    "GET /v1/suites",
+    "POST /v1/suites",
+    "GET /v1/suites/{id}",
+    "PATCH /v1/suites/{id}",
+    "DELETE /v1/suites/{id}"
+  ],
+  "yaml_example": "name: core-tests\nagent_id: research-agent\ndefault_scorers:\n  - tool_selection\n  - reasoning\ncases:\n  - name: factual_search\n    input:\n      query: \"What is the capital of France?\"\n    expected_tools:\n      - web_search"
+}

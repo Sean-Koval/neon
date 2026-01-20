@@ -1,0 +1,21 @@
+{
+  "stage": "implementation",
+  "current_phase": "phase-3-runner-cli",
+  "completed_phases": ["phase-1-foundation", "phase-2-scorers"],
+  "active_tasks": [],
+  "active_worktrees": [],
+  "last_updated": "2026-01-20T00:35:00Z",
+  "meta": {
+    "project": "neon",
+    "description": "Agent evaluation platform built on MLflow",
+    "research_complete": true,
+    "planning_complete": true,
+    "implementation_started": true
+  },
+  "progress": {
+    "total_tasks": 8,
+    "completed_tasks": 8,
+    "phases_completed": 2,
+    "phases_total": 6
+  }
+}

@@ -1,0 +1,60 @@
+{
+  "id": "SCR-003",
+  "title": "Implement GroundingScorer",
+  "description": "Create scorer that evaluates whether agent's response is grounded in context/tool results.",
+  "phase_id": "phase-2-scorers",
+  "type": "implementation",
+  "status": "completed",
+  "completed_at": "2026-01-19T23:16:10Z",
+  "pr_merged": "https://github.com/Sean-Koval/neon/pull/6",
+  "scope": {
+    "primary_files": [
+      "api/src/scorers/grounding.py"
+    ],
+    "test_files": [
+      "api/tests/scorers/test_grounding.py"
+    ],
+    "related_files": [
+      "api/src/scorers/base.py",
+      "api/src/scorers/llm_judge.py"
+    ]
+  },
+  "dependencies": {
+    "blocked_by": [
+      "FND-005"
+    ],
+    "blocks": [
+      "RUN-001"
+    ],
+    "parallel_with": [
+      "SCR-001",
+      "SCR-002"
+    ]
+  },
+  "acceptance_criteria": [
+    "Extends Scorer base class",
+    "Checks output against expected_output_contains",
+    "Checks output against expected_output_pattern (regex)",
+    "Uses LLM judge for semantic grounding evaluation",
+    "Detects hallucinations not supported by context",
+    "Returns score with evidence from context",
+    "Unit tests: contains match, pattern match, hallucination detection",
+    "make lint && make typecheck passes"
+  ],
+  "context": {
+    "research_refs": [
+      "docs/research/02-concept/architecture-spec.md"
+    ],
+    "code_refs": [
+      "api/src/scorers/base.py:Scorer"
+    ]
+  },
+  "estimated_hours": 3,
+  "created_at": "2026-01-19T00:00:00Z",
+  "started_at": "2026-01-19T17:21:52-05:00",
+  "worktree": {
+    "branch": "task/SCR-003",
+    "path": "/home/seanm/repos/neon-task-SCR-003",
+    "created_at": "2026-01-19T17:21:52-05:00"
+  }
+}

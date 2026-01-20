@@ -4,49 +4,57 @@
       "file": "tasks/FND-001.json",
       "status": "completed",
       "phase_id": "phase-1-foundation",
-      "title": "Setup FastAPI project structure"
+      "title": "Setup FastAPI project structure",
+      "pr_merged": "https://github.com/Sean-Koval/neon/pull/1"
     },
     "FND-002": {
       "file": "tasks/FND-002.json",
       "status": "completed",
       "phase_id": "phase-1-foundation",
-      "title": "Define Pydantic models for eval entities"
+      "title": "Define Pydantic models for eval entities",
+      "pr_merged": "https://github.com/Sean-Koval/neon/pull/4"
     },
     "FND-003": {
       "file": "tasks/FND-003.json",
-      "status": "pending",
+      "status": "completed",
       "phase_id": "phase-1-foundation",
-      "title": "Create SQLAlchemy database models"
+      "title": "Create SQLAlchemy database models",
+      "pr_merged": "https://github.com/Sean-Koval/neon/pull/7"
     },
     "FND-004": {
       "file": "tasks/FND-004.json",
-      "status": "pending",
+      "status": "completed",
       "phase_id": "phase-1-foundation",
-      "title": "Create database migrations"
+      "title": "Create database migrations",
+      "pr_merged": "https://github.com/Sean-Koval/neon/pull/8"
     },
     "FND-005": {
       "file": "tasks/FND-005.json",
       "status": "completed",
       "phase_id": "phase-1-foundation",
-      "title": "MLflow integration spike"
+      "title": "MLflow integration spike",
+      "pr_merged": "https://github.com/Sean-Koval/neon/pull/2"
     },
     "SCR-001": {
       "file": "tasks/SCR-001.json",
       "status": "completed",
       "phase_id": "phase-2-scorers",
-      "title": "Implement ToolSelectionScorer"
+      "title": "Implement ToolSelectionScorer",
+      "pr_merged": "https://github.com/Sean-Koval/neon/pull/3"
     },
     "SCR-002": {
       "file": "tasks/SCR-002.json",
-      "status": "pending",
+      "status": "completed",
       "phase_id": "phase-2-scorers",
-      "title": "Implement ReasoningScorer"
+      "title": "Implement ReasoningScorer",
+      "pr_merged": "https://github.com/Sean-Koval/neon/pull/5"
     },
     "SCR-003": {
       "file": "tasks/SCR-003.json",
-      "status": "pending",
+      "status": "completed",
       "phase_id": "phase-2-scorers",
-      "title": "Implement GroundingScorer"
+      "title": "Implement GroundingScorer",
+      "pr_merged": "https://github.com/Sean-Koval/neon/pull/6"
     }
   },
   "dependency_graph": {
@@ -71,22 +79,21 @@
       "reason": "All three scorers can be implemented in parallel"
     }
   ],
-  "ready_tasks": ["FND-003", "SCR-002", "SCR-003"],
+  "ready_tasks": [],
   "critical_path": [
     "FND-001",
     "FND-002",
     "FND-003",
-    "FND-004",
-    "FND-005",
-    "SCR-001"
+    "FND-004"
   ],
   "metrics": {
     "total_tasks": 8,
-    "pending": 4,
+    "pending": 0,
     "in_progress": 0,
-    "completed": 4,
+    "completed": 8,
     "estimated_hours_total": 26,
-    "estimated_hours_parallel": 15
+    "actual_hours_total": null
   },
-  "last_computed": "2026-01-19T00:00:00Z"
+  "phases_completed": ["phase-1-foundation", "phase-2-scorers"],
+  "last_computed": "2026-01-20T00:35:00Z"
 }
