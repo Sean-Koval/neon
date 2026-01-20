@@ -11,6 +11,7 @@ from sqlalchemy import (
     DateTime,
     Float,
     ForeignKey,
+    Index,
     Integer,
     String,
     Text,
@@ -63,7 +64,7 @@ class ApiKeyModel(Base):
     key_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     project_id: Mapped[UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE")
+        UUID(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"), index=True
     )
     scopes: Mapped[list[str]] = mapped_column(ARRAY(Text), default=["read"])
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
@@ -155,12 +156,12 @@ class EvalRunModel(Base):
 
     id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
     suite_id: Mapped[UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("eval_suites.id", ondelete="CASCADE")
+        UUID(as_uuid=True), ForeignKey("eval_suites.id", ondelete="CASCADE"), index=True
     )
     project_id: Mapped[UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE")
     )
-    agent_version: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    agent_version: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
     trigger: Mapped[str] = mapped_column(String(50), nullable=False)
     trigger_ref: Mapped[str | None] = mapped_column(String(255), nullable=True)
     status: Mapped[str] = mapped_column(String(50), default="pending")
@@ -169,6 +170,10 @@ class EvalRunModel(Base):
     started_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    __table_args__ = (
+        Index("idx_eval_runs_project_status", "project_id", "status"),
+    )
 
     # Relationships
     suite: Mapped["EvalSuiteModel"] = relationship(back_populates="runs")
@@ -185,10 +190,10 @@ class EvalResultModel(Base):
 
     id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid4)
     run_id: Mapped[UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("eval_runs.id", ondelete="CASCADE")
+        UUID(as_uuid=True), ForeignKey("eval_runs.id", ondelete="CASCADE"), index=True
     )
     case_id: Mapped[UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("eval_cases.id", ondelete="CASCADE")
+        UUID(as_uuid=True), ForeignKey("eval_cases.id", ondelete="CASCADE"), index=True
     )
     mlflow_run_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
     mlflow_trace_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
