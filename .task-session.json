@@ -1,30 +1,31 @@
 {
-  "task_id": "FND-001",
-  "title": "Setup FastAPI project structure",
-  "started_at": "2026-01-19T14:55:49-05:00",
+  "task_id": "FND-003",
+  "title": "Create SQLAlchemy database models",
+  "started_at": "2026-01-19T18:30:51-05:00",
   "scope": {
     "primary_files": [
-      "api/src/main.py",
-      "api/src/config.py"
+      "api/src/models/db.py",
+      "api/src/db/session.py"
     ],
     "test_files": [
-      "api/tests/test_health.py"
+      "api/tests/db/test_models.py"
     ],
     "related_files": [
-      "api/pyproject.toml",
-      "docker-compose.yml"
+      "api/src/models/eval.py"
     ]
   },
   "acceptance_criteria": [
-    "FastAPI app starts with uvicorn",
-    "Health check endpoint returns 200",
-    "Config loads from environment variables",
-    "CORS middleware configured",
-    "make api command works"
+    "SQLAlchemy async engine configured",
+    "Project, ApiKey tables defined",
+    "EvalSuite, EvalCase tables defined",
+    "EvalRun, EvalResult tables defined",
+    "Proper relationships and foreign keys",
+    "Indexes on frequently queried columns",
+    "AsyncSession factory working"
   ],
   "context": {
     "research_refs": [
-      "docs/research/BUILD-READY.md#local-development-setup"
+      "docs/research/02-concept/architecture-spec.md#complete-database-schema"
     ],
     "code_refs": []
   }
