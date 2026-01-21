@@ -1,7 +1,8 @@
 """Eval runner service - executes evaluations against agents."""
 
 import asyncio
-import time
+from collections.abc import Callable
+from dataclasses import asdict
 from datetime import datetime
 from typing import Any, Protocol
 from uuid import UUID
@@ -14,6 +15,7 @@ from src.scorers.base import Scorer
 from src.scorers.grounding import GroundingScorer
 from src.scorers.reasoning import ReasoningScorer
 from src.scorers.tool_selection import ToolSelectionScorer
+from src.services.mlflow_client import NeonMLflowClient, get_mlflow_client
 
 
 class AgentProtocol(Protocol):
@@ -25,10 +27,21 @@ class AgentProtocol(Protocol):
 
 
 class EvalRunner:
-    """Service for executing evaluations."""
+    """Service for executing evaluations with MLflow tracing."""
 
-    def __init__(self, db: AsyncSession):
+    def __init__(
+        self,
+        db: AsyncSession,
+        mlflow_client: NeonMLflowClient | None = None,
+    ):
+        """Initialize the eval runner.
+
+        Args:
+            db: Database session for storing results.
+            mlflow_client: MLflow client for traced execution. Defaults to singleton.
+        """
         self.db = db
+        self.mlflow_client = mlflow_client or get_mlflow_client()
         self.scorers: dict[str, Scorer] = {
             "tool_selection": ToolSelectionScorer(),
             "reasoning": ReasoningScorer(),
@@ -39,9 +52,22 @@ class EvalRunner:
         self,
         run: EvalRunModel,
         suite: EvalSuiteModel,
-        agent: AgentProtocol,
+        agent: AgentProtocol | Callable[..., Any],
     ) -> None:
-        """Execute all cases in a run."""
+        """Execute all cases in a run with MLflow tracing.
+
+        Each case execution is traced via MLflow and tagged with neon.* tags
+        for querying. The experiment is set per project_id.
+
+        Args:
+            run: The eval run record to execute.
+            suite: The eval suite containing cases to run.
+            agent: The agent to test (protocol or callable).
+        """
+        # Set experiment for this project (creates neon-{project_id} experiment)
+        project_id = str(run.project_id)
+        self.mlflow_client.set_experiment(project_id)
+
         # Update run status
         run.status = EvalRunStatus.RUNNING.value
         run.started_at = datetime.utcnow()
@@ -58,13 +84,13 @@ class EvalRunner:
 
             if parallel:
                 tasks = [
-                    self._execute_case(run, case, agent)
+                    self._execute_case(run, case, suite, agent)
                     for case in cases
                 ]
                 await asyncio.gather(*tasks, return_exceptions=True)
             else:
                 for case in cases:
-                    result = await self._execute_case(run, case, agent)
+                    result = await self._execute_case(run, case, suite, agent)
                     if stop_on_failure and not result.passed:
                         break
 
@@ -85,37 +111,97 @@ class EvalRunner:
         self,
         run: EvalRunModel,
         case: EvalCaseModel,
-        agent: AgentProtocol,
+        suite: EvalSuiteModel,
+        agent: AgentProtocol | Callable[..., Any],
     ) -> EvalResultModel:
-        """Execute a single test case."""
-        start_time = time.time()
+        """Execute a single test case with MLflow tracing.
+
+        The agent execution is wrapped with MLflow tracing, capturing:
+        - mlflow_run_id: The MLflow run ID for this case
+        - mlflow_trace_id: The trace ID (if tracing captured)
+        - TraceSummary: Tool calls, LLM calls, tokens in score_details
+
+        Args:
+            run: The parent eval run.
+            case: The test case to execute.
+            suite: The parent eval suite.
+            agent: The agent to test.
+
+        Returns:
+            The EvalResultModel with execution results.
+        """
         status = "success"
         output: dict[str, Any] | None = None
         error: str | None = None
         scores: dict[str, float] = {}
         score_details: dict[str, Any] = {}
+        mlflow_run_id: str | None = None
+        mlflow_trace_id: str | None = None
+        execution_time_ms: int = 0
 
         try:
-            # Execute agent
+            # Build agent callable
             query = case.input.get("query", "")
             context = case.input.get("context", {})
-            output = agent.run(query, context)
 
-            # Run scorers
-            for scorer_name in case.scorers:
-                scorer = self.scorers.get(scorer_name)
-                if scorer:
-                    result = await scorer.score(
-                        case=case,
-                        output=output,
-                        config=case.scorer_config,
-                    )
-                    scores[scorer_name] = result.score
-                    score_details[scorer_name] = {
-                        "score": result.score,
-                        "reason": result.reason,
-                        "evidence": result.evidence,
-                    }
+            # Create wrapper function for agent execution
+            def agent_callable(query: str, context: dict[str, Any] | None = None) -> Any:
+                if hasattr(agent, "run"):
+                    return agent.run(query, context)
+                return agent(query, context)
+
+            # Execute agent with MLflow tracing
+            run_name = f"{run.id}/{case.name}"
+            tags = {
+                "run_id": str(run.id),
+                "case_name": case.name,
+                "suite_id": str(suite.id),
+                "suite_name": suite.name,
+                "project_id": str(run.project_id),
+            }
+            if run.agent_version:
+                tags["agent_version"] = run.agent_version
+
+            exec_result = self.mlflow_client.execute_with_tracing(
+                agent_fn=agent_callable,
+                input_data={"query": query, "context": context},
+                run_name=run_name,
+                tags=tags,
+                timeout_seconds=case.timeout_seconds,
+            )
+
+            # Extract results from execution
+            mlflow_run_id = exec_result.mlflow_run_id
+            mlflow_trace_id = exec_result.mlflow_trace_id
+            execution_time_ms = exec_result.execution_time_ms
+
+            if exec_result.status == "success":
+                output = exec_result.output
+                status = "success"
+            else:
+                status = "error"
+                error = exec_result.error
+
+            # Add trace summary to score_details if available
+            if exec_result.trace_summary:
+                score_details["trace_summary"] = asdict(exec_result.trace_summary)
+
+            # Run scorers if execution was successful
+            if status == "success" and output is not None:
+                for scorer_name in case.scorers:
+                    scorer = self.scorers.get(scorer_name)
+                    if scorer:
+                        scorer_result = await scorer.score(
+                            case=case,
+                            output=output,
+                            config=case.scorer_config,
+                        )
+                        scores[scorer_name] = scorer_result.score
+                        score_details[scorer_name] = {
+                            "score": scorer_result.score,
+                            "reason": scorer_result.reason,
+                            "evidence": scorer_result.evidence,
+                        }
 
         except TimeoutError:
             status = "timeout"
@@ -124,16 +210,16 @@ class EvalRunner:
             status = "error"
             error = str(e)
 
-        execution_time_ms = int((time.time() - start_time) * 1000)
-
         # Calculate pass/fail
         avg_score = sum(scores.values()) / len(scores) if scores else 0.0
         passed = avg_score >= case.min_score and status == "success"
 
-        # Store result
+        # Store result with MLflow IDs
         result = EvalResultModel(
             run_id=run.id,
             case_id=case.id,
+            mlflow_run_id=mlflow_run_id,
+            mlflow_trace_id=mlflow_trace_id,
             status=status,
             output=output,
             scores=scores,
