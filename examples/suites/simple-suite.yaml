@@ -1,0 +1,67 @@
+# Simple Eval Suite
+# Minimal test cases for quick validation and testing
+#
+# Usage:
+#   agent-eval suite validate examples/suites/simple-suite.yaml
+#   agent-eval run examples/suites/simple-suite.yaml --agent examples.agents.mock_agent:run
+
+name: simple-suite
+description: Minimal test suite for quick validation
+agent_id: examples.agents.mock_agent:run
+
+default_scorers:
+  - tool_selection
+  - reasoning
+
+default_min_score: 0.7
+default_timeout_seconds: 60
+
+cases:
+  - name: basic_query
+    description: Simple query that should return a direct answer
+    input:
+      query: "What is 2 + 2?"
+      context: {}
+    expected_tools: []
+    expected_output_contains:
+      - "4"
+    min_score: 0.6
+    tags:
+      - basic
+      - no-tools
+
+  - name: tool_usage
+    description: Query that requires using a search tool
+    input:
+      query: "What is the capital of France?"
+      context:
+        require_search: true
+    expected_tools:
+      - web_search
+    expected_output_contains:
+      - "Paris"
+    scorers:
+      - tool_selection
+      - reasoning
+      - grounding
+    tags:
+      - search
+      - factual
+
+  - name: multi_step
+    description: Query requiring multiple tool calls
+    input:
+      query: "Compare the populations of Tokyo and New York"
+      context:
+        require_search: true
+        multi_step: true
+    expected_tools:
+      - web_search
+    expected_output_contains:
+      - "Tokyo"
+      - "New York"
+    min_score: 0.7
+    timeout_seconds: 120
+    tags:
+      - multi-step
+      - comparison
