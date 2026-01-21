@@ -1,32 +1,38 @@
 {
-  "task_id": "FND-003",
-  "title": "Create SQLAlchemy database models",
-  "started_at": "2026-01-19T18:30:51-05:00",
+  "task_id": "RUN-005",
+  "title": "Create example eval suite and demo agent",
+  "started_at": "2026-01-20T21:28:08-05:00",
   "scope": {
     "primary_files": [
-      "api/src/models/db.py",
-      "api/src/db/session.py"
+      "examples/suites/demo-suite.yaml",
+      "examples/suites/simple-suite.yaml",
+      "examples/agents/demo_agent.py",
+      "examples/agents/mock_agent.py",
+      "examples/README.md"
     ],
-    "test_files": [
-      "api/tests/db/test_models.py"
-    ],
+    "test_files": [],
     "related_files": [
+      "cli/src/loader.py",
       "api/src/models/eval.py"
     ]
   },
   "acceptance_criteria": [
-    "SQLAlchemy async engine configured",
-    "Project, ApiKey tables defined",
-    "EvalSuite, EvalCase tables defined",
-    "EvalRun, EvalResult tables defined",
-    "Proper relationships and foreign keys",
-    "Indexes on frequently queried columns",
-    "AsyncSession factory working"
+    "demo-suite.yaml contains 5+ test cases covering all scorer types",
+    "simple-suite.yaml contains 2-3 minimal cases for quick testing",
+    "demo_agent.py implements AgentProtocol with real tool simulation",
+    "mock_agent.py returns predictable outputs for deterministic testing",
+    "Mock agent supports configurable pass/fail scenarios",
+    "README.md documents how to run examples",
+    "Examples pass agent-eval suite validate",
+    "Examples work with both local and API execution modes"
   ],
   "context": {
     "research_refs": [
-      "docs/research/02-concept/architecture-spec.md#complete-database-schema"
+      "docs/research/02-concept/architecture-spec.md#yaml-format",
+      "docs/research/02-concept/architecture-spec.md#test-case-schema"
     ],
-    "code_refs": []
+    "code_refs": [
+      "cli/src/loader.py:EvalSuiteSchema"
+    ]
   }
 }
