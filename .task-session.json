@@ -1,38 +1,36 @@
 {
-  "task_id": "RUN-005",
-  "title": "Create example eval suite and demo agent",
-  "started_at": "2026-01-20T21:28:08-05:00",
+  "task_id": "RUN-002",
+  "title": "Implement agent loader from module path",
+  "started_at": "2026-01-20T21:27:34-05:00",
   "scope": {
     "primary_files": [
-      "examples/suites/demo-suite.yaml",
-      "examples/suites/simple-suite.yaml",
-      "examples/agents/demo_agent.py",
-      "examples/agents/mock_agent.py",
-      "examples/README.md"
+      "api/src/agent/loader.py",
+      "api/src/agent/__init__.py"
     ],
-    "test_files": [],
+    "test_files": [
+      "api/tests/agent/test_loader.py"
+    ],
     "related_files": [
-      "cli/src/loader.py",
-      "api/src/models/eval.py"
+      "api/src/services/eval_runner.py",
+      "cli/src/commands/run.py"
     ]
   },
   "acceptance_criteria": [
-    "demo-suite.yaml contains 5+ test cases covering all scorer types",
-    "simple-suite.yaml contains 2-3 minimal cases for quick testing",
-    "demo_agent.py implements AgentProtocol with real tool simulation",
-    "mock_agent.py returns predictable outputs for deterministic testing",
-    "Mock agent supports configurable pass/fail scenarios",
-    "README.md documents how to run examples",
-    "Examples pass agent-eval suite validate",
-    "Examples work with both local and API execution modes"
+    "load_agent('module:function') returns a callable that matches AgentProtocol",
+    "load_agent('module:Class') instantiates class and returns instance.run method",
+    "Support for relative imports within project (src.agents.foo:bar)",
+    "Clear error messages when module not found or callable doesn't exist",
+    "Validation that loaded callable has correct signature",
+    "LangChainAdapter wraps LangChain agents automatically",
+    "CallableAdapter wraps simple functions automatically",
+    "Unit tests cover all loading scenarios"
   ],
   "context": {
     "research_refs": [
-      "docs/research/02-concept/architecture-spec.md#yaml-format",
-      "docs/research/02-concept/architecture-spec.md#test-case-schema"
+      "docs/research/02-concept/architecture-spec.md#agent-interface"
     ],
     "code_refs": [
-      "cli/src/loader.py:EvalSuiteSchema"
+      "api/src/services/eval_runner.py:AgentProtocol"
     ]
   }
 }
