@@ -1,32 +1,36 @@
 {
-  "task_id": "FND-003",
-  "title": "Create SQLAlchemy database models",
-  "started_at": "2026-01-19T18:30:51-05:00",
+  "task_id": "RUN-002",
+  "title": "Implement agent loader from module path",
+  "started_at": "2026-01-20T21:27:34-05:00",
   "scope": {
     "primary_files": [
-      "api/src/models/db.py",
-      "api/src/db/session.py"
+      "api/src/agent/loader.py",
+      "api/src/agent/__init__.py"
     ],
     "test_files": [
-      "api/tests/db/test_models.py"
+      "api/tests/agent/test_loader.py"
     ],
     "related_files": [
-      "api/src/models/eval.py"
+      "api/src/services/eval_runner.py",
+      "cli/src/commands/run.py"
     ]
   },
   "acceptance_criteria": [
-    "SQLAlchemy async engine configured",
-    "Project, ApiKey tables defined",
-    "EvalSuite, EvalCase tables defined",
-    "EvalRun, EvalResult tables defined",
-    "Proper relationships and foreign keys",
-    "Indexes on frequently queried columns",
-    "AsyncSession factory working"
+    "load_agent('module:function') returns a callable that matches AgentProtocol",
+    "load_agent('module:Class') instantiates class and returns instance.run method",
+    "Support for relative imports within project (src.agents.foo:bar)",
+    "Clear error messages when module not found or callable doesn't exist",
+    "Validation that loaded callable has correct signature",
+    "LangChainAdapter wraps LangChain agents automatically",
+    "CallableAdapter wraps simple functions automatically",
+    "Unit tests cover all loading scenarios"
   ],
   "context": {
     "research_refs": [
-      "docs/research/02-concept/architecture-spec.md#complete-database-schema"
+      "docs/research/02-concept/architecture-spec.md#agent-interface"
     ],
-    "code_refs": []
+    "code_refs": [
+      "api/src/services/eval_runner.py:AgentProtocol"
+    ]
   }
 }
