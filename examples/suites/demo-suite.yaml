@@ -1,0 +1,280 @@
+# Demo Eval Suite
+# Comprehensive test cases covering all scorer types and edge cases
+#
+# This suite demonstrates:
+#   - All three core scorers (tool_selection, reasoning, grounding)
+#   - Various input/output patterns
+#   - Expected tool sequences
+#   - Timeout handling
+#   - Pass/fail thresholds
+#
+# Usage:
+#   agent-eval suite validate examples/suites/demo-suite.yaml
+#   agent-eval run examples/suites/demo-suite.yaml --agent examples.agents.demo_agent:run
+
+name: demo-suite
+description: Comprehensive evaluation suite demonstrating all Neon capabilities
+agent_id: examples.agents.demo_agent:run
+
+default_scorers:
+  - tool_selection
+  - reasoning
+  - grounding
+
+default_min_score: 0.7
+default_timeout_seconds: 300
+parallel: true
+stop_on_failure: false
+
+cases:
+  # ==========================================================================
+  # Tool Selection Tests
+  # ==========================================================================
+
+  - name: factual_search
+    description: Should use web_search for factual questions requiring external data
+    input:
+      query: "What is the current population of Japan?"
+      context:
+        require_search: true
+    expected_tools:
+      - web_search
+    expected_output_contains:
+      - "million"
+      - "Japan"
+    scorers:
+      - tool_selection
+      - grounding
+    min_score: 0.8
+    tags:
+      - tool_selection
+      - factual
+      - search
+
+  - name: no_tool_needed
+    description: Should answer directly without tools for simple arithmetic
+    input:
+      query: "What is 15 multiplied by 7?"
+      context: {}
+    expected_tools: []
+    expected_output_contains:
+      - "105"
+    scorers:
+      - tool_selection
+      - reasoning
+    min_score: 0.8
+    tags:
+      - tool_selection
+      - arithmetic
+      - no-tools
+
+  - name: calculator_usage
+    description: Should use calculator tool for complex math
+    input:
+      query: "Calculate the compound interest on $10,000 at 5% APR over 10 years"
+      context:
+        tools_available:
+          - calculator
+          - web_search
+    expected_tools:
+      - calculator
+    expected_output_contains:
+      - "$"
+    scorers:
+      - tool_selection
+      - reasoning
+    tags:
+      - tool_selection
+      - calculator
+      - financial
+
+  # ==========================================================================
+  # Reasoning Chain Tests
+  # ==========================================================================
+
+  - name: reasoning_chain
+    description: Should demonstrate clear step-by-step reasoning
+    input:
+      query: "If a train leaves Station A at 9:00 AM traveling at 60 mph, and another train leaves Station B (120 miles away) at 9:30 AM traveling at 80 mph toward Station A, when will they meet?"
+      context:
+        show_reasoning: true
+    expected_output_contains:
+      - "hour"
+      - "minute"
+    scorers:
+      - reasoning
+    scorer_config:
+      reasoning:
+        require_steps: true
+        min_steps: 3
+    min_score: 0.75
+    tags:
+      - reasoning
+      - math
+      - word-problem
+
+  - name: logical_deduction
+    description: Should apply logical reasoning to solve puzzles
+    input:
+      query: "Alice is taller than Bob. Bob is taller than Charlie. Charlie is taller than Diana. Who is the shortest?"
+      context:
+        show_reasoning: true
+    expected_output_contains:
+      - "Diana"
+    scorers:
+      - reasoning
+    min_score: 0.9
+    tags:
+      - reasoning
+      - logic
+      - deduction
+
+  # ==========================================================================
+  # Grounding Tests
+  # ==========================================================================
+
+  - name: grounding_check
+    description: Response should be grounded in the provided context
+    input:
+      query: "What are the main features of the new product?"
+      context:
+        document: |
+          Product Overview: The XZ-5000 is our latest innovation.
+          Key Features:
+          - 50% faster processing speed
+          - AI-powered noise cancellation
+          - 24-hour battery life
+          - Water resistant (IP67)
+          Price: $299.99
+    expected_output_contains:
+      - "faster"
+      - "battery"
+      - "water"
+    scorers:
+      - grounding
+    scorer_config:
+      grounding:
+        strict: true
+    min_score: 0.85
+    tags:
+      - grounding
+      - context
+      - extraction
+
+  - name: refuse_hallucination
+    description: Should refuse to answer when information is not in context
+    input:
+      query: "What color is the XZ-5000?"
+      context:
+        document: |
+          Product Overview: The XZ-5000 is our latest innovation.
+          Key Features:
+          - 50% faster processing speed
+          - AI-powered noise cancellation
+    expected_output_contains:
+      - "not"
+    scorers:
+      - grounding
+      - reasoning
+    min_score: 0.7
+    tags:
+      - grounding
+      - hallucination
+      - refusal
+
+  # ==========================================================================
+  # Multi-Step and Complex Tests
+  # ==========================================================================
+
+  - name: multi_step_research
+    description: Should perform multiple searches and synthesize results
+    input:
+      query: "Compare the GDP of the United States and China, and explain which economy is growing faster"
+      context:
+        require_search: true
+        multi_step: true
+    expected_tools:
+      - web_search
+    expected_output_contains:
+      - "GDP"
+      - "growth"
+    scorers:
+      - tool_selection
+      - reasoning
+      - grounding
+    min_score: 0.7
+    timeout_seconds: 180
+    tags:
+      - multi-step
+      - research
+      - comparison
+
+  - name: tool_sequence_order
+    description: Should call tools in logical order (search before summarize)
+    input:
+      query: "Find information about climate change effects and summarize the key points"
+      context:
+        require_search: true
+        require_summary: true
+    expected_tool_sequence:
+      - web_search
+      - summarize
+    scorers:
+      - tool_selection
+      - reasoning
+    min_score: 0.75
+    tags:
+      - tool_selection
+      - sequence
+      - multi-step
+
+  # ==========================================================================
+  # Edge Cases and Error Handling
+  # ==========================================================================
+
+  - name: ambiguous_query
+    description: Should ask for clarification or make reasonable assumptions
+    input:
+      query: "What's the best one?"
+      context: {}
+    scorers:
+      - reasoning
+    min_score: 0.5
+    tags:
+      - edge-case
+      - ambiguous
+
+  - name: timeout_test
+    description: Test case with very short timeout to verify timeout handling
+    input:
+      query: "Perform a complex analysis that takes time"
+      context:
+        simulate_delay: true
+        delay_seconds: 5
+    scorers:
+      - tool_selection
+    min_score: 0.5
+    timeout_seconds: 10
+    tags:
+      - edge-case
+      - timeout
+
+  # ==========================================================================
+  # Efficiency Tests
+  # ==========================================================================
+
+  - name: efficient_response
+    description: Should provide concise, efficient responses
+    input:
+      query: "What is the capital of Germany?"
+      context: {}
+    expected_output_contains:
+      - "Berlin"
+    scorers:
+      - reasoning
+      - grounding
+    min_score: 0.8
+    timeout_seconds: 30
+    tags:
+      - efficiency
+      - simple
