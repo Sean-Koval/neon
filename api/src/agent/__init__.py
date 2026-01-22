@@ -1,11 +1,17 @@
-"""Agent loading and adapters for Neon evaluation platform."""
+"""Agent loading and adapters for Neon evaluation."""
 
-from src.agent.adapters import AgentProtocol, CallableAdapter, LangChainAdapter
-from src.agent.loader import load_agent
+from src.agent.loader import (
+    AgentLoadError,
+    AgentProtocol,
+    CallableAdapter,
+    LangChainAdapter,
+    load_agent,
+)
 
 __all__ = [
-    "load_agent",
+    "AgentLoadError",
     "AgentProtocol",
     "CallableAdapter",
     "LangChainAdapter",
+    "load_agent",
 ]
