@@ -1,14 +1,16 @@
-"""Dynamic agent loader for loading agents from module path strings."""
+"""Agent loader - dynamically loads agent callables from module paths.
+
+Supports loading agents from module path strings like:
+    - 'myagent:run'
+    - 'src.agents.research:ResearchAgent'
+"""
 
 import importlib
-import importlib.util
 import inspect
 import sys
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any, cast
-
-from src.agent.adapters import AgentProtocol, CallableAdapter, LangChainAdapter
+from typing import Any, Protocol, runtime_checkable
 
 
 class AgentLoadError(Exception):
@@ -17,462 +19,286 @@ class AgentLoadError(Exception):
     pass
 
 
-class AgentSignatureError(Exception):
-    """Raised when a loaded agent has an invalid signature."""
+@runtime_checkable
+class AgentProtocol(Protocol):
+    """Protocol that agents must implement."""
 
-    pass
+    def run(self, query: str, context: dict[str, Any] | None = None) -> dict[str, Any]:
+        """Execute the agent with given input.
+
+        Args:
+            query: The input query/prompt for the agent.
+            context: Optional context dictionary.
+
+        Returns:
+            A dictionary containing the agent's response.
+        """
+        ...
+
+
+class CallableAdapter:
+    """Adapter that wraps a simple callable to conform to AgentProtocol."""
+
+    def __init__(self, fn: Callable[..., Any]) -> None:
+        """Initialize the adapter with a callable.
+
+        Args:
+            fn: A callable that takes (query, context) or just (query).
+        """
+        self._fn = fn
+        self._accepts_context = self._check_accepts_context(fn)
+
+    @staticmethod
+    def _check_accepts_context(fn: Callable[..., Any]) -> bool:
+        """Check if the function accepts a context parameter."""
+        try:
+            sig = inspect.signature(fn)
+            params = list(sig.parameters.keys())
+            # Check if there's a second parameter (context)
+            return len(params) >= 2
+        except (ValueError, TypeError):
+            # Can't inspect, assume it accepts context
+            return True
+
+    def run(self, query: str, context: dict[str, Any] | None = None) -> dict[str, Any]:
+        """Execute the wrapped callable.
+
+        Args:
+            query: The input query.
+            context: Optional context dictionary.
+
+        Returns:
+            The callable's response, wrapped in a dict if needed.
+        """
+        result = self._fn(query, context) if self._accepts_context else self._fn(query)
+
+        # Wrap non-dict results
+        if isinstance(result, dict):
+            return result
+        return {"response": result}
+
+
+class LangChainAdapter:
+    """Adapter that wraps LangChain agents/runnables to conform to AgentProtocol."""
+
+    def __init__(self, agent: Any) -> None:
+        """Initialize the adapter with a LangChain agent.
+
+        Args:
+            agent: A LangChain agent, chain, or runnable.
+        """
+        self._agent = agent
+
+    def run(self, query: str, context: dict[str, Any] | None = None) -> dict[str, Any]:
+        """Execute the LangChain agent.
+
+        Args:
+            query: The input query.
+            context: Optional context dictionary.
+
+        Returns:
+            The agent's response as a dictionary.
+        """
+        # Build input - LangChain typically uses "input" key
+        input_dict: dict[str, Any] = {"input": query}
+        if context:
+            input_dict.update(context)
+
+        # Try different invocation methods
+        if hasattr(self._agent, "invoke"):
+            # LangChain LCEL runnables
+            result = self._agent.invoke(input_dict)
+        elif hasattr(self._agent, "run"):
+            # Legacy LangChain chains
+            result = self._agent.run(input_dict)
+        elif callable(self._agent):
+            # Callable agents
+            result = self._agent(input_dict)
+        else:
+            raise AgentLoadError(
+                f"LangChain agent {type(self._agent).__name__} has no invoke/run method"
+            )
+
+        # Normalize output
+        if isinstance(result, dict):
+            return result
+        if isinstance(result, str):
+            return {"output": result}
+        # Try to extract output from LangChain response objects
+        if hasattr(result, "content"):
+            return {"output": result.content}
+        return {"output": str(result)}
+
+
+def _is_langchain_agent(obj: Any) -> bool:
+    """Check if an object is a LangChain agent/runnable."""
+    # Check for common LangChain base classes by module name
+    # This avoids requiring LangChain as a dependency
+    type_name = type(obj).__name__
+    module = type(obj).__module__
+
+    # Check module path for langchain indicators
+    if module.startswith("langchain"):
+        return True
+
+    # Check for common LangChain class names
+    langchain_classes = {
+        "Runnable",
+        "RunnableSequence",
+        "AgentExecutor",
+        "Chain",
+        "LLMChain",
+        "ConversationChain",
+    }
+    if type_name in langchain_classes:
+        return True
+
+    # Check inheritance chain
+    return any(cls.__module__.startswith("langchain") for cls in type(obj).__mro__)
+
+
+def _validate_callable_signature(fn: Callable[..., Any], name: str) -> None:
+    """Validate that a callable has a compatible signature.
+
+    Args:
+        fn: The callable to validate.
+        name: Name for error messages.
+
+    Raises:
+        AgentLoadError: If the signature is incompatible.
+    """
+    try:
+        sig = inspect.signature(fn)
+        params = list(sig.parameters.values())
+
+        if not params:
+            raise AgentLoadError(
+                f"'{name}' takes no arguments, but must accept at least a query parameter"
+            )
+
+        # First param should accept a string (the query)
+        first_param = params[0]
+        if first_param.kind == inspect.Parameter.KEYWORD_ONLY:
+            raise AgentLoadError(
+                f"'{name}' first parameter cannot be keyword-only"
+            )
+
+    except (ValueError, TypeError):
+        # Can't inspect signature (e.g., built-in), allow it
+        pass
 
 
 def load_agent(
     module_path: str,
-    *,
     working_dir: str | Path | None = None,
-    auto_wrap: bool = True,
 ) -> AgentProtocol:
-    """Load an agent from a module path string.
+    """Load an agent callable from a module path string.
 
-    Supports loading agents specified as 'module:attribute' where:
-    - module: Python module path (e.g., 'myagent' or 'src.agents.research')
-    - attribute: Function, class, or object name in the module
-
-    For classes, the loader will instantiate the class and return the instance's
-    `run` method if it exists, otherwise wraps the instance.
+    Supports paths like:
+        - 'myagent:run' - loads run() function from myagent module
+        - 'myagent:Agent' - loads Agent class and returns instance
+        - 'src.agents.research:ResearchAgent' - relative imports
 
     Args:
-        module_path: String in format 'module:attribute' (e.g., 'myagent:run')
-        working_dir: Optional directory to add to sys.path for imports.
-            Useful for loading agents from the current project.
-        auto_wrap: If True, automatically wrap non-protocol callables with
-            appropriate adapters (CallableAdapter or LangChainAdapter)
+        module_path: Module path in format 'module:attribute'.
+        working_dir: Optional working directory to add to sys.path.
 
     Returns:
-        An object implementing AgentProtocol
+        An object conforming to AgentProtocol.
 
     Raises:
-        AgentLoadError: If the module or attribute cannot be found
-        AgentSignatureError: If the loaded callable has an incompatible signature
-
-    Examples:
-        # Load a function
-        agent = load_agent('myagent:run')
-
-        # Load a class (instantiates and returns run method)
-        agent = load_agent('src.agents.research:ResearchAgent')
-
-        # Load with project path
-        agent = load_agent('agents.qa:QAAgent', working_dir='/path/to/project')
+        AgentLoadError: If the agent cannot be loaded.
     """
-    # Parse the module path
-    module_name, attr_name = _parse_module_path(module_path)
-
-    # Optionally add working directory to path
-    original_path = list(sys.path)
-    if working_dir:
-        working_dir = Path(working_dir).resolve()
-        if str(working_dir) not in sys.path:
-            sys.path.insert(0, str(working_dir))
-
-    try:
-        # Import the module
-        module = _import_module(module_name)
-
-        # Get the attribute
-        attr = _get_attribute(module, attr_name, module_name)
-
-        # Resolve to a callable agent
-        agent = _resolve_agent(attr, attr_name, auto_wrap)
-
-        # Validate the agent implements the protocol
-        _validate_agent(agent, module_path)
-
-        return agent
-
-    finally:
-        # Restore original sys.path
-        sys.path[:] = original_path
-
-
-def _parse_module_path(module_path: str) -> tuple[str, str]:
-    """Parse a module path string into module name and attribute name.
-
-    Args:
-        module_path: String in format 'module:attribute'
-
-    Returns:
-        Tuple of (module_name, attribute_name)
-
-    Raises:
-        AgentLoadError: If the format is invalid
-    """
+    # Parse module path
     if ":" not in module_path:
         raise AgentLoadError(
-            f"Invalid module path format: '{module_path}'. "
-            f"Expected format 'module:attribute' (e.g., 'myagent:run' or 'src.agents:MyAgent')"
+            f"Invalid module path '{module_path}'. Expected format: 'module:attribute'"
         )
 
-    parts = module_path.split(":", 1)
-    if len(parts) != 2 or not parts[0] or not parts[1]:
+    module_name, attr_name = module_path.rsplit(":", 1)
+
+    if not module_name or not attr_name:
         raise AgentLoadError(
-            f"Invalid module path format: '{module_path}'. "
-            f"Expected format 'module:attribute' (e.g., 'myagent:run')"
+            f"Invalid module path '{module_path}'. Both module and attribute required."
         )
 
-    return parts[0], parts[1]
-
-
-def _import_module(module_name: str) -> Any:
-    """Import a module by name.
-
-    Args:
-        module_name: Dotted module path (e.g., 'src.agents.research')
-
-    Returns:
-        The imported module object
-
-    Raises:
-        AgentLoadError: If the module cannot be imported
-    """
-    try:
-        return importlib.import_module(module_name)
-    except ModuleNotFoundError as e:
-        # Provide helpful error message
-        if e.name == module_name or (e.name and module_name.startswith(e.name)):
-            raise AgentLoadError(
-                f"Module '{module_name}' not found. "
-                f"Make sure the module is installed or the path is correct. "
-                f"For project modules, use working_dir parameter."
-            ) from e
-        else:
-            # Dependency missing
-            raise AgentLoadError(
-                f"Module '{module_name}' has a missing dependency: {e.name}"
-            ) from e
-    except ImportError as e:
-        raise AgentLoadError(
-            f"Failed to import module '{module_name}': {e}"
-        ) from e
-
-
-def _get_attribute(module: Any, attr_name: str, module_name: str) -> Any:
-    """Get an attribute from a module.
-
-    Args:
-        module: The imported module
-        attr_name: Name of the attribute to get
-        module_name: Module name for error messages
-
-    Returns:
-        The attribute value
-
-    Raises:
-        AgentLoadError: If the attribute doesn't exist
-    """
-    if not hasattr(module, attr_name):
-        # List available attributes for helpful error
-        available = [
-            name for name in dir(module)
-            if not name.startswith("_") and (
-                callable(getattr(module, name, None)) or
-                isinstance(getattr(module, name, None), type)
-            )
-        ]
-        available_str = ", ".join(available[:10])
-        if len(available) > 10:
-            available_str += f", ... ({len(available) - 10} more)"
-
-        raise AgentLoadError(
-            f"Attribute '{attr_name}' not found in module '{module_name}'. "
-            f"Available callables/classes: {available_str or '(none)'}"
-        )
-
-    return getattr(module, attr_name)
-
-
-def _resolve_agent(attr: Any, attr_name: str, auto_wrap: bool) -> AgentProtocol:
-    """Resolve an attribute to an AgentProtocol-compatible object.
-
-    Handles:
-    - Classes: Instantiate and return instance (uses .run method if available)
-    - Objects already implementing AgentProtocol: Return as-is
-    - Callables: Wrap with appropriate adapter if auto_wrap is True
-
-    Args:
-        attr: The attribute to resolve
-        attr_name: Name for error messages
-        auto_wrap: Whether to auto-wrap non-protocol callables
-
-    Returns:
-        An AgentProtocol-compatible object
-
-    Raises:
-        AgentLoadError: If the attribute cannot be resolved to an agent
-    """
-    # Check if it's a class
-    if isinstance(attr, type):
-        return _resolve_class(attr, attr_name, auto_wrap)
-
-    # Check if it already implements AgentProtocol
-    if isinstance(attr, AgentProtocol):
-        return attr
-
-    # Check if it has a run method (duck typing)
-    if hasattr(attr, "run") and callable(attr.run):
-        return cast(AgentProtocol, attr)
-
-    # Check if it's a callable (function)
-    if callable(attr):
-        return _wrap_callable(attr, attr_name, auto_wrap)
-
-    raise AgentLoadError(
-        f"'{attr_name}' is not a callable, class, or AgentProtocol instance. "
-        f"Got type: {type(attr).__name__}"
-    )
-
-
-def _resolve_class(cls: type, cls_name: str, auto_wrap: bool) -> AgentProtocol:
-    """Resolve a class to an agent instance.
-
-    Args:
-        cls: The class to instantiate
-        cls_name: Class name for error messages
-        auto_wrap: Whether to auto-wrap non-protocol instances
-
-    Returns:
-        An AgentProtocol-compatible instance
-
-    Raises:
-        AgentLoadError: If instantiation fails or class doesn't match protocol
-    """
-    # Check if the class can be instantiated without arguments
-    try:
-        sig = inspect.signature(cls)
-        # Count required parameters (excluding self)
-        required = sum(
-            1 for p in list(sig.parameters.values())
-            if p.default is inspect.Parameter.empty
-            and p.kind not in (
-                inspect.Parameter.VAR_POSITIONAL,
-                inspect.Parameter.VAR_KEYWORD
-            )
-        )
-        if required > 0:
-            raise AgentLoadError(
-                f"Class '{cls_name}' requires {required} argument(s) to instantiate. "
-                f"Provide a factory function or instance instead."
-            )
-    except (ValueError, TypeError):
-        # Can't inspect signature, try instantiating anyway
-        pass
-
-    try:
-        instance = cls()
-    except TypeError as e:
-        raise AgentLoadError(
-            f"Failed to instantiate class '{cls_name}': {e}"
-        ) from e
-
-    # Check if instance has a run method
-    if hasattr(instance, "run") and callable(instance.run):
-        return cast(AgentProtocol, instance)
-
-    # Check if instance is callable (has __call__)
-    if callable(instance) and auto_wrap:
-        return _wrap_callable(instance, cls_name, auto_wrap)
-
-    raise AgentLoadError(
-        f"Class '{cls_name}' instance does not have a 'run' method or __call__. "
-        f"Agents must implement AgentProtocol (have a 'run' method)."
-    )
-
-
-def _wrap_callable(fn: Callable[..., Any], name: str, auto_wrap: bool) -> AgentProtocol:
-    """Wrap a callable with an appropriate adapter.
-
-    Args:
-        fn: The callable to wrap
-        name: Name for error messages
-        auto_wrap: Whether to actually wrap
-
-    Returns:
-        Wrapped callable as AgentProtocol
-
-    Raises:
-        AgentLoadError: If auto_wrap is False and callable doesn't match protocol
-    """
-    if not auto_wrap:
-        raise AgentLoadError(
-            f"'{name}' is a callable but does not implement AgentProtocol. "
-            f"Enable auto_wrap=True to wrap it with CallableAdapter."
-        )
-
-    # Check if it looks like a LangChain agent
-    if _is_langchain_agent(fn):
-        return LangChainAdapter(fn)
-
-    # Default to CallableAdapter
-    return CallableAdapter(fn)
-
-
-def _is_langchain_agent(obj: Any) -> bool:
-    """Check if an object appears to be a LangChain agent.
-
-    Args:
-        obj: Object to check
-
-    Returns:
-        True if the object looks like a LangChain agent
-    """
-    # Check for common LangChain types
-    type_name = type(obj).__name__
-    langchain_types = (
-        "AgentExecutor",
-        "RunnableSequence",
-        "RunnableLambda",
-        "RunnableParallel",
-        "RunnableWithMessageHistory",
-        "LLMChain",
-        "ConversationChain",
-    )
-
-    if type_name in langchain_types:
-        return True
-
-    # Check for langchain in module path
-    module = type(obj).__module__
-    if module and "langchain" in module:
-        return True
-
-    # Check for invoke method (LangChain Runnable interface)
-    return hasattr(obj, "invoke") and hasattr(obj, "batch")
-
-
-def _validate_agent(agent: AgentProtocol, module_path: str) -> None:
-    """Validate that an agent has a compatible signature.
-
-    Args:
-        agent: The agent to validate
-        module_path: Original module path for error messages
-
-    Raises:
-        AgentSignatureError: If the agent's run method has an incompatible signature
-    """
-    if not hasattr(agent, "run"):
-        raise AgentSignatureError(
-            f"Agent loaded from '{module_path}' does not have a 'run' method."
-        )
-
-    run_method = agent.run
-    if not callable(run_method):
-        raise AgentSignatureError(
-            f"Agent loaded from '{module_path}' has 'run' but it's not callable."
-        )
-
-    # Validate signature
-    try:
-        sig = inspect.signature(run_method)
-    except (ValueError, TypeError):
-        # Can't inspect, assume it's okay
-        return
-
-    params = list(sig.parameters.values())
-
-    # Skip 'self' if it's a bound method
-    if params and params[0].name == "self":
-        params = params[1:]
-
-    if len(params) == 0:
-        raise AgentSignatureError(
-            f"Agent run method from '{module_path}' takes no arguments. "
-            f"Expected signature: run(query: str, context: dict | None = None)"
-        )
-
-    # First param should accept a string (query)
-    first_param = params[0]
-    if first_param.kind in (
-        inspect.Parameter.VAR_POSITIONAL,
-        inspect.Parameter.KEYWORD_ONLY
-    ):
-        raise AgentSignatureError(
-            f"Agent run method from '{module_path}' has invalid first parameter. "
-            f"Expected a positional 'query' parameter."
-        )
-
-    # Check annotation if present - we're lenient here and only warn (not fail)
-    # for annotations that don't look like str or Any
-
-    # Second param should be optional context
-    if len(params) >= 2:
-        second_param = params[1]
-        # Should either have a default or be VAR_KEYWORD
-        if (
-            second_param.default is inspect.Parameter.empty
-            and second_param.kind not in (
-                inspect.Parameter.VAR_POSITIONAL,
-                inspect.Parameter.VAR_KEYWORD
-            )
-        ):
-            # Required second parameter - might still work but warn via the return
-            pass
-
-
-def get_agent_info(module_path: str, working_dir: str | Path | None = None) -> dict[str, Any]:
-    """Get information about an agent without fully loading it.
-
-    Useful for validation and documentation.
-
-    Args:
-        module_path: String in format 'module:attribute'
-        working_dir: Optional directory to add to sys.path
-
-    Returns:
-        Dictionary with agent information:
-            - module: str - Module name
-            - attribute: str - Attribute name
-            - type: str - 'function', 'class', or 'instance'
-            - signature: str - The run method signature
-            - docstring: str | None - Docstring if available
-
-    Raises:
-        AgentLoadError: If the agent cannot be found
-    """
-    module_name, attr_name = _parse_module_path(module_path)
-
-    original_path = list(sys.path)
+    # Add working directory to sys.path if needed
     if working_dir:
         working_dir = Path(working_dir).resolve()
-        if str(working_dir) not in sys.path:
-            sys.path.insert(0, str(working_dir))
+        working_dir_str = str(working_dir)
+        if working_dir_str not in sys.path:
+            sys.path.insert(0, working_dir_str)
 
+    # Also add current directory if not present
+    cwd = str(Path.cwd())
+    if cwd not in sys.path:
+        sys.path.insert(0, cwd)
+
+    # Import the module
     try:
-        module = _import_module(module_name)
-        attr = _get_attribute(module, attr_name, module_name)
+        module = importlib.import_module(module_name)
+    except ModuleNotFoundError as e:
+        raise AgentLoadError(
+            f"Module '{module_name}' not found. Ensure the module is installed or "
+            f"accessible from the working directory. Error: {e}"
+        ) from e
+    except Exception as e:
+        raise AgentLoadError(f"Failed to import module '{module_name}': {e}") from e
 
-        info = {
-            "module": module_name,
-            "attribute": attr_name,
-            "type": "unknown",
-            "signature": None,
-            "docstring": None,
-        }
+    # Get the attribute
+    if not hasattr(module, attr_name):
+        available = [a for a in dir(module) if not a.startswith("_")]
+        raise AgentLoadError(
+            f"Module '{module_name}' has no attribute '{attr_name}'. "
+            f"Available: {', '.join(available[:10])}"
+        )
 
-        if isinstance(attr, type):
-            info["type"] = "class"
-            if hasattr(attr, "run"):
-                info["signature"] = str(inspect.signature(attr.run))
-                info["docstring"] = attr.run.__doc__
-            else:
-                info["signature"] = str(inspect.signature(attr))
-                info["docstring"] = attr.__doc__
-        elif callable(attr):
-            info["type"] = "function"
-            info["signature"] = str(inspect.signature(attr))
-            info["docstring"] = attr.__doc__
-        elif hasattr(attr, "run"):
-            info["type"] = "instance"
-            info["signature"] = str(inspect.signature(attr.run))
-            info["docstring"] = attr.run.__doc__
+    attr = getattr(module, attr_name)
 
-        return info
+    # Handle different types of attributes
+    if inspect.isclass(attr):
+        # It's a class - instantiate it
+        try:
+            instance = attr()
+        except Exception as e:
+            raise AgentLoadError(
+                f"Failed to instantiate class '{attr_name}': {e}"
+            ) from e
 
-    finally:
-        sys.path[:] = original_path
+        # Check if it already conforms to AgentProtocol
+        if hasattr(instance, "run") and callable(instance.run):
+            # Validate run method signature
+            _validate_callable_signature(instance.run, f"{attr_name}.run")
+
+            # Check if it's a LangChain agent
+            if _is_langchain_agent(instance):
+                return LangChainAdapter(instance)
+
+            # Already has run method
+            return instance  # type: ignore
+
+        # Check for LangChain-style invoke
+        if hasattr(instance, "invoke") and _is_langchain_agent(instance):
+            return LangChainAdapter(instance)
+
+        raise AgentLoadError(
+            f"Class '{attr_name}' has no 'run' method. "
+            f"Classes must implement AgentProtocol or be LangChain runnables."
+        )
+
+    elif callable(attr):
+        # It's a function or callable
+        _validate_callable_signature(attr, attr_name)
+
+        # Check if it's a LangChain runnable (unlikely for functions, but possible)
+        if _is_langchain_agent(attr):
+            return LangChainAdapter(attr)
+
+        # Wrap in CallableAdapter
+        return CallableAdapter(attr)
+
+    else:
+        raise AgentLoadError(
+            f"Attribute '{attr_name}' in module '{module_name}' is not callable. "
+            f"Got {type(attr).__name__}."
+        )
