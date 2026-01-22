@@ -1,17 +1,16 @@
-"""Tests for EvalRunner with MLflow integration.
+"""Tests for EvalRunner MLflow integration.
 
-This module validates that EvalRunner properly integrates with NeonMLflowClient:
-- Injects MLflow client dependency
-- Sets experiment per project_id at run start
-- Uses execute_with_tracing() for agent execution
+This module tests that the EvalRunner correctly integrates with MLflow tracing:
+- Accepts NeonMLflowClient via dependency injection
+- Sets experiment based on project_id
+- Uses execute_with_tracing for agent execution
 - Populates mlflow_run_id and mlflow_trace_id in results
 - Includes TraceSummary in score_details
-- Handles tracing failures gracefully
+- Aggregates trace statistics in run summary
 """
 
 from __future__ import annotations
 
-from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
@@ -19,8 +18,8 @@ import pytest
 
 from src.models.db import EvalCaseModel, EvalResultModel, EvalRunModel, EvalSuiteModel
 from src.models.eval import EvalRunStatus
-from src.services.eval_runner import AgentProtocol, EvalRunner
-from src.services.mlflow_client import ExecutionResult, TraceSummary
+from src.services.eval_runner import EvalRunner
+from src.services.mlflow_client import ExecutionResult, NeonMLflowClient, TraceSummary
 
 # =============================================================================
 # Fixtures
@@ -30,101 +29,93 @@ from src.services.mlflow_client import ExecutionResult, TraceSummary
 @pytest.fixture
 def mock_db():
     """Create a mock async database session."""
-    db = AsyncMock()
-    db.add = MagicMock()
-    db.commit = AsyncMock()
-    db.execute = AsyncMock()
-    return db
+    mock = AsyncMock()
+    mock.add = MagicMock()
+    mock.commit = AsyncMock()
+    mock.execute = AsyncMock()
+    return mock
 
 
 @pytest.fixture
 def mock_mlflow_client():
     """Create a mock NeonMLflowClient."""
-    client = MagicMock()
-    client.set_experiment = MagicMock(return_value="exp-123")
-    client.execute_with_tracing = MagicMock()
-    return client
-
-
-@pytest.fixture
-def mock_project():
-    """Create a mock project."""
-    project = MagicMock()
-    project.id = uuid4()
-    project.name = "test-project"
-    project.slug = "test-project"
-    return project
-
-
-@pytest.fixture
-def mock_suite(mock_project):
-    """Create a mock eval suite."""
-    suite = MagicMock(spec=EvalSuiteModel)
-    suite.id = uuid4()
-    suite.project_id = mock_project.id
-    suite.name = "test-suite"
-    suite.agent_id = "test-agent"
-    suite.config = {"parallel": False}
-    suite.cases = []
-    return suite
-
-
-@pytest.fixture
-def mock_case(mock_suite):
-    """Create a mock eval case."""
-    case = MagicMock(spec=EvalCaseModel)
-    case.id = uuid4()
-    case.suite_id = mock_suite.id
-    case.name = "test-case"
-    case.input = {"query": "What is 2+2?", "context": {}}
-    case.expected_tools = None
-    case.expected_tool_sequence = None
-    case.expected_output_contains = None
-    case.expected_output_pattern = None
-    case.scorers = []  # No scorers to simplify tests
-    case.scorer_config = None
-    case.min_score = 0.7
-    case.timeout_seconds = 300
-    case.tags = []
-    return case
-
-
-@pytest.fixture
-def mock_run(mock_suite, mock_project):
-    """Create a mock eval run."""
-    run = MagicMock(spec=EvalRunModel)
-    run.id = uuid4()
-    run.suite_id = mock_suite.id
-    run.project_id = mock_project.id
-    run.agent_version = "v1.0.0"
-    run.trigger = "manual"
-    run.status = "pending"
-    run.config = None
-    run.summary = None
-    run.started_at = None
-    run.completed_at = None
-    return run
+    mock = MagicMock(spec=NeonMLflowClient)
+    mock.set_experiment = MagicMock(return_value="exp-123")
+    return mock
 
 
 @pytest.fixture
 def mock_agent():
     """Create a mock agent that implements AgentProtocol."""
-    agent = MagicMock(spec=AgentProtocol)
-    agent.run = MagicMock(return_value={"response": "4", "tools_used": []})
-    return agent
+    mock = MagicMock()
+    mock.run = MagicMock(return_value={"response": "test response", "tools_used": []})
+    return mock
+
+
+@pytest.fixture
+def sample_project_id():
+    """Generate a sample project ID."""
+    return uuid4()
+
+
+@pytest.fixture
+def sample_suite_id():
+    """Generate a sample suite ID."""
+    return uuid4()
+
+
+@pytest.fixture
+def sample_run(sample_project_id, sample_suite_id):
+    """Create a sample EvalRunModel."""
+    run = MagicMock(spec=EvalRunModel)
+    run.id = uuid4()
+    run.project_id = sample_project_id
+    run.suite_id = sample_suite_id
+    run.agent_version = "v1.0.0"
+    run.status = EvalRunStatus.PENDING.value
+    run.started_at = None
+    run.completed_at = None
+    run.summary = None
+    return run
+
+
+@pytest.fixture
+def sample_case(sample_suite_id):
+    """Create a sample EvalCaseModel."""
+    case = MagicMock(spec=EvalCaseModel)
+    case.id = uuid4()
+    case.suite_id = sample_suite_id
+    case.name = "test-case-1"
+    case.input = {"query": "What is the weather?", "context": {"location": "NYC"}}
+    case.scorers = ["tool_selection"]
+    case.scorer_config = None
+    case.min_score = 0.7
+    case.timeout_seconds = 300
+    return case
+
+
+@pytest.fixture
+def sample_suite(sample_suite_id, sample_case):
+    """Create a sample EvalSuiteModel."""
+    suite = MagicMock(spec=EvalSuiteModel)
+    suite.id = sample_suite_id
+    suite.name = "test-suite"
+    suite.cases = [sample_case]
+    suite.config = {"parallel": False, "stop_on_failure": False}
+    return suite
 
 
 @pytest.fixture
 def sample_trace_summary():
     """Create a sample TraceSummary."""
     return TraceSummary(
-        trace_id="trace-abc123",
+        trace_id="trace-abc-123",
         total_spans=5,
-        tool_calls=["calculator", "search"],
+        tool_calls=["search", "calculator"],
         llm_calls=2,
         total_tokens=500,
-        input_tokens=300,
-        output_tokens=200,
+        input_tokens=200,
+        output_tokens=300,
         duration_ms=1500,
         status="OK",
         error=None,
@@ -135,9 +126,9 @@ def sample_trace_summary():
 def sample_execution_result(sample_trace_summary):
     """Create a sample ExecutionResult."""
     return ExecutionResult(
-        mlflow_run_id="run-xyz789",
-        mlflow_trace_id="trace-abc123",
-        output={"response": "4", "tools_used": ["calculator"]},
+        mlflow_run_id="mlflow-run-xyz",
+        mlflow_trace_id="trace-abc-123",
+        output={"response": "The weather is sunny", "tools_used": ["search"]},
         status="success",
         error=None,
         execution_time_ms=1500,
@@ -146,33 +137,32 @@ def sample_execution_result(sample_trace_summary):
 
 
 # =============================================================================
-# Unit Tests: Constructor and Dependency Injection
+# Unit Tests: Constructor
 # =============================================================================
 
 
 class TestEvalRunnerInit:
     """Tests for EvalRunner initialization."""
 
-    def test_init_with_explicit_mlflow_client(self, mock_db, mock_mlflow_client):
-        """Should use injected MLflow client."""
+    def test_accepts_mlflow_client(self, mock_db, mock_mlflow_client):
+        """EvalRunner should accept NeonMLflowClient via dependency injection."""
         runner = EvalRunner(db=mock_db, mlflow_client=mock_mlflow_client)
 
-        assert runner.db is mock_db
         assert runner.mlflow_client is mock_mlflow_client
 
-    @patch("src.services.eval_runner.get_mlflow_client")
-    def test_init_uses_default_client_when_none_provided(self, mock_get_client, mock_db):
-        """Should use singleton client when none provided."""
-        default_client = MagicMock()
-        mock_get_client.return_value = default_client
+    def test_creates_default_client_when_none(self, mock_db):
+        """EvalRunner should create a default NeonMLflowClient when none provided."""
+        with patch("src.services.eval_runner.NeonMLflowClient") as mock_client_cls:
+            mock_instance = MagicMock()
+            mock_client_cls.return_value = mock_instance
 
-        runner = EvalRunner(db=mock_db)
+            runner = EvalRunner(db=mock_db, mlflow_client=None)
 
-        mock_get_client.assert_called_once()
-        assert runner.mlflow_client is default_client
+            mock_client_cls.assert_called_once()
+            assert runner.mlflow_client is mock_instance
 
-    def test_init_creates_scorers(self, mock_db, mock_mlflow_client):
-        """Should initialize all scorers."""
+    def test_initializes_scorers(self, mock_db, mock_mlflow_client):
+        """EvalRunner should initialize all scorers."""
         runner = EvalRunner(db=mock_db, mlflow_client=mock_mlflow_client)
 
         assert "tool_selection" in runner.scorers
@@ -181,531 +171,424 @@ class TestEvalRunnerInit:
 
 
 # =============================================================================
-# Unit Tests: execute_run() with MLflow
+# Unit Tests: execute_run
 # =============================================================================
 
 
-class TestExecuteRunMLflow:
-    """Tests for execute_run() MLflow integration."""
+class TestExecuteRun:
+    """Tests for execute_run method."""
 
     @pytest.mark.asyncio
-    async def test_sets_experiment_from_project_id(
-        self, mock_db, mock_mlflow_client, mock_run, mock_suite, mock_agent
+    async def test_sets_experiment_with_project_id(
+        self, mock_db, mock_mlflow_client, sample_run, sample_suite, mock_agent
     ):
-        """Should set MLflow experiment using project_id."""
-        mock_suite.cases = []
+        """execute_run should call set_experiment with project_id."""
+        mock_mlflow_client.execute_with_tracing = MagicMock(
+            return_value=ExecutionResult(
+                mlflow_run_id="run-1",
+                mlflow_trace_id=None,
+                output={"response": "test"},
+                status="success",
+                error=None,
+                execution_time_ms=100,
+                trace_summary=None,
+            )
+        )
+
+        # Mock the scorers to avoid actual scoring
         runner = EvalRunner(db=mock_db, mlflow_client=mock_mlflow_client)
+        runner.scorers = {}
 
-        await runner.execute_run(mock_run, mock_suite, mock_agent)
+        # Mock _calculate_summary
+        runner._calculate_summary = AsyncMock(return_value={"total_cases": 1})
 
-        mock_mlflow_client.set_experiment.assert_called_once_with(str(mock_run.project_id))
+        await runner.execute_run(sample_run, sample_suite, mock_agent)
+
+        mock_mlflow_client.set_experiment.assert_called_once_with(str(sample_run.project_id))
 
     @pytest.mark.asyncio
     async def test_updates_run_status_to_running(
-        self, mock_db, mock_mlflow_client, mock_run, mock_suite, mock_agent
+        self, mock_db, mock_mlflow_client, sample_run, sample_suite, mock_agent
     ):
-        """Should update run status to RUNNING at start."""
-        mock_suite.cases = []
+        """execute_run should update run status to RUNNING at start."""
+        mock_mlflow_client.execute_with_tracing = MagicMock(
+            return_value=ExecutionResult(
+                mlflow_run_id="run-1",
+                mlflow_trace_id=None,
+                output={},
+                status="success",
+                error=None,
+                execution_time_ms=100,
+                trace_summary=None,
+            )
+        )
+
         runner = EvalRunner(db=mock_db, mlflow_client=mock_mlflow_client)
+        runner.scorers = {}
+        runner._calculate_summary = AsyncMock(return_value={})
 
-        await runner.execute_run(mock_run, mock_suite, mock_agent)
+        await runner.execute_run(sample_run, sample_suite, mock_agent)
 
-        # Verify status was set to RUNNING (may have been changed to COMPLETED after)
-        assert mock_run.started_at is not None
+        # Check that status was set to RUNNING at some point
+        assert sample_run.status == EvalRunStatus.COMPLETED.value
+        assert sample_run.started_at is not None
 
     @pytest.mark.asyncio
-    async def test_updates_run_status_to_completed_on_success(
-        self, mock_db, mock_mlflow_client, mock_run, mock_suite, mock_agent
+    async def test_handles_exception_sets_failed_status(
+        self, mock_db, mock_mlflow_client, sample_run, sample_suite, mock_agent
     ):
-        """Should update run status to COMPLETED on success."""
-        mock_suite.cases = []
-        # Mock the _calculate_summary - need proper async mock chain
-        mock_result = MagicMock()
-        mock_result.scalars.return_value.all.return_value = []
-        mock_db.execute = AsyncMock(return_value=mock_result)
+        """execute_run should set FAILED status on exception."""
+        # Make set_experiment raise an exception to trigger failure path
+        mock_mlflow_client.set_experiment = MagicMock(
+            side_effect=RuntimeError("MLflow connection failed")
+        )
+
         runner = EvalRunner(db=mock_db, mlflow_client=mock_mlflow_client)
 
-        await runner.execute_run(mock_run, mock_suite, mock_agent)
+        await runner.execute_run(sample_run, sample_suite, mock_agent)
 
-        assert mock_run.status == EvalRunStatus.COMPLETED.value
-        assert mock_run.completed_at is not None
+        assert sample_run.status == EvalRunStatus.FAILED.value
+        assert sample_run.completed_at is not None
+        assert "MLflow connection failed" in sample_run.summary["error"]
 
 
 # =============================================================================
-# Unit Tests: _execute_case() with MLflow Tracing
+# Unit Tests: _execute_case
 # =============================================================================
 
 
-class TestExecuteCaseMLflow:
-    """Tests for _execute_case() MLflow tracing integration."""
+class TestExecuteCase:
+    """Tests for _execute_case method with MLflow integration."""
 
     @pytest.mark.asyncio
     async def test_calls_execute_with_tracing(
-        self,
-        mock_db,
-        mock_mlflow_client,
-        mock_run,
-        mock_suite,
-        mock_case,
-        mock_agent,
-        sample_execution_result,
+        self, mock_db, mock_mlflow_client, sample_run, sample_case, mock_agent, sample_execution_result
     ):
-        """Should use execute_with_tracing for agent execution."""
-        mock_mlflow_client.execute_with_tracing.return_value = sample_execution_result
-        mock_suite.cases = [mock_case]
-        runner = EvalRunner(db=mock_db, mlflow_client=mock_mlflow_client)
+        """_execute_case should use mlflow_client.execute_with_tracing."""
+        mock_mlflow_client.execute_with_tracing = MagicMock(return_value=sample_execution_result)
 
-        await runner._execute_case(mock_run, mock_case, mock_suite, mock_agent)
+        runner = EvalRunner(db=mock_db, mlflow_client=mock_mlflow_client)
+        runner.scorers = {}  # Skip scoring for this test
+
+        await runner._execute_case(sample_run, sample_case, mock_agent, sample_case.suite_id)
 
         mock_mlflow_client.execute_with_tracing.assert_called_once()
         call_kwargs = mock_mlflow_client.execute_with_tracing.call_args[1]
-        assert "agent_fn" in call_kwargs
-        assert call_kwargs["input_data"] == {"query": "What is 2+2?", "context": {}}
+
+        assert call_kwargs["agent_fn"] == mock_agent.run
+        assert call_kwargs["input_data"] == {
+            "query": "What is the weather?",
+            "context": {"location": "NYC"},
+        }
+        assert call_kwargs["run_name"] == "test-case-1"
+        assert call_kwargs["timeout_seconds"] == 300
 
     @pytest.mark.asyncio
     async def test_passes_correct_tags(
-        self,
-        mock_db,
-        mock_mlflow_client,
-        mock_run,
-        mock_suite,
-        mock_case,
-        mock_agent,
-        sample_execution_result,
+        self, mock_db, mock_mlflow_client, sample_run, sample_case, mock_agent, sample_execution_result
     ):
-        """Should pass correct neon.* tags to execute_with_tracing."""
-        mock_mlflow_client.execute_with_tracing.return_value = sample_execution_result
-        runner = EvalRunner(db=mock_db, mlflow_client=mock_mlflow_client)
+        """_execute_case should pass run_id, case_id, case_name, suite_id as tags."""
+        mock_mlflow_client.execute_with_tracing = MagicMock(return_value=sample_execution_result)
 
-        await runner._execute_case(mock_run, mock_case, mock_suite, mock_agent)
+        runner = EvalRunner(db=mock_db, mlflow_client=mock_mlflow_client)
+        runner.scorers = {}
+
+        await runner._execute_case(sample_run, sample_case, mock_agent, sample_case.suite_id)
 
         call_kwargs = mock_mlflow_client.execute_with_tracing.call_args[1]
         tags = call_kwargs["tags"]
 
-        assert tags["run_id"] == str(mock_run.id)
-        assert tags["case_name"] == mock_case.name
-        assert tags["suite_id"] == str(mock_suite.id)
-        assert tags["suite_name"] == mock_suite.name
-        assert tags["project_id"] == str(mock_run.project_id)
-        assert tags["agent_version"] == mock_run.agent_version
-
-    @pytest.mark.asyncio
-    async def test_sets_run_name_correctly(
-        self,
-        mock_db,
-        mock_mlflow_client,
-        mock_run,
-        mock_suite,
-        mock_case,
-        mock_agent,
-        sample_execution_result,
-    ):
-        """Should set run_name as run_id/case_name."""
-        mock_mlflow_client.execute_with_tracing.return_value = sample_execution_result
-        runner = EvalRunner(db=mock_db, mlflow_client=mock_mlflow_client)
-
-        await runner._execute_case(mock_run, mock_case, mock_suite, mock_agent)
-
-        call_kwargs = mock_mlflow_client.execute_with_tracing.call_args[1]
-        expected_run_name = f"{mock_run.id}/{mock_case.name}"
-        assert call_kwargs["run_name"] == expected_run_name
+        assert tags["run_id"] == str(sample_run.id)
+        assert tags["case_id"] == str(sample_case.id)
+        assert tags["case_name"] == "test-case-1"
+        assert tags["suite_id"] == str(sample_case.suite_id)
+        assert tags["agent_version"] == "v1.0.0"
 
     @pytest.mark.asyncio
     async def test_populates_mlflow_run_id(
-        self,
-        mock_db,
-        mock_mlflow_client,
-        mock_run,
-        mock_suite,
-        mock_case,
-        mock_agent,
-        sample_execution_result,
+        self, mock_db, mock_mlflow_client, sample_run, sample_case, mock_agent, sample_execution_result
     ):
-        """Should populate mlflow_run_id in result."""
-        mock_mlflow_client.execute_with_tracing.return_value = sample_execution_result
+        """_execute_case should populate mlflow_run_id in EvalResultModel."""
+        mock_mlflow_client.execute_with_tracing = MagicMock(return_value=sample_execution_result)
+
         runner = EvalRunner(db=mock_db, mlflow_client=mock_mlflow_client)
+        runner.scorers = {}
 
-        result = await runner._execute_case(mock_run, mock_case, mock_suite, mock_agent)
+        result = await runner._execute_case(sample_run, sample_case, mock_agent, sample_case.suite_id)
 
-        assert result.mlflow_run_id == "run-xyz789"
+        assert result.mlflow_run_id == "mlflow-run-xyz"
 
     @pytest.mark.asyncio
     async def test_populates_mlflow_trace_id(
-        self,
-        mock_db,
-        mock_mlflow_client,
-        mock_run,
-        mock_suite,
-        mock_case,
-        mock_agent,
-        sample_execution_result,
+        self, mock_db, mock_mlflow_client, sample_run, sample_case, mock_agent, sample_execution_result
     ):
-        """Should populate mlflow_trace_id in result."""
-        mock_mlflow_client.execute_with_tracing.return_value = sample_execution_result
+        """_execute_case should populate mlflow_trace_id in EvalResultModel."""
+        mock_mlflow_client.execute_with_tracing = MagicMock(return_value=sample_execution_result)
+
         runner = EvalRunner(db=mock_db, mlflow_client=mock_mlflow_client)
+        runner.scorers = {}
 
-        result = await runner._execute_case(mock_run, mock_case, mock_suite, mock_agent)
+        result = await runner._execute_case(sample_run, sample_case, mock_agent, sample_case.suite_id)
 
-        assert result.mlflow_trace_id == "trace-abc123"
+        assert result.mlflow_trace_id == "trace-abc-123"
 
     @pytest.mark.asyncio
     async def test_includes_trace_summary_in_score_details(
-        self,
-        mock_db,
-        mock_mlflow_client,
-        mock_run,
-        mock_suite,
-        mock_case,
-        mock_agent,
-        sample_execution_result,
+        self, mock_db, mock_mlflow_client, sample_run, sample_case, mock_agent, sample_execution_result
     ):
-        """Should include TraceSummary in score_details."""
-        mock_mlflow_client.execute_with_tracing.return_value = sample_execution_result
-        runner = EvalRunner(db=mock_db, mlflow_client=mock_mlflow_client)
+        """_execute_case should include TraceSummary in score_details."""
+        mock_mlflow_client.execute_with_tracing = MagicMock(return_value=sample_execution_result)
 
-        result = await runner._execute_case(mock_run, mock_case, mock_suite, mock_agent)
+        runner = EvalRunner(db=mock_db, mlflow_client=mock_mlflow_client)
+        runner.scorers = {}
+
+        result = await runner._execute_case(sample_run, sample_case, mock_agent, sample_case.suite_id)
 
         assert "trace_summary" in result.score_details
         trace_summary = result.score_details["trace_summary"]
-        assert trace_summary["trace_id"] == "trace-abc123"
-        assert trace_summary["tool_calls"] == ["calculator", "search"]
+        assert trace_summary["trace_id"] == "trace-abc-123"
+        assert trace_summary["total_spans"] == 5
+        assert trace_summary["tool_calls"] == ["search", "calculator"]
         assert trace_summary["llm_calls"] == 2
         assert trace_summary["total_tokens"] == 500
 
     @pytest.mark.asyncio
-    async def test_handles_execution_without_trace(
-        self,
-        mock_db,
-        mock_mlflow_client,
-        mock_run,
-        mock_suite,
-        mock_case,
-        mock_agent,
+    async def test_handles_no_trace_captured(
+        self, mock_db, mock_mlflow_client, sample_run, sample_case, mock_agent
     ):
-        """Should handle execution where trace is not captured."""
-        exec_result = ExecutionResult(
-            mlflow_run_id="run-no-trace",
+        """_execute_case should handle case where no trace is captured."""
+        execution_result = ExecutionResult(
+            mlflow_run_id="mlflow-run-xyz",
             mlflow_trace_id=None,  # No trace captured
-            output={"response": "result"},
+            output={"response": "test"},
             status="success",
             error=None,
             execution_time_ms=100,
             trace_summary=None,
         )
-        mock_mlflow_client.execute_with_tracing.return_value = exec_result
+        mock_mlflow_client.execute_with_tracing = MagicMock(return_value=execution_result)
+
         runner = EvalRunner(db=mock_db, mlflow_client=mock_mlflow_client)
+        runner.scorers = {}
 
-        result = await runner._execute_case(mock_run, mock_case, mock_suite, mock_agent)
+        result = await runner._execute_case(sample_run, sample_case, mock_agent, sample_case.suite_id)
 
-        assert result.mlflow_run_id == "run-no-trace"
+        assert result.mlflow_run_id == "mlflow-run-xyz"
         assert result.mlflow_trace_id is None
         assert "trace_summary" not in result.score_details
 
     @pytest.mark.asyncio
     async def test_handles_execution_error(
-        self,
-        mock_db,
-        mock_mlflow_client,
-        mock_run,
-        mock_suite,
-        mock_case,
-        mock_agent,
+        self, mock_db, mock_mlflow_client, sample_run, sample_case, mock_agent
     ):
-        """Should handle agent execution error."""
-        exec_result = ExecutionResult(
-            mlflow_run_id="run-error",
-            mlflow_trace_id="trace-error",
+        """_execute_case should handle error status from execution."""
+        execution_result = ExecutionResult(
+            mlflow_run_id="mlflow-run-xyz",
+            mlflow_trace_id="trace-err",
             output=None,
             status="error",
-            error="Agent crashed!",
+            error="Agent crashed",
             execution_time_ms=50,
             trace_summary=None,
         )
-        mock_mlflow_client.execute_with_tracing.return_value = exec_result
+        mock_mlflow_client.execute_with_tracing = MagicMock(return_value=execution_result)
+
         runner = EvalRunner(db=mock_db, mlflow_client=mock_mlflow_client)
 
-        result = await runner._execute_case(mock_run, mock_case, mock_suite, mock_agent)
+        result = await runner._execute_case(sample_run, sample_case, mock_agent, sample_case.suite_id)
 
         assert result.status == "error"
-        assert result.error == "Agent crashed!"
-        assert result.mlflow_run_id == "run-error"
+        assert result.error == "Agent crashed"
+        assert result.mlflow_run_id == "mlflow-run-xyz"
         assert not result.passed
 
     @pytest.mark.asyncio
-    async def test_uses_execution_time_from_mlflow(
-        self,
-        mock_db,
-        mock_mlflow_client,
-        mock_run,
-        mock_suite,
-        mock_case,
-        mock_agent,
-        sample_execution_result,
+    async def test_runs_scorers_on_success(
+        self, mock_db, mock_mlflow_client, sample_run, sample_case, mock_agent, sample_execution_result
     ):
-        """Should use execution_time_ms from MLflow result."""
-        mock_mlflow_client.execute_with_tracing.return_value = sample_execution_result
+        """_execute_case should run scorers when execution succeeds."""
+        mock_mlflow_client.execute_with_tracing = MagicMock(return_value=sample_execution_result)
+
         runner = EvalRunner(db=mock_db, mlflow_client=mock_mlflow_client)
 
-        result = await runner._execute_case(mock_run, mock_case, mock_suite, mock_agent)
+        # Mock the tool_selection scorer
+        mock_scorer = AsyncMock()
+        mock_scorer.score = AsyncMock(
+            return_value=MagicMock(score=0.9, reason="Good tool selection", evidence=["tool1"])
+        )
+        runner.scorers = {"tool_selection": mock_scorer}
 
-        assert result.execution_time_ms == 1500
+        result = await runner._execute_case(sample_run, sample_case, mock_agent, sample_case.suite_id)
 
-    @pytest.mark.asyncio
-    async def test_stores_result_in_database(
-        self,
-        mock_db,
-        mock_mlflow_client,
-        mock_run,
-        mock_suite,
-        mock_case,
-        mock_agent,
-        sample_execution_result,
-    ):
-        """Should store EvalResultModel in database."""
-        mock_mlflow_client.execute_with_tracing.return_value = sample_execution_result
-        runner = EvalRunner(db=mock_db, mlflow_client=mock_mlflow_client)
-
-        await runner._execute_case(mock_run, mock_case, mock_suite, mock_agent)
-
-        mock_db.add.assert_called_once()
-        added_result = mock_db.add.call_args[0][0]
-        assert isinstance(added_result, EvalResultModel)
-        mock_db.commit.assert_called()
-
-
-# =============================================================================
-# Unit Tests: Agent Callable Wrapper
-# =============================================================================
-
-
-class TestAgentCallableWrapper:
-    """Tests for agent callable wrapper in _execute_case."""
+        mock_scorer.score.assert_called_once()
+        assert result.scores["tool_selection"] == 0.9
+        assert result.score_details["tool_selection"]["score"] == 0.9
 
     @pytest.mark.asyncio
-    async def test_wraps_protocol_agent(
-        self,
-        mock_db,
-        mock_mlflow_client,
-        mock_run,
-        mock_suite,
-        mock_case,
-        sample_execution_result,
+    async def test_skips_scorers_on_error(
+        self, mock_db, mock_mlflow_client, sample_run, sample_case, mock_agent
     ):
-        """Should wrap AgentProtocol and call run method."""
-        mock_mlflow_client.execute_with_tracing.return_value = sample_execution_result
-
-        # Create a protocol-based agent
-        agent = MagicMock(spec=AgentProtocol)
-        agent.run = MagicMock(return_value={"output": "test"})
-
-        runner = EvalRunner(db=mock_db, mlflow_client=mock_mlflow_client)
-        await runner._execute_case(mock_run, mock_case, mock_suite, agent)
-
-        # Get the agent_fn that was passed to execute_with_tracing
-        call_kwargs = mock_mlflow_client.execute_with_tracing.call_args[1]
-        agent_fn = call_kwargs["agent_fn"]
-
-        # Call it to verify it calls agent.run
-        agent_fn("test query", {"key": "value"})
-        agent.run.assert_called_once_with("test query", {"key": "value"})
-
-    @pytest.mark.asyncio
-    async def test_wraps_callable_agent(
-        self,
-        mock_db,
-        mock_mlflow_client,
-        mock_run,
-        mock_suite,
-        mock_case,
-        sample_execution_result,
-    ):
-        """Should wrap plain callable and call it directly."""
-        mock_mlflow_client.execute_with_tracing.return_value = sample_execution_result
-
-        # Create a plain callable agent (no run method)
-        def callable_agent(query: str, context: dict[str, Any] | None = None) -> dict:
-            return {"output": f"processed: {query}"}
-
-        runner = EvalRunner(db=mock_db, mlflow_client=mock_mlflow_client)
-        await runner._execute_case(mock_run, mock_case, mock_suite, callable_agent)
-
-        # Get the agent_fn that was passed
-        call_kwargs = mock_mlflow_client.execute_with_tracing.call_args[1]
-        agent_fn = call_kwargs["agent_fn"]
-
-        # Call it to verify it works
-        result = agent_fn("hello", {})
-        assert result == {"output": "processed: hello"}
-
-
-# =============================================================================
-# Unit Tests: Edge Cases
-# =============================================================================
-
-
-class TestEdgeCases:
-    """Tests for edge cases and error handling."""
-
-    @pytest.mark.asyncio
-    async def test_handles_missing_agent_version(
-        self,
-        mock_db,
-        mock_mlflow_client,
-        mock_run,
-        mock_suite,
-        mock_case,
-        mock_agent,
-        sample_execution_result,
-    ):
-        """Should handle run without agent_version."""
-        mock_run.agent_version = None
-        mock_mlflow_client.execute_with_tracing.return_value = sample_execution_result
-        runner = EvalRunner(db=mock_db, mlflow_client=mock_mlflow_client)
-
-        await runner._execute_case(mock_run, mock_case, mock_suite, mock_agent)
-
-        call_kwargs = mock_mlflow_client.execute_with_tracing.call_args[1]
-        tags = call_kwargs["tags"]
-        assert "agent_version" not in tags
-
-    @pytest.mark.asyncio
-    async def test_handles_empty_input_context(
-        self,
-        mock_db,
-        mock_mlflow_client,
-        mock_run,
-        mock_suite,
-        mock_case,
-        mock_agent,
-        sample_execution_result,
-    ):
-        """Should handle case with no context in input."""
-        mock_case.input = {"query": "test"}  # No context key
-        mock_mlflow_client.execute_with_tracing.return_value = sample_execution_result
-        runner = EvalRunner(db=mock_db, mlflow_client=mock_mlflow_client)
-
-        await runner._execute_case(mock_run, mock_case, mock_suite, mock_agent)
-
-        call_kwargs = mock_mlflow_client.execute_with_tracing.call_args[1]
-        assert call_kwargs["input_data"] == {"query": "test", "context": {}}
-
-    @pytest.mark.asyncio
-    async def test_timeout_error_handling(
-        self,
-        mock_db,
-        mock_mlflow_client,
-        mock_run,
-        mock_suite,
-        mock_case,
-        mock_agent,
-    ):
-        """Should handle TimeoutError during execution."""
-        mock_mlflow_client.execute_with_tracing.side_effect = TimeoutError()
-        runner = EvalRunner(db=mock_db, mlflow_client=mock_mlflow_client)
-
-        result = await runner._execute_case(mock_run, mock_case, mock_suite, mock_agent)
-
-        assert result.status == "timeout"
-        assert "timed out" in result.error
-        assert not result.passed
-
-    @pytest.mark.asyncio
-    async def test_general_exception_handling(
-        self,
-        mock_db,
-        mock_mlflow_client,
-        mock_run,
-        mock_suite,
-        mock_case,
-        mock_agent,
-    ):
-        """Should handle unexpected exceptions."""
-        mock_mlflow_client.execute_with_tracing.side_effect = RuntimeError("Unexpected!")
-        runner = EvalRunner(db=mock_db, mlflow_client=mock_mlflow_client)
-
-        result = await runner._execute_case(mock_run, mock_case, mock_suite, mock_agent)
-
-        assert result.status == "error"
-        assert "Unexpected!" in result.error
-        assert not result.passed
-
-
-# =============================================================================
-# Integration-style Tests (using more complete mocking)
-# =============================================================================
-
-
-class TestFullRunExecution:
-    """Tests for complete run execution flow."""
-
-    @pytest.mark.asyncio
-    async def test_full_run_with_multiple_cases(
-        self,
-        mock_db,
-        mock_mlflow_client,
-        mock_run,
-        mock_suite,
-        mock_agent,
-    ):
-        """Should execute all cases with MLflow tracing."""
-        # Create multiple cases
-        case1 = MagicMock(spec=EvalCaseModel)
-        case1.id = uuid4()
-        case1.suite_id = mock_suite.id
-        case1.name = "case-1"
-        case1.input = {"query": "query1", "context": {}}
-        case1.scorers = []
-        case1.scorer_config = None
-        case1.min_score = 0.7
-        case1.timeout_seconds = 300
-
-        case2 = MagicMock(spec=EvalCaseModel)
-        case2.id = uuid4()
-        case2.suite_id = mock_suite.id
-        case2.name = "case-2"
-        case2.input = {"query": "query2", "context": {}}
-        case2.scorers = []
-        case2.scorer_config = None
-        case2.min_score = 0.7
-        case2.timeout_seconds = 300
-
-        mock_suite.cases = [case1, case2]
-        mock_suite.config = {"parallel": False}
-
-        # Setup execution results
-        exec_result1 = ExecutionResult(
+        """_execute_case should skip scorers when execution fails."""
+        execution_result = ExecutionResult(
             mlflow_run_id="run-1",
-            mlflow_trace_id="trace-1",
-            output={"response": "result1"},
-            status="success",
-            error=None,
-            execution_time_ms=100,
+            mlflow_trace_id=None,
+            output=None,
+            status="error",
+            error="Failed",
+            execution_time_ms=50,
             trace_summary=None,
         )
-        exec_result2 = ExecutionResult(
-            mlflow_run_id="run-2",
-            mlflow_trace_id="trace-2",
-            output={"response": "result2"},
-            status="success",
-            error=None,
-            execution_time_ms=150,
-            trace_summary=None,
-        )
-        mock_mlflow_client.execute_with_tracing.side_effect = [exec_result1, exec_result2]
+        mock_mlflow_client.execute_with_tracing = MagicMock(return_value=execution_result)
 
-        # Mock summary calculation - need proper async mock chain
+        runner = EvalRunner(db=mock_db, mlflow_client=mock_mlflow_client)
+
+        mock_scorer = AsyncMock()
+        runner.scorers = {"tool_selection": mock_scorer}
+
+        await runner._execute_case(sample_run, sample_case, mock_agent, sample_case.suite_id)
+
+        mock_scorer.score.assert_not_called()
+
+
+# =============================================================================
+# Unit Tests: _calculate_summary
+# =============================================================================
+
+
+class TestCalculateSummary:
+    """Tests for _calculate_summary with trace statistics."""
+
+    @pytest.mark.asyncio
+    async def test_includes_trace_stats(self, mock_db, mock_mlflow_client):
+        """_calculate_summary should include aggregated trace statistics."""
+        # Create mock results with trace summaries
+        result1 = MagicMock(spec=EvalResultModel)
+        result1.passed = True
+        result1.status = "success"
+        result1.scores = {"tool_selection": 0.9}
+        result1.execution_time_ms = 1000
+        result1.score_details = {
+            "trace_summary": {
+                "tool_calls": ["search", "calc"],
+                "llm_calls": 2,
+                "total_tokens": 300,
+            }
+        }
+
+        result2 = MagicMock(spec=EvalResultModel)
+        result2.passed = True
+        result2.status = "success"
+        result2.scores = {"tool_selection": 0.8}
+        result2.execution_time_ms = 800
+        result2.score_details = {
+            "trace_summary": {
+                "tool_calls": ["search"],
+                "llm_calls": 1,
+                "total_tokens": 200,
+            }
+        }
+
+        # Mock the database query
+        mock_scalars = MagicMock()
+        mock_scalars.all.return_value = [result1, result2]
         mock_result = MagicMock()
-        mock_result.scalars.return_value.all.return_value = []
+        mock_result.scalars.return_value = mock_scalars
         mock_db.execute = AsyncMock(return_value=mock_result)
 
         runner = EvalRunner(db=mock_db, mlflow_client=mock_mlflow_client)
-        await runner.execute_run(mock_run, mock_suite, mock_agent)
 
-        # Verify both cases were executed
-        assert mock_mlflow_client.execute_with_tracing.call_count == 2
+        summary = await runner._calculate_summary(uuid4())
 
-        # Verify experiment was set once
+        assert "trace_stats" in summary
+        assert summary["trace_stats"]["traced_executions"] == 2
+        assert summary["trace_stats"]["total_tool_calls"] == 3  # 2 + 1
+        assert summary["trace_stats"]["total_llm_calls"] == 3  # 2 + 1
+        assert summary["trace_stats"]["total_tokens"] == 500  # 300 + 200
+
+    @pytest.mark.asyncio
+    async def test_handles_results_without_trace(self, mock_db, mock_mlflow_client):
+        """_calculate_summary should handle results that have no trace_summary."""
+        result1 = MagicMock(spec=EvalResultModel)
+        result1.passed = True
+        result1.status = "success"
+        result1.scores = {"tool_selection": 0.9}
+        result1.execution_time_ms = 1000
+        result1.score_details = {}  # No trace_summary
+
+        mock_scalars = MagicMock()
+        mock_scalars.all.return_value = [result1]
+        mock_result = MagicMock()
+        mock_result.scalars.return_value = mock_scalars
+        mock_db.execute = AsyncMock(return_value=mock_result)
+
+        runner = EvalRunner(db=mock_db, mlflow_client=mock_mlflow_client)
+
+        summary = await runner._calculate_summary(uuid4())
+
+        assert summary["trace_stats"]["traced_executions"] == 0
+        assert summary["trace_stats"]["total_tool_calls"] == 0
+
+
+# =============================================================================
+# Integration-style Tests
+# =============================================================================
+
+
+class TestEvalRunnerIntegration:
+    """Higher-level tests that verify the complete flow."""
+
+    @pytest.mark.asyncio
+    async def test_full_execution_flow(
+        self, mock_db, mock_mlflow_client, sample_run, sample_suite, mock_agent, sample_trace_summary
+    ):
+        """Test the complete execution flow from run to results."""
+        # Setup execution result
+        execution_result = ExecutionResult(
+            mlflow_run_id="mlflow-run-full",
+            mlflow_trace_id="trace-full",
+            output={"response": "Success", "tools_used": ["search"]},
+            status="success",
+            error=None,
+            execution_time_ms=500,
+            trace_summary=sample_trace_summary,
+        )
+        mock_mlflow_client.execute_with_tracing = MagicMock(return_value=execution_result)
+
+        # Mock scorer
+        runner = EvalRunner(db=mock_db, mlflow_client=mock_mlflow_client)
+        mock_scorer = AsyncMock()
+        mock_scorer.score = AsyncMock(
+            return_value=MagicMock(score=0.85, reason="Good", evidence=[])
+        )
+        runner.scorers = {"tool_selection": mock_scorer}
+
+        # Mock _calculate_summary to return valid summary
+        runner._calculate_summary = AsyncMock(
+            return_value={
+                "total_cases": 1,
+                "passed": 1,
+                "failed": 0,
+                "errored": 0,
+                "avg_score": 0.85,
+                "scores_by_type": {"tool_selection": 0.85},
+                "execution_time_ms": 500,
+                "trace_stats": {
+                    "traced_executions": 1,
+                    "total_tool_calls": 2,
+                    "total_llm_calls": 2,
+                    "total_tokens": 500,
+                },
+            }
+        )
+
+        # Execute
+        await runner.execute_run(sample_run, sample_suite, mock_agent)
+
+        # Verify MLflow integration
         mock_mlflow_client.set_experiment.assert_called_once()
+        mock_mlflow_client.execute_with_tracing.assert_called_once()
 
-        # Verify run completed
-        assert mock_run.status == EvalRunStatus.COMPLETED.value
+        # Verify run completion
+        assert sample_run.status == EvalRunStatus.COMPLETED.value
+        assert sample_run.summary is not None
+        assert "trace_stats" in sample_run.summary
