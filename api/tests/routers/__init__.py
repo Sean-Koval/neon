@@ -1,1 +1,1 @@
-"""Router tests package."""
+"""Router tests."""
