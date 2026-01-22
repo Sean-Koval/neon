@@ -1,6 +1,6 @@
 """Agent loading and adapters for Neon evaluation."""
 
-from src.agent.loader import (
+from .loader import (
     AgentLoadError,
     AgentProtocol,
     CallableAdapter,

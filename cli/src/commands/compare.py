@@ -26,8 +26,91 @@ def compare_runs(
     output: str = typer.Option(
         "table", "--output", "-o", help="Output format: table, json, markdown"
     ),
+    local: bool = typer.Option(
+        False, "--local", "-l", help="Compare local runs"
+    ),
 ):
-    """Compare two eval runs and identify regressions."""
+    """Compare two eval runs and identify regressions.
+
+    Examples:
+        # Compare API runs
+        agent-eval compare runs latest <candidate-id>
+
+        # Compare local runs
+        agent-eval compare runs <baseline-id> <candidate-id> --local
+    """
+    if local:
+        _compare_local_runs(
+            baseline=baseline,
+            candidate=candidate,
+            threshold=threshold,
+            fail_on_regression=fail_on_regression,
+            output=output,
+        )
+    else:
+        _compare_api_runs(
+            baseline=baseline,
+            candidate=candidate,
+            threshold=threshold,
+            fail_on_regression=fail_on_regression,
+            output=output,
+        )
+
+
+def _compare_local_runs(
+    baseline: str,
+    candidate: str,
+    threshold: float,
+    fail_on_regression: bool,
+    output: str,
+) -> None:
+    """Compare local runs."""
+    from src.local_runner import LocalDatabase, compare_local_runs
+
+    db = LocalDatabase()
+
+    # Resolve 'latest' to actual run ID
+    if baseline == "latest":
+        runs = db.list_runs(limit=2)
+        if len(runs) < 2:
+            console.print("[red]Not enough local runs to compare[/red]")
+            raise typer.Exit(1)
+        # Latest is at index 0, so baseline is the second most recent
+        baseline = runs[1].id
+        console.print(f"[dim]Using baseline: {baseline}[/dim]")
+
+    with console.status("Comparing local runs..."):
+        try:
+            result = compare_local_runs(
+                baseline_id=baseline,
+                candidate_id=candidate,
+                threshold=threshold,
+                db=db,
+            )
+        except ValueError as e:
+            console.print(f"[red]{e}[/red]")
+            raise typer.Exit(1)
+
+    if output == "json":
+        console.print(json.dumps(result, indent=2, default=str))
+    elif output == "markdown":
+        _display_markdown(result)
+    else:
+        _display_table(result)
+
+    # Exit with error if regressions found and flag is set
+    if fail_on_regression and not result["passed"]:
+        raise typer.Exit(1)
+
+
+def _compare_api_runs(
+    baseline: str,
+    candidate: str,
+    threshold: float,
+    fail_on_regression: bool,
+    output: str,
+) -> None:
+    """Compare API runs."""
     client = get_client()
 
     # Resolve 'latest' to actual run ID

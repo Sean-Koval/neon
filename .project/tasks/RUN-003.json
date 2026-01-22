@@ -1,0 +1,71 @@
+{
+  "id": "RUN-003",
+  "title": "Add local execution mode to CLI",
+  "description": "Enable the CLI to run evaluations locally without requiring the API server. This is essential for development, testing, and offline use cases. Local mode should use SQLite or file-based storage and connect directly to a local MLflow instance.",
+  "phase_id": "phase-3-runner-cli",
+  "type": "implementation",
+  "status": "completed",
+  "scope": {
+    "primary_files": [
+      "cli/src/commands/run.py",
+      "cli/src/local_runner.py"
+    ],
+    "test_files": [
+      "cli/tests/test_local_runner.py"
+    ],
+    "related_files": [
+      "api/src/services/eval_runner.py",
+      "api/src/services/mlflow_client.py",
+      "cli/src/loader.py"
+    ]
+  },
+  "dependencies": {
+    "blocked_by": ["RUN-002"],
+    "blocks": ["RUN-006"],
+    "parallel_with": []
+  },
+  "acceptance_criteria": [
+    "agent-eval run --local <suite.yaml> --agent <module:fn> works without API",
+    "Results are stored in local SQLite database (~/.agent-eval/results.db)",
+    "Connects to local MLflow (MLFLOW_TRACKING_URI env var or localhost:5000)",
+    "Suite is loaded directly from YAML file",
+    "Agent is loaded using RUN-002 agent loader",
+    "Output matches API mode (table, json, quiet formats)",
+    "Local runs can be compared with agent-eval compare --local",
+    "Integration test demonstrates full local workflow"
+  ],
+  "implementation_notes": [
+    "Add --local flag to run command",
+    "Create LocalRunner class that mirrors EvalRunner but uses local DB",
+    "Use SQLAlchemy with SQLite for local storage",
+    "Reuse scorer implementations from api/src/scorers/",
+    "Consider sharing EvalRunner code via a common library",
+    "Store run history for local comparison"
+  ],
+  "context": {
+    "research_refs": [
+      "docs/research/02-concept/architecture-spec.md#cli-specification"
+    ],
+    "code_refs": [
+      "cli/src/commands/run.py:start_run"
+    ]
+  },
+  "estimated_hours": 4,
+  "created_at": "2026-01-20T00:00:00Z",
+  "started_at": "2026-01-22T00:30:00-05:00",
+  "completed_at": "2026-01-22T01:15:00-05:00",
+  "deliverables": {
+    "files_created": [
+      "cli/src/local_runner.py",
+      "cli/tests/__init__.py",
+      "cli/tests/test_local_runner.py"
+    ],
+    "files_modified": [
+      "cli/src/commands/run.py",
+      "cli/src/commands/compare.py",
+      "api/src/agent/__init__.py",
+      "api/src/scorers/__init__.py"
+    ],
+    "tests_passed": 15
+  }
+}
