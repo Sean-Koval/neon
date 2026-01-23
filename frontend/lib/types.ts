@@ -134,6 +134,20 @@ export interface EvalSuiteCreate extends EvalSuiteBase {
 }
 
 /**
+ * Update eval suite request (all fields optional).
+ */
+export interface EvalSuiteUpdate {
+  name?: string;
+  description?: string | null;
+  agent_id?: string;
+  default_scorers?: ScorerType[];
+  default_min_score?: number;
+  default_timeout_seconds?: number;
+  parallel?: boolean;
+  stop_on_failure?: boolean;
+}
+
+/**
  * Eval suite response with server-generated fields.
  */
 export interface EvalSuite extends EvalSuiteBase {
@@ -306,34 +320,28 @@ export interface EvalResultList {
 // =============================================================================
 
 /**
- * Details about a regression between two runs.
+ * Reference to a run (used in compare responses).
  */
-export interface RegressionDetail {
-  /** Name of the case that regressed */
-  case_name: string;
-  /** Scorer that detected the regression */
-  scorer: string;
-  /** Score in baseline run (0-1) */
-  baseline_score: number;
-  /** Score in candidate run (0-1) */
-  candidate_score: number;
-  /** Change in score (negative indicates regression) */
-  delta: number;
+export interface RunReference {
+  /** Run ID */
+  id: string;
+  /** Agent version */
+  agent_version: string | null;
 }
 
 /**
- * Details about an improvement between two runs.
+ * Details about a regression or improvement between two runs.
  */
-export interface ImprovementDetail {
-  /** Name of the case that improved */
+export interface RegressionItem {
+  /** Name of the case */
   case_name: string;
-  /** Scorer that detected the improvement */
+  /** Scorer that detected the change */
   scorer: string;
   /** Score in baseline run (0-1) */
   baseline_score: number;
   /** Score in candidate run (0-1) */
   candidate_score: number;
-  /** Change in score (positive indicates improvement) */
+  /** Change in score */
   delta: number;
 }
 
@@ -353,18 +361,46 @@ export interface CompareRequest {
  * Response from comparing two eval runs.
  */
 export interface CompareResponse {
-  /** Baseline run details */
-  baseline: EvalRun;
-  /** Candidate run details */
-  candidate: EvalRun;
+  /** Baseline run reference */
+  baseline: RunReference;
+  /** Candidate run reference */
+  candidate: RunReference;
   /** True if no significant regressions detected */
   passed: boolean;
   /** Overall change in average score */
   overall_delta: number;
   /** Cases that regressed */
-  regressions: RegressionDetail[];
+  regressions: RegressionItem[];
   /** Cases that improved */
-  improvements: ImprovementDetail[];
+  improvements: RegressionItem[];
   /** Number of cases with no significant change */
   unchanged: number;
+  /** Threshold used for comparison */
+  threshold: number;
+}
+
+// =============================================================================
+// Query Filters
+// =============================================================================
+
+/**
+ * Filter options for listing runs.
+ */
+export interface RunsFilter {
+  /** Filter by suite ID */
+  suite_id?: string;
+  /** Filter by run status */
+  status?: EvalRunStatus;
+  /** Maximum number of results */
+  limit?: number;
+  /** Number of results to skip */
+  offset?: number;
+}
+
+/**
+ * Filter options for listing results.
+ */
+export interface ResultsFilter {
+  /** Only return failed results */
+  failed_only?: boolean;
 }
