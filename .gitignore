@@ -43,6 +43,7 @@ coverage.xml
 # Node.js
 node_modules/
 .next/
+!frontend/lib/
 out/
 .turbo/
 npm-debug.log*
