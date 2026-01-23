@@ -55,6 +55,13 @@
       "phase_id": "phase-2-scorers",
       "title": "Implement GroundingScorer",
       "pr_merged": "https://github.com/Sean-Koval/neon/pull/6"
+    },
+    "API-001": {
+      "file": "tasks/API-001.json",
+      "status": "completed",
+      "phase_id": "phase-4-api-auth",
+      "title": "Implement rate limiting middleware",
+      "pr_url": "https://github.com/Sean-Koval/neon/pull/18"
     }
   },
   "dependency_graph": {
@@ -65,7 +72,8 @@
     "FND-005": ["FND-001"],
     "SCR-001": ["FND-005"],
     "SCR-002": ["FND-005"],
-    "SCR-003": ["FND-005"]
+    "SCR-003": ["FND-005"],
+    "API-001": []
   },
   "parallel_groups": [
     {
@@ -87,13 +95,13 @@
     "FND-004"
   ],
   "metrics": {
-    "total_tasks": 8,
+    "total_tasks": 9,
     "pending": 0,
     "in_progress": 0,
-    "completed": 8,
-    "estimated_hours_total": 26,
+    "completed": 9,
+    "estimated_hours_total": 28,
     "actual_hours_total": null
   },
   "phases_completed": ["phase-1-foundation", "phase-2-scorers"],
-  "last_computed": "2026-01-20T00:35:00Z"
+  "last_computed": "2026-01-22T12:00:00Z"
 }
