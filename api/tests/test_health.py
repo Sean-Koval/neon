@@ -20,7 +20,7 @@ async def test_root_endpoint_returns_api_info(client: AsyncClient) -> None:
 
     assert response.status_code == 200
     data = response.json()
-    assert data["name"] == "AgentEval API"
+    assert data["name"] == "Neon API"
     assert data["version"] == "0.1.0"
     assert data["docs"] == "/docs"
 

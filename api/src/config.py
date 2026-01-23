@@ -41,6 +41,10 @@ class Settings(BaseSettings):
     max_parallel_cases: int = 10
     default_timeout_seconds: int = 300
 
+    # Rate limiting
+    rate_limit_enabled: bool = True
+    rate_limit_requests_per_minute: int = 100
+
 
 @lru_cache
 def get_settings() -> Settings:
