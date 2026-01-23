@@ -7,7 +7,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from src.models.db import EvalCaseModel, EvalSuiteModel
-from src.models.eval import EvalCase, EvalCaseCreate, EvalSuite, EvalSuiteCreate, ScorerType
+from src.models.eval import (
+    EvalCase,
+    EvalCaseCreate,
+    EvalCaseUpdate,
+    EvalSuite,
+    EvalSuiteCreate,
+    ScorerType,
+)
 
 
 class SuiteService:
@@ -178,6 +185,68 @@ class SuiteService:
         await self.db.commit()
         await self.db.refresh(case)
         return self._to_case_model(case)
+
+    async def get_case(self, project_id: UUID, case_id: UUID) -> EvalCase | None:
+        """Get a case by ID, ensuring it belongs to the project."""
+        result = await self.db.execute(
+            select(EvalCaseModel)
+            .join(EvalSuiteModel)
+            .where(
+                EvalCaseModel.id == case_id,
+                EvalSuiteModel.project_id == project_id,
+            )
+        )
+        case = result.scalar_one_or_none()
+        if not case:
+            return None
+        return self._to_case_model(case)
+
+    async def update_case(
+        self, project_id: UUID, case_id: UUID, data: EvalCaseUpdate
+    ) -> EvalCase | None:
+        """Update a case, ensuring it belongs to the project."""
+        result = await self.db.execute(
+            select(EvalCaseModel)
+            .join(EvalSuiteModel)
+            .where(
+                EvalCaseModel.id == case_id,
+                EvalSuiteModel.project_id == project_id,
+            )
+        )
+        case = result.scalar_one_or_none()
+        if not case:
+            return None
+
+        # Update only provided fields
+        update_data = data.model_dump(exclude_unset=True)
+        for field, value in update_data.items():
+            if field == "scorers" and value is not None:
+                # Convert ScorerType enums to strings
+                setattr(case, field, [s.value for s in value])
+            else:
+                setattr(case, field, value)
+
+        await self.db.commit()
+        await self.db.refresh(case)
+        return self._to_case_model(case)
+
+    async def delete_case(self, project_id: UUID, case_id: UUID) -> bool:
+        """Delete a case, ensuring it belongs to the project."""
+        result = await self.db.execute(
+            select(EvalCaseModel)
+            .join(EvalSuiteModel)
+            .where(
+                EvalCaseModel.id == case_id,
+                EvalSuiteModel.project_id == project_id,
+            )
+        )
+        case = result.scalar_one_or_none()
+        if not case:
+            return False
+
+        await self.db.delete(case)
+        await self.db.commit()
+        return True
 
     def _to_suite_model(self, suite: EvalSuiteModel) -> EvalSuite:
         """Convert DB model to Pydantic model."""
