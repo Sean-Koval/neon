@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from src.config import settings
 from src.db.session import init_db
+from src.middleware.rate_limit import setup_rate_limiting
 from src.routers import auth, cases, compare, runs, suites
 
 
@@ -35,6 +36,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Rate limiting middleware
+setup_rate_limiting(app)
 
 # Include routers
 app.include_router(auth.router, prefix="/api/v1", tags=["auth"])

@@ -1,36 +1,39 @@
 {
-  "task_id": "RUN-002",
-  "title": "Implement agent loader from module path",
-  "started_at": "2026-01-20T21:27:34-05:00",
+  "task_id": "RUN-006",
+  "title": "End-to-end integration tests for runner and CLI",
+  "started_at": "2026-01-22T15:12:37-05:00",
   "scope": {
     "primary_files": [
-      "api/src/agent/loader.py",
-      "api/src/agent/__init__.py"
+      "tests/integration/test_eval_flow.py",
+      "tests/integration/test_cli_commands.py",
+      "tests/integration/test_comparison.py",
+      "tests/integration/conftest.py"
     ],
-    "test_files": [
-      "api/tests/agent/test_loader.py"
-    ],
+    "test_files": [],
     "related_files": [
+      "examples/suites/simple-suite.yaml",
+      "examples/agents/mock_agent.py",
       "api/src/services/eval_runner.py",
       "cli/src/commands/run.py"
     ]
   },
   "acceptance_criteria": [
-    "load_agent('module:function') returns a callable that matches AgentProtocol",
-    "load_agent('module:Class') instantiates class and returns instance.run method",
-    "Support for relative imports within project (src.agents.foo:bar)",
-    "Clear error messages when module not found or callable doesn't exist",
-    "Validation that loaded callable has correct signature",
-    "LangChainAdapter wraps LangChain agents automatically",
-    "CallableAdapter wraps simple functions automatically",
-    "Unit tests cover all loading scenarios"
+    "Test: CLI run command with local mode executes successfully",
+    "Test: CLI run command with API mode creates and completes run",
+    "Test: All three scorers produce valid scores for mock agent",
+    "Test: Comparison identifies regressions when scores decrease",
+    "Test: Comparison identifies improvements when scores increase",
+    "Test: MLflow traces are created and contain expected spans",
+    "Test: Failed agent execution is handled gracefully",
+    "Test: Timeout handling works correctly",
+    "All tests use fixtures from examples/ directory",
+    "Tests can run in CI without external dependencies (use mocks/SQLite)"
   ],
   "context": {
-    "research_refs": [
-      "docs/research/02-concept/architecture-spec.md#agent-interface"
-    ],
+    "research_refs": [],
     "code_refs": [
-      "api/src/services/eval_runner.py:AgentProtocol"
+      "api/tests/",
+      "cli/tests/"
     ]
   }
 }
