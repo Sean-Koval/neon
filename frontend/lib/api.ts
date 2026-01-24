@@ -1,268 +1,306 @@
 /**
- * API client for AgentEval backend.
+ * Neon API Client
  *
- * Security considerations:
- * - API key is never logged or included in error messages
- * - All errors are sanitized before being thrown
- * - Uses X-API-Key header as expected by the backend
+ * Type-safe API client for the Neon evaluation platform.
+ * Handles authentication, error handling, and request building.
  */
 
-// Type definitions matching backend Pydantic models
-export interface EvalSuite {
-  id: string
-  name: string
-  description?: string
-  agent_id: string
-  project_id: string
-  default_scorers: string[]
-  config: Record<string, unknown>
-  cases?: EvalCase[]
-  created_at: string
-  updated_at: string
-}
+import type {
+  CompareRequest,
+  CompareResponse,
+  EvalCase,
+  EvalCaseCreate,
+  EvalResult,
+  EvalRun,
+  EvalRunCreate,
+  EvalRunList,
+  EvalSuite,
+  EvalSuiteCreate,
+  EvalSuiteList,
+  EvalSuiteUpdate,
+  ResultsFilter,
+  RunsFilter,
+} from './types';
 
-export interface EvalCase {
-  id: string
-  suite_id: string
-  name: string
-  input: Record<string, unknown>
-  expected_output?: Record<string, unknown>
-  context?: Record<string, unknown>
-  metadata: Record<string, unknown>
-  created_at: string
-}
+// =============================================================================
+// Error Handling
+// =============================================================================
 
-export interface EvalRun {
-  id: string
-  suite_id: string
-  suite_name: string
-  agent_id: string
-  agent_version?: string
-  status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled'
-  summary?: RunSummary
-  mlflow_run_id?: string
-  created_at: string
-  completed_at?: string
-}
-
-export interface RunSummary {
-  total_cases: number
-  passed: number
-  failed: number
-  avg_score: number
-  duration_seconds: number
-}
-
-export interface ComparisonResult {
-  baseline: EvalRun
-  candidate: EvalRun
-  passed: boolean
-  overall_delta: number
-  regressions: CaseComparison[]
-  improvements: CaseComparison[]
-  unchanged: number
-}
-
-export interface CaseComparison {
-  case_name: string
-  scorer: string
-  baseline_score: number
-  candidate_score: number
-  delta: number
-}
-
-export interface ApiError {
-  message: string
-  status: number
-}
-
-// API key getter type - injected from auth context
-type GetApiKeyFn = () => string | null
-
-// Singleton instance
-let apiKeyGetter: GetApiKeyFn | null = null
-
-/**
- * Initialize the API client with an API key getter function.
- * This should be called once during app initialization from the AuthProvider.
- */
-export function initializeApiClient(getApiKey: GetApiKeyFn): void {
-  apiKeyGetter = getApiKey
-}
-
-/**
- * Get the configured API base URL.
- */
-function getBaseUrl(): string {
-  return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-}
-
-/**
- * Make an authenticated API request.
- * Never logs or exposes the API key in errors.
- */
-async function request<T>(
-  endpoint: string,
-  options: RequestInit = {},
-): Promise<T> {
-  const apiKey = apiKeyGetter?.()
-
-  if (!apiKey) {
-    throw new ApiClientError('API key not configured', 401)
+export class ApiError extends Error {
+  constructor(
+    public readonly statusCode: number,
+    message: string,
+    public readonly details?: unknown
+  ) {
+    super(message);
+    this.name = 'ApiError';
+    Object.setPrototypeOf(this, ApiError.prototype);
   }
 
-  const url = `${getBaseUrl()}/api/v1${endpoint}`
+  static isApiError(error: unknown): error is ApiError {
+    return error instanceof ApiError;
+  }
+}
 
-  const headers: HeadersInit = {
-    'Content-Type': 'application/json',
-    'X-API-Key': apiKey,
-    ...options.headers,
+// =============================================================================
+// Query String Builder
+// =============================================================================
+
+type QueryValue = string | number | boolean | undefined | null;
+type QueryParams = Record<string, QueryValue>;
+
+export function buildQueryString(params: QueryParams): string {
+  const entries = Object.entries(params)
+    .filter(([, value]) => value !== undefined && value !== null)
+    .map(([key, value]) => [key, String(value)]);
+
+  if (entries.length === 0) return '';
+  return '?' + new URLSearchParams(entries).toString();
+}
+
+// =============================================================================
+// API Client
+// =============================================================================
+
+const DEFAULT_BASE_URL =
+  typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_API_URL
+    ? process.env.NEXT_PUBLIC_API_URL
+    : '/api';
+
+export class ApiClient {
+  private baseUrl: string;
+  private apiKey: string | null = null;
+
+  constructor(baseUrl?: string) {
+    this.baseUrl = baseUrl ?? DEFAULT_BASE_URL;
   }
 
-  try {
+  /**
+   * Set the API key for authentication.
+   * The key is sent as X-API-Key header with all requests.
+   */
+  setApiKey(apiKey: string): void {
+    this.apiKey = apiKey;
+  }
+
+  /**
+   * Clear the current API key.
+   */
+  clearApiKey(): void {
+    this.apiKey = null;
+  }
+
+  /**
+   * Check if an API key is currently set.
+   */
+  hasApiKey(): boolean {
+    return this.apiKey !== null;
+  }
+
+  private async request<T>(
+    method: string,
+    path: string,
+    options?: {
+      body?: unknown;
+      query?: QueryParams;
+    }
+  ): Promise<T> {
+    const url = this.baseUrl + path + buildQueryString(options?.query ?? {});
+
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+
+    if (this.apiKey) {
+      headers['X-API-Key'] = this.apiKey;
+    }
+
     const response = await fetch(url, {
-      ...options,
+      method,
       headers,
-    })
+      body: options?.body ? JSON.stringify(options.body) : undefined,
+    });
 
     if (!response.ok) {
-      // Parse error response but never include API key in error
-      let errorMessage = 'Request failed'
+      let details: unknown;
+      let message = `Request failed with status ${response.status}`;
+
       try {
-        const errorData = await response.json()
-        errorMessage = errorData.detail || errorData.message || errorMessage
+        const errorBody = await response.json();
+        details = errorBody;
+        if (typeof errorBody.detail === 'string') {
+          message = errorBody.detail;
+        } else if (typeof errorBody.message === 'string') {
+          message = errorBody.message;
+        }
       } catch {
-        // Response wasn't JSON, use status text
-        errorMessage = response.statusText || errorMessage
+        // Response body is not JSON, use status text
+        message = response.statusText || message;
       }
 
-      throw new ApiClientError(errorMessage, response.status)
+      throw new ApiError(response.status, message, details);
     }
 
     // Handle 204 No Content
     if (response.status === 204) {
-      return undefined as T
+      return undefined as T;
     }
 
-    return response.json()
-  } catch (error) {
-    // Re-throw ApiClientError as-is
-    if (error instanceof ApiClientError) {
-      throw error
-    }
-
-    // Wrap other errors, never exposing internal details
-    if (error instanceof TypeError && error.message.includes('fetch')) {
-      throw new ApiClientError('Unable to connect to API server', 0)
-    }
-
-    throw new ApiClientError('An unexpected error occurred', 0)
+    return response.json() as Promise<T>;
   }
-}
 
-/**
- * Custom error class for API errors.
- * Designed to never expose sensitive information.
- */
-export class ApiClientError extends Error {
-  constructor(
-    message: string,
-    public readonly status: number,
-  ) {
-    // Sanitize message to ensure no API key leakage
-    const sanitizedMessage = message.replace(/ae_\w+_\w+/g, '[REDACTED]')
-    super(sanitizedMessage)
-    this.name = 'ApiClientError'
-  }
-}
-
-/**
- * API client with typed methods for all endpoints.
- */
-export const api = {
-  // Health check (no auth required)
-  async healthCheck(): Promise<{ status: string }> {
-    const response = await fetch(`${getBaseUrl()}/health`)
-    return response.json()
-  },
-
+  // ===========================================================================
   // Suites
-  async getSuites(): Promise<EvalSuite[]> {
-    const data = await request<{ items: EvalSuite[] }>('/suites')
-    return data.items
-  },
+  // ===========================================================================
 
-  async getSuite(id: string): Promise<EvalSuite> {
-    return request<EvalSuite>(`/suites/${id}`)
-  },
+  /**
+   * List all evaluation suites.
+   */
+  async getSuites(): Promise<EvalSuiteList> {
+    return this.request<EvalSuiteList>('GET', '/suites');
+  }
 
-  async createSuite(
-    data: Omit<EvalSuite, 'id' | 'project_id' | 'created_at' | 'updated_at'>,
-  ): Promise<EvalSuite> {
-    return request<EvalSuite>('/suites', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    })
-  },
+  /**
+   * Get a single evaluation suite by ID.
+   */
+  async getSuite(suiteId: string): Promise<EvalSuite> {
+    return this.request<EvalSuite>('GET', `/suites/${suiteId}`);
+  }
 
-  async updateSuite(id: string, data: Partial<EvalSuite>): Promise<EvalSuite> {
-    return request<EvalSuite>(`/suites/${id}`, {
-      method: 'PATCH',
-      body: JSON.stringify(data),
-    })
-  },
+  /**
+   * Create a new evaluation suite.
+   */
+  async createSuite(data: EvalSuiteCreate): Promise<EvalSuite> {
+    return this.request<EvalSuite>('POST', '/suites', { body: data });
+  }
 
-  async deleteSuite(id: string): Promise<void> {
-    await request<void>(`/suites/${id}`, {
-      method: 'DELETE',
-    })
-  },
+  /**
+   * Update an existing evaluation suite.
+   */
+  async updateSuite(suiteId: string, data: EvalSuiteUpdate): Promise<EvalSuite> {
+    return this.request<EvalSuite>('PATCH', `/suites/${suiteId}`, { body: data });
+  }
 
+  /**
+   * Delete an evaluation suite.
+   */
+  async deleteSuite(suiteId: string): Promise<void> {
+    return this.request<void>('DELETE', `/suites/${suiteId}`);
+  }
+
+  // ===========================================================================
   // Cases
+  // ===========================================================================
+
+  /**
+   * List all cases in a suite.
+   */
   async getCases(suiteId: string): Promise<EvalCase[]> {
-    return request<EvalCase[]>(`/suites/${suiteId}/cases`)
-  },
+    return this.request<EvalCase[]>('GET', `/suites/${suiteId}/cases`);
+  }
 
-  async createCase(
+  /**
+   * Create a new case in a suite.
+   */
+  async createCase(suiteId: string, data: EvalCaseCreate): Promise<EvalCase> {
+    return this.request<EvalCase>('POST', `/suites/${suiteId}/cases`, { body: data });
+  }
+
+  /**
+   * Update an existing case.
+   */
+  async updateCase(
     suiteId: string,
-    data: Omit<EvalCase, 'id' | 'suite_id' | 'created_at'>,
+    caseId: string,
+    data: Partial<EvalCaseCreate>
   ): Promise<EvalCase> {
-    return request<EvalCase>(`/suites/${suiteId}/cases`, {
-      method: 'POST',
-      body: JSON.stringify(data),
-    })
-  },
+    return this.request<EvalCase>('PATCH', `/suites/${suiteId}/cases/${caseId}`, {
+      body: data,
+    });
+  }
 
+  /**
+   * Delete a case from a suite.
+   */
+  async deleteCase(suiteId: string, caseId: string): Promise<void> {
+    return this.request<void>('DELETE', `/suites/${suiteId}/cases/${caseId}`);
+  }
+
+  // ===========================================================================
   // Runs
-  async getRuns(): Promise<EvalRun[]> {
-    const data = await request<{ items: EvalRun[] }>('/runs')
-    return data.items
-  },
+  // ===========================================================================
 
-  async getRun(id: string): Promise<EvalRun> {
-    return request<EvalRun>(`/runs/${id}`)
-  },
+  /**
+   * List evaluation runs with optional filtering.
+   */
+  async getRuns(filter?: RunsFilter): Promise<EvalRunList> {
+    return this.request<EvalRunList>('GET', '/runs', {
+      query: {
+        suite_id: filter?.suite_id,
+        status_filter: filter?.status,
+        limit: filter?.limit,
+        offset: filter?.offset,
+      },
+    });
+  }
 
-  async createRun(suiteId: string, agentVersion?: string): Promise<EvalRun> {
-    return request<EvalRun>('/runs', {
-      method: 'POST',
-      body: JSON.stringify({
-        suite_id: suiteId,
-        agent_version: agentVersion,
-      }),
-    })
-  },
+  /**
+   * Get a single evaluation run by ID.
+   */
+  async getRun(runId: string): Promise<EvalRun> {
+    return this.request<EvalRun>('GET', `/runs/${runId}`);
+  }
 
-  // Comparison
-  async compareRuns(
-    baselineId: string,
-    candidateId: string,
-    threshold: number = 0.05,
-  ): Promise<ComparisonResult> {
-    return request<ComparisonResult>(
-      `/compare?baseline_id=${baselineId}&candidate_id=${candidateId}&threshold=${threshold}`,
-    )
-  },
+  /**
+   * Get results for an evaluation run.
+   */
+  async getRunResults(runId: string, filter?: ResultsFilter): Promise<EvalResult[]> {
+    return this.request<EvalResult[]>('GET', `/runs/${runId}/results`, {
+      query: {
+        failed_only: filter?.failed_only,
+      },
+    });
+  }
+
+  /**
+   * Trigger a new evaluation run for a suite.
+   */
+  async triggerRun(suiteId: string, data?: EvalRunCreate): Promise<EvalRun> {
+    return this.request<EvalRun>('POST', `/runs/suites/${suiteId}/run`, {
+      body: data ?? {},
+    });
+  }
+
+  /**
+   * Cancel a running evaluation.
+   */
+  async cancelRun(runId: string): Promise<{ status: string }> {
+    return this.request<{ status: string }>('POST', `/runs/${runId}/cancel`);
+  }
+
+  // ===========================================================================
+  // Compare
+  // ===========================================================================
+
+  /**
+   * Compare two evaluation runs and identify regressions.
+   */
+  async compare(request: CompareRequest): Promise<CompareResponse> {
+    return this.request<CompareResponse>('POST', '/compare', { body: request });
+  }
 }
 
-export default api
+// =============================================================================
+// Default Instance
+// =============================================================================
+
+/**
+ * Default API client instance.
+ * Can be used directly or replaced with a custom instance.
+ */
+export const apiClient = new ApiClient();
+
+/**
+ * Alias for backwards compatibility.
+ */
+export const api = apiClient;

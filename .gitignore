@@ -10,9 +10,9 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
+/lib/
 !frontend/lib/
-lib64/
+/lib64/
 parts/
 sdist/
 var/
@@ -44,6 +44,7 @@ coverage.xml
 # Node.js
 node_modules/
 .next/
+!frontend/lib/
 out/
 .turbo/
 npm-debug.log*

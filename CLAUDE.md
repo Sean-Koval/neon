@@ -80,14 +80,21 @@ Use the `/wt` command or run scripts directly:
 
 ### Python
 - Python 3.11+
+- Use **uv** for package management (not pip/poetry)
 - Ruff for linting/formatting
 - Mypy strict mode
 - Async throughout API
 
 ### TypeScript
 - TypeScript strict mode
+- Use **Bun** for running TypeScript/Node (not npm/npx)
 - Next.js 14 App Router
 - TailwindCSS
+
+## Tool Requirements
+
+- **Frontend**: Use `bun` instead of `npm`/`npx` for all commands
+- **Python**: Use `uv` instead of `pip`/`poetry` for package management
 
 ## Research Documentation
 

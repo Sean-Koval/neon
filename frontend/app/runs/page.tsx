@@ -7,10 +7,12 @@ import { api } from '@/lib/api'
 import { formatDistanceToNow } from 'date-fns'
 
 export default function RunsPage() {
-  const { data: runs, isLoading } = useQuery({
+  const { data: runsData, isLoading } = useQuery({
     queryKey: ['runs'],
     queryFn: () => api.getRuns(),
   })
+
+  const runs = runsData?.items
 
   if (isLoading) {
     return <div className="animate-pulse">Loading...</div>

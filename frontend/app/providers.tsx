@@ -1,30 +1,8 @@
 'use client'
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { useEffect, useState } from 'react'
-import { initializeApiClient } from '@/lib/api'
-import { AuthProvider, useAuth } from '@/lib/auth'
-
-/**
- * Inner component that initializes the API client after auth is ready.
- * This ensures the API client has access to the auth context's getApiKey.
- */
-function ApiClientInitializer({ children }: { children: React.ReactNode }) {
-  const { getApiKey } = useAuth()
-  const [isInitialized, setIsInitialized] = useState(false)
-
-  useEffect(() => {
-    initializeApiClient(getApiKey)
-    setIsInitialized(true)
-  }, [getApiKey])
-
-  // Don't render until API client is initialized
-  if (!isInitialized) {
-    return null
-  }
-
-  return <>{children}</>
-}
+import { useState } from 'react'
+import { AuthProvider } from '@/lib/auth'
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(
@@ -48,11 +26,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
   return (
     <AuthProvider>
-      <ApiClientInitializer>
-        <QueryClientProvider client={queryClient}>
-          {children}
-        </QueryClientProvider>
-      </ApiClientInitializer>
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
     </AuthProvider>
   )
 }

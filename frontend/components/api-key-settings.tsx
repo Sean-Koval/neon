@@ -40,8 +40,8 @@ export function ApiKeySettings() {
       setIsValidating(true)
 
       try {
-        // Validate by making a health check or simple API call
-        await api.healthCheck()
+        // Validate by making a simple API call
+        await api.getSuites()
         setSuccess(true)
         setInputValue('')
         // Clear success message after 3 seconds

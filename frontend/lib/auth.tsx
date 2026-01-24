@@ -8,6 +8,7 @@ import {
   useEffect,
   useState,
 } from 'react'
+import { apiClient } from './api'
 
 /**
  * Auth context for managing API key state.
@@ -25,8 +26,6 @@ interface AuthContextValue {
   setApiKey: (key: string) => void
   /** Clear the current API key */
   clearApiKey: () => void
-  /** Get the current API key (for internal use by ApiClient only) */
-  getApiKey: () => string | null
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
@@ -38,8 +37,7 @@ interface AuthProviderProps {
 }
 
 export function AuthProvider({ children }: AuthProviderProps) {
-  // Store key in state - initialized from env var if available
-  const [apiKey, setApiKeyState] = useState<string | null>(null)
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [isInitialized, setIsInitialized] = useState(false)
 
   // Initialize from env var on mount (client-side only)
@@ -47,7 +45,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
     // First try env var (for development)
     const envKey = process.env.NEXT_PUBLIC_API_KEY
     if (envKey) {
-      setApiKeyState(envKey)
+      apiClient.setApiKey(envKey)
+      setIsAuthenticated(true)
     } else {
       // Fall back to sessionStorage for runtime-set keys
       // Using sessionStorage instead of localStorage for slightly better security
@@ -55,7 +54,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
       try {
         const storedKey = sessionStorage.getItem(API_KEY_STORAGE_KEY)
         if (storedKey) {
-          setApiKeyState(storedKey)
+          apiClient.setApiKey(storedKey)
+          setIsAuthenticated(true)
         }
       } catch {
         // sessionStorage not available (SSR or privacy mode)
@@ -77,7 +77,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
       return
     }
 
-    setApiKeyState(key)
+    apiClient.setApiKey(key)
+    setIsAuthenticated(true)
 
     // Persist to sessionStorage for page refreshes
     try {
@@ -88,17 +89,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }, [])
 
   const clearApiKey = useCallback(() => {
-    setApiKeyState(null)
+    apiClient.clearApiKey()
+    setIsAuthenticated(false)
     try {
       sessionStorage.removeItem(API_KEY_STORAGE_KEY)
     } catch {
       // sessionStorage not available
     }
   }, [])
-
-  const getApiKey = useCallback(() => {
-    return apiKey
-  }, [apiKey])
 
   // Don't render children until initialized to prevent hydration mismatch
   if (!isInitialized) {
@@ -108,10 +106,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
   return (
     <AuthContext.Provider
       value={{
-        isAuthenticated: apiKey !== null,
+        isAuthenticated,
         setApiKey,
         clearApiKey,
-        getApiKey,
       }}
     >
       {children}
