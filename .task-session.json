@@ -1,39 +1,39 @@
 {
-  "task_id": "RUN-006",
-  "title": "End-to-end integration tests for runner and CLI",
-  "started_at": "2026-01-22T15:12:37-05:00",
+  "task_id": "FE-003",
+  "title": "Create React Query hooks for all endpoints",
+  "started_at": "2026-01-24T11:04:23-05:00",
   "scope": {
     "primary_files": [
-      "tests/integration/test_eval_flow.py",
-      "tests/integration/test_cli_commands.py",
-      "tests/integration/test_comparison.py",
-      "tests/integration/conftest.py"
+      "frontend/hooks/use-suites.ts",
+      "frontend/hooks/use-runs.ts",
+      "frontend/hooks/use-compare.ts"
     ],
     "test_files": [],
     "related_files": [
-      "examples/suites/simple-suite.yaml",
-      "examples/agents/mock_agent.py",
-      "api/src/services/eval_runner.py",
-      "cli/src/commands/run.py"
+      "frontend/lib/api.ts",
+      "frontend/lib/types.ts"
     ]
   },
   "acceptance_criteria": [
-    "Test: CLI run command with local mode executes successfully",
-    "Test: CLI run command with API mode creates and completes run",
-    "Test: All three scorers produce valid scores for mock agent",
-    "Test: Comparison identifies regressions when scores decrease",
-    "Test: Comparison identifies improvements when scores increase",
-    "Test: MLflow traces are created and contain expected spans",
-    "Test: Failed agent execution is handled gracefully",
-    "Test: Timeout handling works correctly",
-    "All tests use fixtures from examples/ directory",
-    "Tests can run in CI without external dependencies (use mocks/SQLite)"
+    "useSuites() - fetch all suites",
+    "useSuite(id) - fetch single suite with cases",
+    "useCreateSuite() - mutation for creating suite",
+    "useUpdateSuite() - mutation for updating suite",
+    "useDeleteSuite() - mutation for deleting suite",
+    "useRuns(filters?) - fetch runs with optional filters",
+    "useRun(id) - fetch single run with polling for active runs",
+    "useRunResults(id) - fetch detailed results",
+    "useTriggerRun() - mutation to start a run",
+    "useCancelRun() - mutation to cancel a run",
+    "useCompare(baseline, candidate) - fetch comparison",
+    "Query key factory exported for cache invalidation",
+    "Appropriate stale times configured",
+    "Mutations invalidate related queries"
   ],
   "context": {
-    "research_refs": [],
-    "code_refs": [
-      "api/tests/",
-      "cli/tests/"
-    ]
+    "research_refs": [
+      ".project/docs/frontend-design-spec.md#state-management"
+    ],
+    "code_refs": []
   }
 }
