@@ -1,0 +1,57 @@
+{
+  "id": "API-004",
+  "title": "Add /stats/dashboard endpoint for pre-aggregated stats",
+  "description": "Create a dedicated API endpoint that returns pre-aggregated dashboard statistics directly from the database. This eliminates the need for the frontend to fetch 1000+ runs just to compute 4 numbers, dramatically improving dashboard load time.",
+  "phase_id": "phase-4-api-auth",
+  "type": "implementation",
+  "status": "ready",
+  "scope": {
+    "primary_files": [
+      "api/src/routers/stats.py",
+      "api/src/services/stats_service.py",
+      "api/src/main.py"
+    ],
+    "test_files": [
+      "api/tests/routers/test_stats.py",
+      "api/tests/services/test_stats_service.py"
+    ],
+    "related_files": [
+      "api/src/db/models.py",
+      "api/src/routers/runs.py"
+    ]
+  },
+  "dependencies": {
+    "blocked_by": [],
+    "blocks": ["FE-070"],
+    "parallel_with": []
+  },
+  "acceptance_criteria": [
+    "GET /stats/dashboard returns aggregated stats in <50ms",
+    "Response includes: total_runs, passed_runs, failed_runs, pass_rate, fail_rate, avg_score",
+    "Response includes: runs_this_week count for trend display",
+    "Stats computed via efficient SQL aggregation, not Python loops",
+    "Optional date_from/date_to query params for time-bounded stats",
+    "Endpoint is properly documented in OpenAPI schema",
+    "Unit tests cover edge cases (no runs, all passed, all failed)"
+  ],
+  "implementation_notes": [
+    "Use SQLAlchemy aggregate functions (func.count, func.avg) for efficiency",
+    "Consider caching stats with short TTL (30-60s) if DB load is concern",
+    "Pass rate = runs where summary.failed=0 AND summary.errored=0",
+    "Fail rate = runs where status='failed' OR summary has failures",
+    "Only count completed runs for score average",
+    "Response schema example:",
+    "  { total_runs: 156, passed_runs: 142, failed_runs: 14,",
+    "    pass_rate: 91.0, fail_rate: 9.0, avg_score: 0.84,",
+    "    runs_this_week: 12 }"
+  ],
+  "context": {
+    "research_refs": [],
+    "code_refs": [
+      "frontend/hooks/use-runs.ts#computeStats",
+      "api/src/routers/runs.py"
+    ]
+  },
+  "estimated_hours": 3,
+  "created_at": "2026-01-24T19:00:00Z"
+}

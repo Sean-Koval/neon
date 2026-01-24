@@ -1,0 +1,55 @@
+{
+  "id": "FE-070",
+  "title": "Dashboard performance optimization",
+  "description": "Optimize dashboard loading performance by using the dedicated stats API endpoint, parallelizing data fetches, and implementing smart polling that respects tab visibility. Target: dashboard should feel instant (<200ms perceived load).",
+  "phase_id": "phase-5-frontend",
+  "type": "implementation",
+  "status": "pending",
+  "scope": {
+    "primary_files": [
+      "frontend/hooks/use-runs.ts",
+      "frontend/hooks/use-stats.ts",
+      "frontend/components/dashboard/stat-cards.tsx",
+      "frontend/app/page.tsx"
+    ],
+    "test_files": [],
+    "related_files": [
+      "frontend/lib/api.ts",
+      "frontend/lib/query-keys.ts"
+    ]
+  },
+  "dependencies": {
+    "blocked_by": ["API-004"],
+    "blocks": [],
+    "parallel_with": ["FE-071"]
+  },
+  "acceptance_criteria": [
+    "New useStats() hook calls GET /stats/dashboard instead of fetching 1000 runs",
+    "DashboardStatCards uses useStats() hook",
+    "Stats and recent runs fetch in parallel (not waterfall)",
+    "Smart polling: pause refetch when tab is hidden (visibilitychange API)",
+    "Smart polling: resume refetch when tab becomes visible",
+    "Polling interval configurable, default 30s when active",
+    "Remove useDashboardStats() hook or deprecate it",
+    "Dashboard perceived load time <200ms on fast connection"
+  ],
+  "implementation_notes": [
+    "Create new frontend/hooks/use-stats.ts for stats-specific hooks",
+    "Add getDashboardStats() method to ApiClient in lib/api.ts",
+    "Use React Query's refetchOnWindowFocus combined with custom visibility logic",
+    "Example smart polling pattern:",
+    "  const isVisible = usePageVisibility()",
+    "  useQuery({ refetchInterval: isVisible ? 30000 : false })",
+    "Consider prefetching stats on app mount for instant dashboard",
+    "Measure before/after with Performance API or React DevTools Profiler"
+  ],
+  "context": {
+    "research_refs": [],
+    "code_refs": [
+      "frontend/hooks/use-runs.ts#useDashboardStats",
+      "frontend/components/dashboard/stat-cards.tsx"
+    ]
+  },
+  "estimated_hours": 3,
+  "created_at": "2026-01-24T19:00:00Z"
+}

@@ -345,6 +345,24 @@
       "status": "ready",
       "phase_id": "phase-5-frontend",
       "title": "Rebrand AgentEval to Neon throughout codebase"
+    },
+    "API-004": {
+      "file": "tasks/API-004.json",
+      "status": "ready",
+      "phase_id": "phase-4-api-auth",
+      "title": "Add /stats/dashboard endpoint for pre-aggregated stats"
+    },
+    "FE-070": {
+      "file": "tasks/FE-070.json",
+      "status": "pending",
+      "phase_id": "phase-5-frontend",
+      "title": "Dashboard performance optimization"
+    },
+    "FE-071": {
+      "file": "tasks/FE-071.json",
+      "status": "ready",
+      "phase_id": "phase-5-frontend",
+      "title": "Runs page server-side pagination and filtering"
     }
   },
   "dependency_graph": {
@@ -400,7 +418,10 @@
     "FE-053": [],
     "FE-054": [],
     "FE-055": ["FE-004"],
-    "FE-060": []
+    "FE-060": [],
+    "API-004": [],
+    "FE-070": ["API-004"],
+    "FE-071": []
   },
   "parallel_groups": [
     {
@@ -447,17 +468,22 @@
       "group_id": "fe-polish-parallel",
       "tasks": ["FE-050", "FE-051", "FE-052", "FE-053", "FE-054"],
       "reason": "Polish tasks have no inter-dependencies"
+    },
+    {
+      "group_id": "performance-parallel",
+      "tasks": ["API-004", "FE-071"],
+      "reason": "Backend stats endpoint and runs pagination can be implemented in parallel"
     }
   ],
-  "ready_tasks": ["FE-013", "FE-021", "FE-023", "FE-030", "FE-034", "FE-041", "FE-050", "FE-051", "FE-052", "FE-053", "FE-054", "FE-055", "FE-060"],
+  "ready_tasks": ["API-004", "FE-013", "FE-021", "FE-023", "FE-030", "FE-034", "FE-041", "FE-050", "FE-051", "FE-052", "FE-053", "FE-054", "FE-055", "FE-060", "FE-071"],
   "critical_path": ["FE-001", "FE-002", "FE-003", "FE-006", "FE-040", "FE-041", "FE-042", "FE-045"],
   "metrics": {
-    "total_tasks": 47,
-    "pending": 10,
-    "ready": 13,
+    "total_tasks": 50,
+    "pending": 11,
+    "ready": 15,
     "in_progress": 0,
     "completed": 27,
-    "estimated_hours_total": 144,
+    "estimated_hours_total": 154,
     "actual_hours_total": null
   },
   "phases_completed": ["phase-1-foundation", "phase-2-scorers", "phase-3-runner-cli", "phase-4-api-auth"],

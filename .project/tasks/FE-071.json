@@ -1,0 +1,52 @@
+{
+  "id": "FE-071",
+  "title": "Runs page server-side pagination and filtering",
+  "description": "Implement proper server-side pagination and filtering on the runs list page. Currently fetches all runs without limit, causing slow load times as data grows. Wire up existing filter UI to actual API calls.",
+  "phase_id": "phase-5-frontend",
+  "type": "implementation",
+  "status": "ready",
+  "scope": {
+    "primary_files": [
+      "frontend/app/runs/page.tsx",
+      "frontend/hooks/use-runs.ts"
+    ],
+    "test_files": [],
+    "related_files": [
+      "frontend/lib/api.ts",
+      "frontend/lib/types.ts"
+    ]
+  },
+  "dependencies": {
+    "blocked_by": [],
+    "blocks": [],
+    "parallel_with": ["FE-070"]
+  },
+  "acceptance_criteria": [
+    "Runs page fetches with limit (default 20-50 per page)",
+    "Pagination controls: Previous/Next buttons or infinite scroll",
+    "URL query params sync: ?page=2&status=completed&suite=xyz",
+    "Suite filter dropdown populated from available suites",
+    "Status filter dropdown filters server-side (not client filter)",
+    "Proper skeleton loaders during loading (not just 'Loading...' text)",
+    "Empty state when no runs match filters",
+    "Page loads in <300ms with proper loading states"
+  ],
+  "implementation_notes": [
+    "API already supports limit/offset via RunsFilter type",
+    "API supports status_filter and suite_id params",
+    "Use nuqs or next/navigation for URL state sync",
+    "Skeleton loader pattern already exists in stat-cards.tsx",
+    "Consider useInfiniteQuery for infinite scroll alternative",
+    "Add total_count to API response if not present for pagination UI",
+    "This task focuses on performance; FE-030 covers full feature set"
+  ],
+  "context": {
+    "research_refs": [],
+    "code_refs": [
+      "frontend/app/runs/page.tsx",
+      "frontend/lib/api.ts#getRuns"
+    ]
+  },
+  "estimated_hours": 4,
+  "created_at": "2026-01-24T19:00:00Z"
+}
