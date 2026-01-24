@@ -1,0 +1,48 @@
+{
+  "id": "FE-033",
+  "title": "Score breakdown visualization per case",
+  "description": "Create a visual component that shows the score breakdown for a single case result. Should clearly display each scorer's score with color coding and the reasoning behind each score.",
+  "phase_id": "phase-5-frontend",
+  "type": "implementation",
+  "status": "pending",
+  "scope": {
+    "primary_files": [
+      "frontend/components/runs/score-breakdown.tsx",
+      "frontend/components/ui/score-bar.tsx"
+    ],
+    "test_files": [],
+    "related_files": [
+      "frontend/components/runs/result-row.tsx"
+    ]
+  },
+  "dependencies": {
+    "blocked_by": ["FE-032"],
+    "blocks": [],
+    "parallel_with": []
+  },
+  "acceptance_criteria": [
+    "Visual breakdown showing each scorer type",
+    "Horizontal bar or radial indicator for each score",
+    "Color-coded by threshold (green/yellow/red)",
+    "Score value displayed numerically",
+    "Reason text displayed below each score",
+    "Evidence list (if present) expandable",
+    "Pass/fail indicator per scorer based on min_score",
+    "Compact mode for inline display",
+    "Expanded mode for full detail view"
+  ],
+  "implementation_notes": [
+    "ScoreBar component: simple div with percentage width and color",
+    "Could use Recharts BarChart for consistency",
+    "Reason text may be multi-line - handle gracefully",
+    "Evidence is array of strings - use bullet list or collapsible"
+  ],
+  "context": {
+    "research_refs": [
+      ".project/docs/frontend-design-spec.md#component-library"
+    ],
+    "code_refs": []
+  },
+  "estimated_hours": 3,
+  "created_at": "2026-01-22T20:00:00Z"
+}

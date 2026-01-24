@@ -1,0 +1,73 @@
+{
+  "id": "RUN-005",
+  "title": "Create example eval suite and demo agent",
+  "description": "Create sample evaluation suite YAML files and a demo agent for testing and documentation. These serve as both integration test fixtures and user onboarding examples. Include a mock agent that simulates tool calls for predictable test results.",
+  "phase_id": "phase-3-runner-cli",
+  "type": "implementation",
+  "status": "completed",
+  "scope": {
+    "primary_files": [
+      "examples/suites/demo-suite.yaml",
+      "examples/suites/simple-suite.yaml",
+      "examples/agents/demo_agent.py",
+      "examples/agents/mock_agent.py",
+      "examples/README.md"
+    ],
+    "test_files": [],
+    "related_files": [
+      "cli/src/loader.py",
+      "api/src/models/eval.py"
+    ]
+  },
+  "dependencies": {
+    "blocked_by": [],
+    "blocks": [
+      "RUN-006"
+    ],
+    "parallel_with": [
+      "RUN-001",
+      "RUN-002"
+    ]
+  },
+  "acceptance_criteria": [
+    "demo-suite.yaml contains 5+ test cases covering all scorer types",
+    "simple-suite.yaml contains 2-3 minimal cases for quick testing",
+    "demo_agent.py implements AgentProtocol with real tool simulation",
+    "mock_agent.py returns predictable outputs for deterministic testing",
+    "Mock agent supports configurable pass/fail scenarios",
+    "README.md documents how to run examples",
+    "Examples pass agent-eval suite validate",
+    "Examples work with both local and API execution modes"
+  ],
+  "implementation_notes": [
+    "demo-suite.yaml cases: factual_search, no_tool_needed, multi_step, reasoning_chain, grounding_check",
+    "mock_agent should accept 'scenario' parameter to control behavior",
+    "Include expected_tools, expected_output_contains in cases",
+    "Tag cases by scorer type for filtering",
+    "Add timeout_seconds variations to test timeout handling",
+    "Document YAML schema in README with annotated examples"
+  ],
+  "context": {
+    "research_refs": [
+      "docs/research/02-concept/architecture-spec.md#yaml-format",
+      "docs/research/02-concept/architecture-spec.md#test-case-schema"
+    ],
+    "code_refs": [
+      "cli/src/loader.py:EvalSuiteSchema"
+    ]
+  },
+  "estimated_hours": 2,
+  "created_at": "2026-01-20T00:00:00Z",
+  "started_at": "2026-01-20T21:28:08-05:00",
+  "completed_at": "2026-01-20T21:45:00-05:00",
+  "worktree": {
+    "branch": "task/RUN-005",
+    "path": "/home/seanm/repos/neon-task-RUN-005",
+    "created_at": "2026-01-20T21:28:08-05:00"
+  },
+  "pr": {
+    "number": 9,
+    "url": "https://github.com/Sean-Koval/neon/pull/9",
+    "status": "open"
+  }
+}

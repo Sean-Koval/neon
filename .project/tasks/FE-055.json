@@ -1,0 +1,49 @@
+{
+  "id": "FE-055",
+  "title": "Settings page with API key management",
+  "description": "Create the settings page allowing users to view and manage their API keys. Include ability to create new keys, view existing keys (masked), and revoke keys.",
+  "phase_id": "phase-5-frontend",
+  "type": "implementation",
+  "status": "pending",
+  "scope": {
+    "primary_files": [
+      "frontend/app/settings/page.tsx",
+      "frontend/components/settings/api-keys.tsx"
+    ],
+    "test_files": [],
+    "related_files": [
+      "frontend/lib/api.ts",
+      "frontend/hooks/use-api-keys.ts"
+    ]
+  },
+  "dependencies": {
+    "blocked_by": ["FE-004"],
+    "blocks": [],
+    "parallel_with": []
+  },
+  "acceptance_criteria": [
+    "Settings page accessible from sidebar",
+    "API Keys section showing existing keys",
+    "Keys displayed masked (last 8 characters visible)",
+    "Key name and creation date shown",
+    "Create new key button opens form",
+    "New key shown in full ONCE after creation (copy to clipboard)",
+    "Delete key with confirmation",
+    "Preferences section (optional): default threshold, results per page",
+    "Loading and error states"
+  ],
+  "implementation_notes": [
+    "API key CRUD endpoints: GET/POST/DELETE /api-keys",
+    "New keys only shown once - cannot be retrieved later",
+    "Use clipboard API for copy functionality",
+    "Consider rate limiting key creation"
+  ],
+  "context": {
+    "research_refs": [
+      ".project/docs/frontend-design-spec.md#settings"
+    ],
+    "code_refs": []
+  },
+  "estimated_hours": 4,
+  "created_at": "2026-01-22T20:00:00Z"
+}

@@ -1,0 +1,49 @@
+{
+  "id": "FE-042",
+  "title": "Compare: Regression highlighting",
+  "description": "Create the regression list display with clear visual highlighting. Each regression should show case name, scorer, baseline score, candidate score, and delta with emphasis on the severity.",
+  "phase_id": "phase-5-frontend",
+  "type": "implementation",
+  "status": "pending",
+  "scope": {
+    "primary_files": [
+      "frontend/components/compare/regression-list.tsx",
+      "frontend/components/compare/regression-card.tsx",
+      "frontend/components/ui/delta-indicator.tsx"
+    ],
+    "test_files": [],
+    "related_files": [
+      "frontend/hooks/use-compare.ts"
+    ]
+  },
+  "dependencies": {
+    "blocked_by": ["FE-041"],
+    "blocks": [],
+    "parallel_with": ["FE-043"]
+  },
+  "acceptance_criteria": [
+    "List of regression items sorted by severity (largest delta first)",
+    "Each item shows: case name, scorer type",
+    "Score comparison: baseline → candidate with arrow",
+    "Delta displayed with down arrow (↓ -0.30)",
+    "Color: red background/border for regressions",
+    "Shows how much threshold is exceeded",
+    "Expandable to show more details",
+    "Empty state if no regressions",
+    "Click to navigate to case in run detail (optional)"
+  ],
+  "implementation_notes": [
+    "RegressionCard component with red styling",
+    "DeltaIndicator component for arrows",
+    "Sort by Math.abs(delta) descending",
+    "Consider severity tiers (minor, major, critical)"
+  ],
+  "context": {
+    "research_refs": [
+      ".project/docs/frontend-design-spec.md#compare-view"
+    ],
+    "code_refs": []
+  },
+  "estimated_hours": 3,
+  "created_at": "2026-01-22T20:00:00Z"
+}

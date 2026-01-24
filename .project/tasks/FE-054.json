@@ -1,0 +1,49 @@
+{
+  "id": "FE-054",
+  "title": "Keyboard navigation and accessibility",
+  "description": "Ensure the app is fully accessible with keyboard navigation, screen reader support, and proper ARIA attributes. Meet WCAG 2.1 AA standards.",
+  "phase_id": "phase-5-frontend",
+  "type": "implementation",
+  "status": "pending",
+  "scope": {
+    "primary_files": [
+      "frontend/components/ui/button.tsx",
+      "frontend/components/ui/dialog.tsx",
+      "frontend/components/sidebar.tsx"
+    ],
+    "test_files": [],
+    "related_files": []
+  },
+  "dependencies": {
+    "blocked_by": [],
+    "blocks": [],
+    "parallel_with": ["FE-053"]
+  },
+  "acceptance_criteria": [
+    "All interactive elements focusable via Tab",
+    "Visible focus indicators (not just outline: none)",
+    "Escape key closes modals/dropdowns",
+    "Enter/Space activates buttons and links",
+    "Arrow keys navigate dropdowns",
+    "ARIA labels on icon-only buttons",
+    "Form labels properly associated",
+    "Tables have proper th/td structure",
+    "Color not sole indicator (icons + text)",
+    "Skip to main content link",
+    "Focus trap in modals"
+  ],
+  "implementation_notes": [
+    "Use semantic HTML (button, nav, main, etc.)",
+    "Test with VoiceOver or NVDA",
+    "Headless UI provides good a11y defaults",
+    "Run axe-core or Lighthouse accessibility audit"
+  ],
+  "context": {
+    "research_refs": [
+      ".project/docs/frontend-design-spec.md#accessibility"
+    ],
+    "code_refs": []
+  },
+  "estimated_hours": 4,
+  "created_at": "2026-01-22T20:00:00Z"
+}

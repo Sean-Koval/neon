@@ -1,0 +1,47 @@
+{
+  "id": "FE-052",
+  "title": "Empty states for all list views",
+  "description": "Create helpful empty state components for when lists have no data. Should include an icon, message, and call-to-action to guide users.",
+  "phase_id": "phase-5-frontend",
+  "type": "implementation",
+  "status": "pending",
+  "scope": {
+    "primary_files": [
+      "frontend/components/ui/empty-state.tsx"
+    ],
+    "test_files": [],
+    "related_files": [
+      "frontend/app/suites/page.tsx",
+      "frontend/app/runs/page.tsx"
+    ]
+  },
+  "dependencies": {
+    "blocked_by": [],
+    "blocks": [],
+    "parallel_with": ["FE-050", "FE-051"]
+  },
+  "acceptance_criteria": [
+    "EmptyState component with icon, title, description, action",
+    "No suites: 'Create your first suite'",
+    "No runs: 'Run your first evaluation'",
+    "No results (filtered): 'No results match your filters'",
+    "No cases: 'Add your first test case'",
+    "No regressions (comparison): celebratory state",
+    "Icons from Lucide React",
+    "Action button links to create flow"
+  ],
+  "implementation_notes": [
+    "Use Lucide icons (FolderOpen, PlayCircle, Search, etc.)",
+    "Keep messages encouraging and helpful",
+    "Action should be primary button style",
+    "Consider illustration SVGs for key empty states"
+  ],
+  "context": {
+    "research_refs": [
+      ".project/docs/frontend-design-spec.md#error-patterns"
+    ],
+    "code_refs": []
+  },
+  "estimated_hours": 2,
+  "created_at": "2026-01-22T20:00:00Z"
+}

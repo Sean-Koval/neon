@@ -1,0 +1,46 @@
+{
+  "id": "FE-013",
+  "title": "Dashboard: Pass/fail distribution by scorer type",
+  "description": "Add visualization showing score distribution across the three scorer types (tool_selection, reasoning, grounding). Could be horizontal bars or a small grouped bar chart.",
+  "phase_id": "phase-5-frontend",
+  "type": "implementation",
+  "status": "pending",
+  "scope": {
+    "primary_files": [
+      "frontend/components/charts/scorer-breakdown.tsx",
+      "frontend/app/page.tsx"
+    ],
+    "test_files": [],
+    "related_files": [
+      "frontend/hooks/use-runs.ts"
+    ]
+  },
+  "dependencies": {
+    "blocked_by": ["FE-003"],
+    "blocks": [],
+    "parallel_with": ["FE-010", "FE-011", "FE-012"]
+  },
+  "acceptance_criteria": [
+    "Shows average score per scorer type",
+    "Visual representation (bars or chart)",
+    "Color-coded by score threshold",
+    "Labels: tool_selection, reasoning, grounding",
+    "Scores displayed as numbers (e.g., 0.85)",
+    "Based on recent runs data",
+    "Loading state"
+  ],
+  "implementation_notes": [
+    "Horizontal bar chart works well for this",
+    "Aggregate scores_by_type from run summaries",
+    "Could use simple div-based bars instead of Recharts",
+    "Keep it simple - this is supplementary info"
+  ],
+  "context": {
+    "research_refs": [
+      ".project/docs/frontend-design-spec.md#dashboard"
+    ],
+    "code_refs": []
+  },
+  "estimated_hours": 2,
+  "created_at": "2026-01-22T20:00:00Z"
+}

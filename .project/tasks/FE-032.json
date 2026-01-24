@@ -1,0 +1,53 @@
+{
+  "id": "FE-032",
+  "title": "Results table with expandable score details",
+  "description": "Display the detailed results for each case in a run. Each row should be expandable to show individual scorer scores, reasons, and evidence. This is the deep-dive debugging view.",
+  "phase_id": "phase-5-frontend",
+  "type": "implementation",
+  "status": "pending",
+  "scope": {
+    "primary_files": [
+      "frontend/app/runs/[id]/page.tsx",
+      "frontend/components/runs/results-table.tsx",
+      "frontend/components/runs/result-row.tsx",
+      "frontend/components/runs/score-detail-panel.tsx"
+    ],
+    "test_files": [],
+    "related_files": [
+      "frontend/hooks/use-runs.ts"
+    ]
+  },
+  "dependencies": {
+    "blocked_by": ["FE-031"],
+    "blocks": ["FE-033"],
+    "parallel_with": []
+  },
+  "acceptance_criteria": [
+    "Table showing all case results",
+    "Columns: case name, status, overall score, execution time, actions",
+    "Status badge (success, failed, error, timeout)",
+    "Overall score color-coded",
+    "Expandable row revealing score breakdown",
+    "Expanded view shows: score per scorer, reason, evidence list",
+    "Filter by status (all, passed, failed)",
+    "Sort by score, name, status",
+    "MLflow trace link (if available)",
+    "Loading state",
+    "Empty state if no results"
+  ],
+  "implementation_notes": [
+    "Use useRunResults(id) hook",
+    "Score breakdown: iterate score_details object",
+    "Evidence may be a list - render as bullet points",
+    "Consider virtualization for runs with many cases",
+    "MLflow link format: external link to trace viewer"
+  ],
+  "context": {
+    "research_refs": [
+      ".project/docs/frontend-design-spec.md#run-detail"
+    ],
+    "code_refs": []
+  },
+  "estimated_hours": 5,
+  "created_at": "2026-01-22T20:00:00Z"
+}

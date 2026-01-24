@@ -1,0 +1,50 @@
+{
+  "id": "FE-051",
+  "title": "Error boundaries and error states",
+  "description": "Implement error handling throughout the app with error boundaries for component crashes and inline error states for failed API calls. Include retry functionality.",
+  "phase_id": "phase-5-frontend",
+  "type": "implementation",
+  "status": "pending",
+  "scope": {
+    "primary_files": [
+      "frontend/components/ui/error-boundary.tsx",
+      "frontend/components/ui/error-state.tsx",
+      "frontend/app/error.tsx",
+      "frontend/app/global-error.tsx"
+    ],
+    "test_files": [],
+    "related_files": [
+      "frontend/lib/api.ts"
+    ]
+  },
+  "dependencies": {
+    "blocked_by": [],
+    "blocks": [],
+    "parallel_with": ["FE-050", "FE-052"]
+  },
+  "acceptance_criteria": [
+    "React Error Boundary catches component crashes",
+    "Global error page (app/error.tsx) for route errors",
+    "ErrorState component for inline API errors",
+    "Retry button on error states",
+    "Error message displayed (user-friendly, not stack trace)",
+    "Different styling for different error types",
+    "404 handling for invalid routes/IDs",
+    "Network error detection",
+    "Toast notifications for mutation errors"
+  ],
+  "implementation_notes": [
+    "Use Next.js error.tsx convention",
+    "React Query provides error state in hooks",
+    "Consider Sentry or similar for error tracking",
+    "ApiError class should have user-friendly messages"
+  ],
+  "context": {
+    "research_refs": [
+      ".project/docs/frontend-design-spec.md#error-patterns"
+    ],
+    "code_refs": []
+  },
+  "estimated_hours": 3,
+  "created_at": "2026-01-22T20:00:00Z"
+}

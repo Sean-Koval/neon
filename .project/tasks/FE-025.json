@@ -1,0 +1,48 @@
+{
+  "id": "FE-025",
+  "title": "Edit and delete suite/case functionality",
+  "description": "Complete the CRUD loop by implementing edit and delete for both suites and cases. Include confirmation dialogs for destructive actions.",
+  "phase_id": "phase-5-frontend",
+  "type": "implementation",
+  "status": "pending",
+  "scope": {
+    "primary_files": [
+      "frontend/app/suites/[id]/edit/page.tsx",
+      "frontend/components/suites/suite-form.tsx",
+      "frontend/components/suites/case-form.tsx",
+      "frontend/components/ui/confirm-dialog.tsx"
+    ],
+    "test_files": [],
+    "related_files": [
+      "frontend/hooks/use-suites.ts"
+    ]
+  },
+  "dependencies": {
+    "blocked_by": ["FE-023", "FE-024"],
+    "blocks": [],
+    "parallel_with": []
+  },
+  "acceptance_criteria": [
+    "Edit suite: /suites/[id]/edit page with pre-filled form",
+    "Edit case: modal/slide-over with pre-filled form",
+    "Update mutations call PATCH endpoints",
+    "Delete suite: confirmation dialog, then DELETE",
+    "Delete case: confirmation dialog, then DELETE",
+    "Confirmation dialog is reusable component",
+    "After delete, navigate appropriately and invalidate cache",
+    "Optimistic updates for better UX",
+    "Error handling with rollback"
+  ],
+  "implementation_notes": [
+    "Reuse SuiteForm and CaseForm with mode='edit'",
+    "Pass initialValues from existing data",
+    "ConfirmDialog should accept title, message, confirmLabel, onConfirm",
+    "Consider 'danger' button style for destructive confirm"
+  ],
+  "context": {
+    "research_refs": [],
+    "code_refs": []
+  },
+  "estimated_hours": 4,
+  "created_at": "2026-01-22T20:00:00Z"
+}

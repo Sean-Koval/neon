@@ -1,0 +1,55 @@
+{
+  "id": "FE-001",
+  "title": "Define TypeScript types from API models",
+  "description": "Create comprehensive TypeScript type definitions that mirror the API's Pydantic models. This ensures type safety across the frontend and enables IDE autocompletion. Types should cover all entities: EvalSuite, EvalCase, EvalRun, EvalResult, CompareResponse, and related enums.",
+  "phase_id": "phase-5-frontend",
+  "type": "implementation",
+  "status": "completed",
+  "scope": {
+    "primary_files": [
+      "frontend/lib/types.ts"
+    ],
+    "test_files": [],
+    "related_files": [
+      "api/src/models/eval.py"
+    ]
+  },
+  "dependencies": {
+    "blocked_by": [],
+    "blocks": [
+      "FE-002",
+      "FE-003"
+    ],
+    "parallel_with": []
+  },
+  "acceptance_criteria": [
+    "All API entity types defined (EvalSuite, EvalCase, EvalRun, EvalResult, etc.)",
+    "All enum types defined (ScorerType, RunStatus, ResultStatus, TriggerType)",
+    "Request/response types for all API operations",
+    "Types match API Pydantic models exactly",
+    "JSDoc comments on complex types",
+    "Exported from lib/types.ts"
+  ],
+  "implementation_notes": [
+    "Reference api/src/models/eval.py for source of truth",
+    "Use string literal unions for enums (not TypeScript enums)",
+    "Include optional fields where API allows null",
+    "Consider generating types from OpenAPI spec in future"
+  ],
+  "context": {
+    "research_refs": [
+      ".project/docs/frontend-design-spec.md#api-client-architecture"
+    ],
+    "code_refs": [
+      "api/src/models/eval.py"
+    ]
+  },
+  "estimated_hours": 2,
+  "created_at": "2026-01-22T20:00:00Z",
+  "started_at": "2026-01-22T23:38:07-05:00",
+  "worktree": {
+    "branch": "task/FE-001",
+    "path": "/home/seanm/repos/neon-task-FE-001",
+    "created_at": "2026-01-22T23:38:07-05:00"
+  }
+}

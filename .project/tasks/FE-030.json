@@ -1,0 +1,52 @@
+{
+  "id": "FE-030",
+  "title": "Runs list page with status filters",
+  "description": "Wire up the runs list page with real data from the API. Add filtering by suite, status, and date range. Include pagination or infinite scroll for large datasets.",
+  "phase_id": "phase-5-frontend",
+  "type": "implementation",
+  "status": "pending",
+  "scope": {
+    "primary_files": [
+      "frontend/app/runs/page.tsx",
+      "frontend/components/runs/runs-table.tsx",
+      "frontend/components/runs/run-filters.tsx"
+    ],
+    "test_files": [],
+    "related_files": [
+      "frontend/hooks/use-runs.ts"
+    ]
+  },
+  "dependencies": {
+    "blocked_by": ["FE-003"],
+    "blocks": ["FE-031"],
+    "parallel_with": ["FE-020"]
+  },
+  "acceptance_criteria": [
+    "Table showing all runs with pagination",
+    "Columns: suite, version, status, passed/total, avg score, trigger, timestamp",
+    "Filter dropdown: by suite",
+    "Filter dropdown: by status (all, pending, running, completed, failed)",
+    "Status badges color-coded",
+    "Score color-coded",
+    "Click row navigates to /runs/[id]",
+    "New Run button (opens suite selector)",
+    "Loading state for table",
+    "Empty state if no runs match filters"
+  ],
+  "implementation_notes": [
+    "Use URL query params for filter state (?suite=x&status=y)",
+    "Sync filter state with URL for shareability",
+    "Consider server-side filtering if API supports it",
+    "Pagination: start with limit/offset, consider cursor-based later"
+  ],
+  "context": {
+    "research_refs": [
+      ".project/docs/frontend-design-spec.md#runs-module"
+    ],
+    "code_refs": [
+      "frontend/app/runs/page.tsx"
+    ]
+  },
+  "estimated_hours": 4,
+  "created_at": "2026-01-22T20:00:00Z"
+}

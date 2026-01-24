@@ -1,0 +1,46 @@
+{
+  "id": "FE-044",
+  "title": "Compare: Side-by-side score comparison chart",
+  "description": "Add a visual chart comparing baseline and candidate scores across all cases or scorers. Helps users quickly see the overall picture of changes.",
+  "phase_id": "phase-5-frontend",
+  "type": "implementation",
+  "status": "pending",
+  "scope": {
+    "primary_files": [
+      "frontend/components/compare/comparison-chart.tsx"
+    ],
+    "test_files": [],
+    "related_files": [
+      "frontend/hooks/use-compare.ts"
+    ]
+  },
+  "dependencies": {
+    "blocked_by": ["FE-041"],
+    "blocks": [],
+    "parallel_with": ["FE-042", "FE-043"]
+  },
+  "acceptance_criteria": [
+    "Bar chart or grouped bar chart",
+    "Shows baseline vs candidate score per scorer type",
+    "Or: per case (if manageable number of cases)",
+    "Baseline bars in one color, candidate in another",
+    "Threshold line visible",
+    "Legend explaining colors",
+    "Responsive to container width",
+    "Optional: can toggle between by-scorer and by-case views"
+  ],
+  "implementation_notes": [
+    "Use Recharts BarChart with grouped bars",
+    "Consider RadarChart as alternative visualization",
+    "Keep it simple - focus on actionable insight",
+    "May skip if run has too many cases (>20)"
+  ],
+  "context": {
+    "research_refs": [
+      ".project/docs/frontend-design-spec.md#compare-view"
+    ],
+    "code_refs": []
+  },
+  "estimated_hours": 3,
+  "created_at": "2026-01-22T20:00:00Z"
+}

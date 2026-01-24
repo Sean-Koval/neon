@@ -1,0 +1,60 @@
+{
+  "id": "API-003",
+  "title": "Add individual case endpoints",
+  "description": "Add individual case CRUD endpoints (GET /cases/{id}, PATCH /cases/{id}, DELETE /cases/{id}) per the API specification. Currently cases are only accessible via suite endpoints.",
+  "phase_id": "phase-4-api-auth",
+  "type": "implementation",
+  "status": "completed",
+  "scope": {
+    "primary_files": [
+      "api/src/routers/cases.py",
+      "api/src/services/suite_service.py"
+    ],
+    "test_files": [
+      "api/tests/routers/test_cases.py"
+    ],
+    "related_files": [
+      "api/src/routers/suites.py",
+      "api/src/main.py"
+    ]
+  },
+  "dependencies": {
+    "blocked_by": [],
+    "blocks": [],
+    "parallel_with": [
+      "API-001",
+      "API-002"
+    ]
+  },
+  "acceptance_criteria": [
+    "GET /api/v1/cases/{id} returns case details",
+    "PATCH /api/v1/cases/{id} updates case",
+    "DELETE /api/v1/cases/{id} deletes case",
+    "All endpoints enforce project scoping",
+    "All endpoints require appropriate API key scopes",
+    "404 returned for non-existent cases",
+    "Unit tests cover all new endpoints"
+  ],
+  "implementation_notes": [
+    "Create new cases.py router",
+    "Add methods to suite_service for individual case operations",
+    "Register router in main.py",
+    "Verify case belongs to project before any operation"
+  ],
+  "context": {
+    "research_refs": [
+      "docs/research/02-concept/architecture-spec.md#api-specification"
+    ],
+    "code_refs": [
+      "api/src/routers/suites.py"
+    ]
+  },
+  "estimated_hours": 2,
+  "created_at": "2026-01-22T00:00:00Z",
+  "started_at": "2026-01-22T19:08:33-05:00",
+  "worktree": {
+    "branch": "task/API-003",
+    "path": "/home/seanm/repos/neon-task-API-003",
+    "created_at": "2026-01-22T19:08:33-05:00"
+  }
+}

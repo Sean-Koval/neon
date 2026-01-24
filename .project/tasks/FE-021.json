@@ -1,0 +1,48 @@
+{
+  "id": "FE-021",
+  "title": "Suite detail page with metadata and actions",
+  "description": "Create the suite detail page showing full suite configuration, actions (run, edit, delete), and navigation to cases. This is the hub for managing a single suite.",
+  "phase_id": "phase-5-frontend",
+  "type": "implementation",
+  "status": "pending",
+  "scope": {
+    "primary_files": [
+      "frontend/app/suites/[id]/page.tsx",
+      "frontend/components/suites/suite-header.tsx"
+    ],
+    "test_files": [],
+    "related_files": [
+      "frontend/hooks/use-suites.ts"
+    ]
+  },
+  "dependencies": {
+    "blocked_by": ["FE-020"],
+    "blocks": ["FE-022"],
+    "parallel_with": []
+  },
+  "acceptance_criteria": [
+    "Displays suite name, description",
+    "Shows agent_id, default_scorers, default_min_score",
+    "Shows parallel, stop_on_failure, timeout settings",
+    "Run button triggers new evaluation",
+    "Edit button navigates to edit page",
+    "Delete button with confirmation",
+    "Breadcrumb navigation (Suites / suite-name)",
+    "Loading state while fetching",
+    "404 handling for invalid suite ID"
+  ],
+  "implementation_notes": [
+    "Use useSuite(id) hook",
+    "Trigger run should use useTriggerRun mutation",
+    "After triggering run, navigate to run detail page",
+    "Delete should invalidate suites cache and navigate back"
+  ],
+  "context": {
+    "research_refs": [
+      ".project/docs/frontend-design-spec.md#suite-detail"
+    ],
+    "code_refs": []
+  },
+  "estimated_hours": 3,
+  "created_at": "2026-01-22T20:00:00Z"
+}

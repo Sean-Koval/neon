@@ -1,0 +1,71 @@
+{
+  "id": "FE-060",
+  "title": "Rebrand AgentEval to Neon throughout codebase",
+  "description": "Update all references to 'AgentEval' to use 'Neon' as the product name. This includes frontend UI, CLI, API, documentation, GitHub Action, and configuration files.",
+  "phase_id": "phase-5-frontend",
+  "type": "chore",
+  "status": "ready",
+  "scope": {
+    "primary_files": [
+      "frontend/components/sidebar.tsx",
+      "frontend/app/layout.tsx",
+      "api/src/main.py",
+      "cli/src/main.py",
+      "cli/src/client.py",
+      "action/action.yml",
+      "action/README.md"
+    ],
+    "test_files": [
+      "api/tests/test_health.py"
+    ],
+    "related_files": [
+      "api/pyproject.toml",
+      "cli/pyproject.toml",
+      "api/src/__init__.py",
+      "cli/src/__init__.py",
+      "docker-compose.yml",
+      "Makefile",
+      "terraform/environments/dev/main.tf",
+      "docs/getting-started.md",
+      "docs/scorers.md",
+      "docs/configuration.md",
+      "docs/api-reference.md",
+      "docs/cicd.md",
+      "docs/research/README.md",
+      "docs/research/status.md",
+      "docs/research/BUILD-READY.md",
+      "docs/research/01-research/_index.md",
+      "docs/research/01-research/competitors/landscape.md",
+      "docs/research/02-concept/architecture.md",
+      "docs/research/02-concept/architecture-spec.md",
+      "docs/research/02-concept/infrastructure.md"
+    ]
+  },
+  "dependencies": {
+    "blocked_by": [],
+    "blocks": [],
+    "parallel_with": []
+  },
+  "acceptance_criteria": [
+    "All 'AgentEval' references replaced with 'Neon'",
+    "Frontend title shows 'Neon' in browser tab and sidebar",
+    "CLI displays 'Neon' in help and output messages",
+    "API title shows 'Neon API' in OpenAPI docs",
+    "GitHub Action branding updated",
+    "Documentation references updated",
+    "Tests updated to expect 'Neon' naming",
+    "No broken links or references after rename"
+  ],
+  "implementation_notes": [
+    "Use case-sensitive replace: AgentEval -> Neon",
+    "Keep 'agent-eval' in URLs/slugs where changing would break things",
+    "Update pyproject.toml descriptions",
+    "Run tests after changes to verify nothing broke"
+  ],
+  "context": {
+    "research_refs": [],
+    "code_refs": []
+  },
+  "estimated_hours": 2,
+  "created_at": "2026-01-24T12:30:00Z"
+}

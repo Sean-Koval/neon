@@ -1,0 +1,60 @@
+{
+  "id": "FE-012",
+  "title": "Dashboard: Score trend chart",
+  "description": "Add a line chart showing score trends over time. Display average scores from the last 7 days or last 10 runs, whichever makes more sense given data availability.",
+  "phase_id": "phase-5-frontend",
+  "type": "implementation",
+  "status": "completed",
+  "scope": {
+    "primary_files": [
+      "frontend/components/charts/score-trend.tsx",
+      "frontend/app/page.tsx"
+    ],
+    "test_files": [],
+    "related_files": [
+      "frontend/hooks/use-runs.ts"
+    ]
+  },
+  "dependencies": {
+    "blocked_by": [
+      "FE-003"
+    ],
+    "blocks": [],
+    "parallel_with": [
+      "FE-010",
+      "FE-011",
+      "FE-013"
+    ]
+  },
+  "acceptance_criteria": [
+    "Line chart using Recharts",
+    "X-axis: date or run number",
+    "Y-axis: average score (0.0-1.0)",
+    "Shows data for last 7 days or 10 runs",
+    "Tooltip on hover showing date and score",
+    "Reference line at 0.7 (default threshold)",
+    "Responsive to container width",
+    "Loading skeleton while data loads",
+    "Graceful handling of insufficient data"
+  ],
+  "implementation_notes": [
+    "Use Recharts LineChart component",
+    "Aggregate runs by day for daily view",
+    "Consider adding suite filter dropdown",
+    "Use consistent color scheme from design spec"
+  ],
+  "context": {
+    "research_refs": [
+      ".project/docs/frontend-design-spec.md#dashboard"
+    ],
+    "code_refs": []
+  },
+  "estimated_hours": 3,
+  "created_at": "2026-01-22T20:00:00Z",
+  "started_at": "2026-01-24T13:32:15-05:00",
+  "worktree": {
+    "branch": "task/FE-012",
+    "path": "/home/seanm/repos/neon-task-FE-012",
+    "created_at": "2026-01-24T13:32:15-05:00"
+  }
+}

@@ -1,0 +1,49 @@
+{
+  "id": "FE-041",
+  "title": "Compare: Results display with pass/fail state",
+  "description": "Display the comparison results showing overall pass/fail status, delta score, and the breakdown of regressions, improvements, and unchanged cases.",
+  "phase_id": "phase-5-frontend",
+  "type": "implementation",
+  "status": "pending",
+  "scope": {
+    "primary_files": [
+      "frontend/app/compare/page.tsx",
+      "frontend/components/compare/compare-results.tsx",
+      "frontend/components/compare/comparison-header.tsx"
+    ],
+    "test_files": [],
+    "related_files": [
+      "frontend/hooks/use-compare.ts"
+    ]
+  },
+  "dependencies": {
+    "blocked_by": ["FE-040"],
+    "blocks": ["FE-042", "FE-043"],
+    "parallel_with": []
+  },
+  "acceptance_criteria": [
+    "Large header banner showing pass/fail state",
+    "Pass: green banner 'No Regressions Detected'",
+    "Fail: red banner 'REGRESSION DETECTED'",
+    "Overall score delta displayed prominently",
+    "Baseline vs candidate scores shown",
+    "Section headers for Regressions, Improvements, Unchanged",
+    "Count for each section",
+    "Loading state while comparison runs",
+    "Error state if comparison fails"
+  ],
+  "implementation_notes": [
+    "Use useCompare hook",
+    "Header banner should be visually dominant",
+    "Consider confetti or celebration for passing (optional)",
+    "Regression banner should be impossible to miss"
+  ],
+  "context": {
+    "research_refs": [
+      ".project/docs/frontend-design-spec.md#compare-view"
+    ],
+    "code_refs": []
+  },
+  "estimated_hours": 3,
+  "created_at": "2026-01-22T20:00:00Z"
+}

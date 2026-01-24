@@ -1,0 +1,61 @@
+{
+  "id": "FE-040",
+  "title": "Compare: Run selector UI",
+  "description": "Create the UI for selecting baseline and candidate runs to compare. Should allow easy selection from recent runs, with the ability to filter by suite.",
+  "phase_id": "phase-5-frontend",
+  "type": "implementation",
+  "status": "completed",
+  "scope": {
+    "primary_files": [
+      "frontend/app/compare/page.tsx",
+      "frontend/components/compare/run-selector.tsx"
+    ],
+    "test_files": [],
+    "related_files": [
+      "frontend/hooks/use-runs.ts",
+      "frontend/hooks/use-compare.ts"
+    ]
+  },
+  "dependencies": {
+    "blocked_by": [
+      "FE-003"
+    ],
+    "blocks": [
+      "FE-041"
+    ],
+    "parallel_with": []
+  },
+  "acceptance_criteria": [
+    "Two run selector dropdowns (baseline and candidate)",
+    "Dropdowns show recent runs grouped by suite",
+    "Each option shows: suite name, version, score, date",
+    "Selected run shows summary card below dropdown",
+    "Can filter runs by suite",
+    "Threshold selector (0.01, 0.05, 0.10, 0.15, 0.20)",
+    "Compare button enabled when both runs selected",
+    "URL updates with selected run IDs for shareability",
+    "Pre-fill selectors from URL params if present"
+  ],
+  "implementation_notes": [
+    "Use Combobox or searchable Select component",
+    "Group options by suite name in dropdown",
+    "Consider recent runs vs all runs toggle",
+    "RunSelector component should be reusable"
+  ],
+  "context": {
+    "research_refs": [
+      ".project/docs/frontend-design-spec.md#compare-view"
+    ],
+    "code_refs": [
+      "frontend/app/compare/page.tsx"
+    ]
+  },
+  "estimated_hours": 4,
+  "created_at": "2026-01-22T20:00:00Z",
+  "started_at": "2026-01-24T14:55:22-05:00",
+  "worktree": {
+    "branch": "task/FE-040",
+    "path": "/home/seanm/repos/neon-task-FE-040",
+    "created_at": "2026-01-24T14:55:22-05:00"
+  }
+}

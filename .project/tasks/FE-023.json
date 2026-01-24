@@ -1,0 +1,51 @@
+{
+  "id": "FE-023",
+  "title": "Create suite form/modal",
+  "description": "Implement the form for creating a new evaluation suite. Can be a dedicated page or modal. Include validation and feedback on success/failure.",
+  "phase_id": "phase-5-frontend",
+  "type": "implementation",
+  "status": "pending",
+  "scope": {
+    "primary_files": [
+      "frontend/app/suites/new/page.tsx",
+      "frontend/components/suites/suite-form.tsx"
+    ],
+    "test_files": [],
+    "related_files": [
+      "frontend/hooks/use-suites.ts",
+      "frontend/lib/types.ts"
+    ]
+  },
+  "dependencies": {
+    "blocked_by": ["FE-003"],
+    "blocks": [],
+    "parallel_with": ["FE-020"]
+  },
+  "acceptance_criteria": [
+    "Form fields: name, description, agent_id",
+    "Scorer selection (multi-select from tool_selection, reasoning, grounding)",
+    "Default min_score input (0.0-1.0)",
+    "Default timeout_seconds input",
+    "Parallel execution toggle",
+    "Stop on failure toggle",
+    "Client-side validation (name required, score range)",
+    "Submit creates suite via API",
+    "Success: navigate to new suite detail page",
+    "Error: show error message, keep form state",
+    "Cancel button returns to suites list"
+  ],
+  "implementation_notes": [
+    "Use React Hook Form or native form handling",
+    "Consider reusing form for edit functionality",
+    "SuiteForm component should accept initialValues for edit mode",
+    "Scorer selection could be checkboxes or multi-select"
+  ],
+  "context": {
+    "research_refs": [
+      ".project/docs/frontend-design-spec.md#suite-detail"
+    ],
+    "code_refs": []
+  },
+  "estimated_hours": 4,
+  "created_at": "2026-01-22T20:00:00Z"
+}

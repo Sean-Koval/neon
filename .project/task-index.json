@@ -56,19 +56,295 @@
       "title": "Implement GroundingScorer",
       "pr_merged": "https://github.com/Sean-Koval/neon/pull/6"
     },
+    "RUN-001": {
+      "file": "tasks/RUN-001.json",
+      "status": "completed",
+      "phase_id": "phase-3-runner-cli",
+      "title": "Integrate MLflow tracing into EvalRunner",
+      "pr_merged": "https://github.com/Sean-Koval/neon/pull/13"
+    },
+    "RUN-002": {
+      "file": "tasks/RUN-002.json",
+      "status": "completed",
+      "phase_id": "phase-3-runner-cli",
+      "title": "Implement agent loader from module path",
+      "pr_merged": "https://github.com/Sean-Koval/neon/pull/12"
+    },
+    "RUN-003": {
+      "file": "tasks/RUN-003.json",
+      "status": "completed",
+      "phase_id": "phase-3-runner-cli",
+      "title": "Add local execution mode to CLI",
+      "pr_merged": "https://github.com/Sean-Koval/neon/pull/14"
+    },
+    "RUN-004": {
+      "file": "tasks/RUN-004.json",
+      "status": "completed",
+      "phase_id": "phase-3-runner-cli",
+      "title": "Wire API run endpoint to execute agents",
+      "pr_merged": "https://github.com/Sean-Koval/neon/pull/15"
+    },
+    "RUN-005": {
+      "file": "tasks/RUN-005.json",
+      "status": "completed",
+      "phase_id": "phase-3-runner-cli",
+      "title": "Create example eval suite and demo agent",
+      "pr_merged": "https://github.com/Sean-Koval/neon/pull/9"
+    },
+    "RUN-006": {
+      "file": "tasks/RUN-006.json",
+      "status": "completed",
+      "phase_id": "phase-3-runner-cli",
+      "title": "End-to-end integration tests for runner and CLI",
+      "pr_merged": "https://github.com/Sean-Koval/neon/pull/16"
+    },
+    "API-001": {
+      "file": "tasks/API-001.json",
+      "status": "completed",
+      "phase_id": "phase-4-api-auth",
+      "title": "Add rate limiting to API endpoints",
+      "pr_merged": "https://github.com/Sean-Koval/neon/pull/18"
+    },
+    "API-002": {
+      "file": "tasks/API-002.json",
+      "status": "completed",
+      "phase_id": "phase-4-api-auth",
+      "title": "Complete API router tests",
+      "pr_merged": "https://github.com/Sean-Koval/neon/pull/17"
+    },
+    "API-003": {
+      "file": "tasks/API-003.json",
+      "status": "completed",
+      "phase_id": "phase-4-api-auth",
+      "title": "Add individual case endpoints",
+      "pr_merged": "https://github.com/Sean-Koval/neon/pull/19"
+    },
     "FE-001": {
       "file": "tasks/FE-001.json",
       "status": "completed",
       "phase_id": "phase-5-frontend",
-      "title": "Define TypeScript types for API entities",
+      "title": "Define TypeScript types from API models",
       "pr_merged": "https://github.com/Sean-Koval/neon/pull/20"
     },
     "FE-002": {
       "file": "tasks/FE-002.json",
-      "status": "in_review",
+      "status": "completed",
       "phase_id": "phase-5-frontend",
-      "title": "Implement API client",
-      "pr_url": "https://github.com/Sean-Koval/neon/pull/21"
+      "title": "Implement API client with error handling",
+      "pr_merged": "https://github.com/Sean-Koval/neon/pull/21"
+    },
+    "FE-003": {
+      "file": "tasks/FE-003.json",
+      "status": "completed",
+      "phase_id": "phase-5-frontend",
+      "title": "Create React Query hooks for all endpoints",
+      "pr_merged": "https://github.com/Sean-Koval/neon/pull/23"
+    },
+    "FE-004": {
+      "file": "tasks/FE-004.json",
+      "status": "completed",
+      "phase_id": "phase-5-frontend",
+      "title": "Add API key configuration and storage",
+      "pr_merged": "https://github.com/Sean-Koval/neon/pull/24"
+    },
+    "FE-005": {
+      "file": "tasks/FE-005.json",
+      "status": "completed",
+      "phase_id": "phase-5-frontend",
+      "title": "Configure QueryClientProvider and app providers",
+      "pr_merged": "https://github.com/Sean-Koval/neon/pull/27"
+    },
+    "FE-006": {
+      "file": "tasks/FE-006.json",
+      "status": "completed",
+      "phase_id": "phase-5-frontend",
+      "title": "Implement base UI component library with design system",
+      "pr_merged": "https://github.com/Sean-Koval/neon/pull/26"
+    },
+    "FE-010": {
+      "file": "tasks/FE-010.json",
+      "status": "completed",
+      "phase_id": "phase-5-frontend",
+      "title": "Dashboard: Fetch and display summary stats",
+      "pr_merged": "https://github.com/Sean-Koval/neon/pull/28"
+    },
+    "FE-011": {
+      "file": "tasks/FE-011.json",
+      "status": "completed",
+      "phase_id": "phase-5-frontend",
+      "title": "Dashboard: Recent runs table with live data",
+      "pr_merged": "https://github.com/Sean-Koval/neon/pull/29"
+    },
+    "FE-012": {
+      "file": "tasks/FE-012.json",
+      "status": "completed",
+      "phase_id": "phase-5-frontend",
+      "title": "Dashboard: Score trend chart",
+      "pr_merged": "https://github.com/Sean-Koval/neon/pull/30"
+    },
+    "FE-013": {
+      "file": "tasks/FE-013.json",
+      "status": "ready",
+      "phase_id": "phase-5-frontend",
+      "title": "Dashboard: Pass/fail distribution by scorer type"
+    },
+    "FE-020": {
+      "file": "tasks/FE-020.json",
+      "status": "completed",
+      "phase_id": "phase-5-frontend",
+      "title": "Suites list page with search and filtering",
+      "pr_merged": "https://github.com/Sean-Koval/neon/pull/31"
+    },
+    "FE-021": {
+      "file": "tasks/FE-021.json",
+      "status": "ready",
+      "phase_id": "phase-5-frontend",
+      "title": "Suite detail page with metadata and actions"
+    },
+    "FE-022": {
+      "file": "tasks/FE-022.json",
+      "status": "pending",
+      "phase_id": "phase-5-frontend",
+      "title": "Cases list within suite detail"
+    },
+    "FE-023": {
+      "file": "tasks/FE-023.json",
+      "status": "ready",
+      "phase_id": "phase-5-frontend",
+      "title": "Create suite form/modal"
+    },
+    "FE-024": {
+      "file": "tasks/FE-024.json",
+      "status": "pending",
+      "phase_id": "phase-5-frontend",
+      "title": "Create case form with full configuration"
+    },
+    "FE-025": {
+      "file": "tasks/FE-025.json",
+      "status": "pending",
+      "phase_id": "phase-5-frontend",
+      "title": "Edit and delete suite/case functionality"
+    },
+    "FE-030": {
+      "file": "tasks/FE-030.json",
+      "status": "ready",
+      "phase_id": "phase-5-frontend",
+      "title": "Runs list page with status filters"
+    },
+    "FE-031": {
+      "file": "tasks/FE-031.json",
+      "status": "pending",
+      "phase_id": "phase-5-frontend",
+      "title": "Run detail page with summary"
+    },
+    "FE-032": {
+      "file": "tasks/FE-032.json",
+      "status": "pending",
+      "phase_id": "phase-5-frontend",
+      "title": "Results table with expandable score details"
+    },
+    "FE-033": {
+      "file": "tasks/FE-033.json",
+      "status": "pending",
+      "phase_id": "phase-5-frontend",
+      "title": "Score breakdown visualization per case"
+    },
+    "FE-034": {
+      "file": "tasks/FE-034.json",
+      "status": "ready",
+      "phase_id": "phase-5-frontend",
+      "title": "Trigger new run from suite"
+    },
+    "FE-035": {
+      "file": "tasks/FE-035.json",
+      "status": "pending",
+      "phase_id": "phase-5-frontend",
+      "title": "Polling for in-progress runs"
+    },
+    "FE-036": {
+      "file": "tasks/FE-036.json",
+      "status": "pending",
+      "phase_id": "phase-5-frontend",
+      "title": "Cancel run action"
+    },
+    "FE-040": {
+      "file": "tasks/FE-040.json",
+      "status": "completed",
+      "phase_id": "phase-5-frontend",
+      "title": "Compare: Run selector UI",
+      "pr_merged": "https://github.com/Sean-Koval/neon/pull/32"
+    },
+    "FE-041": {
+      "file": "tasks/FE-041.json",
+      "status": "ready",
+      "phase_id": "phase-5-frontend",
+      "title": "Compare: Results display with pass/fail state"
+    },
+    "FE-042": {
+      "file": "tasks/FE-042.json",
+      "status": "pending",
+      "phase_id": "phase-5-frontend",
+      "title": "Compare: Regression highlighting"
+    },
+    "FE-043": {
+      "file": "tasks/FE-043.json",
+      "status": "pending",
+      "phase_id": "phase-5-frontend",
+      "title": "Compare: Improvements section"
+    },
+    "FE-044": {
+      "file": "tasks/FE-044.json",
+      "status": "pending",
+      "phase_id": "phase-5-frontend",
+      "title": "Compare: Side-by-side score comparison chart"
+    },
+    "FE-045": {
+      "file": "tasks/FE-045.json",
+      "status": "pending",
+      "phase_id": "phase-5-frontend",
+      "title": "Compare: Visual polish and result reveal animation"
+    },
+    "FE-050": {
+      "file": "tasks/FE-050.json",
+      "status": "ready",
+      "phase_id": "phase-5-frontend",
+      "title": "Loading skeletons for all data fetches"
+    },
+    "FE-051": {
+      "file": "tasks/FE-051.json",
+      "status": "ready",
+      "phase_id": "phase-5-frontend",
+      "title": "Error boundaries and error states"
+    },
+    "FE-052": {
+      "file": "tasks/FE-052.json",
+      "status": "ready",
+      "phase_id": "phase-5-frontend",
+      "title": "Empty states for all list views"
+    },
+    "FE-053": {
+      "file": "tasks/FE-053.json",
+      "status": "ready",
+      "phase_id": "phase-5-frontend",
+      "title": "Mobile responsive layout"
+    },
+    "FE-054": {
+      "file": "tasks/FE-054.json",
+      "status": "ready",
+      "phase_id": "phase-5-frontend",
+      "title": "Keyboard navigation and accessibility"
+    },
+    "FE-055": {
+      "file": "tasks/FE-055.json",
+      "status": "ready",
+      "phase_id": "phase-5-frontend",
+      "title": "Settings page with API key management"
+    },
+    "FE-060": {
+      "file": "tasks/FE-060.json",
+      "status": "ready",
+      "phase_id": "phase-5-frontend",
+      "title": "Rebrand AgentEval to Neon throughout codebase"
     }
   },
   "dependency_graph": {
@@ -80,8 +356,51 @@
     "SCR-001": ["FND-005"],
     "SCR-002": ["FND-005"],
     "SCR-003": ["FND-005"],
+    "RUN-001": [],
+    "RUN-002": [],
+    "RUN-003": ["RUN-002"],
+    "RUN-004": ["RUN-001", "RUN-002"],
+    "RUN-005": [],
+    "RUN-006": ["RUN-001", "RUN-003", "RUN-004", "RUN-005"],
+    "API-001": [],
+    "API-002": [],
+    "API-003": [],
     "FE-001": [],
-    "FE-002": ["FE-001"]
+    "FE-002": ["FE-001"],
+    "FE-003": ["FE-002"],
+    "FE-004": [],
+    "FE-005": [],
+    "FE-006": [],
+    "FE-010": ["FE-003", "FE-006"],
+    "FE-011": ["FE-003", "FE-006"],
+    "FE-012": ["FE-003", "FE-006"],
+    "FE-013": ["FE-003", "FE-006"],
+    "FE-020": ["FE-003", "FE-006"],
+    "FE-021": ["FE-020"],
+    "FE-022": ["FE-021"],
+    "FE-023": ["FE-003"],
+    "FE-024": ["FE-022"],
+    "FE-025": ["FE-023", "FE-024"],
+    "FE-030": ["FE-003", "FE-006"],
+    "FE-031": ["FE-030"],
+    "FE-032": ["FE-031"],
+    "FE-033": ["FE-032"],
+    "FE-034": ["FE-003"],
+    "FE-035": ["FE-031"],
+    "FE-036": ["FE-031"],
+    "FE-040": ["FE-003", "FE-006"],
+    "FE-041": ["FE-040"],
+    "FE-042": ["FE-041"],
+    "FE-043": ["FE-041"],
+    "FE-044": ["FE-041"],
+    "FE-045": ["FE-041", "FE-042"],
+    "FE-050": [],
+    "FE-051": [],
+    "FE-052": [],
+    "FE-053": [],
+    "FE-054": [],
+    "FE-055": ["FE-004"],
+    "FE-060": []
   },
   "parallel_groups": [
     {
@@ -93,23 +412,54 @@
       "group_id": "scorers-parallel",
       "tasks": ["SCR-001", "SCR-002", "SCR-003"],
       "reason": "All three scorers can be implemented in parallel"
+    },
+    {
+      "group_id": "runner-parallel-1",
+      "tasks": ["RUN-001", "RUN-002", "RUN-005"],
+      "reason": "MLflow integration, agent loader, and examples have no inter-dependencies"
+    },
+    {
+      "group_id": "api-auth-parallel",
+      "tasks": ["API-001", "API-002", "API-003"],
+      "reason": "All three API tasks can be implemented in parallel with no inter-dependencies"
+    },
+    {
+      "group_id": "fe-foundation-parallel",
+      "tasks": ["FE-001", "FE-004", "FE-005", "FE-006"],
+      "reason": "Types, auth config, providers, and UI components can be built in parallel"
+    },
+    {
+      "group_id": "fe-dashboard-parallel",
+      "tasks": ["FE-010", "FE-011", "FE-012", "FE-013"],
+      "reason": "Dashboard components can be built in parallel once hooks exist"
+    },
+    {
+      "group_id": "fe-views-parallel",
+      "tasks": ["FE-020", "FE-030", "FE-040"],
+      "reason": "Suite list, runs list, and compare selector can be built in parallel"
+    },
+    {
+      "group_id": "fe-compare-parallel",
+      "tasks": ["FE-042", "FE-043", "FE-044"],
+      "reason": "Regression, improvement, and chart components can be built in parallel"
+    },
+    {
+      "group_id": "fe-polish-parallel",
+      "tasks": ["FE-050", "FE-051", "FE-052", "FE-053", "FE-054"],
+      "reason": "Polish tasks have no inter-dependencies"
     }
   ],
-  "ready_tasks": [],
-  "critical_path": [
-    "FND-001",
-    "FND-002",
-    "FND-003",
-    "FND-004"
-  ],
+  "ready_tasks": ["FE-013", "FE-021", "FE-023", "FE-030", "FE-034", "FE-041", "FE-050", "FE-051", "FE-052", "FE-053", "FE-054", "FE-055", "FE-060"],
+  "critical_path": ["FE-001", "FE-002", "FE-003", "FE-006", "FE-040", "FE-041", "FE-042", "FE-045"],
   "metrics": {
-    "total_tasks": 10,
-    "pending": 0,
-    "in_progress": 1,
-    "completed": 9,
-    "estimated_hours_total": 32,
+    "total_tasks": 47,
+    "pending": 10,
+    "ready": 13,
+    "in_progress": 0,
+    "completed": 27,
+    "estimated_hours_total": 144,
     "actual_hours_total": null
   },
-  "phases_completed": ["phase-1-foundation", "phase-2-scorers"],
-  "last_computed": "2026-01-23T02:00:00Z"
+  "phases_completed": ["phase-1-foundation", "phase-2-scorers", "phase-3-runner-cli", "phase-4-api-auth"],
+  "last_computed": "2026-01-24T20:00:00Z"
 }

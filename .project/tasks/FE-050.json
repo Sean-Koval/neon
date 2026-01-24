@@ -1,0 +1,52 @@
+{
+  "id": "FE-050",
+  "title": "Loading skeletons for all data fetches",
+  "description": "Implement consistent loading skeleton components that match the shape of the content they replace. Apply to all pages and components that fetch data.",
+  "phase_id": "phase-5-frontend",
+  "type": "implementation",
+  "status": "pending",
+  "scope": {
+    "primary_files": [
+      "frontend/components/ui/skeleton.tsx",
+      "frontend/components/ui/table-skeleton.tsx",
+      "frontend/components/ui/card-skeleton.tsx"
+    ],
+    "test_files": [],
+    "related_files": [
+      "frontend/app/page.tsx",
+      "frontend/app/suites/page.tsx",
+      "frontend/app/runs/page.tsx"
+    ]
+  },
+  "dependencies": {
+    "blocked_by": [],
+    "blocks": [],
+    "parallel_with": ["FE-051", "FE-052"]
+  },
+  "acceptance_criteria": [
+    "Base Skeleton component with pulse animation",
+    "TableSkeleton for data tables (configurable rows)",
+    "CardSkeleton for suite/stat cards",
+    "ChartSkeleton for chart placeholders",
+    "Applied to dashboard stats",
+    "Applied to runs table",
+    "Applied to suites list",
+    "Applied to run detail page",
+    "Skeletons match actual content dimensions",
+    "Smooth transition from skeleton to content"
+  ],
+  "implementation_notes": [
+    "Use CSS animation for pulse effect",
+    "TailwindCSS animate-pulse class",
+    "Consider using aspect-ratio for chart skeletons",
+    "Skeletons should be visually similar to final content"
+  ],
+  "context": {
+    "research_refs": [
+      ".project/docs/frontend-design-spec.md#loading-patterns"
+    ],
+    "code_refs": []
+  },
+  "estimated_hours": 3,
+  "created_at": "2026-01-22T20:00:00Z"
+}

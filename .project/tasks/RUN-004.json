@@ -1,0 +1,65 @@
+{
+  "id": "RUN-004",
+  "title": "Wire API run endpoint to execute agents",
+  "description": "Complete the API endpoint that triggers actual agent execution. Currently the POST /suites/{suite_id}/run endpoint may only create run records without executing. This task ensures the endpoint triggers background execution using EvalRunner with the integrated MLflow tracing from RUN-001.",
+  "phase_id": "phase-3-runner-cli",
+  "type": "implementation",
+  "status": "completed",
+  "scope": {
+    "primary_files": [
+      "api/src/routers/runs.py",
+      "api/src/services/run_service.py"
+    ],
+    "test_files": [
+      "api/tests/routers/test_runs.py",
+      "api/tests/services/test_run_service.py"
+    ],
+    "related_files": [
+      "api/src/services/eval_runner.py",
+      "api/src/agent/loader.py",
+      "api/src/models/db.py"
+    ]
+  },
+  "dependencies": {
+    "blocked_by": [
+      "RUN-001",
+      "RUN-002"
+    ],
+    "blocks": [
+      "RUN-006"
+    ],
+    "parallel_with": []
+  },
+  "acceptance_criteria": [
+    "POST /suites/{suite_id}/run creates run record with status='pending'",
+    "Background task is spawned to execute the run asynchronously",
+    "Agent is loaded from suite.agent_id using agent loader",
+    "Run status transitions: pending -> running -> completed/failed",
+    "GET /runs/{id} returns current status and summary when complete",
+    "GET /runs/{id}/results returns per-case results with scores",
+    "Execution errors are captured and stored in run.summary",
+    "Integration test demonstrates API-triggered execution"
+  ],
+  "implementation_notes": [
+    "Use FastAPI BackgroundTasks or asyncio.create_task for async execution",
+    "Consider using a task queue (Redis/Celery) for production - but background task OK for MVP",
+    "Agent path comes from EvalSuiteModel.agent_id field",
+    "Inject EvalRunner into RunService",
+    "Handle case where agent module is not installed on API server",
+    "Add rate limiting to prevent abuse"
+  ],
+  "context": {
+    "research_refs": [
+      "docs/research/02-concept/architecture-spec.md#api-specification"
+    ],
+    "code_refs": [
+      "api/src/routers/runs.py",
+      "api/src/services/run_service.py"
+    ]
+  },
+  "estimated_hours": 3,
+  "created_at": "2026-01-20T00:00:00Z",
+  "started_at": "2026-01-22T12:08:16-05:00",
+  "completed_at": "2026-01-22T12:45:00-05:00",
+  "pr_url": "https://github.com/Sean-Koval/neon/pull/15"
+}

@@ -1,0 +1,54 @@
+{
+  "id": "FE-005",
+  "title": "Configure QueryClientProvider and app providers",
+  "description": "Set up the React Query provider and any other global providers needed for the app. Ensure proper configuration for caching, devtools, and error handling.",
+  "phase_id": "phase-5-frontend",
+  "type": "implementation",
+  "status": "completed",
+  "scope": {
+    "primary_files": [
+      "frontend/app/providers.tsx"
+    ],
+    "test_files": [],
+    "related_files": [
+      "frontend/app/layout.tsx"
+    ]
+  },
+  "dependencies": {
+    "blocked_by": [],
+    "blocks": [
+      "FE-003"
+    ],
+    "parallel_with": [
+      "FE-001",
+      "FE-004"
+    ]
+  },
+  "acceptance_criteria": [
+    "QueryClientProvider wraps app",
+    "Default query options configured (staleTime, retry)",
+    "React Query Devtools enabled in development",
+    "Error boundary for query errors",
+    "Providers component exported and used in layout"
+  ],
+  "implementation_notes": [
+    "Check if providers.tsx already exists and extend",
+    "Use 'use client' directive",
+    "Configure global error handler",
+    "Consider toast notifications for mutation errors"
+  ],
+  "context": {
+    "research_refs": [],
+    "code_refs": [
+      "frontend/app/layout.tsx"
+    ]
+  },
+  "estimated_hours": 1,
+  "created_at": "2026-01-22T20:00:00Z",
+  "started_at": "2026-01-24T12:15:04-05:00",
+  "worktree": {
+    "branch": "task/FE-005",
+    "path": "/home/seanm/repos/neon-task-FE-005",
+    "created_at": "2026-01-24T12:15:04-05:00"
+  }
+}

@@ -1,0 +1,59 @@
+{
+  "id": "API-002",
+  "title": "Complete API router tests",
+  "description": "Add comprehensive tests for all API routers. Currently only runs router has tests. Need tests for suites, auth, and compare routers.",
+  "phase_id": "phase-4-api-auth",
+  "type": "testing",
+  "status": "completed",
+  "scope": {
+    "primary_files": [
+      "api/tests/routers/test_suites.py",
+      "api/tests/routers/test_auth.py",
+      "api/tests/routers/test_compare.py"
+    ],
+    "test_files": [],
+    "related_files": [
+      "api/src/routers/suites.py",
+      "api/src/routers/auth.py",
+      "api/src/routers/compare.py",
+      "api/tests/routers/test_runs.py"
+    ]
+  },
+  "dependencies": {
+    "blocked_by": [],
+    "blocks": [],
+    "parallel_with": [
+      "API-001",
+      "API-003"
+    ]
+  },
+  "acceptance_criteria": [
+    "Test: Suites CRUD operations (list, create, get, update, delete)",
+    "Test: Cases CRUD via suites endpoints",
+    "Test: API key authentication rejects invalid keys",
+    "Test: API key scopes enforce permissions correctly",
+    "Test: Compare endpoints return correct regression/improvement data",
+    "Test: All endpoints return proper error codes (401, 403, 404)",
+    "All tests use mocked database and auth"
+  ],
+  "implementation_notes": [
+    "Follow pattern from test_runs.py",
+    "Use pytest fixtures for mocked auth",
+    "Test both success and error cases",
+    "Test scope enforcement for each endpoint"
+  ],
+  "context": {
+    "research_refs": [],
+    "code_refs": [
+      "api/tests/routers/test_runs.py"
+    ]
+  },
+  "estimated_hours": 3,
+  "created_at": "2026-01-22T00:00:00Z",
+  "started_at": "2026-01-22T16:19:59-05:00",
+  "worktree": {
+    "branch": "task/API-002",
+    "path": "/home/seanm/repos/neon-task-API-002",
+    "created_at": "2026-01-22T16:19:59-05:00"
+  }
+}

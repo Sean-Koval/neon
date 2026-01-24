@@ -1,0 +1,54 @@
+{
+  "id": "FE-004",
+  "title": "Add API key configuration and storage",
+  "description": "Implement secure API key handling for the frontend. The key should be configurable via environment variable for development and through a settings UI for users. Include proper security practices.",
+  "phase_id": "phase-5-frontend",
+  "type": "implementation",
+  "status": "in_progress",
+  "scope": {
+    "primary_files": [
+      "frontend/lib/auth.ts",
+      "frontend/app/providers.tsx"
+    ],
+    "test_files": [],
+    "related_files": [
+      "frontend/lib/api.ts",
+      "frontend/.env.local.example"
+    ]
+  },
+  "dependencies": {
+    "blocked_by": [],
+    "blocks": [
+      "FE-055"
+    ],
+    "parallel_with": [
+      "FE-001"
+    ]
+  },
+  "acceptance_criteria": [
+    "API key loaded from NEXT_PUBLIC_API_KEY env var",
+    "API key can be set/updated at runtime",
+    "API key injected into ApiClient on app init",
+    "Create .env.local.example with placeholder",
+    "Auth context provider for key state",
+    "Key never logged or exposed in error messages"
+  ],
+  "implementation_notes": [
+    "Do NOT store API key in localStorage (XSS risk)",
+    "For MVP, env var is sufficient",
+    "Future: add login flow or key entry in settings",
+    "Consider using httpOnly cookies for production"
+  ],
+  "context": {
+    "research_refs": [],
+    "code_refs": []
+  },
+  "estimated_hours": 2,
+  "created_at": "2026-01-22T20:00:00Z",
+  "started_at": "2026-01-23T00:59:21-05:00",
+  "worktree": {
+    "branch": "task/FE-004",
+    "path": "/home/seanm/repos/neon-task-FE-004",
+    "created_at": "2026-01-23T00:59:21-05:00"
+  }
+}

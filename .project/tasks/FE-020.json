@@ -1,0 +1,54 @@
+{
+  "id": "FE-020",
+  "title": "Suites list page with search and filtering",
+  "description": "Wire up the suites list page to display real data. Add search functionality and filtering by tags or agent. Each suite should show key metadata.",
+  "phase_id": "phase-5-frontend",
+  "type": "implementation",
+  "status": "completed",
+  "scope": {
+    "primary_files": [
+      "frontend/app/suites/page.tsx",
+      "frontend/components/suites/suite-card.tsx"
+    ],
+    "test_files": [],
+    "related_files": [
+      "frontend/hooks/use-suites.ts"
+    ]
+  },
+  "dependencies": {
+    "blocked_by": [
+      "FE-003"
+    ],
+    "blocks": [
+      "FE-021"
+    ],
+    "parallel_with": [
+      "FE-030"
+    ]
+  },
+  "acceptance_criteria": [
+    "Lists all suites from API",
+    "Each suite card shows: name, description, agent_id, case count, default scorers",
+    "Search input filters suites by name",
+    "Click card navigates to /suites/[id]",
+    "New Suite button visible (links to FE-023)",
+    "Loading skeleton for cards",
+    "Empty state with CTA to create first suite"
+  ],
+  "implementation_notes": [
+    "Use CSS grid for card layout",
+    "Client-side search filtering is fine for MVP",
+    "SuiteCard component should be reusable",
+    "Consider showing last run date/score on card"
+  ],
+  "context": {
+    "research_refs": [
+      ".project/docs/frontend-design-spec.md#suites-list"
+    ],
+    "code_refs": [
+      "frontend/app/suites/page.tsx"
+    ]
+  },
+  "estimated_hours": 3,
+  "created_at": "2026-01-22T20:00:00Z"
+}

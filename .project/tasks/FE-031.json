@@ -1,0 +1,48 @@
+{
+  "id": "FE-031",
+  "title": "Run detail page with summary",
+  "description": "Create the run detail page showing run metadata, summary statistics, and navigation to detailed results. This is where users investigate individual evaluation runs.",
+  "phase_id": "phase-5-frontend",
+  "type": "implementation",
+  "status": "pending",
+  "scope": {
+    "primary_files": [
+      "frontend/app/runs/[id]/page.tsx",
+      "frontend/components/runs/run-header.tsx",
+      "frontend/components/runs/run-summary.tsx"
+    ],
+    "test_files": [],
+    "related_files": [
+      "frontend/hooks/use-runs.ts"
+    ]
+  },
+  "dependencies": {
+    "blocked_by": ["FE-030"],
+    "blocks": ["FE-032"],
+    "parallel_with": []
+  },
+  "acceptance_criteria": [
+    "Header: suite name, run ID, status badge",
+    "Metadata: version, trigger, trigger_ref, started_at, completed_at, duration",
+    "Summary cards: total cases, passed, failed, errored, avg score",
+    "Scores by type visualization (horizontal bars)",
+    "Compare button (navigate to compare with this as baseline)",
+    "Breadcrumb: Runs / run-id",
+    "Loading state",
+    "404 handling for invalid run ID"
+  ],
+  "implementation_notes": [
+    "Duration calculated from started_at and completed_at",
+    "Use formatDistanceToNow and format from date-fns",
+    "Summary comes from run.summary field",
+    "scores_by_type visualization reused from dashboard"
+  ],
+  "context": {
+    "research_refs": [
+      ".project/docs/frontend-design-spec.md#run-detail"
+    ],
+    "code_refs": []
+  },
+  "estimated_hours": 3,
+  "created_at": "2026-01-22T20:00:00Z"
+}

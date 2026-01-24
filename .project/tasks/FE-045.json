@@ -1,0 +1,55 @@
+{
+  "id": "FE-045",
+  "title": "Compare: Visual polish and result reveal animation",
+  "description": "Apply special visual treatment to the Compare page as the hero feature. Implement dramatic result reveal, animated regression/success banners, and ensure the pass/fail state is immediately clear and emotionally resonant.",
+  "phase_id": "phase-5-frontend",
+  "type": "implementation",
+  "status": "pending",
+  "scope": {
+    "primary_files": [
+      "frontend/components/compare/result-banner.tsx",
+      "frontend/components/compare/regression-card.tsx",
+      "frontend/components/compare/score-delta-bar.tsx",
+      "frontend/app/compare/page.tsx"
+    ],
+    "test_files": [],
+    "related_files": [
+      "frontend/components/compare/compare-results.tsx"
+    ]
+  },
+  "dependencies": {
+    "blocked_by": ["FE-041", "FE-042"],
+    "blocks": [],
+    "parallel_with": []
+  },
+  "acceptance_criteria": [
+    "Result reveal: staggered fade-in animation (0.5s total) when comparison completes",
+    "REGRESSION banner: red, shadow-xl, slides down with subtle bounce, impossible to miss",
+    "PASS banner: green, celebratory, optional subtle confetti effect",
+    "Regression cards: sorted by severity, color-coded left border, animated score bars",
+    "Score delta bars show baseline→candidate with animated transition",
+    "Critical badge for deltas > 0.20",
+    "Side-by-side score visualization with threshold line",
+    "Overall delta prominently displayed with directional arrow",
+    "'Safe to merge!' text for passing comparisons",
+    "Hover states on regression/improvement cards (elevate on hover)",
+    "Loading state shows meaningful skeleton (not just spinner)"
+  ],
+  "implementation_notes": [
+    "Reference .project/docs/ui-design-system.md section 4 for exact specs",
+    "Use CSS animations for reveal sequence",
+    "Consider framer-motion for more complex orchestration",
+    "Test emotional response: regression should feel alarming, pass should feel safe",
+    "Score bar animation: fill from left to right over 300ms",
+    "Confetti: use canvas-confetti or similar (10-20 particles, subtle)",
+    "This is THE feature - spend extra time on polish"
+  ],
+  "context": {
+    "research_refs": [
+      ".project/docs/ui-design-system.md#4-the-compare-page-hero-feature-visual-design"
+    ],
+    "code_refs": []
+  },
+  "estimated_hours": 4,
+  "created_at": "2026-01-22T21:00:00Z"
+}

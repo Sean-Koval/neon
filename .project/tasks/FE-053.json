@@ -1,0 +1,49 @@
+{
+  "id": "FE-053",
+  "title": "Mobile responsive layout",
+  "description": "Ensure the dashboard works well on tablet and mobile devices. Sidebar should collapse, tables should adapt, and touch targets should be appropriately sized.",
+  "phase_id": "phase-5-frontend",
+  "type": "implementation",
+  "status": "pending",
+  "scope": {
+    "primary_files": [
+      "frontend/components/sidebar.tsx",
+      "frontend/components/ui/mobile-nav.tsx",
+      "frontend/app/layout.tsx"
+    ],
+    "test_files": [],
+    "related_files": [
+      "frontend/tailwind.config.ts"
+    ]
+  },
+  "dependencies": {
+    "blocked_by": [],
+    "blocks": [],
+    "parallel_with": ["FE-054"]
+  },
+  "acceptance_criteria": [
+    "Sidebar collapses to hamburger menu on mobile (<768px)",
+    "Mobile nav drawer with full navigation",
+    "Stat cards stack vertically on mobile",
+    "Tables become card lists on mobile or scroll horizontally",
+    "Touch targets minimum 44x44px",
+    "Compare view stacks vertically",
+    "Charts remain readable on small screens",
+    "Forms are full-width on mobile",
+    "No horizontal scroll on main content"
+  ],
+  "implementation_notes": [
+    "Use TailwindCSS responsive prefixes (sm:, md:, lg:)",
+    "Consider headless UI for mobile nav drawer",
+    "Test on actual devices or device emulator",
+    "Prioritize readability over density on mobile"
+  ],
+  "context": {
+    "research_refs": [
+      ".project/docs/frontend-design-spec.md#responsive-behavior"
+    ],
+    "code_refs": []
+  },
+  "estimated_hours": 4,
+  "created_at": "2026-01-22T20:00:00Z"
+}

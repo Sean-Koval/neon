@@ -1,0 +1,71 @@
+{
+  "id": "RUN-006",
+  "title": "End-to-end integration tests for runner and CLI",
+  "description": "Create comprehensive integration tests that verify the complete evaluation flow works end-to-end. Tests should cover CLI -> API -> Runner -> Scorers -> Results, as well as local execution mode and comparison functionality.",
+  "phase_id": "phase-3-runner-cli",
+  "type": "testing",
+  "status": "completed",
+  "scope": {
+    "primary_files": [
+      "tests/integration/test_eval_flow.py",
+      "tests/integration/test_cli_commands.py",
+      "tests/integration/test_comparison.py",
+      "tests/integration/conftest.py"
+    ],
+    "test_files": [],
+    "related_files": [
+      "examples/suites/simple-suite.yaml",
+      "examples/agents/mock_agent.py",
+      "api/src/services/eval_runner.py",
+      "cli/src/commands/run.py"
+    ]
+  },
+  "dependencies": {
+    "blocked_by": [
+      "RUN-001",
+      "RUN-003",
+      "RUN-004",
+      "RUN-005"
+    ],
+    "blocks": [],
+    "parallel_with": []
+  },
+  "acceptance_criteria": [
+    "Test: CLI run command with local mode executes successfully",
+    "Test: CLI run command with API mode creates and completes run",
+    "Test: All three scorers produce valid scores for mock agent",
+    "Test: Comparison identifies regressions when scores decrease",
+    "Test: Comparison identifies improvements when scores increase",
+    "Test: MLflow traces are created and contain expected spans",
+    "Test: Failed agent execution is handled gracefully",
+    "Test: Timeout handling works correctly",
+    "All tests use fixtures from examples/ directory",
+    "Tests can run in CI without external dependencies (use mocks/SQLite)"
+  ],
+  "implementation_notes": [
+    "Use pytest-asyncio for async tests",
+    "Create pytest fixtures for database, MLflow mock, API client",
+    "Use testcontainers or in-memory SQLite for database",
+    "Mock MLflow server or use file-based tracking URI",
+    "CLI tests should use CliRunner from typer.testing",
+    "API tests should use TestClient from fastapi.testclient",
+    "Tag tests as 'integration' for selective running"
+  ],
+  "context": {
+    "research_refs": [],
+    "code_refs": [
+      "api/tests/",
+      "cli/tests/"
+    ]
+  },
+  "estimated_hours": 4,
+  "created_at": "2026-01-20T00:00:00Z",
+  "started_at": "2026-01-22T15:12:37-05:00",
+  "completed_at": "2026-01-22T16:00:00-05:00",
+  "pr_url": "https://github.com/Sean-Koval/neon/pull/16",
+  "worktree": {
+    "branch": "task/RUN-006",
+    "path": "/home/seanm/repos/neon-task-RUN-006",
+    "created_at": "2026-01-22T15:12:37-05:00"
+  }
+}

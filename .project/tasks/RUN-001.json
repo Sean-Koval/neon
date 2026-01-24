@@ -1,0 +1,66 @@
+{
+  "id": "RUN-001",
+  "title": "Integrate MLflow tracing into EvalRunner",
+  "description": "Wire the existing EvalRunner service to use NeonMLflowClient for traced agent execution. The EvalRunner currently executes agents directly without MLflow tracing. The mlflow_run_id and mlflow_trace_id fields in EvalResultModel are never populated. This task connects the two systems so every agent execution is traced and queryable in MLflow.",
+  "phase_id": "phase-3-runner-cli",
+  "type": "implementation",
+  "status": "completed",
+  "completed_at": "2026-01-22T00:00:00Z",
+  "pr": "https://github.com/Sean-Koval/neon/pull/13",
+  "scope": {
+    "primary_files": [
+      "api/src/services/eval_runner.py"
+    ],
+    "test_files": [
+      "api/tests/services/test_eval_runner.py"
+    ],
+    "related_files": [
+      "api/src/services/mlflow_client.py",
+      "api/src/models/db.py"
+    ]
+  },
+  "dependencies": {
+    "blocked_by": [],
+    "blocks": [
+      "RUN-004",
+      "RUN-006"
+    ],
+    "parallel_with": [
+      "RUN-002"
+    ]
+  },
+  "acceptance_criteria": [
+    "EvalRunner uses NeonMLflowClient.execute_with_tracing() for agent execution",
+    "Each case execution creates an MLflow run with neon.* tags",
+    "mlflow_run_id is populated in EvalResultModel after execution",
+    "mlflow_trace_id is populated when trace is captured",
+    "TraceSummary (tool_calls, llm_calls, tokens) is available in score_details",
+    "Experiment is set per project_id (neon-{project_id})",
+    "Unit tests verify MLflow integration"
+  ],
+  "implementation_notes": [
+    "Inject NeonMLflowClient into EvalRunner constructor",
+    "Call set_experiment() at start of execute_run() using project_id",
+    "Replace direct agent.run() call with mlflow_client.execute_with_tracing()",
+    "Pass run_id, case_name, suite_id as tags to execute_with_tracing()",
+    "Extract ExecutionResult fields into EvalResultModel",
+    "Handle case where tracing fails but execution succeeds (trace_id may be None)"
+  ],
+  "context": {
+    "research_refs": [
+      "docs/research/02-concept/architecture-spec.md#decision-3-mlflow-integration-pattern"
+    ],
+    "code_refs": [
+      "api/src/services/eval_runner.py:EvalRunner._execute_case",
+      "api/src/services/mlflow_client.py:NeonMLflowClient.execute_with_tracing"
+    ]
+  },
+  "estimated_hours": 3,
+  "created_at": "2026-01-20T00:00:00Z",
+  "started_at": "2026-01-21T22:17:39-05:00",
+  "worktree": {
+    "branch": "task/RUN-001",
+    "path": "/home/seanm/repos/neon-task-RUN-001",
+    "created_at": "2026-01-21T22:17:39-05:00"
+  }
+}

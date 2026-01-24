@@ -1,0 +1,57 @@
+{
+  "id": "API-001",
+  "title": "Add rate limiting to API endpoints",
+  "description": "Implement rate limiting for API endpoints to prevent abuse. Use slowapi or similar middleware to add configurable rate limits per API key.",
+  "phase_id": "phase-4-api-auth",
+  "type": "implementation",
+  "status": "completed",
+  "scope": {
+    "primary_files": [
+      "api/src/middleware/rate_limit.py",
+      "api/src/main.py"
+    ],
+    "test_files": [
+      "api/tests/middleware/test_rate_limit.py"
+    ],
+    "related_files": [
+      "api/src/auth/middleware.py",
+      "api/src/config.py"
+    ]
+  },
+  "dependencies": {
+    "blocked_by": [],
+    "blocks": [],
+    "parallel_with": [
+      "API-002",
+      "API-003"
+    ]
+  },
+  "acceptance_criteria": [
+    "Rate limiting middleware is implemented using slowapi",
+    "Default rate limit is 100 requests per minute per API key",
+    "Rate limits are configurable via environment variables",
+    "Rate limit headers are included in responses (X-RateLimit-*)",
+    "429 Too Many Requests returned when limit exceeded",
+    "Unit tests verify rate limiting behavior"
+  ],
+  "implementation_notes": [
+    "Use slowapi library for FastAPI rate limiting",
+    "Rate limit by API key, not by IP",
+    "Consider different limits for different endpoint types",
+    "Add rate limit status to health check"
+  ],
+  "context": {
+    "research_refs": [],
+    "code_refs": [
+      "api/src/auth/middleware.py"
+    ]
+  },
+  "estimated_hours": 2,
+  "created_at": "2026-01-22T00:00:00Z",
+  "started_at": "2026-01-22T18:35:42-05:00",
+  "worktree": {
+    "branch": "task/API-001",
+    "path": "/home/seanm/repos/neon-task-API-001",
+    "created_at": "2026-01-22T18:35:42-05:00"
+  }
+}

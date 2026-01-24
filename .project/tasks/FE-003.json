@@ -1,0 +1,70 @@
+{
+  "id": "FE-003",
+  "title": "Create React Query hooks for all endpoints",
+  "description": "Build a complete set of React Query hooks that wrap the API client. These hooks will provide caching, automatic refetching, loading states, and error handling for all data operations.",
+  "phase_id": "phase-5-frontend",
+  "type": "implementation",
+  "status": "completed",
+  "scope": {
+    "primary_files": [
+      "frontend/hooks/use-suites.ts",
+      "frontend/hooks/use-runs.ts",
+      "frontend/hooks/use-compare.ts"
+    ],
+    "test_files": [],
+    "related_files": [
+      "frontend/lib/api.ts",
+      "frontend/lib/types.ts"
+    ]
+  },
+  "dependencies": {
+    "blocked_by": [
+      "FE-002"
+    ],
+    "blocks": [
+      "FE-010",
+      "FE-020",
+      "FE-030",
+      "FE-040"
+    ],
+    "parallel_with": []
+  },
+  "acceptance_criteria": [
+    "useSuites() - fetch all suites",
+    "useSuite(id) - fetch single suite with cases",
+    "useCreateSuite() - mutation for creating suite",
+    "useUpdateSuite() - mutation for updating suite",
+    "useDeleteSuite() - mutation for deleting suite",
+    "useRuns(filters?) - fetch runs with optional filters",
+    "useRun(id) - fetch single run with polling for active runs",
+    "useRunResults(id) - fetch detailed results",
+    "useTriggerRun() - mutation to start a run",
+    "useCancelRun() - mutation to cancel a run",
+    "useCompare(baseline, candidate) - fetch comparison",
+    "Query key factory exported for cache invalidation",
+    "Appropriate stale times configured",
+    "Mutations invalidate related queries"
+  ],
+  "implementation_notes": [
+    "Use React Query v5 API",
+    "Implement query key factory pattern",
+    "Add polling for runs with status 'pending' or 'running'",
+    "Configure stale times per query type (see design spec)",
+    "Use optimistic updates for mutations where appropriate",
+    "Handle pagination if API supports it"
+  ],
+  "context": {
+    "research_refs": [
+      ".project/docs/frontend-design-spec.md#state-management"
+    ],
+    "code_refs": []
+  },
+  "estimated_hours": 4,
+  "created_at": "2026-01-22T20:00:00Z",
+  "started_at": "2026-01-24T11:04:23-05:00",
+  "worktree": {
+    "branch": "task/FE-003",
+    "path": "/home/seanm/repos/neon-task-FE-003",
+    "created_at": "2026-01-24T11:04:23-05:00"
+  }
+}

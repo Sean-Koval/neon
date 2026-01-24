@@ -1,0 +1,61 @@
+{
+  "id": "FE-010",
+  "title": "Dashboard: Fetch and display summary stats",
+  "description": "Replace mock data in the dashboard with real API data. Implement stat cards showing total runs, pass rate, failure rate, and average score. Calculate metrics from recent runs data.",
+  "phase_id": "phase-5-frontend",
+  "type": "implementation",
+  "status": "completed",
+  "scope": {
+    "primary_files": [
+      "frontend/app/page.tsx",
+      "frontend/components/dashboard/stat-cards.tsx"
+    ],
+    "test_files": [],
+    "related_files": [
+      "frontend/hooks/use-runs.ts"
+    ]
+  },
+  "dependencies": {
+    "blocked_by": [
+      "FE-003"
+    ],
+    "blocks": [],
+    "parallel_with": [
+      "FE-011",
+      "FE-012",
+      "FE-013"
+    ]
+  },
+  "acceptance_criteria": [
+    "Stat cards show real data from API",
+    "Total runs count displayed",
+    "Passed count with percentage",
+    "Failed count with percentage",
+    "Average score across all runs",
+    "Loading skeleton while fetching",
+    "Error state if API fails",
+    "Stats update when new runs complete"
+  ],
+  "implementation_notes": [
+    "May need to add a /stats endpoint or compute from runs list",
+    "Consider caching strategy for aggregated stats",
+    "Use useMemo for computed values",
+    "Extract StatCard component for reuse"
+  ],
+  "context": {
+    "research_refs": [
+      ".project/docs/frontend-design-spec.md#dashboard"
+    ],
+    "code_refs": [
+      "frontend/app/page.tsx"
+    ]
+  },
+  "estimated_hours": 2,
+  "created_at": "2026-01-22T20:00:00Z",
+  "started_at": "2026-01-24T13:31:38-05:00",
+  "worktree": {
+    "branch": "task/FE-010",
+    "path": "/home/seanm/repos/neon-task-FE-010",
+    "created_at": "2026-01-24T13:31:38-05:00"
+  }
+}

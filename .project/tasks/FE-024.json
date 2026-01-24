@@ -1,0 +1,58 @@
+{
+  "id": "FE-024",
+  "title": "Create case form with full configuration",
+  "description": "Implement the form for adding a new test case to a suite. This is the most complex form as cases have many configuration options including input JSON, expected tools, and scorer config.",
+  "phase_id": "phase-5-frontend",
+  "type": "implementation",
+  "status": "pending",
+  "scope": {
+    "primary_files": [
+      "frontend/components/suites/case-form.tsx",
+      "frontend/components/ui/json-editor.tsx"
+    ],
+    "test_files": [],
+    "related_files": [
+      "frontend/hooks/use-suites.ts",
+      "frontend/lib/types.ts"
+    ]
+  },
+  "dependencies": {
+    "blocked_by": ["FE-022"],
+    "blocks": [],
+    "parallel_with": []
+  },
+  "acceptance_criteria": [
+    "Form fields: name, description",
+    "Input field as JSON editor (the query/context to send to agent)",
+    "expected_tools: comma-separated or tag input",
+    "expected_tool_sequence: ordered list input",
+    "expected_output_contains: list of strings",
+    "expected_output_pattern: regex input with validation",
+    "Scorers selection (inherit from suite or override)",
+    "scorer_config: JSON editor for advanced config",
+    "min_score: override or inherit",
+    "tags: tag input",
+    "timeout_seconds: override or inherit",
+    "Client-side validation",
+    "JSON validation for input and scorer_config",
+    "Submit creates case via API",
+    "Modal or slide-over presentation"
+  ],
+  "implementation_notes": [
+    "This is a complex form - consider multi-step or collapsible sections",
+    "JSON editor: could use Monaco or simple textarea with validation",
+    "Most fields are optional - show sensible defaults",
+    "Consider 'Advanced' section for less common fields",
+    "CaseForm should work for both create and edit"
+  ],
+  "context": {
+    "research_refs": [
+      ".project/docs/frontend-design-spec.md"
+    ],
+    "code_refs": [
+      "api/src/models/eval.py"
+    ]
+  },
+  "estimated_hours": 6,
+  "created_at": "2026-01-22T20:00:00Z"
+}

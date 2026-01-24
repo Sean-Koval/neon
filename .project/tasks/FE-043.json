@@ -1,0 +1,47 @@
+{
+  "id": "FE-043",
+  "title": "Compare: Improvements section",
+  "description": "Display the list of improvements (positive score deltas) in the comparison. Should be visually distinct from regressions with green styling.",
+  "phase_id": "phase-5-frontend",
+  "type": "implementation",
+  "status": "pending",
+  "scope": {
+    "primary_files": [
+      "frontend/components/compare/improvement-list.tsx",
+      "frontend/components/compare/improvement-card.tsx"
+    ],
+    "test_files": [],
+    "related_files": [
+      "frontend/hooks/use-compare.ts"
+    ]
+  },
+  "dependencies": {
+    "blocked_by": ["FE-041"],
+    "blocks": [],
+    "parallel_with": ["FE-042"]
+  },
+  "acceptance_criteria": [
+    "List of improvement items sorted by magnitude",
+    "Each item shows: case name, scorer type",
+    "Score comparison: baseline → candidate",
+    "Delta displayed with up arrow (↑ +0.15)",
+    "Color: green background/border",
+    "Collapsible section (improvements less critical than regressions)",
+    "Empty state if no improvements",
+    "Count in section header"
+  ],
+  "implementation_notes": [
+    "Reuse structure from regression-card with different colors",
+    "Consider combining into single DeltaCard with variant prop",
+    "Improvements section could be collapsed by default",
+    "Lower priority than regressions visually"
+  ],
+  "context": {
+    "research_refs": [
+      ".project/docs/frontend-design-spec.md#compare-view"
+    ],
+    "code_refs": []
+  },
+  "estimated_hours": 2,
+  "created_at": "2026-01-22T20:00:00Z"
+}

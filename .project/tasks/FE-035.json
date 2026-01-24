@@ -1,0 +1,44 @@
+{
+  "id": "FE-035",
+  "title": "Polling for in-progress runs",
+  "description": "Implement automatic polling for runs with status 'pending' or 'running'. The UI should update in real-time as the run progresses and stop polling when complete.",
+  "phase_id": "phase-5-frontend",
+  "type": "implementation",
+  "status": "pending",
+  "scope": {
+    "primary_files": [
+      "frontend/hooks/use-runs.ts",
+      "frontend/app/runs/[id]/page.tsx"
+    ],
+    "test_files": [],
+    "related_files": []
+  },
+  "dependencies": {
+    "blocked_by": ["FE-031"],
+    "blocks": [],
+    "parallel_with": []
+  },
+  "acceptance_criteria": [
+    "Run detail page polls every 3 seconds for pending/running runs",
+    "Polling stops when status becomes terminal (completed, failed, cancelled)",
+    "UI updates smoothly without full page refresh",
+    "Progress indicator visible during active run",
+    "Results appear as they complete (if API supports partial results)",
+    "Runs list also refreshes for active runs",
+    "No polling for completed runs"
+  ],
+  "implementation_notes": [
+    "Use React Query refetchInterval with conditional",
+    "refetchInterval: (data) => data?.status === 'running' ? 3000 : false",
+    "Consider WebSocket for true real-time in future",
+    "Handle race conditions gracefully"
+  ],
+  "context": {
+    "research_refs": [
+      ".project/docs/frontend-design-spec.md#real-time-updates"
+    ],
+    "code_refs": []
+  },
+  "estimated_hours": 2,
+  "created_at": "2026-01-22T20:00:00Z"
+}

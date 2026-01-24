@@ -1,0 +1,48 @@
+{
+  "id": "FE-022",
+  "title": "Cases list within suite detail",
+  "description": "Display the list of test cases within a suite. Each case should be expandable to show full configuration. Include actions to add, edit, and delete cases.",
+  "phase_id": "phase-5-frontend",
+  "type": "implementation",
+  "status": "pending",
+  "scope": {
+    "primary_files": [
+      "frontend/app/suites/[id]/page.tsx",
+      "frontend/components/suites/case-list.tsx",
+      "frontend/components/suites/case-row.tsx"
+    ],
+    "test_files": [],
+    "related_files": [
+      "frontend/hooks/use-suites.ts"
+    ]
+  },
+  "dependencies": {
+    "blocked_by": ["FE-021"],
+    "blocks": ["FE-024"],
+    "parallel_with": []
+  },
+  "acceptance_criteria": [
+    "Table showing all cases in suite",
+    "Columns: name, scorers, min_score, tags",
+    "Expandable rows showing full case config",
+    "Expanded view shows: input, expected_tools, expected_output_contains, etc.",
+    "Add Case button (links to FE-024)",
+    "Edit/Delete actions per case",
+    "Empty state if no cases",
+    "Case count in header"
+  ],
+  "implementation_notes": [
+    "Cases come from suite.cases (nested in suite response)",
+    "Use accordion or expandable row pattern",
+    "Input field may be large - consider JSON viewer component",
+    "Tags should be displayed as pills/badges"
+  ],
+  "context": {
+    "research_refs": [
+      ".project/docs/frontend-design-spec.md#suite-detail"
+    ],
+    "code_refs": []
+  },
+  "estimated_hours": 4,
+  "created_at": "2026-01-22T20:00:00Z"
+}

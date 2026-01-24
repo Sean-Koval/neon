@@ -1,0 +1,46 @@
+{
+  "id": "FE-034",
+  "title": "Trigger new run from suite",
+  "description": "Implement the UI flow for triggering a new evaluation run. Should allow selecting a suite and optionally specifying version/config before starting.",
+  "phase_id": "phase-5-frontend",
+  "type": "implementation",
+  "status": "pending",
+  "scope": {
+    "primary_files": [
+      "frontend/components/runs/trigger-run-dialog.tsx"
+    ],
+    "test_files": [],
+    "related_files": [
+      "frontend/hooks/use-runs.ts",
+      "frontend/app/suites/[id]/page.tsx"
+    ]
+  },
+  "dependencies": {
+    "blocked_by": ["FE-003"],
+    "blocks": [],
+    "parallel_with": ["FE-021"]
+  },
+  "acceptance_criteria": [
+    "Button on suite detail page triggers run",
+    "Button on runs list opens suite selector",
+    "Optional: agent version input",
+    "Optional: trigger type selection (manual default)",
+    "Optional: config overrides (JSON)",
+    "Loading state on submit",
+    "On success: navigate to new run detail page",
+    "On error: show error message",
+    "Run starts in 'pending' status"
+  ],
+  "implementation_notes": [
+    "Use useTriggerRun mutation",
+    "Simple version: just trigger immediately on button click",
+    "Advanced: modal with version/config options",
+    "Consider showing estimated duration based on suite history"
+  ],
+  "context": {
+    "research_refs": [],
+    "code_refs": []
+  },
+  "estimated_hours": 2,
+  "created_at": "2026-01-22T20:00:00Z"
+}

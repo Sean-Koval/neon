@@ -1,0 +1,62 @@
+{
+  "id": "FE-011",
+  "title": "Dashboard: Recent runs table with live data",
+  "description": "Wire up the recent runs table on the dashboard to show real data. Include status badges, pass/fail counts, scores, and timestamps. Clicking a row navigates to run detail.",
+  "phase_id": "phase-5-frontend",
+  "type": "implementation",
+  "status": "completed",
+  "scope": {
+    "primary_files": [
+      "frontend/app/page.tsx",
+      "frontend/components/dashboard/recent-runs.tsx"
+    ],
+    "test_files": [],
+    "related_files": [
+      "frontend/hooks/use-runs.ts",
+      "frontend/components/ui/badge.tsx"
+    ]
+  },
+  "dependencies": {
+    "blocked_by": [
+      "FE-003"
+    ],
+    "blocks": [],
+    "parallel_with": [
+      "FE-010",
+      "FE-012",
+      "FE-013"
+    ]
+  },
+  "acceptance_criteria": [
+    "Shows 5-10 most recent runs",
+    "Each row shows: suite name, version, status badge, pass/total, score, relative time",
+    "Status badge color-coded (green/yellow/red/gray)",
+    "Score color-coded based on threshold",
+    "Click row navigates to /runs/[id]",
+    "Click suite name navigates to /suites/[id]",
+    "Loading skeleton for table",
+    "Empty state if no runs exist"
+  ],
+  "implementation_notes": [
+    "Reuse or refactor existing RunRow component",
+    "Use date-fns formatDistanceToNow for relative time",
+    "Implement StatusBadge and ScoreBadge components",
+    "Consider Link component for navigation"
+  ],
+  "context": {
+    "research_refs": [
+      ".project/docs/frontend-design-spec.md#dashboard"
+    ],
+    "code_refs": [
+      "frontend/app/page.tsx"
+    ]
+  },
+  "estimated_hours": 3,
+  "created_at": "2026-01-22T20:00:00Z",
+  "started_at": "2026-01-24T13:31:55-05:00",
+  "worktree": {
+    "branch": "task/FE-011",
+    "path": "/home/seanm/repos/neon-task-FE-011",
+    "created_at": "2026-01-24T13:31:55-05:00"
+  }
+}

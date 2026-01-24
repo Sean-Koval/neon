@@ -1,0 +1,71 @@
+{
+  "id": "RUN-002",
+  "title": "Implement agent loader from module path",
+  "description": "Create a utility to dynamically load agent callables from module path strings like 'myagent:run' or 'src.agents.research:ResearchAgent'. This is essential for both CLI local execution and API-triggered runs where the agent is specified as a string path rather than an imported object.",
+  "phase_id": "phase-3-runner-cli",
+  "type": "implementation",
+  "status": "completed",
+  "scope": {
+    "primary_files": [
+      "api/src/agent/loader.py",
+      "api/src/agent/__init__.py"
+    ],
+    "test_files": [
+      "api/tests/agent/test_loader.py"
+    ],
+    "related_files": [
+      "api/src/services/eval_runner.py",
+      "cli/src/commands/run.py"
+    ]
+  },
+  "dependencies": {
+    "blocked_by": [],
+    "blocks": [
+      "RUN-003",
+      "RUN-004"
+    ],
+    "parallel_with": [
+      "RUN-001"
+    ]
+  },
+  "acceptance_criteria": [
+    "load_agent('module:function') returns a callable that matches AgentProtocol",
+    "load_agent('module:Class') instantiates class and returns instance.run method",
+    "Support for relative imports within project (src.agents.foo:bar)",
+    "Clear error messages when module not found or callable doesn't exist",
+    "Validation that loaded callable has correct signature",
+    "LangChainAdapter wraps LangChain agents automatically",
+    "CallableAdapter wraps simple functions automatically",
+    "Unit tests cover all loading scenarios"
+  ],
+  "implementation_notes": [
+    "Use importlib.import_module() for dynamic import",
+    "Split path on ':' to get module and attribute",
+    "Check if attribute is callable or class with run() method",
+    "Wrap with appropriate adapter (LangChainAdapter, CallableAdapter)",
+    "Consider caching loaded modules for performance",
+    "Add sys.path manipulation if needed for local project imports"
+  ],
+  "context": {
+    "research_refs": [
+      "docs/research/02-concept/architecture-spec.md#agent-interface"
+    ],
+    "code_refs": [
+      "api/src/services/eval_runner.py:AgentProtocol"
+    ]
+  },
+  "estimated_hours": 2,
+  "created_at": "2026-01-20T00:00:00Z",
+  "started_at": "2026-01-21T22:20:40-05:00",
+  "completed_at": "2026-01-22T00:15:00-05:00",
+  "pr_url": "https://github.com/Sean-Koval/neon/pull/12",
+  "deliverables": {
+    "files_created": [
+      "api/src/agent/__init__.py",
+      "api/src/agent/loader.py",
+      "api/tests/agent/__init__.py",
+      "api/tests/agent/test_loader.py"
+    ],
+    "tests_passed": 26
+  }
+}
