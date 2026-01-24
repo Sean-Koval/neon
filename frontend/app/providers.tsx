@@ -81,7 +81,9 @@ function QueryProvider({ children }: QueryProviderProps) {
       <QueryClientProvider client={queryClient}>
         {children}
         {/* React Query Devtools - only visible in development */}
-        <ReactQueryDevtools initialIsOpen={false} buttonPosition="bottom-left" />
+        {process.env.NODE_ENV === 'development' && (
+          <ReactQueryDevtools initialIsOpen={false} buttonPosition="bottom-left" />
+        )}
       </QueryClientProvider>
     </AuthProvider>
   )
@@ -107,6 +109,7 @@ function QueryErrorBoundary({ children }: QueryErrorBoundaryProps) {
             There was a problem loading the requested data.
           </p>
           <button
+            type="button"
             onClick={() => window.location.reload()}
             className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
           >
