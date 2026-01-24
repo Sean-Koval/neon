@@ -304,3 +304,148 @@ export function useCancelRun(options?: UseCancelRunOptions) {
     },
   });
 }
+
+// =============================================================================
+// Helper Functions for Grouping and Filtering
+// =============================================================================
+
+/**
+ * Grouped runs for display in selectors.
+ */
+export interface GroupedRuns {
+  suiteName: string;
+  suiteId: string;
+  runs: EvalRun[];
+}
+
+/**
+ * Groups runs by suite name for display in selectors.
+ */
+export function groupRunsBySuite(runs: EvalRun[]): GroupedRuns[] {
+  const grouped = new Map<string, GroupedRuns>();
+
+  for (const run of runs) {
+    const existing = grouped.get(run.suite_id);
+    if (existing) {
+      existing.runs.push(run);
+    } else {
+      grouped.set(run.suite_id, {
+        suiteName: run.suite_name,
+        suiteId: run.suite_id,
+        runs: [run],
+      });
+    }
+  }
+
+  // Sort groups by suite name and runs by date (most recent first)
+  const result = Array.from(grouped.values());
+  result.sort((a, b) => a.suiteName.localeCompare(b.suiteName));
+
+  for (const group of result) {
+    group.runs.sort(
+      (a, b) =>
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
+  }
+
+  return result;
+}
+
+/**
+ * Get unique suite names from runs.
+ */
+export function getUniqueSuites(runs: EvalRun[]): string[] {
+  const suites = new Set<string>();
+  for (const run of runs) {
+    suites.add(run.suite_name);
+  }
+  return Array.from(suites).sort();
+}
+
+// =============================================================================
+// Score Trend Types and Hook
+// =============================================================================
+
+/**
+ * A single data point for the score trend chart.
+ */
+export interface ScoreTrendPoint {
+  date: string;
+  displayDate: string;
+  score: number;
+  runCount: number;
+}
+
+interface UseScoreTrendOptions {
+  days?: number;
+  maxRuns?: number;
+}
+
+/**
+ * Hook for fetching and computing score trend data for charts.
+ */
+export function useScoreTrend(options: UseScoreTrendOptions = {}) {
+  const { days = 7, maxRuns = 50 } = options;
+
+  const { data: runs, isLoading, isError, error } = useRuns({ limit: maxRuns });
+
+  const trendData = useMemo(() => {
+    if (!runs || runs.length === 0) return [];
+
+    // Filter to completed runs with scores within the date range
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - days);
+
+    const recentRuns = runs.filter(
+      (run) =>
+        run.status === 'completed' &&
+        run.summary &&
+        new Date(run.created_at) >= cutoff
+    );
+
+    if (recentRuns.length === 0) return [];
+
+    // Group by date and compute average scores
+    const byDate = new Map<string, { totalScore: number; count: number }>();
+
+    for (const run of recentRuns) {
+      const dateKey = new Date(run.created_at).toISOString().split('T')[0];
+      const existing = byDate.get(dateKey);
+      const score = run.summary?.avg_score ?? 0;
+
+      if (existing) {
+        existing.totalScore += score;
+        existing.count += 1;
+      } else {
+        byDate.set(dateKey, { totalScore: score, count: 1 });
+      }
+    }
+
+    // Convert to array and sort by date
+    const result: ScoreTrendPoint[] = [];
+    const sortedDates = Array.from(byDate.keys()).sort();
+
+    for (const date of sortedDates) {
+      const data = byDate.get(date)!;
+      const dateObj = new Date(date);
+      result.push({
+        date,
+        displayDate: dateObj.toLocaleDateString('en-US', {
+          month: 'short',
+          day: 'numeric',
+        }),
+        score: data.totalScore / data.count,
+        runCount: data.count,
+      });
+    }
+
+    return result;
+  }, [runs, days]);
+
+  return {
+    data: trendData,
+    isLoading,
+    isError,
+    error,
+  };
+}

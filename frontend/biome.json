@@ -7,7 +7,16 @@
   },
   "files": {
     "ignoreUnknown": true,
-    "includes": ["app/**/*.ts", "app/**/*.tsx", "components/**/*.ts", "components/**/*.tsx", "lib/**/*.ts", "lib/**/*.tsx"]
+    "includes": [
+      "app/**/*.ts",
+      "app/**/*.tsx",
+      "components/**/*.ts",
+      "components/**/*.tsx",
+      "hooks/**/*.ts",
+      "lib/**/*.ts",
+      "lib/**/*.tsx",
+      "types/**/*.ts"
+    ]
   },
   "formatter": {
     "enabled": true,
@@ -20,7 +29,8 @@
       "recommended": true,
       "correctness": {
         "useExhaustiveDependencies": "warn",
-        "noUnusedVariables": "warn"
+        "noUnusedVariables": "warn",
+        "noUnusedImports": "error"
       },
       "suspicious": {
         "noExplicitAny": "warn"

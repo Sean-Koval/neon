@@ -14,6 +14,17 @@ import type { CompareResponse } from '@/lib/types';
 // Default regression threshold
 const DEFAULT_THRESHOLD = 0.05;
 
+/**
+ * Available threshold options for regression detection.
+ */
+export const THRESHOLD_OPTIONS = [
+  { value: 0.01, label: '1%' },
+  { value: 0.05, label: '5%' },
+  { value: 0.1, label: '10%' },
+  { value: 0.15, label: '15%' },
+  { value: 0.2, label: '20%' },
+] as const;
+
 // =============================================================================
 // Query Hooks
 // =============================================================================
