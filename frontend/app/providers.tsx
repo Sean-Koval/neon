@@ -5,6 +5,7 @@ import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
 import { useState, useCallback, type ReactNode } from 'react'
 import { ErrorBoundary } from '@/components/error-boundary'
 import { ToastProvider, useToast } from '@/components/toast'
+import { AuthProvider } from '@/lib/auth'
 
 // Query error handler that can be used with toast
 function useQueryErrorHandler() {
@@ -44,8 +45,13 @@ function createQueryClient() {
         staleTime: 60 * 1000,
         // Cache data for 5 minutes
         gcTime: 5 * 60 * 1000,
-        // Retry failed requests up to 3 times with exponential backoff
-        retry: 3,
+        // Smart retry: don't retry on auth errors, otherwise retry up to 3 times
+        retry: (failureCount, error) => {
+          if (error instanceof Error && error.message.includes('401')) {
+            return false
+          }
+          return failureCount < 3
+        },
         retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
         // Don't refetch on window focus (can be noisy for dashboard apps)
         refetchOnWindowFocus: false,
@@ -71,11 +77,13 @@ function QueryProvider({ children }: QueryProviderProps) {
   const [queryClient] = useState(() => createQueryClient())
 
   return (
-    <QueryClientProvider client={queryClient}>
-      {children}
-      {/* React Query Devtools - only visible in development */}
-      <ReactQueryDevtools initialIsOpen={false} buttonPosition="bottom-left" />
-    </QueryClientProvider>
+    <AuthProvider>
+      <QueryClientProvider client={queryClient}>
+        {children}
+        {/* React Query Devtools - only visible in development */}
+        <ReactQueryDevtools initialIsOpen={false} buttonPosition="bottom-left" />
+      </QueryClientProvider>
+    </AuthProvider>
   )
 }
 
