@@ -1,36 +1,39 @@
 {
-  "task_id": "RUN-002",
-  "title": "Implement agent loader from module path",
-  "started_at": "2026-01-20T21:27:34-05:00",
+  "task_id": "FE-003",
+  "title": "Create React Query hooks for all endpoints",
+  "started_at": "2026-01-24T11:04:23-05:00",
   "scope": {
     "primary_files": [
-      "api/src/agent/loader.py",
-      "api/src/agent/__init__.py"
+      "frontend/hooks/use-suites.ts",
+      "frontend/hooks/use-runs.ts",
+      "frontend/hooks/use-compare.ts"
     ],
-    "test_files": [
-      "api/tests/agent/test_loader.py"
-    ],
+    "test_files": [],
     "related_files": [
-      "api/src/services/eval_runner.py",
-      "cli/src/commands/run.py"
+      "frontend/lib/api.ts",
+      "frontend/lib/types.ts"
     ]
   },
   "acceptance_criteria": [
-    "load_agent('module:function') returns a callable that matches AgentProtocol",
-    "load_agent('module:Class') instantiates class and returns instance.run method",
-    "Support for relative imports within project (src.agents.foo:bar)",
-    "Clear error messages when module not found or callable doesn't exist",
-    "Validation that loaded callable has correct signature",
-    "LangChainAdapter wraps LangChain agents automatically",
-    "CallableAdapter wraps simple functions automatically",
-    "Unit tests cover all loading scenarios"
+    "useSuites() - fetch all suites",
+    "useSuite(id) - fetch single suite with cases",
+    "useCreateSuite() - mutation for creating suite",
+    "useUpdateSuite() - mutation for updating suite",
+    "useDeleteSuite() - mutation for deleting suite",
+    "useRuns(filters?) - fetch runs with optional filters",
+    "useRun(id) - fetch single run with polling for active runs",
+    "useRunResults(id) - fetch detailed results",
+    "useTriggerRun() - mutation to start a run",
+    "useCancelRun() - mutation to cancel a run",
+    "useCompare(baseline, candidate) - fetch comparison",
+    "Query key factory exported for cache invalidation",
+    "Appropriate stale times configured",
+    "Mutations invalidate related queries"
   ],
   "context": {
     "research_refs": [
-      "docs/research/02-concept/architecture-spec.md#agent-interface"
+      ".project/docs/frontend-design-spec.md#state-management"
     ],
-    "code_refs": [
-      "api/src/services/eval_runner.py:AgentProtocol"
-    ]
+    "code_refs": []
   }
 }

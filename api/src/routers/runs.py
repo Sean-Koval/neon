@@ -1,17 +1,66 @@
 """Eval run routes."""
 
+import asyncio
+import logging
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from src.auth.middleware import require_scope
-from src.db.session import get_db
+from src.db.session import async_session_factory, get_db
 from src.models.auth import ApiKey, ApiKeyScope
+from src.models.db import EvalRunModel, EvalSuiteModel
 from src.models.eval import EvalResult, EvalRun, EvalRunCreate, EvalRunList
+from src.services.eval_runner import EvalRunner
 from src.services.run_service import RunService
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/runs")
+
+
+# Background task for run execution
+async def _execute_run_background(run_id: UUID, suite_id: UUID) -> None:
+    """Execute a run in the background with its own database session.
+
+    This function is spawned as a background task and manages its own
+    database session to avoid issues with the request session being closed.
+
+    Args:
+        run_id: The ID of the run to execute.
+        suite_id: The ID of the suite containing the test cases.
+    """
+    async with async_session_factory() as db:
+        try:
+            # Re-fetch the run and suite with fresh session
+            from sqlalchemy import select
+
+            run_result = await db.execute(
+                select(EvalRunModel).where(EvalRunModel.id == run_id)
+            )
+            run = run_result.scalar_one_or_none()
+
+            suite_result = await db.execute(
+                select(EvalSuiteModel)
+                .where(EvalSuiteModel.id == suite_id)
+                .options(selectinload(EvalSuiteModel.cases))
+            )
+            suite = suite_result.scalar_one_or_none()
+
+            if not run or not suite:
+                logger.error(f"Run {run_id} or suite {suite_id} not found in background task")
+                return
+
+            # Create services with fresh session
+            run_service = RunService(db)
+            eval_runner = EvalRunner(db)
+
+            # Execute the run
+            await run_service.start_execution(run, suite, eval_runner)
+
+        except Exception as e:
+            logger.exception(f"Background execution failed for run {run_id}: {e}")
 
 
 @router.get("", response_model=EvalRunList)
@@ -93,9 +142,21 @@ async def start_run(
     key: ApiKey = Depends(require_scope(ApiKeyScope.EXECUTE)),
     db: AsyncSession = Depends(get_db),
 ) -> EvalRun:
-    """Start an eval run for a suite."""
+    """Start an eval run for a suite.
+
+    Creates a new run record with status='pending' and spawns a background
+    task to execute the run asynchronously. The run status will transition
+    from pending → running → completed/failed as execution progresses.
+    """
     service = RunService(db)
-    run = await service.create_run(key.project_id, suite_id, data)
-    if not run:
+    result = await service.create_run(key.project_id, suite_id, data)
+    if not result:
         raise HTTPException(status_code=404, detail="Suite not found")
-    return run
+
+    run_response, run_model, suite = result
+
+    # Spawn background task for execution
+    logger.info(f"Spawning background task for run {run_model.id}")
+    asyncio.create_task(_execute_run_background(run_model.id, suite.id))
+
+    return run_response

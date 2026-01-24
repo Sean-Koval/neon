@@ -1,27 +1,12 @@
 {
   "$schema": "https://biomejs.dev/schemas/2.3.12/schema.json",
-  "linter": {
-    "enabled": true,
-    "rules": {
-      "recommended": true,
-      "correctness": {
-        "noUnusedImports": "error",
-        "noUnusedVariables": "warn"
-      }
-    }
-  },
-  "formatter": {
-    "enabled": true,
-    "indentStyle": "space",
-    "indentWidth": 2
-  },
-  "javascript": {
-    "formatter": {
-      "quoteStyle": "single",
-      "semicolons": "asNeeded"
-    }
+  "vcs": {
+    "enabled": false,
+    "clientKind": "git",
+    "useIgnoreFile": false
   },
   "files": {
+    "ignoreUnknown": true,
     "includes": [
       "app/**/*.ts",
       "app/**/*.tsx",
@@ -29,8 +14,41 @@
       "components/**/*.tsx",
       "hooks/**/*.ts",
       "lib/**/*.ts",
+      "lib/**/*.tsx",
       "types/**/*.ts"
-    ],
-    "ignoreUnknown": true
+    ]
+  },
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "recommended": true,
+      "correctness": {
+        "useExhaustiveDependencies": "warn",
+        "noUnusedVariables": "warn",
+        "noUnusedImports": "error"
+      },
+      "suspicious": {
+        "noExplicitAny": "warn"
+      }
+    }
+  },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "single",
+      "semicolons": "asNeeded"
+    }
+  },
+  "assist": {
+    "enabled": true,
+    "actions": {
+      "source": {
+        "organizeImports": "on"
+      }
+    }
   }
 }

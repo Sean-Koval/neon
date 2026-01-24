@@ -9,7 +9,7 @@ import {
   SuiteFilter,
   ThresholdSelector,
 } from '@/components/compare/run-selector'
-import { THRESHOLD_OPTIONS, useComparison } from '@/hooks/use-compare'
+import { THRESHOLD_OPTIONS, useCompare } from '@/hooks/use-compare'
 import { getUniqueSuites, useRuns } from '@/hooks/use-runs'
 
 function ComparePageContent() {
@@ -18,8 +18,8 @@ function ComparePageContent() {
   const searchParams = useSearchParams()
 
   // Read state from URL
-  const baselineId = searchParams.get('baseline') || undefined
-  const candidateId = searchParams.get('candidate') || undefined
+  const baselineId = searchParams.get('baseline') || ''
+  const candidateId = searchParams.get('candidate') || ''
   const threshold = parseFloat(searchParams.get('threshold') || '0.05')
   const suiteFilter = searchParams.get('suite') || ''
 
@@ -44,11 +44,8 @@ function ComparePageContent() {
     data: comparison,
     isLoading: comparisonLoading,
     isFetching: comparisonFetching,
-  } = useComparison({
-    baselineId,
-    candidateId,
-    threshold,
-    enabled: !!baselineId && !!candidateId,
+  } = useCompare(baselineId, candidateId, threshold, {
+    enabled: !!baselineId && !!candidateId && baselineId !== candidateId,
   })
 
   // URL state management
@@ -124,7 +121,7 @@ function ComparePageContent() {
             <RunSelector
               label="Baseline Run"
               runs={runs}
-              selectedRunId={baselineId}
+              selectedRunId={baselineId || undefined}
               onSelect={setBaselineId}
               suiteFilter={suiteFilter || undefined}
               placeholder="Select baseline run..."
@@ -137,7 +134,7 @@ function ComparePageContent() {
             <RunSelector
               label="Candidate Run"
               runs={runs}
-              selectedRunId={candidateId}
+              selectedRunId={candidateId || undefined}
               onSelect={setCandidateId}
               suiteFilter={suiteFilter || undefined}
               placeholder="Select candidate run..."

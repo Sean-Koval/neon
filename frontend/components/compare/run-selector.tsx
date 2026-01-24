@@ -12,7 +12,7 @@ import {
 } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { groupRunsBySuite } from '@/hooks/use-runs'
-import type { EvalRun } from '@/types'
+import type { EvalRun } from '@/lib/types'
 
 interface RunSelectorProps {
   label: string

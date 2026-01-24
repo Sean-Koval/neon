@@ -1,12 +1,15 @@
 """Eval run service."""
 
+import logging
 from datetime import datetime
+from typing import TYPE_CHECKING
 from uuid import UUID
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from src.agent.loader import AgentLoadError, load_agent
 from src.models.db import EvalCaseModel, EvalResultModel, EvalRunModel, EvalSuiteModel
 from src.models.eval import (
     EvalResult,
@@ -16,6 +19,11 @@ from src.models.eval import (
     EvalRunSummary,
     ScoreDetail,
 )
+
+if TYPE_CHECKING:
+    from src.services.eval_runner import EvalRunner
+
+logger = logging.getLogger(__name__)
 
 
 class RunService:
@@ -117,8 +125,13 @@ class RunService:
 
     async def create_run(
         self, project_id: UUID, suite_id: UUID, data: EvalRunCreate
-    ) -> EvalRun | None:
-        """Create a new run."""
+    ) -> tuple[EvalRun, EvalRunModel, EvalSuiteModel] | None:
+        """Create a new run.
+
+        Returns:
+            A tuple of (EvalRun response, EvalRunModel, EvalSuiteModel) if successful,
+            or None if the suite doesn't exist.
+        """
         # Verify suite exists and belongs to project
         result = await self.db.execute(
             select(EvalSuiteModel).where(
@@ -143,10 +156,57 @@ class RunService:
         await self.db.commit()
         await self.db.refresh(run)
 
-        # TODO: Trigger async execution via Cloud Tasks or similar
-        # For now, just return the pending run
+        return self._to_run_model(run, suite_name=suite.name), run, suite
 
-        return self._to_run_model(run, suite_name=suite.name)
+    async def start_execution(
+        self,
+        run: EvalRunModel,
+        suite: EvalSuiteModel,
+        eval_runner: "EvalRunner",
+        working_dir: str | None = None,
+    ) -> None:
+        """Execute a run asynchronously.
+
+        This method loads the agent and executes the run using EvalRunner.
+        It handles errors by updating the run status to FAILED.
+
+        Args:
+            run: The run model to execute.
+            suite: The suite containing test cases.
+            eval_runner: The EvalRunner instance to use for execution.
+            working_dir: Optional working directory for agent loading.
+        """
+        try:
+            # Load the agent from the suite's agent_id
+            logger.info(f"Loading agent from {suite.agent_id} for run {run.id}")
+            agent = load_agent(suite.agent_id, working_dir=working_dir)
+
+            # Execute the run
+            logger.info(f"Starting execution for run {run.id}")
+            await eval_runner.execute_run(run, suite, agent)
+            logger.info(f"Completed execution for run {run.id}")
+
+        except AgentLoadError as e:
+            # Agent loading failed - mark run as failed
+            logger.error(f"Failed to load agent for run {run.id}: {e}")
+            run.status = EvalRunStatus.FAILED.value
+            run.completed_at = datetime.utcnow()
+            run.summary = {
+                "error": f"Failed to load agent: {e}",
+                "error_type": "agent_load_error",
+            }
+            await self.db.commit()
+
+        except Exception as e:
+            # Unexpected error - mark run as failed
+            logger.exception(f"Unexpected error during run {run.id}: {e}")
+            run.status = EvalRunStatus.FAILED.value
+            run.completed_at = datetime.utcnow()
+            run.summary = {
+                "error": str(e),
+                "error_type": type(e).__name__,
+            }
+            await self.db.commit()
 
     async def cancel_run(self, project_id: UUID, run_id: UUID) -> bool:
         """Cancel a running evaluation."""
