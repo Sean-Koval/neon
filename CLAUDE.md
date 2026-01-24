@@ -29,7 +29,7 @@ make db-migrate       # Run migrations
 neon/
 ├── api/              # FastAPI backend (Python 3.11+)
 ├── cli/              # CLI tool (Typer)
-├── frontend/         # Next.js 14 dashboard
+├── frontend/         # Next.js 16 dashboard (React 19, Biome)
 ├── action/           # GitHub Action
 ├── terraform/        # GCP infrastructure
 ├── docs/research/    # Design docs & research
@@ -84,10 +84,22 @@ Use the `/wt` command or run scripts directly:
 - Mypy strict mode
 - Async throughout API
 
-### TypeScript
+### TypeScript/Frontend
 - TypeScript strict mode
-- Next.js 14 App Router
+- Next.js 16 App Router with React 19
+- Biome for linting/formatting (replaces ESLint + Prettier)
 - TailwindCSS
+
+#### Frontend Commands
+```bash
+cd frontend
+bun install         # Install dependencies
+bun run lint        # Check with Biome
+bun run lint:fix    # Auto-fix issues
+bun run format      # Format code
+bun run dev         # Start dev server (Turbopack)
+bun run build       # Production build
+```
 
 ## Research Documentation
 

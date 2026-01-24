@@ -1,10 +1,10 @@
 'use client'
 
+import { type Run, api } from '@/lib/api'
 import { useQuery } from '@tanstack/react-query'
-import { Play, CheckCircle, XCircle, Clock, AlertCircle } from 'lucide-react'
-import Link from 'next/link'
-import { api } from '@/lib/api'
 import { formatDistanceToNow } from 'date-fns'
+import { AlertCircle, CheckCircle, Clock, Play, XCircle } from 'lucide-react'
+import Link from 'next/link'
 
 export default function RunsPage() {
   const { data: runs, isLoading } = useQuery({
@@ -23,7 +23,7 @@ export default function RunsPage() {
           <h1 className="text-2xl font-bold text-gray-900">Eval Runs</h1>
           <p className="text-gray-500">View evaluation run history</p>
         </div>
-        <button className="btn btn-primary flex items-center space-x-2">
+        <button type="button" className="btn btn-primary flex items-center space-x-2">
           <Play className="w-4 h-4" />
           <span>New Run</span>
         </button>
@@ -65,15 +65,13 @@ export default function RunsPage() {
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {runs?.map((run: any) => (
+            {runs?.map((run: Run) => (
               <tr key={run.id} className="hover:bg-gray-50">
                 <td className="px-6 py-4 whitespace-nowrap">
                   <Link href={`/runs/${run.id}`} className="hover:underline">
                     <div>
                       <p className="font-medium text-gray-900">{run.suite_name}</p>
-                      <p className="text-sm text-gray-500">
-                        {run.agent_version || 'No version'}
-                      </p>
+                      <p className="text-sm text-gray-500">{run.agent_version || 'No version'}</p>
                     </div>
                   </Link>
                 </td>
@@ -83,20 +81,18 @@ export default function RunsPage() {
                 <td className="px-6 py-4 whitespace-nowrap">
                   {run.summary && (
                     <span className="text-sm">
-                      <span className="text-green-600">{run.summary.passed}</span>
-                      /
+                      <span className="text-green-600">{run.summary.passed}</span>/
                       <span className="text-gray-600">{run.summary.total_cases}</span>
                       {' passed'}
                     </span>
                   )}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  {run.summary && (
-                    <ScoreBadge score={run.summary.avg_score} />
-                  )}
+                  {run.summary && <ScoreBadge score={run.summary.avg_score} />}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {run.created_at && formatDistanceToNow(new Date(run.created_at), { addSuffix: true })}
+                  {run.created_at &&
+                    formatDistanceToNow(new Date(run.created_at), { addSuffix: true })}
                 </td>
               </tr>
             ))}
@@ -119,7 +115,9 @@ function StatusBadge({ status }: { status: string }) {
   const { icon: Icon, color, bg } = config[status as keyof typeof config] || config.pending
 
   return (
-    <span className={`inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-xs font-medium ${bg} ${color}`}>
+    <span
+      className={`inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-xs font-medium ${bg} ${color}`}
+    >
       <Icon className="w-3 h-3" />
       <span>{status}</span>
     </span>
@@ -129,9 +127,5 @@ function StatusBadge({ status }: { status: string }) {
 function ScoreBadge({ score }: { score: number }) {
   const color = score >= 0.8 ? 'text-green-600' : score >= 0.6 ? 'text-yellow-600' : 'text-red-600'
 
-  return (
-    <span className={`font-medium ${color}`}>
-      {score.toFixed(2)}
-    </span>
-  )
+  return <span className={`font-medium ${color}`}>{score.toFixed(2)}</span>
 }

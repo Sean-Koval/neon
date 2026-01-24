@@ -1,9 +1,9 @@
 'use client'
 
+import { clsx } from 'clsx'
+import { FileText, GitCompare, LayoutDashboard, Play, Settings } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { LayoutDashboard, FileText, Play, GitCompare, Settings } from 'lucide-react'
-import { clsx } from 'clsx'
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
@@ -24,8 +24,8 @@ export function Sidebar() {
 
       <nav className="flex-1 px-4 space-y-1">
         {navigation.map((item) => {
-          const isActive = pathname === item.href ||
-            (item.href !== '/' && pathname.startsWith(item.href))
+          const isActive =
+            pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href))
 
           return (
             <Link
@@ -38,10 +38,9 @@ export function Sidebar() {
                   : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
               )}
             >
-              <item.icon className={clsx(
-                'w-5 h-5 mr-3',
-                isActive ? 'text-primary-600' : 'text-gray-400'
-              )} />
+              <item.icon
+                className={clsx('w-5 h-5 mr-3', isActive ? 'text-primary-600' : 'text-gray-400')}
+              />
               {item.name}
             </Link>
           )
@@ -49,9 +48,7 @@ export function Sidebar() {
       </nav>
 
       <div className="p-4 border-t border-gray-200">
-        <div className="text-xs text-gray-500">
-          Version 0.1.0
-        </div>
+        <div className="text-xs text-gray-500">Version 0.1.0</div>
       </div>
     </div>
   )

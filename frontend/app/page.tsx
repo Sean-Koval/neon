@@ -1,4 +1,4 @@
-import { Activity, CheckCircle, XCircle, Clock } from 'lucide-react'
+import { Activity, CheckCircle, Clock, XCircle } from 'lucide-react'
 
 export default function Dashboard() {
   return (
@@ -140,7 +140,9 @@ function RunRow({
         </div>
       </div>
       <div className="flex items-center space-x-6">
-        <span className={`badge ${statusColors[status as keyof typeof statusColors] || 'badge-gray'}`}>
+        <span
+          className={`badge ${statusColors[status as keyof typeof statusColors] || 'badge-gray'}`}
+        >
           {status}
         </span>
         <div className="text-right">

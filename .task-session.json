@@ -1,36 +1,35 @@
 {
-  "task_id": "RUN-002",
-  "title": "Implement agent loader from module path",
-  "started_at": "2026-01-20T21:27:34-05:00",
+  "task_id": "FE-040",
+  "title": "Compare: Run selector UI",
+  "started_at": "2026-01-24T14:55:22-05:00",
   "scope": {
     "primary_files": [
-      "api/src/agent/loader.py",
-      "api/src/agent/__init__.py"
+      "frontend/app/compare/page.tsx",
+      "frontend/components/compare/run-selector.tsx"
     ],
-    "test_files": [
-      "api/tests/agent/test_loader.py"
-    ],
+    "test_files": [],
     "related_files": [
-      "api/src/services/eval_runner.py",
-      "cli/src/commands/run.py"
+      "frontend/hooks/use-runs.ts",
+      "frontend/hooks/use-compare.ts"
     ]
   },
   "acceptance_criteria": [
-    "load_agent('module:function') returns a callable that matches AgentProtocol",
-    "load_agent('module:Class') instantiates class and returns instance.run method",
-    "Support for relative imports within project (src.agents.foo:bar)",
-    "Clear error messages when module not found or callable doesn't exist",
-    "Validation that loaded callable has correct signature",
-    "LangChainAdapter wraps LangChain agents automatically",
-    "CallableAdapter wraps simple functions automatically",
-    "Unit tests cover all loading scenarios"
+    "Two run selector dropdowns (baseline and candidate)",
+    "Dropdowns show recent runs grouped by suite",
+    "Each option shows: suite name, version, score, date",
+    "Selected run shows summary card below dropdown",
+    "Can filter runs by suite",
+    "Threshold selector (0.01, 0.05, 0.10, 0.15, 0.20)",
+    "Compare button enabled when both runs selected",
+    "URL updates with selected run IDs for shareability",
+    "Pre-fill selectors from URL params if present"
   ],
   "context": {
     "research_refs": [
-      "docs/research/02-concept/architecture-spec.md#agent-interface"
+      ".project/docs/frontend-design-spec.md#compare-view"
     ],
     "code_refs": [
-      "api/src/services/eval_runner.py:AgentProtocol"
+      "frontend/app/compare/page.tsx"
     ]
   }
 }
