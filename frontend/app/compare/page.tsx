@@ -4,22 +4,28 @@ import { useState } from 'react'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { GitCompare, ArrowRight, TrendingUp, TrendingDown, Minus } from 'lucide-react'
 import { api } from '@/lib/api'
+import type { CompareResponse } from '@/lib/types'
 
 export default function ComparePage() {
   const [baselineId, setBaselineId] = useState('')
   const [candidateId, setCandidateId] = useState('')
   const [threshold, setThreshold] = useState(0.05)
 
-  const { data: runs } = useQuery({
+  const { data: runsData } = useQuery({
     queryKey: ['runs'],
     queryFn: () => api.getRuns(),
   })
 
   const compareMutation = useMutation({
-    mutationFn: () => api.compareRuns(baselineId, candidateId, threshold),
+    mutationFn: () => api.compare({
+      baseline_run_id: baselineId,
+      candidate_run_id: candidateId,
+      threshold,
+    }),
   })
 
-  const comparison = compareMutation.data
+  const runs = runsData?.items
+  const comparison: CompareResponse | undefined = compareMutation.data
 
   return (
     <div className="space-y-8">

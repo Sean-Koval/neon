@@ -1,143 +1,306 @@
-'use client'
+/**
+ * React Query hooks for eval run operations.
+ */
 
-import { useQuery } from '@tanstack/react-query'
+import {
+  useMutation,
+  useQuery,
+  useQueryClient,
+  type UseQueryOptions,
+} from '@tanstack/react-query';
+import { useMemo } from 'react';
 
-// Types for run data
-export interface Run {
-  id: string
-  suite_id: string
-  suite_name: string
-  version: string
-  status: 'pending' | 'running' | 'completed' | 'failed'
-  passed: number
-  total: number
-  score: number
-  created_at: string
+import { api } from '@/lib/api';
+import { queryKeys } from '@/lib/query-keys';
+import type {
+  EvalResult,
+  EvalRun,
+  EvalRunCreate,
+  RunsFilter,
+} from '@/lib/types';
+
+// Polling interval for active runs (in milliseconds)
+const ACTIVE_RUN_POLL_INTERVAL = 3000; // 3 seconds
+
+/**
+ * Check if a run is in an active (non-terminal) state.
+ */
+function isActiveRun(run: EvalRun | undefined): boolean {
+  if (!run) return false;
+  return run.status === 'pending' || run.status === 'running';
 }
 
-export interface ScoreTrendPoint {
-  date: string
-  displayDate: string
-  score: number
-  runCount: number
+// =============================================================================
+// Dashboard Stats Types
+// =============================================================================
+
+/**
+ * Aggregated dashboard statistics computed from runs.
+ */
+export interface DashboardStats {
+  totalRuns: number;
+  passedRuns: number;
+  failedRuns: number;
+  passedPercentage: number;
+  failedPercentage: number;
+  averageScore: number;
 }
 
-// Mock data for development - replace with actual API call
-function generateMockRuns(): Run[] {
-  const suites = ['core-tests', 'regression-suite', 'integration-tests']
-  const runs: Run[] = []
-  const now = new Date()
+// =============================================================================
+// Query Hooks
+// =============================================================================
 
-  for (let i = 0; i < 25; i++) {
-    const date = new Date(now)
-    date.setDate(date.getDate() - Math.floor(i / 3))
-    date.setHours(date.getHours() - (i % 3) * 4)
+/**
+ * Fetch eval runs with optional filters.
+ */
+export function useRuns(
+  filters?: RunsFilter,
+  options?: Omit<UseQueryOptions<EvalRun[], Error>, 'queryKey' | 'queryFn'>
+) {
+  return useQuery({
+    queryKey: queryKeys.runs.list(filters),
+    queryFn: async () => {
+      const response = await api.getRuns(filters);
+      return response.items;
+    },
+    staleTime: 30 * 1000, // 30 seconds - runs change more frequently
+    ...options,
+  });
+}
 
-    const total = 10 + Math.floor(Math.random() * 10)
-    const passed = Math.floor(total * (0.7 + Math.random() * 0.25))
-    const score = 0.65 + Math.random() * 0.3
+/**
+ * Fetch a single eval run with polling for active runs.
+ * Automatically polls every 3 seconds when the run is pending or running.
+ */
+export function useRun(
+  id: string,
+  options?: Omit<UseQueryOptions<EvalRun, Error>, 'queryKey' | 'queryFn'>
+) {
+  const query = useQuery({
+    queryKey: queryKeys.runs.detail(id),
+    queryFn: () => api.getRun(id),
+    staleTime: 10 * 1000, // 10 seconds
+    enabled: !!id,
+    // Poll while the run is active
+    refetchInterval: (query) => {
+      const run = query.state.data;
+      return isActiveRun(run) ? ACTIVE_RUN_POLL_INTERVAL : false;
+    },
+    ...options,
+  });
 
-    runs.push({
-      id: `run-${i + 1}`,
-      suite_id: `suite-${(i % 3) + 1}`,
-      suite_name: suites[i % 3],
-      version: `v${Math.floor(i / 5) + 1}.${i % 5}.0`,
-      status: i === 0 ? 'running' : 'completed',
-      passed,
-      total,
-      score: Math.round(score * 100) / 100,
-      created_at: date.toISOString(),
-    })
+  return query;
+}
+
+interface UseRunResultsOptions extends Omit<
+  UseQueryOptions<EvalResult[], Error>,
+  'queryKey' | 'queryFn'
+> {
+  failedOnly?: boolean;
+}
+
+/**
+ * Fetch detailed results for an eval run.
+ */
+export function useRunResults(
+  id: string,
+  options?: UseRunResultsOptions
+) {
+  const { failedOnly = false, ...queryOptions } = options ?? {};
+
+  return useQuery({
+    queryKey: queryKeys.runs.results(id),
+    queryFn: () => api.getRunResults(id, { failed_only: failedOnly }),
+    staleTime: 60 * 1000, // 1 minute - results don't change after completion
+    enabled: !!id,
+    ...queryOptions,
+  });
+}
+
+// =============================================================================
+// Dashboard Stats Hooks
+// =============================================================================
+
+/**
+ * Compute dashboard stats from a list of runs.
+ */
+function computeStats(runs: EvalRun[]): DashboardStats {
+  if (runs.length === 0) {
+    return {
+      totalRuns: 0,
+      passedRuns: 0,
+      failedRuns: 0,
+      passedPercentage: 0,
+      failedPercentage: 0,
+      averageScore: 0,
+    };
   }
 
-  return runs
+  // Count runs by outcome
+  // A run is "passed" if status is completed and all cases passed
+  // A run is "failed" if status is failed OR completed with failures
+  let passedRuns = 0;
+  let failedRuns = 0;
+  let totalScore = 0;
+  let runsWithScores = 0;
+
+  for (const run of runs) {
+    if (run.status === 'completed' && run.summary) {
+      if (run.summary.failed === 0 && run.summary.errored === 0) {
+        passedRuns++;
+      } else {
+        failedRuns++;
+      }
+      totalScore += run.summary.avg_score;
+      runsWithScores++;
+    } else if (run.status === 'failed') {
+      failedRuns++;
+    }
+    // pending, running, cancelled don't count as passed or failed
+  }
+
+  const totalRuns = runs.length;
+  const passedPercentage = totalRuns > 0 ? Math.round((passedRuns / totalRuns) * 100) : 0;
+  const failedPercentage = totalRuns > 0 ? Math.round((failedRuns / totalRuns) * 100) : 0;
+  const averageScore = runsWithScores > 0 ? totalScore / runsWithScores : 0;
+
+  return {
+    totalRuns,
+    passedRuns,
+    failedRuns,
+    passedPercentage,
+    failedPercentage,
+    averageScore,
+  };
 }
 
-async function fetchRuns(): Promise<Run[]> {
-  // TODO: Replace with actual API call
-  // const response = await fetch('/api/runs')
-  // if (!response.ok) throw new Error('Failed to fetch runs')
-  // return response.json()
+/**
+ * Hook for fetching dashboard stats.
+ * Fetches all runs and computes aggregate statistics.
+ */
+export function useDashboardStats() {
+  const { data: runs, isLoading, error, refetch } = useRuns({ limit: 1000 });
 
-  // Simulate network delay
-  await new Promise((resolve) => setTimeout(resolve, 800))
-  return generateMockRuns()
+  const stats = useMemo(() => {
+    if (!runs) return null;
+    return computeStats(runs);
+  }, [runs]);
+
+  return {
+    stats,
+    isLoading,
+    error,
+    refetch,
+  };
 }
 
-export function useRuns() {
+/**
+ * Hook for fetching recent runs for the dashboard.
+ * Auto-refreshes every 30 seconds to catch new runs.
+ */
+export function useRecentRuns(limit = 5) {
   return useQuery({
-    queryKey: ['runs'],
-    queryFn: fetchRuns,
-  })
-}
-
-export function useRecentRuns(limit = 10) {
-  return useQuery({
-    queryKey: ['runs', 'recent', limit],
+    queryKey: ['recent-runs', limit],
     queryFn: async () => {
-      const runs = await fetchRuns()
-      return runs.slice(0, limit)
+      const response = await api.getRuns({ limit });
+      return response.items;
     },
-  })
+    refetchInterval: 30000, // Refresh every 30 seconds
+  });
 }
 
-// Hook for score trend data with aggregation
-export function useScoreTrend(options: { days?: number; maxRuns?: number } = {}) {
-  const { days = 7, maxRuns = 10 } = options
+// =============================================================================
+// Mutation Hooks
+// =============================================================================
 
-  return useQuery({
-    queryKey: ['score-trend', { days, maxRuns }],
-    queryFn: async (): Promise<ScoreTrendPoint[]> => {
-      const runs = await fetchRuns()
+interface UseTriggerRunOptions {
+  onSuccess?: (data: EvalRun) => void;
+  onError?: (error: Error) => void;
+}
 
-      // Filter to completed runs only
-      const completedRuns = runs.filter((r) => r.status === 'completed')
+/**
+ * Trigger a new eval run for a suite.
+ */
+export function useTriggerRun(options?: UseTriggerRunOptions) {
+  const queryClient = useQueryClient();
 
-      // Sort by date descending
-      const sortedRuns = completedRuns.sort(
-        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-      )
+  return useMutation({
+    mutationFn: ({
+      suiteId,
+      data = {},
+    }: {
+      suiteId: string;
+      data?: EvalRunCreate;
+    }) => api.triggerRun(suiteId, data),
+    onSuccess: (newRun) => {
+      // Invalidate runs list to include the new run
+      queryClient.invalidateQueries({ queryKey: queryKeys.runs.lists() });
 
-      // Get runs from last N days
-      const cutoffDate = new Date()
-      cutoffDate.setDate(cutoffDate.getDate() - days)
+      // Set the new run in the cache
+      queryClient.setQueryData(queryKeys.runs.detail(newRun.id), newRun);
 
-      const recentRuns = sortedRuns.filter(
-        (r) => new Date(r.created_at) >= cutoffDate
-      )
-
-      // Take at most maxRuns if we have fewer days of data
-      const runsToAggregate = recentRuns.length > 0 ? recentRuns : sortedRuns.slice(0, maxRuns)
-
-      // Aggregate by day
-      const dailyData = new Map<string, { scores: number[]; date: Date }>()
-
-      runsToAggregate.forEach((run) => {
-        const date = new Date(run.created_at)
-        const dateKey = date.toISOString().split('T')[0]
-
-        if (!dailyData.has(dateKey)) {
-          dailyData.set(dateKey, { scores: [], date })
-        }
-        dailyData.get(dateKey)!.scores.push(run.score)
-      })
-
-      // Convert to array and calculate averages
-      const trendPoints: ScoreTrendPoint[] = Array.from(dailyData.entries())
-        .map(([dateKey, data]) => ({
-          date: dateKey,
-          displayDate: data.date.toLocaleDateString('en-US', {
-            month: 'short',
-            day: 'numeric',
-          }),
-          score: Math.round(
-            (data.scores.reduce((a, b) => a + b, 0) / data.scores.length) * 100
-          ) / 100,
-          runCount: data.scores.length,
-        }))
-        .sort((a, b) => a.date.localeCompare(b.date))
-
-      return trendPoints
+      options?.onSuccess?.(newRun);
     },
-  })
+    onError: (error) => {
+      options?.onError?.(error);
+    },
+  });
+}
+
+interface UseCancelRunOptions {
+  onSuccess?: () => void;
+  onError?: (error: Error) => void;
+}
+
+/**
+ * Cancel an active eval run.
+ */
+export function useCancelRun(options?: UseCancelRunOptions) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => api.cancelRun(id),
+    onSuccess: (_data, id) => {
+      // Invalidate the specific run to get updated status
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.runs.detail(id),
+      });
+
+      // Also invalidate the runs list
+      queryClient.invalidateQueries({ queryKey: queryKeys.runs.lists() });
+
+      options?.onSuccess?.();
+    },
+    onError: (error) => {
+      options?.onError?.(error);
+    },
+    // Optimistic update: set status to cancelled immediately
+    onMutate: async (id: string) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({
+        queryKey: queryKeys.runs.detail(id),
+      });
+
+      // Snapshot the previous value
+      const previousRun = queryClient.getQueryData<EvalRun>(
+        queryKeys.runs.detail(id)
+      );
+
+      // Optimistically update the run status
+      if (previousRun) {
+        queryClient.setQueryData(queryKeys.runs.detail(id), {
+          ...previousRun,
+          status: 'cancelled' as const,
+        });
+      }
+
+      return { previousRun };
+    },
+    onSettled: (_data, _error, id) => {
+      // Always refetch after error or success to ensure consistency
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.runs.detail(id),
+      });
+    },
+  });
 }

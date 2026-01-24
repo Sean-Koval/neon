@@ -1,34 +1,39 @@
 {
-  "task_id": "FE-011",
-  "title": "Dashboard: Recent runs table with live data",
-  "started_at": "2026-01-24T13:31:55-05:00",
+  "task_id": "FE-003",
+  "title": "Create React Query hooks for all endpoints",
+  "started_at": "2026-01-24T11:04:23-05:00",
   "scope": {
     "primary_files": [
-      "frontend/app/page.tsx",
-      "frontend/components/dashboard/recent-runs.tsx"
+      "frontend/hooks/use-suites.ts",
+      "frontend/hooks/use-runs.ts",
+      "frontend/hooks/use-compare.ts"
     ],
     "test_files": [],
     "related_files": [
-      "frontend/hooks/use-runs.ts",
-      "frontend/components/ui/badge.tsx"
+      "frontend/lib/api.ts",
+      "frontend/lib/types.ts"
     ]
   },
   "acceptance_criteria": [
-    "Shows 5-10 most recent runs",
-    "Each row shows: suite name, version, status badge, pass/total, score, relative time",
-    "Status badge color-coded (green/yellow/red/gray)",
-    "Score color-coded based on threshold",
-    "Click row navigates to /runs/[id]",
-    "Click suite name navigates to /suites/[id]",
-    "Loading skeleton for table",
-    "Empty state if no runs exist"
+    "useSuites() - fetch all suites",
+    "useSuite(id) - fetch single suite with cases",
+    "useCreateSuite() - mutation for creating suite",
+    "useUpdateSuite() - mutation for updating suite",
+    "useDeleteSuite() - mutation for deleting suite",
+    "useRuns(filters?) - fetch runs with optional filters",
+    "useRun(id) - fetch single run with polling for active runs",
+    "useRunResults(id) - fetch detailed results",
+    "useTriggerRun() - mutation to start a run",
+    "useCancelRun() - mutation to cancel a run",
+    "useCompare(baseline, candidate) - fetch comparison",
+    "Query key factory exported for cache invalidation",
+    "Appropriate stale times configured",
+    "Mutations invalidate related queries"
   ],
   "context": {
     "research_refs": [
-      ".project/docs/frontend-design-spec.md#dashboard"
+      ".project/docs/frontend-design-spec.md#state-management"
     ],
-    "code_refs": [
-      "frontend/app/page.tsx"
-    ]
+    "code_refs": []
   }
 }
