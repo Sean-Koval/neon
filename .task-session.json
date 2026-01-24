@@ -1,36 +1,34 @@
 {
-  "task_id": "RUN-002",
-  "title": "Implement agent loader from module path",
-  "started_at": "2026-01-20T21:27:34-05:00",
+  "task_id": "FE-011",
+  "title": "Dashboard: Recent runs table with live data",
+  "started_at": "2026-01-24T13:31:55-05:00",
   "scope": {
     "primary_files": [
-      "api/src/agent/loader.py",
-      "api/src/agent/__init__.py"
+      "frontend/app/page.tsx",
+      "frontend/components/dashboard/recent-runs.tsx"
     ],
-    "test_files": [
-      "api/tests/agent/test_loader.py"
-    ],
+    "test_files": [],
     "related_files": [
-      "api/src/services/eval_runner.py",
-      "cli/src/commands/run.py"
+      "frontend/hooks/use-runs.ts",
+      "frontend/components/ui/badge.tsx"
     ]
   },
   "acceptance_criteria": [
-    "load_agent('module:function') returns a callable that matches AgentProtocol",
-    "load_agent('module:Class') instantiates class and returns instance.run method",
-    "Support for relative imports within project (src.agents.foo:bar)",
-    "Clear error messages when module not found or callable doesn't exist",
-    "Validation that loaded callable has correct signature",
-    "LangChainAdapter wraps LangChain agents automatically",
-    "CallableAdapter wraps simple functions automatically",
-    "Unit tests cover all loading scenarios"
+    "Shows 5-10 most recent runs",
+    "Each row shows: suite name, version, status badge, pass/total, score, relative time",
+    "Status badge color-coded (green/yellow/red/gray)",
+    "Score color-coded based on threshold",
+    "Click row navigates to /runs/[id]",
+    "Click suite name navigates to /suites/[id]",
+    "Loading skeleton for table",
+    "Empty state if no runs exist"
   ],
   "context": {
     "research_refs": [
-      "docs/research/02-concept/architecture-spec.md#agent-interface"
+      ".project/docs/frontend-design-spec.md#dashboard"
     ],
     "code_refs": [
-      "api/src/services/eval_runner.py:AgentProtocol"
+      "frontend/app/page.tsx"
     ]
   }
 }
