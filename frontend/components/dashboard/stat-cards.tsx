@@ -1,8 +1,7 @@
 'use client'
 
 import { Activity, CheckCircle, XCircle, TrendingUp, AlertCircle, RefreshCw } from 'lucide-react'
-import { useDashboardStats } from '@/hooks/use-runs'
-import type { DashboardStats } from '@/lib/types'
+import { useDashboardStats, type DashboardStats } from '@/hooks/use-runs'
 
 interface StatCardProps {
   title: string
