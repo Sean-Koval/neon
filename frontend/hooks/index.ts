@@ -9,7 +9,7 @@ export {
   useCreateSuite,
   useUpdateSuite,
   useDeleteSuite,
-} from './use-suites'
+} from './use-suites';
 
 // Run hooks
 export {
@@ -18,7 +18,7 @@ export {
   useRunResults,
   useTriggerRun,
   useCancelRun,
-} from './use-runs'
+} from './use-runs';
 
 // Compare hooks
-export { useCompare } from './use-compare'
+export { useCompare } from './use-compare';

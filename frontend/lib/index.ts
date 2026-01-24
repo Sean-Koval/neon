@@ -3,10 +3,10 @@
  */
 
 // API client
-export { api, ApiError } from './api'
+export { api, apiClient, ApiClient, ApiError, buildQueryString } from './api';
 
 // Query keys for cache management
-export { queryKeys, type QueryKeys } from './query-keys'
+export { queryKeys, type QueryKeys } from './query-keys';
 
 // Type exports
-export * from './types'
+export * from './types';
