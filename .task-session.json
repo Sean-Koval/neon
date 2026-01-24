@@ -1,36 +1,33 @@
 {
-  "task_id": "RUN-002",
-  "title": "Implement agent loader from module path",
-  "started_at": "2026-01-20T21:27:34-05:00",
+  "task_id": "FE-010",
+  "title": "Dashboard: Fetch and display summary stats",
+  "started_at": "2026-01-24T13:31:38-05:00",
   "scope": {
     "primary_files": [
-      "api/src/agent/loader.py",
-      "api/src/agent/__init__.py"
+      "frontend/app/page.tsx",
+      "frontend/components/dashboard/stat-cards.tsx"
     ],
-    "test_files": [
-      "api/tests/agent/test_loader.py"
-    ],
+    "test_files": [],
     "related_files": [
-      "api/src/services/eval_runner.py",
-      "cli/src/commands/run.py"
+      "frontend/hooks/use-runs.ts"
     ]
   },
   "acceptance_criteria": [
-    "load_agent('module:function') returns a callable that matches AgentProtocol",
-    "load_agent('module:Class') instantiates class and returns instance.run method",
-    "Support for relative imports within project (src.agents.foo:bar)",
-    "Clear error messages when module not found or callable doesn't exist",
-    "Validation that loaded callable has correct signature",
-    "LangChainAdapter wraps LangChain agents automatically",
-    "CallableAdapter wraps simple functions automatically",
-    "Unit tests cover all loading scenarios"
+    "Stat cards show real data from API",
+    "Total runs count displayed",
+    "Passed count with percentage",
+    "Failed count with percentage",
+    "Average score across all runs",
+    "Loading skeleton while fetching",
+    "Error state if API fails",
+    "Stats update when new runs complete"
   ],
   "context": {
     "research_refs": [
-      "docs/research/02-concept/architecture-spec.md#agent-interface"
+      ".project/docs/frontend-design-spec.md#dashboard"
     ],
     "code_refs": [
-      "api/src/services/eval_runner.py:AgentProtocol"
+      "frontend/app/page.tsx"
     ]
   }
 }
