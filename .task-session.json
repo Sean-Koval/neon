@@ -1,31 +1,38 @@
 {
-  "task_id": "FE-012",
-  "title": "Dashboard: Score trend chart",
-  "started_at": "2026-01-24T13:32:15-05:00",
+  "task_id": "FE-003",
+  "title": "Create React Query hooks for all endpoints",
+  "started_at": "2026-01-24T11:04:23-05:00",
   "scope": {
     "primary_files": [
-      "frontend/components/charts/score-trend.tsx",
-      "frontend/app/page.tsx"
+      "frontend/hooks/use-suites.ts",
+      "frontend/hooks/use-runs.ts",
+      "frontend/hooks/use-compare.ts"
     ],
     "test_files": [],
     "related_files": [
-      "frontend/hooks/use-runs.ts"
+      "frontend/lib/api.ts",
+      "frontend/lib/types.ts"
     ]
   },
   "acceptance_criteria": [
-    "Line chart using Recharts",
-    "X-axis: date or run number",
-    "Y-axis: average score (0.0-1.0)",
-    "Shows data for last 7 days or 10 runs",
-    "Tooltip on hover showing date and score",
-    "Reference line at 0.7 (default threshold)",
-    "Responsive to container width",
-    "Loading skeleton while data loads",
-    "Graceful handling of insufficient data"
+    "useSuites() - fetch all suites",
+    "useSuite(id) - fetch single suite with cases",
+    "useCreateSuite() - mutation for creating suite",
+    "useUpdateSuite() - mutation for updating suite",
+    "useDeleteSuite() - mutation for deleting suite",
+    "useRuns(filters?) - fetch runs with optional filters",
+    "useRun(id) - fetch single run with polling for active runs",
+    "useRunResults(id) - fetch detailed results",
+    "useTriggerRun() - mutation to start a run",
+    "useCancelRun() - mutation to cancel a run",
+    "useCompare(baseline, candidate) - fetch comparison",
+    "Query key factory exported for cache invalidation",
+    "Appropriate stale times configured",
+    "Mutations invalidate related queries"
   ],
   "context": {
     "research_refs": [
-      ".project/docs/frontend-design-spec.md#dashboard"
+      ".project/docs/frontend-design-spec.md#state-management"
     ],
     "code_refs": []
   }
