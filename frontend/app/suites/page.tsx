@@ -17,7 +17,8 @@ export default function SuitesPage() {
     const query = searchQuery.toLowerCase()
     return suites.filter(
       (suite) =>
-        suite.name.toLowerCase().includes(query) || suite.description?.toLowerCase().includes(query)
+        suite.name.toLowerCase().includes(query) ||
+        suite.description?.toLowerCase().includes(query)
     )
   }, [suites, searchQuery])
 

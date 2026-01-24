@@ -1,7 +1,13 @@
 'use client'
 
 import { clsx } from 'clsx'
-import { FileText, GitCompare, LayoutDashboard, Play, Settings } from 'lucide-react'
+import {
+  FileText,
+  GitCompare,
+  LayoutDashboard,
+  Play,
+  Settings,
+} from 'lucide-react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
@@ -25,7 +31,8 @@ export function Sidebar() {
       <nav className="flex-1 px-4 space-y-1">
         {navigation.map((item) => {
           const isActive =
-            pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href))
+            pathname === item.href ||
+            (item.href !== '/' && pathname.startsWith(item.href))
 
           return (
             <Link
@@ -35,11 +42,14 @@ export function Sidebar() {
                 'flex items-center px-4 py-2.5 text-sm font-medium rounded-lg transition-colors',
                 isActive
                   ? 'bg-primary-50 text-primary-700'
-                  : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                  : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900',
               )}
             >
               <item.icon
-                className={clsx('w-5 h-5 mr-3', isActive ? 'text-primary-600' : 'text-gray-400')}
+                className={clsx(
+                  'w-5 h-5 mr-3',
+                  isActive ? 'text-primary-600' : 'text-gray-400',
+                )}
               />
               {item.name}
             </Link>

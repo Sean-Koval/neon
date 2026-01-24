@@ -1,35 +1,39 @@
 {
-  "task_id": "FE-040",
-  "title": "Compare: Run selector UI",
-  "started_at": "2026-01-24T14:55:22-05:00",
+  "task_id": "FE-003",
+  "title": "Create React Query hooks for all endpoints",
+  "started_at": "2026-01-24T11:04:23-05:00",
   "scope": {
     "primary_files": [
-      "frontend/app/compare/page.tsx",
-      "frontend/components/compare/run-selector.tsx"
+      "frontend/hooks/use-suites.ts",
+      "frontend/hooks/use-runs.ts",
+      "frontend/hooks/use-compare.ts"
     ],
     "test_files": [],
     "related_files": [
-      "frontend/hooks/use-runs.ts",
-      "frontend/hooks/use-compare.ts"
+      "frontend/lib/api.ts",
+      "frontend/lib/types.ts"
     ]
   },
   "acceptance_criteria": [
-    "Two run selector dropdowns (baseline and candidate)",
-    "Dropdowns show recent runs grouped by suite",
-    "Each option shows: suite name, version, score, date",
-    "Selected run shows summary card below dropdown",
-    "Can filter runs by suite",
-    "Threshold selector (0.01, 0.05, 0.10, 0.15, 0.20)",
-    "Compare button enabled when both runs selected",
-    "URL updates with selected run IDs for shareability",
-    "Pre-fill selectors from URL params if present"
+    "useSuites() - fetch all suites",
+    "useSuite(id) - fetch single suite with cases",
+    "useCreateSuite() - mutation for creating suite",
+    "useUpdateSuite() - mutation for updating suite",
+    "useDeleteSuite() - mutation for deleting suite",
+    "useRuns(filters?) - fetch runs with optional filters",
+    "useRun(id) - fetch single run with polling for active runs",
+    "useRunResults(id) - fetch detailed results",
+    "useTriggerRun() - mutation to start a run",
+    "useCancelRun() - mutation to cancel a run",
+    "useCompare(baseline, candidate) - fetch comparison",
+    "Query key factory exported for cache invalidation",
+    "Appropriate stale times configured",
+    "Mutations invalidate related queries"
   ],
   "context": {
     "research_refs": [
-      ".project/docs/frontend-design-spec.md#compare-view"
+      ".project/docs/frontend-design-spec.md#state-management"
     ],
-    "code_refs": [
-      "frontend/app/compare/page.tsx"
-    ]
+    "code_refs": []
   }
 }

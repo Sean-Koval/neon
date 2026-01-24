@@ -80,6 +80,7 @@ Use the `/wt` command or run scripts directly:
 
 ### Python
 - Python 3.11+
+- Use **uv** for package management (not pip/poetry)
 - Ruff for linting/formatting
 - Mypy strict mode
 - Async throughout API
@@ -99,7 +100,14 @@ bun run lint:fix    # Auto-fix issues
 bun run format      # Format code
 bun run dev         # Start dev server (Turbopack)
 bun run build       # Production build
+bun run test        # Run tests
+bun run typecheck   # Type checking
 ```
+
+## Tool Requirements
+
+- **Frontend**: Use `bun` instead of `npm`/`npx` for all commands
+- **Python**: Use `uv` instead of `pip`/`poetry` for package management
 
 ## Research Documentation
 

@@ -144,6 +144,52 @@ class EvalCaseCreate(EvalCaseBase):
     pass
 
 
+class EvalCaseUpdate(BaseModel):
+    """Update eval case request.
+
+    All fields are optional - only provided fields will be updated.
+    """
+
+    name: str | None = Field(default=None, min_length=1, max_length=255)
+    description: str | None = Field(default=None, max_length=2000)
+    input: dict[str, Any] | None = None
+    expected_tools: list[str] | None = None
+    expected_tool_sequence: list[str] | None = None
+    expected_output_contains: list[str] | None = None
+    expected_output_pattern: str | None = Field(default=None, max_length=1000)
+    scorers: list[ScorerType] | None = None
+    scorer_config: dict[str, Any] | None = None
+    min_score: float | None = Field(default=None, ge=0.0, le=1.0)
+    tags: list[str] | None = None
+    timeout_seconds: int | None = Field(default=None, gt=0, le=3600)
+
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, v: str | None) -> str | None:
+        """Validate case name is a valid identifier-like string."""
+        if v is not None and not v.replace("_", "").replace("-", "").replace(".", "").isalnum():
+            raise ValueError("Name must contain only alphanumeric characters, underscores, hyphens, or dots")
+        return v
+
+    @field_validator("scorers")
+    @classmethod
+    def validate_scorers_not_empty(cls, v: list[ScorerType] | None) -> list[ScorerType] | None:
+        """Ensure at least one scorer is specified if provided."""
+        if v is not None and not v:
+            raise ValueError("At least one scorer must be specified")
+        return v
+
+    @model_validator(mode="after")
+    def validate_tool_expectations(self) -> "EvalCaseUpdate":
+        """Validate that expected_tools and expected_tool_sequence are not both set."""
+        if self.expected_tools is not None and self.expected_tool_sequence is not None:
+            raise ValueError(
+                "Cannot specify both expected_tools and expected_tool_sequence. "
+                "Use expected_tools for order-independent checks or expected_tool_sequence for ordered checks."
+            )
+        return self
+
+
 class EvalCase(EvalCaseBase):
     """Eval case response."""
 
