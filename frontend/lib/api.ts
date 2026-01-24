@@ -299,3 +299,8 @@ export class ApiClient {
  * Can be used directly or replaced with a custom instance.
  */
 export const apiClient = new ApiClient();
+
+/**
+ * Alias for backwards compatibility.
+ */
+export const api = apiClient;

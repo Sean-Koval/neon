@@ -367,6 +367,11 @@ describe('ApiClient', () => {
       const createData: EvalSuiteCreate = {
         name: 'new-suite',
         agent_id: 'agent-123',
+        default_scorers: ['tool_selection'],
+        default_min_score: 0.7,
+        default_timeout_seconds: 300,
+        parallel: true,
+        stop_on_failure: false,
       };
       mockFetch.mockResolvedValueOnce(mockResponse(mockSuite));
 
@@ -431,6 +436,10 @@ describe('ApiClient', () => {
       const createData: EvalCaseCreate = {
         name: 'new-case',
         input: { query: 'test' },
+        scorers: ['tool_selection'],
+        min_score: 0.8,
+        tags: ['test'],
+        timeout_seconds: 60,
       };
       mockFetch.mockResolvedValueOnce(mockResponse(mockCase));
 

@@ -6,10 +6,12 @@ import Link from 'next/link'
 import { api } from '@/lib/api'
 
 export default function SuitesPage() {
-  const { data: suites, isLoading } = useQuery({
+  const { data: suitesData, isLoading } = useQuery({
     queryKey: ['suites'],
     queryFn: () => api.getSuites(),
   })
+
+  const suites = suitesData?.items
 
   if (isLoading) {
     return <div className="animate-pulse">Loading...</div>
