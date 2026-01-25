@@ -1,36 +1,33 @@
 {
-  "task_id": "API-004",
-  "title": "Add /stats/dashboard endpoint for pre-aggregated stats",
-  "started_at": "2026-01-24T18:17:03-05:00",
+  "task_id": "FE-041",
+  "title": "Compare: Results display with pass/fail state",
+  "started_at": "2026-01-25T10:53:25-05:00",
   "scope": {
     "primary_files": [
-      "api/src/routers/stats.py",
-      "api/src/services/stats_service.py",
-      "api/src/main.py"
+      "frontend/app/compare/page.tsx",
+      "frontend/components/compare/compare-results.tsx",
+      "frontend/components/compare/comparison-header.tsx"
     ],
-    "test_files": [
-      "api/tests/routers/test_stats.py",
-      "api/tests/services/test_stats_service.py"
-    ],
+    "test_files": [],
     "related_files": [
-      "api/src/db/models.py",
-      "api/src/routers/runs.py"
+      "frontend/hooks/use-compare.ts"
     ]
   },
   "acceptance_criteria": [
-    "GET /stats/dashboard returns aggregated stats in <50ms",
-    "Response includes: total_runs, passed_runs, failed_runs, pass_rate, fail_rate, avg_score",
-    "Response includes: runs_this_week count for trend display",
-    "Stats computed via efficient SQL aggregation, not Python loops",
-    "Optional date_from/date_to query params for time-bounded stats",
-    "Endpoint is properly documented in OpenAPI schema",
-    "Unit tests cover edge cases (no runs, all passed, all failed)"
+    "Large header banner showing pass/fail state",
+    "Pass: green banner 'No Regressions Detected'",
+    "Fail: red banner 'REGRESSION DETECTED'",
+    "Overall score delta displayed prominently",
+    "Baseline vs candidate scores shown",
+    "Section headers for Regressions, Improvements, Unchanged",
+    "Count for each section",
+    "Loading state while comparison runs",
+    "Error state if comparison fails"
   ],
   "context": {
-    "research_refs": [],
-    "code_refs": [
-      "frontend/hooks/use-runs.ts#computeStats",
-      "api/src/routers/runs.py"
-    ]
+    "research_refs": [
+      ".project/docs/frontend-design-spec.md#compare-view"
+    ],
+    "code_refs": []
   }
 }
