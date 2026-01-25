@@ -2,17 +2,14 @@
  * React Query hooks for run comparison operations.
  */
 
-import {
-  useQuery,
-  type UseQueryOptions,
-} from '@tanstack/react-query';
+import { type UseQueryOptions, useQuery } from '@tanstack/react-query'
 
-import { api } from '@/lib/api';
-import { queryKeys } from '@/lib/query-keys';
-import type { CompareResponse } from '@/lib/types';
+import { api } from '@/lib/api'
+import { queryKeys } from '@/lib/query-keys'
+import type { CompareResponse } from '@/lib/types'
 
 // Default regression threshold
-const DEFAULT_THRESHOLD = 0.05;
+const DEFAULT_THRESHOLD = 0.05
 
 /**
  * Available threshold options for regression detection.
@@ -23,7 +20,7 @@ export const THRESHOLD_OPTIONS = [
   { value: 0.1, label: '10%' },
   { value: 0.15, label: '15%' },
   { value: 0.2, label: '20%' },
-] as const;
+] as const
 
 // =============================================================================
 // Query Hooks
@@ -43,18 +40,19 @@ export function useCompare(
   options?: Omit<
     UseQueryOptions<CompareResponse, Error>,
     'queryKey' | 'queryFn'
-  >
+  >,
 ) {
   return useQuery({
     queryKey: queryKeys.compare.comparison(baselineId, candidateId, threshold),
-    queryFn: () => api.compare({
-      baseline_run_id: baselineId,
-      candidate_run_id: candidateId,
-      threshold,
-    }),
+    queryFn: () =>
+      api.compare({
+        baseline_run_id: baselineId,
+        candidate_run_id: candidateId,
+        threshold,
+      }),
     staleTime: 5 * 60 * 1000, // 5 minutes - comparisons are stable
     // Only fetch when both IDs are provided
     enabled: !!baselineId && !!candidateId,
     ...options,
-  });
+  })
 }

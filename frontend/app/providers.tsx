@@ -2,7 +2,7 @@
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
-import { useState, useCallback, type ReactNode } from 'react'
+import { type ReactNode, useCallback, useState } from 'react'
 import { ErrorBoundary } from '@/components/error-boundary'
 import { ToastProvider, useToast } from '@/components/toast'
 import { AuthProvider } from '@/lib/auth'
@@ -14,9 +14,12 @@ function useQueryErrorHandler() {
   return useCallback(
     (error: Error) => {
       console.error('Query error:', error)
-      addToast(error.message || 'An error occurred while fetching data', 'error')
+      addToast(
+        error.message || 'An error occurred while fetching data',
+        'error',
+      )
     },
-    [addToast]
+    [addToast],
   )
 }
 
@@ -29,7 +32,7 @@ function useMutationErrorHandler() {
       console.error('Mutation error:', error)
       addToast(error.message || 'An error occurred while saving data', 'error')
     },
-    [addToast]
+    [addToast],
   )
 }
 
@@ -82,7 +85,10 @@ function QueryProvider({ children }: QueryProviderProps) {
         {children}
         {/* React Query Devtools - only visible in development */}
         {process.env.NODE_ENV === 'development' && (
-          <ReactQueryDevtools initialIsOpen={false} buttonPosition="bottom-left" />
+          <ReactQueryDevtools
+            initialIsOpen={false}
+            buttonPosition="bottom-left"
+          />
         )}
       </QueryClientProvider>
     </AuthProvider>
