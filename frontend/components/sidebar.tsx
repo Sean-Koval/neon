@@ -7,6 +7,7 @@ import {
   LayoutDashboard,
   Play,
   Settings,
+  Zap,
 } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
@@ -23,12 +24,28 @@ export function Sidebar() {
   const pathname = usePathname()
 
   return (
-    <div className="w-64 bg-white border-r border-gray-200 flex flex-col">
+    <div className="w-64 bg-dark-900 flex flex-col">
+      {/* Logo Section */}
       <div className="p-6">
-        <h1 className="text-xl font-bold text-gray-900">AgentEval</h1>
+        <Link href="/" className="flex items-center gap-3 group">
+          <div className="relative">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-400 to-accent-500 flex items-center justify-center shadow-neon group-hover:shadow-neon-lg transition-shadow">
+              <Zap className="w-5 h-5 text-white" />
+            </div>
+          </div>
+          <div>
+            <h1 className="text-xl font-bold text-neon-glow tracking-tight">
+              Neon
+            </h1>
+            <p className="text-[10px] text-dark-500 font-medium tracking-wider uppercase">
+              Agent Evaluation
+            </p>
+          </div>
+        </Link>
       </div>
 
-      <nav className="flex-1 px-4 space-y-1">
+      {/* Navigation */}
+      <nav className="flex-1 px-3 space-y-1">
         {navigation.map((item) => {
           const isActive =
             pathname === item.href ||
@@ -39,16 +56,14 @@ export function Sidebar() {
               key={item.name}
               href={item.href}
               className={clsx(
-                'flex items-center px-4 py-2.5 text-sm font-medium rounded-lg transition-colors',
-                isActive
-                  ? 'bg-primary-50 text-primary-700'
-                  : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900',
+                'nav-item',
+                isActive ? 'nav-item-active' : 'nav-item-inactive',
               )}
             >
               <item.icon
                 className={clsx(
-                  'w-5 h-5 mr-3',
-                  isActive ? 'text-primary-600' : 'text-gray-400',
+                  'w-5 h-5 mr-3 transition-colors',
+                  isActive ? 'text-primary-400' : 'text-dark-500',
                 )}
               />
               {item.name}
@@ -57,8 +72,14 @@ export function Sidebar() {
         })}
       </nav>
 
-      <div className="p-4 border-t border-gray-200">
-        <div className="text-xs text-gray-500">Version 0.1.0</div>
+      {/* Footer */}
+      <div className="p-4 border-t border-dark-800">
+        <div className="flex items-center justify-between">
+          <span className="text-xs text-dark-500">v0.1.0</span>
+          <span className="text-[10px] text-dark-600 font-medium">
+            Built on MLflow
+          </span>
+        </div>
       </div>
     </div>
   )

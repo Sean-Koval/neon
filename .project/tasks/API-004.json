@@ -4,7 +4,7 @@
   "description": "Create a dedicated API endpoint that returns pre-aggregated dashboard statistics directly from the database. This eliminates the need for the frontend to fetch 1000+ runs just to compute 4 numbers, dramatically improving dashboard load time.",
   "phase_id": "phase-4-api-auth",
   "type": "implementation",
-  "status": "ready",
+  "status": "completed",
   "scope": {
     "primary_files": [
       "api/src/routers/stats.py",
@@ -22,7 +22,9 @@
   },
   "dependencies": {
     "blocked_by": [],
-    "blocks": ["FE-070"],
+    "blocks": [
+      "FE-070"
+    ],
     "parallel_with": []
   },
   "acceptance_criteria": [
@@ -53,5 +55,11 @@
     ]
   },
   "estimated_hours": 3,
-  "created_at": "2026-01-24T19:00:00Z"
+  "created_at": "2026-01-24T19:00:00Z",
+  "started_at": "2026-01-24T18:17:03-05:00",
+  "worktree": {
+    "branch": "task/API-004",
+    "path": "/home/seanm/repos/neon-task-API-004",
+    "created_at": "2026-01-24T18:17:03-05:00"
+  }
 }

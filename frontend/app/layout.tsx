@@ -7,7 +7,7 @@ import { Providers } from './providers'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'AgentEval',
+  title: 'Neon',
   description: 'Agent evaluation platform built on MLflow',
 }
 
@@ -22,7 +22,9 @@ export default function RootLayout({
         <Providers>
           <div className="flex h-screen bg-gray-50">
             <Sidebar />
-            <main className="flex-1 overflow-auto p-8">{children}</main>
+            <main className="flex-1 overflow-auto p-8 bg-gradient-to-br from-gray-50 to-gray-100/50">
+              {children}
+            </main>
           </div>
         </Providers>
       </body>

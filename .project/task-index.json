@@ -348,13 +348,14 @@
     },
     "API-004": {
       "file": "tasks/API-004.json",
-      "status": "ready",
+      "status": "completed",
       "phase_id": "phase-4-api-auth",
-      "title": "Add /stats/dashboard endpoint for pre-aggregated stats"
+      "title": "Add /stats/dashboard endpoint for pre-aggregated stats",
+      "pr_merged": "https://github.com/Sean-Koval/neon/pull/34"
     },
     "FE-070": {
       "file": "tasks/FE-070.json",
-      "status": "pending",
+      "status": "ready",
       "phase_id": "phase-5-frontend",
       "title": "Dashboard performance optimization"
     },
@@ -475,14 +476,14 @@
       "reason": "Backend stats endpoint and runs pagination can be implemented in parallel"
     }
   ],
-  "ready_tasks": ["API-004", "FE-013", "FE-021", "FE-023", "FE-030", "FE-034", "FE-041", "FE-050", "FE-051", "FE-052", "FE-053", "FE-054", "FE-055", "FE-060", "FE-071"],
+  "ready_tasks": ["FE-013", "FE-021", "FE-023", "FE-030", "FE-034", "FE-041", "FE-050", "FE-051", "FE-052", "FE-053", "FE-054", "FE-055", "FE-060", "FE-070", "FE-071"],
   "critical_path": ["FE-001", "FE-002", "FE-003", "FE-006", "FE-040", "FE-041", "FE-042", "FE-045"],
   "metrics": {
     "total_tasks": 50,
-    "pending": 11,
+    "pending": 10,
     "ready": 15,
     "in_progress": 0,
-    "completed": 27,
+    "completed": 28,
     "estimated_hours_total": 154,
     "actual_hours_total": null
   },

@@ -13,16 +13,18 @@ interface StatCardProps {
 
 function StatCard({ title, value, icon, subtitle, trend }: StatCardProps) {
   const trendColors = {
-    up: 'text-green-600',
-    down: 'text-red-600',
+    up: 'text-emerald-600',
+    down: 'text-rose-600',
     neutral: 'text-gray-500',
   }
 
   return (
-    <div className="card p-6 transition-shadow hover:shadow-md">
+    <div className="stat-card group">
       <div className="flex items-center justify-between">
         <span className="text-sm font-medium text-gray-500">{title}</span>
-        <div className="p-2 rounded-lg bg-gray-50">{icon}</div>
+        <div className="p-2 rounded-lg bg-gradient-to-br from-gray-50 to-gray-100 group-hover:from-primary-50 group-hover:to-accent-50 transition-colors">
+          {icon}
+        </div>
       </div>
       <div className="mt-3">
         <span className="text-3xl font-bold text-gray-900">{value}</span>
@@ -104,28 +106,28 @@ function StatCardsContent({ stats }: StatCardsContentProps) {
       <StatCard
         title="Total Runs"
         value={stats.totalRuns.toLocaleString()}
-        icon={<Activity className="w-5 h-5 text-primary-600" />}
+        icon={<Activity className="w-5 h-5 text-primary-500" />}
         subtitle={`${stats.totalRuns} evaluation${stats.totalRuns !== 1 ? 's' : ''} total`}
         trend="neutral"
       />
       <StatCard
         title="Passed"
         value={stats.passedRuns.toLocaleString()}
-        icon={<CheckCircle className="w-5 h-5 text-green-600" />}
+        icon={<CheckCircle className="w-5 h-5 text-emerald-500" />}
         subtitle={`${stats.passedPercentage}% pass rate`}
         trend={stats.passedPercentage >= 80 ? 'up' : stats.passedPercentage >= 50 ? 'neutral' : 'down'}
       />
       <StatCard
         title="Failed"
         value={stats.failedRuns.toLocaleString()}
-        icon={<XCircle className="w-5 h-5 text-red-600" />}
+        icon={<XCircle className="w-5 h-5 text-rose-500" />}
         subtitle={`${stats.failedPercentage}% failure rate`}
         trend={stats.failedPercentage <= 10 ? 'up' : stats.failedPercentage <= 30 ? 'neutral' : 'down'}
       />
       <StatCard
         title="Avg Score"
         value={formatScore(stats.averageScore)}
-        icon={<TrendingUp className="w-5 h-5 text-yellow-600" />}
+        icon={<TrendingUp className="w-5 h-5 text-accent-500" />}
         subtitle={
           stats.averageScore >= 0.8
             ? 'Excellent performance'
@@ -145,28 +147,28 @@ function StatCardsEmpty() {
       <StatCard
         title="Total Runs"
         value="0"
-        icon={<Activity className="w-5 h-5 text-primary-600" />}
+        icon={<Activity className="w-5 h-5 text-primary-500" />}
         subtitle="No runs yet"
         trend="neutral"
       />
       <StatCard
         title="Passed"
         value="0"
-        icon={<CheckCircle className="w-5 h-5 text-green-600" />}
+        icon={<CheckCircle className="w-5 h-5 text-emerald-500" />}
         subtitle="0% pass rate"
         trend="neutral"
       />
       <StatCard
         title="Failed"
         value="0"
-        icon={<XCircle className="w-5 h-5 text-red-600" />}
+        icon={<XCircle className="w-5 h-5 text-rose-500" />}
         subtitle="0% failure rate"
         trend="neutral"
       />
       <StatCard
         title="Avg Score"
         value="--"
-        icon={<TrendingUp className="w-5 h-5 text-yellow-600" />}
+        icon={<TrendingUp className="w-5 h-5 text-accent-500" />}
         subtitle="No data available"
         trend="neutral"
       />
