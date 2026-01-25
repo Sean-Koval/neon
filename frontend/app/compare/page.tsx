@@ -1,8 +1,17 @@
 'use client'
 
-import { ArrowRight, GitCompare, TrendingDown, TrendingUp } from 'lucide-react'
+import { GitCompare } from 'lucide-react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { Suspense, useCallback, useMemo } from 'react'
+import {
+  CompareResults,
+  CompareResultsSkeleton,
+} from '@/components/compare/compare-results'
+import {
+  ComparisonHeader,
+  ComparisonHeaderError,
+  ComparisonHeaderSkeleton,
+} from '@/components/compare/comparison-header'
 import {
   RunSelector,
   RunSummaryCard,
@@ -44,6 +53,7 @@ function ComparePageContent() {
     data: comparison,
     isLoading: comparisonLoading,
     isFetching: comparisonFetching,
+    error: comparisonError,
   } = useCompare(baselineId, candidateId, threshold, {
     enabled: !!baselineId && !!candidateId && baselineId !== candidateId,
   })
@@ -175,145 +185,44 @@ function ComparePageContent() {
         </div>
       </div>
 
-      {/* Comparison Results */}
-      {comparison && (
+      {/* Loading State */}
+      {comparisonLoading && canCompare && (
         <div className="space-y-6">
-          {/* Summary */}
-          <div className="card p-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-4">
-                <span className="text-gray-500">
-                  {comparison.baseline.agent_version ||
-                    comparison.baseline.id.slice(0, 8)}
-                </span>
-                <ArrowRight className="w-5 h-5 text-gray-400" />
-                <span className="text-gray-900 font-medium">
-                  {comparison.candidate.agent_version ||
-                    comparison.candidate.id.slice(0, 8)}
-                </span>
-              </div>
-              <div
-                className={`badge ${comparison.passed ? 'badge-green' : 'badge-red'}`}
-              >
-                {comparison.passed ? 'PASSED' : 'REGRESSION DETECTED'}
-              </div>
-            </div>
-            <div className="mt-4 flex items-center space-x-8">
-              <div>
-                <span className="text-sm text-gray-500">Overall Delta</span>
-                <p
-                  className={`text-2xl font-bold ${comparison.overall_delta >= 0 ? 'text-green-600' : 'text-red-600'}`}
-                >
-                  {comparison.overall_delta >= 0 ? '+' : ''}
-                  {comparison.overall_delta.toFixed(4)}
-                </p>
-              </div>
-              <div>
-                <span className="text-sm text-gray-500">Regressions</span>
-                <p className="text-2xl font-bold text-red-600">
-                  {comparison.regressions.length}
-                </p>
-              </div>
-              <div>
-                <span className="text-sm text-gray-500">Improvements</span>
-                <p className="text-2xl font-bold text-green-600">
-                  {comparison.improvements.length}
-                </p>
-              </div>
-              <div>
-                <span className="text-sm text-gray-500">Unchanged</span>
-                <p className="text-2xl font-bold text-gray-600">
-                  {comparison.unchanged}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Regressions */}
-          {comparison.regressions.length > 0 && (
-            <div className="card">
-              <div className="p-4 border-b border-gray-200">
-                <h3 className="font-semibold text-red-600 flex items-center space-x-2">
-                  <TrendingDown className="w-5 h-5" />
-                  <span>Regressions ({comparison.regressions.length})</span>
-                </h3>
-              </div>
-              <div className="divide-y divide-gray-200">
-                {comparison.regressions.map((r) => (
-                  <div
-                    key={`${r.case_name}-${r.scorer}`}
-                    className="p-4 flex items-center justify-between"
-                  >
-                    <div>
-                      <p className="font-medium text-gray-900">{r.case_name}</p>
-                      <p className="text-sm text-gray-500">{r.scorer}</p>
-                    </div>
-                    <div className="flex items-center space-x-4">
-                      <span className="text-gray-500">
-                        {r.baseline_score.toFixed(2)}
-                      </span>
-                      <ArrowRight className="w-4 h-4 text-gray-400" />
-                      <span className="text-gray-900">
-                        {r.candidate_score.toFixed(2)}
-                      </span>
-                      <span className="text-red-600 font-medium">
-                        {r.delta.toFixed(2)}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Improvements */}
-          {comparison.improvements.length > 0 && (
-            <div className="card">
-              <div className="p-4 border-b border-gray-200">
-                <h3 className="font-semibold text-green-600 flex items-center space-x-2">
-                  <TrendingUp className="w-5 h-5" />
-                  <span>Improvements ({comparison.improvements.length})</span>
-                </h3>
-              </div>
-              <div className="divide-y divide-gray-200">
-                {comparison.improvements.map((improvement) => (
-                  <div
-                    key={`${improvement.case_name}-${improvement.scorer}`}
-                    className="p-4 flex items-center justify-between"
-                  >
-                    <div>
-                      <p className="font-medium text-gray-900">
-                        {improvement.case_name}
-                      </p>
-                      <p className="text-sm text-gray-500">
-                        {improvement.scorer}
-                      </p>
-                    </div>
-                    <div className="flex items-center space-x-4">
-                      <span className="text-gray-500">
-                        {improvement.baseline_score.toFixed(2)}
-                      </span>
-                      <ArrowRight className="w-4 h-4 text-gray-400" />
-                      <span className="text-gray-900">
-                        {improvement.candidate_score.toFixed(2)}
-                      </span>
-                      <span className="text-green-600 font-medium">
-                        +{improvement.delta.toFixed(2)}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+          <ComparisonHeaderSkeleton />
+          <CompareResultsSkeleton />
         </div>
       )}
 
-      {/* Loading state for comparison */}
-      {comparisonLoading && canCompare && (
-        <div className="card p-8 text-center">
-          <div className="animate-spin w-8 h-8 border-2 border-primary-600 border-t-transparent rounded-full mx-auto" />
-          <p className="mt-4 text-gray-500">Comparing runs...</p>
+      {/* Error State */}
+      {comparisonError && canCompare && !comparisonLoading && (
+        <ComparisonHeaderError
+          message={
+            comparisonError instanceof Error
+              ? comparisonError.message
+              : 'An error occurred while comparing runs'
+          }
+        />
+      )}
+
+      {/* Comparison Results */}
+      {comparison && !comparisonLoading && (
+        <div className="space-y-6">
+          <ComparisonHeader comparison={comparison} />
+          <CompareResults comparison={comparison} />
+        </div>
+      )}
+
+      {/* Empty State - When no comparison yet */}
+      {!comparison && !comparisonLoading && !comparisonError && canCompare && (
+        <div className="card p-12 text-center">
+          <GitCompare className="w-12 h-12 mx-auto text-gray-300 mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">
+            Ready to Compare
+          </h3>
+          <p className="text-gray-500 max-w-md mx-auto">
+            Click the Compare button above to analyze the differences between
+            your baseline and candidate runs.
+          </p>
         </div>
       )}
     </div>
