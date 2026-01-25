@@ -3,7 +3,7 @@
  * Provides consistent, hierarchical query keys for cache invalidation.
  */
 
-import type { RunsFilter } from './types';
+import type { RunsFilter } from './types'
 
 export const queryKeys = {
   // =============================================================================
@@ -27,8 +27,7 @@ export const queryKeys = {
       [...queryKeys.runs.lists(), filters ?? {}] as const,
     details: () => [...queryKeys.runs.all, 'detail'] as const,
     detail: (id: string) => [...queryKeys.runs.details(), id] as const,
-    results: (id: string) =>
-      [...queryKeys.runs.detail(id), 'results'] as const,
+    results: (id: string) => [...queryKeys.runs.detail(id), 'results'] as const,
   },
 
   // =============================================================================
@@ -42,6 +41,6 @@ export const queryKeys = {
         { baseline: baselineId, candidate: candidateId, threshold },
       ] as const,
   },
-} as const;
+} as const
 
-export type QueryKeys = typeof queryKeys;
+export type QueryKeys = typeof queryKeys

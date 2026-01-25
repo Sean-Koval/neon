@@ -1,13 +1,16 @@
-import { CheckCircle, XCircle, Clock, AlertCircle, Loader2 } from 'lucide-react'
 import { clsx } from 'clsx'
+import { AlertCircle, CheckCircle, Clock, Loader2, XCircle } from 'lucide-react'
 
 type Status = 'pending' | 'running' | 'completed' | 'failed' | 'cancelled'
 
-const statusConfig: Record<Status, {
-  icon: typeof CheckCircle
-  label: string
-  className: string
-}> = {
+const statusConfig: Record<
+  Status,
+  {
+    icon: typeof CheckCircle
+    label: string
+    className: string
+  }
+> = {
   completed: {
     icon: CheckCircle,
     label: 'Completed',
@@ -41,7 +44,11 @@ interface StatusBadgeProps {
   size?: 'sm' | 'md'
 }
 
-export function StatusBadge({ status, showIcon = true, size = 'md' }: StatusBadgeProps) {
+export function StatusBadge({
+  status,
+  showIcon = true,
+  size = 'md',
+}: StatusBadgeProps) {
   const config = statusConfig[status as Status] || statusConfig.pending
   const Icon = config.icon
 
@@ -50,14 +57,16 @@ export function StatusBadge({ status, showIcon = true, size = 'md' }: StatusBadg
       className={clsx(
         'inline-flex items-center rounded-full font-medium',
         config.className,
-        size === 'sm' ? 'px-2 py-0.5 text-xs gap-1' : 'px-2.5 py-0.5 text-xs gap-1.5'
+        size === 'sm'
+          ? 'px-2 py-0.5 text-xs gap-1'
+          : 'px-2.5 py-0.5 text-xs gap-1.5',
       )}
     >
       {showIcon && (
         <Icon
           className={clsx(
             size === 'sm' ? 'w-3 h-3' : 'w-3.5 h-3.5',
-            status === 'running' && 'animate-spin'
+            status === 'running' && 'animate-spin',
           )}
         />
       )}
@@ -87,8 +96,10 @@ export function ScoreBadge({
   }
 
   const getScoreBg = (score: number) => {
-    if (score >= thresholds.good) return 'bg-emerald-50 border border-emerald-200'
-    if (score >= thresholds.warning) return 'bg-amber-50 border border-amber-200'
+    if (score >= thresholds.good)
+      return 'bg-emerald-50 border border-emerald-200'
+    if (score >= thresholds.warning)
+      return 'bg-amber-50 border border-amber-200'
     return 'bg-rose-50 border border-rose-200'
   }
 
@@ -97,7 +108,7 @@ export function ScoreBadge({
       className={clsx(
         'inline-flex items-center gap-1 px-2 py-0.5 rounded-md font-medium text-sm',
         getScoreColor(score),
-        getScoreBg(score)
+        getScoreBg(score),
       )}
     >
       {showLabel && <span className="text-gray-500 font-normal">Score:</span>}
@@ -113,7 +124,12 @@ interface PassRatioBadgeProps {
 
 export function PassRatioBadge({ passed, total }: PassRatioBadgeProps) {
   const ratio = total > 0 ? passed / total : 0
-  const color = ratio >= 0.8 ? 'text-emerald-600' : ratio >= 0.6 ? 'text-amber-600' : 'text-rose-600'
+  const color =
+    ratio >= 0.8
+      ? 'text-emerald-600'
+      : ratio >= 0.6
+        ? 'text-amber-600'
+        : 'text-rose-600'
 
   return (
     <span className="text-sm font-medium">

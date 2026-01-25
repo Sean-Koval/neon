@@ -20,7 +20,7 @@ import type {
   EvalSuiteUpdate,
   ResultsFilter,
   RunsFilter,
-} from './types';
+} from './types'
 
 // =============================================================================
 // Error Handling
@@ -30,15 +30,15 @@ export class ApiError extends Error {
   constructor(
     public readonly statusCode: number,
     message: string,
-    public readonly details?: unknown
+    public readonly details?: unknown,
   ) {
-    super(message);
-    this.name = 'ApiError';
-    Object.setPrototypeOf(this, ApiError.prototype);
+    super(message)
+    this.name = 'ApiError'
+    Object.setPrototypeOf(this, ApiError.prototype)
   }
 
   static isApiError(error: unknown): error is ApiError {
-    return error instanceof ApiError;
+    return error instanceof ApiError
   }
 }
 
@@ -46,16 +46,16 @@ export class ApiError extends Error {
 // Query String Builder
 // =============================================================================
 
-type QueryValue = string | number | boolean | undefined | null;
-type QueryParams = Record<string, QueryValue>;
+type QueryValue = string | number | boolean | undefined | null
+type QueryParams = Record<string, QueryValue>
 
 export function buildQueryString(params: QueryParams): string {
   const entries = Object.entries(params)
     .filter(([, value]) => value !== undefined && value !== null)
-    .map(([key, value]) => [key, String(value)]);
+    .map(([key, value]) => [key, String(value)])
 
-  if (entries.length === 0) return '';
-  return '?' + new URLSearchParams(entries).toString();
+  if (entries.length === 0) return ''
+  return '?' + new URLSearchParams(entries).toString()
 }
 
 // =============================================================================
@@ -65,14 +65,14 @@ export function buildQueryString(params: QueryParams): string {
 const DEFAULT_BASE_URL =
   typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_API_URL
     ? process.env.NEXT_PUBLIC_API_URL
-    : '/api';
+    : '/api'
 
 export class ApiClient {
-  private baseUrl: string;
-  private apiKey: string | null = null;
+  private baseUrl: string
+  private apiKey: string | null = null
 
   constructor(baseUrl?: string) {
-    this.baseUrl = baseUrl ?? DEFAULT_BASE_URL;
+    this.baseUrl = baseUrl ?? DEFAULT_BASE_URL
   }
 
   /**
@@ -80,73 +80,73 @@ export class ApiClient {
    * The key is sent as X-API-Key header with all requests.
    */
   setApiKey(apiKey: string): void {
-    this.apiKey = apiKey;
+    this.apiKey = apiKey
   }
 
   /**
    * Clear the current API key.
    */
   clearApiKey(): void {
-    this.apiKey = null;
+    this.apiKey = null
   }
 
   /**
    * Check if an API key is currently set.
    */
   hasApiKey(): boolean {
-    return this.apiKey !== null;
+    return this.apiKey !== null
   }
 
   private async request<T>(
     method: string,
     path: string,
     options?: {
-      body?: unknown;
-      query?: QueryParams;
-    }
+      body?: unknown
+      query?: QueryParams
+    },
   ): Promise<T> {
-    const url = this.baseUrl + path + buildQueryString(options?.query ?? {});
+    const url = this.baseUrl + path + buildQueryString(options?.query ?? {})
 
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
-    };
+    }
 
     if (this.apiKey) {
-      headers['X-API-Key'] = this.apiKey;
+      headers['X-API-Key'] = this.apiKey
     }
 
     const response = await fetch(url, {
       method,
       headers,
       body: options?.body ? JSON.stringify(options.body) : undefined,
-    });
+    })
 
     if (!response.ok) {
-      let details: unknown;
-      let message = `Request failed with status ${response.status}`;
+      let details: unknown
+      let message = `Request failed with status ${response.status}`
 
       try {
-        const errorBody = await response.json();
-        details = errorBody;
+        const errorBody = await response.json()
+        details = errorBody
         if (typeof errorBody.detail === 'string') {
-          message = errorBody.detail;
+          message = errorBody.detail
         } else if (typeof errorBody.message === 'string') {
-          message = errorBody.message;
+          message = errorBody.message
         }
       } catch {
         // Response body is not JSON, use status text
-        message = response.statusText || message;
+        message = response.statusText || message
       }
 
-      throw new ApiError(response.status, message, details);
+      throw new ApiError(response.status, message, details)
     }
 
     // Handle 204 No Content
     if (response.status === 204) {
-      return undefined as T;
+      return undefined as T
     }
 
-    return response.json() as Promise<T>;
+    return response.json() as Promise<T>
   }
 
   // ===========================================================================
@@ -157,35 +157,40 @@ export class ApiClient {
    * List all evaluation suites.
    */
   async getSuites(): Promise<EvalSuiteList> {
-    return this.request<EvalSuiteList>('GET', '/suites');
+    return this.request<EvalSuiteList>('GET', '/suites')
   }
 
   /**
    * Get a single evaluation suite by ID.
    */
   async getSuite(suiteId: string): Promise<EvalSuite> {
-    return this.request<EvalSuite>('GET', `/suites/${suiteId}`);
+    return this.request<EvalSuite>('GET', `/suites/${suiteId}`)
   }
 
   /**
    * Create a new evaluation suite.
    */
   async createSuite(data: EvalSuiteCreate): Promise<EvalSuite> {
-    return this.request<EvalSuite>('POST', '/suites', { body: data });
+    return this.request<EvalSuite>('POST', '/suites', { body: data })
   }
 
   /**
    * Update an existing evaluation suite.
    */
-  async updateSuite(suiteId: string, data: EvalSuiteUpdate): Promise<EvalSuite> {
-    return this.request<EvalSuite>('PATCH', `/suites/${suiteId}`, { body: data });
+  async updateSuite(
+    suiteId: string,
+    data: EvalSuiteUpdate,
+  ): Promise<EvalSuite> {
+    return this.request<EvalSuite>('PATCH', `/suites/${suiteId}`, {
+      body: data,
+    })
   }
 
   /**
    * Delete an evaluation suite.
    */
   async deleteSuite(suiteId: string): Promise<void> {
-    return this.request<void>('DELETE', `/suites/${suiteId}`);
+    return this.request<void>('DELETE', `/suites/${suiteId}`)
   }
 
   // ===========================================================================
@@ -196,14 +201,16 @@ export class ApiClient {
    * List all cases in a suite.
    */
   async getCases(suiteId: string): Promise<EvalCase[]> {
-    return this.request<EvalCase[]>('GET', `/suites/${suiteId}/cases`);
+    return this.request<EvalCase[]>('GET', `/suites/${suiteId}/cases`)
   }
 
   /**
    * Create a new case in a suite.
    */
   async createCase(suiteId: string, data: EvalCaseCreate): Promise<EvalCase> {
-    return this.request<EvalCase>('POST', `/suites/${suiteId}/cases`, { body: data });
+    return this.request<EvalCase>('POST', `/suites/${suiteId}/cases`, {
+      body: data,
+    })
   }
 
   /**
@@ -212,18 +219,22 @@ export class ApiClient {
   async updateCase(
     suiteId: string,
     caseId: string,
-    data: Partial<EvalCaseCreate>
+    data: Partial<EvalCaseCreate>,
   ): Promise<EvalCase> {
-    return this.request<EvalCase>('PATCH', `/suites/${suiteId}/cases/${caseId}`, {
-      body: data,
-    });
+    return this.request<EvalCase>(
+      'PATCH',
+      `/suites/${suiteId}/cases/${caseId}`,
+      {
+        body: data,
+      },
+    )
   }
 
   /**
    * Delete a case from a suite.
    */
   async deleteCase(suiteId: string, caseId: string): Promise<void> {
-    return this.request<void>('DELETE', `/suites/${suiteId}/cases/${caseId}`);
+    return this.request<void>('DELETE', `/suites/${suiteId}/cases/${caseId}`)
   }
 
   // ===========================================================================
@@ -241,25 +252,28 @@ export class ApiClient {
         limit: filter?.limit,
         offset: filter?.offset,
       },
-    });
+    })
   }
 
   /**
    * Get a single evaluation run by ID.
    */
   async getRun(runId: string): Promise<EvalRun> {
-    return this.request<EvalRun>('GET', `/runs/${runId}`);
+    return this.request<EvalRun>('GET', `/runs/${runId}`)
   }
 
   /**
    * Get results for an evaluation run.
    */
-  async getRunResults(runId: string, filter?: ResultsFilter): Promise<EvalResult[]> {
+  async getRunResults(
+    runId: string,
+    filter?: ResultsFilter,
+  ): Promise<EvalResult[]> {
     return this.request<EvalResult[]>('GET', `/runs/${runId}/results`, {
       query: {
         failed_only: filter?.failed_only,
       },
-    });
+    })
   }
 
   /**
@@ -268,14 +282,14 @@ export class ApiClient {
   async triggerRun(suiteId: string, data?: EvalRunCreate): Promise<EvalRun> {
     return this.request<EvalRun>('POST', `/runs/suites/${suiteId}/run`, {
       body: data ?? {},
-    });
+    })
   }
 
   /**
    * Cancel a running evaluation.
    */
   async cancelRun(runId: string): Promise<{ status: string }> {
-    return this.request<{ status: string }>('POST', `/runs/${runId}/cancel`);
+    return this.request<{ status: string }>('POST', `/runs/${runId}/cancel`)
   }
 
   // ===========================================================================
@@ -286,7 +300,7 @@ export class ApiClient {
    * Compare two evaluation runs and identify regressions.
    */
   async compare(request: CompareRequest): Promise<CompareResponse> {
-    return this.request<CompareResponse>('POST', '/compare', { body: request });
+    return this.request<CompareResponse>('POST', '/compare', { body: request })
   }
 }
 
@@ -298,9 +312,9 @@ export class ApiClient {
  * Default API client instance.
  * Can be used directly or replaced with a custom instance.
  */
-export const apiClient = new ApiClient();
+export const apiClient = new ApiClient()
 
 /**
  * Alias for backwards compatibility.
  */
-export const api = apiClient;
+export const api = apiClient

@@ -1,36 +1,32 @@
 {
-  "task_id": "API-004",
-  "title": "Add /stats/dashboard endpoint for pre-aggregated stats",
-  "started_at": "2026-01-24T18:17:03-05:00",
+  "task_id": "FE-021",
+  "title": "Suite detail page with metadata and actions",
+  "started_at": "2026-01-25T10:53:41-05:00",
   "scope": {
     "primary_files": [
-      "api/src/routers/stats.py",
-      "api/src/services/stats_service.py",
-      "api/src/main.py"
+      "frontend/app/suites/[id]/page.tsx",
+      "frontend/components/suites/suite-header.tsx"
     ],
-    "test_files": [
-      "api/tests/routers/test_stats.py",
-      "api/tests/services/test_stats_service.py"
-    ],
+    "test_files": [],
     "related_files": [
-      "api/src/db/models.py",
-      "api/src/routers/runs.py"
+      "frontend/hooks/use-suites.ts"
     ]
   },
   "acceptance_criteria": [
-    "GET /stats/dashboard returns aggregated stats in <50ms",
-    "Response includes: total_runs, passed_runs, failed_runs, pass_rate, fail_rate, avg_score",
-    "Response includes: runs_this_week count for trend display",
-    "Stats computed via efficient SQL aggregation, not Python loops",
-    "Optional date_from/date_to query params for time-bounded stats",
-    "Endpoint is properly documented in OpenAPI schema",
-    "Unit tests cover edge cases (no runs, all passed, all failed)"
+    "Displays suite name, description",
+    "Shows agent_id, default_scorers, default_min_score",
+    "Shows parallel, stop_on_failure, timeout settings",
+    "Run button triggers new evaluation",
+    "Edit button navigates to edit page",
+    "Delete button with confirmation",
+    "Breadcrumb navigation (Suites / suite-name)",
+    "Loading state while fetching",
+    "404 handling for invalid suite ID"
   ],
   "context": {
-    "research_refs": [],
-    "code_refs": [
-      "frontend/hooks/use-runs.ts#computeStats",
-      "api/src/routers/runs.py"
-    ]
+    "research_refs": [
+      ".project/docs/frontend-design-spec.md#suite-detail"
+    ],
+    "code_refs": []
   }
 }

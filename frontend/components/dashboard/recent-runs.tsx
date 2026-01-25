@@ -1,11 +1,11 @@
 'use client'
 
-import Link from 'next/link'
 import { formatDistanceToNow } from 'date-fns'
 import { FileText } from 'lucide-react'
+import Link from 'next/link'
+import { PassRatioBadge, ScoreBadge, StatusBadge } from '@/components/ui/badge'
 import { useRecentRuns } from '@/hooks/use-runs'
 import type { EvalRun } from '@/lib/types'
-import { StatusBadge, ScoreBadge, PassRatioBadge } from '@/components/ui/badge'
 
 interface RecentRunsProps {
   limit?: number
@@ -143,10 +143,7 @@ function RecentRunsEmpty() {
       <p className="text-sm text-gray-500 mb-4">
         Start by creating an evaluation suite and running your first evaluation.
       </p>
-      <Link
-        href="/suites"
-        className="btn btn-primary inline-flex items-center"
-      >
+      <Link href="/suites" className="btn btn-primary inline-flex items-center">
         Create a suite
       </Link>
     </div>

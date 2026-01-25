@@ -12,31 +12,31 @@
  * Available scorer types for evaluating agent behavior.
  */
 export type ScorerType =
-  | "tool_selection"
-  | "reasoning"
-  | "grounding"
-  | "efficiency"
-  | "custom";
+  | 'tool_selection'
+  | 'reasoning'
+  | 'grounding'
+  | 'efficiency'
+  | 'custom'
 
 /**
  * Evaluation run status.
  */
 export type EvalRunStatus =
-  | "pending"
-  | "running"
-  | "completed"
-  | "failed"
-  | "cancelled";
+  | 'pending'
+  | 'running'
+  | 'completed'
+  | 'failed'
+  | 'cancelled'
 
 /**
  * Status of an individual eval result.
  */
-export type EvalResultStatus = "success" | "failed" | "error" | "timeout";
+export type EvalResultStatus = 'success' | 'failed' | 'error' | 'timeout'
 
 /**
  * How the eval run was triggered.
  */
-export type TriggerType = "manual" | "ci" | "scheduled";
+export type TriggerType = 'manual' | 'ci' | 'scheduled'
 
 // =============================================================================
 // Eval Case
@@ -52,29 +52,29 @@ export type TriggerType = "manual" | "ci" | "scheduled";
  */
 export interface EvalCaseBase {
   /** Unique name for the test case */
-  name: string;
+  name: string
   /** Optional description (max 2000 chars) */
-  description?: string | null;
+  description?: string | null
   /** Agent input (passed to agent.run()) */
-  input: Record<string, unknown>;
+  input: Record<string, unknown>
   /** Tools that should be called (order-independent) */
-  expected_tools?: string[] | null;
+  expected_tools?: string[] | null
   /** Tools in exact order (if order matters) */
-  expected_tool_sequence?: string[] | null;
+  expected_tool_sequence?: string[] | null
   /** Strings that must appear in output */
-  expected_output_contains?: string[] | null;
+  expected_output_contains?: string[] | null
   /** Regex pattern output must match */
-  expected_output_pattern?: string | null;
+  expected_output_pattern?: string | null
   /** Scorers to run on this case */
-  scorers: ScorerType[];
+  scorers: ScorerType[]
   /** Per-scorer configuration overrides */
-  scorer_config?: Record<string, unknown> | null;
+  scorer_config?: Record<string, unknown> | null
   /** Minimum average score to pass (0-1) */
-  min_score: number;
+  min_score: number
   /** Tags for categorization */
-  tags: string[];
+  tags: string[]
   /** Timeout in seconds (1-3600) */
-  timeout_seconds: number;
+  timeout_seconds: number
 }
 
 /**
@@ -87,13 +87,13 @@ export interface EvalCaseCreate extends EvalCaseBase {}
  */
 export interface EvalCase extends EvalCaseBase {
   /** Unique identifier */
-  id: string;
+  id: string
   /** ID of the parent suite */
-  suite_id: string;
+  suite_id: string
   /** Creation timestamp */
-  created_at: string;
+  created_at: string
   /** Last update timestamp */
-  updated_at: string;
+  updated_at: string
 }
 
 // =============================================================================
@@ -108,21 +108,21 @@ export interface EvalCase extends EvalCaseBase {
  */
 export interface EvalSuiteBase {
   /** Unique name for the suite */
-  name: string;
+  name: string
   /** Optional description (max 2000 chars) */
-  description?: string | null;
+  description?: string | null
   /** Identifier for the agent being tested */
-  agent_id: string;
+  agent_id: string
   /** Default scorers to run on cases that don't specify their own */
-  default_scorers: ScorerType[];
+  default_scorers: ScorerType[]
   /** Default minimum score to pass (0-1) */
-  default_min_score: number;
+  default_min_score: number
   /** Default timeout in seconds (1-3600) */
-  default_timeout_seconds: number;
+  default_timeout_seconds: number
   /** Run cases in parallel */
-  parallel: boolean;
+  parallel: boolean
   /** Stop execution after first failure */
-  stop_on_failure: boolean;
+  stop_on_failure: boolean
 }
 
 /**
@@ -130,21 +130,21 @@ export interface EvalSuiteBase {
  */
 export interface EvalSuiteCreate extends EvalSuiteBase {
   /** Optional cases to create with the suite */
-  cases?: EvalCaseCreate[] | null;
+  cases?: EvalCaseCreate[] | null
 }
 
 /**
  * Update eval suite request (all fields optional).
  */
 export interface EvalSuiteUpdate {
-  name?: string;
-  description?: string | null;
-  agent_id?: string;
-  default_scorers?: ScorerType[];
-  default_min_score?: number;
-  default_timeout_seconds?: number;
-  parallel?: boolean;
-  stop_on_failure?: boolean;
+  name?: string
+  description?: string | null
+  agent_id?: string
+  default_scorers?: ScorerType[]
+  default_min_score?: number
+  default_timeout_seconds?: number
+  parallel?: boolean
+  stop_on_failure?: boolean
 }
 
 /**
@@ -152,23 +152,23 @@ export interface EvalSuiteUpdate {
  */
 export interface EvalSuite extends EvalSuiteBase {
   /** Unique identifier */
-  id: string;
+  id: string
   /** ID of the parent project */
-  project_id: string;
+  project_id: string
   /** Creation timestamp */
-  created_at: string;
+  created_at: string
   /** Last update timestamp */
-  updated_at: string;
+  updated_at: string
   /** Cases in this suite */
-  cases: EvalCase[];
+  cases: EvalCase[]
 }
 
 /**
  * List of eval suites.
  */
 export interface EvalSuiteList {
-  items: EvalSuite[];
-  total: number;
+  items: EvalSuite[]
+  total: number
 }
 
 // =============================================================================
@@ -182,19 +182,19 @@ export interface EvalSuiteList {
  */
 export interface EvalRunSummary {
   /** Total number of cases in the run */
-  total_cases: number;
+  total_cases: number
   /** Number of cases that passed */
-  passed: number;
+  passed: number
   /** Number of cases that failed */
-  failed: number;
+  failed: number
   /** Number of cases that errored */
-  errored: number;
+  errored: number
   /** Average score across all cases (0-1) */
-  avg_score: number;
+  avg_score: number
   /** Average score per scorer type */
-  scores_by_type: Record<string, number>;
+  scores_by_type: Record<string, number>
   /** Total execution time in milliseconds */
-  execution_time_ms: number;
+  execution_time_ms: number
 }
 
 /**
@@ -202,13 +202,13 @@ export interface EvalRunSummary {
  */
 export interface EvalRunCreate {
   /** Version identifier (git SHA, tag, etc.) */
-  agent_version?: string | null;
+  agent_version?: string | null
   /** How the run was triggered */
-  trigger?: TriggerType;
+  trigger?: TriggerType
   /** Reference for the trigger (PR number, commit SHA, etc.) */
-  trigger_ref?: string | null;
+  trigger_ref?: string | null
   /** Runtime configuration overrides */
-  config?: Record<string, unknown> | null;
+  config?: Record<string, unknown> | null
 }
 
 /**
@@ -218,39 +218,39 @@ export interface EvalRunCreate {
  */
 export interface EvalRun {
   /** Unique identifier */
-  id: string;
+  id: string
   /** ID of the suite being run */
-  suite_id: string;
+  suite_id: string
   /** Name of the suite being run */
-  suite_name: string;
+  suite_name: string
   /** ID of the parent project */
-  project_id: string;
+  project_id: string
   /** Version identifier (git SHA, tag, etc.) */
-  agent_version?: string | null;
+  agent_version?: string | null
   /** How the run was triggered */
-  trigger: TriggerType;
+  trigger: TriggerType
   /** Reference for the trigger (PR number, commit SHA, etc.) */
-  trigger_ref?: string | null;
+  trigger_ref?: string | null
   /** Current status of the run */
-  status: EvalRunStatus;
+  status: EvalRunStatus
   /** Runtime configuration overrides */
-  config?: Record<string, unknown> | null;
+  config?: Record<string, unknown> | null
   /** Aggregated summary (populated after completion) */
-  summary?: EvalRunSummary | null;
+  summary?: EvalRunSummary | null
   /** When the run started executing */
-  started_at?: string | null;
+  started_at?: string | null
   /** When the run completed */
-  completed_at?: string | null;
+  completed_at?: string | null
   /** When the run was created */
-  created_at: string;
+  created_at: string
 }
 
 /**
  * Paginated list of eval runs.
  */
 export interface EvalRunList {
-  items: EvalRun[];
-  total: number;
+  items: EvalRun[]
+  total: number
 }
 
 // =============================================================================
@@ -264,11 +264,11 @@ export interface EvalRunList {
  */
 export interface ScoreDetail {
   /** Score between 0 and 1 */
-  score: number;
+  score: number
   /** Explanation for the score */
-  reason: string;
+  reason: string
   /** Supporting evidence for the score */
-  evidence: string[];
+  evidence: string[]
 }
 
 /**
@@ -278,41 +278,41 @@ export interface ScoreDetail {
  */
 export interface EvalResult {
   /** Unique identifier */
-  id: string;
+  id: string
   /** ID of the parent run */
-  run_id: string;
+  run_id: string
   /** ID of the case that was executed */
-  case_id: string;
+  case_id: string
   /** Name of the case that was executed */
-  case_name: string;
+  case_name: string
   /** MLflow run ID for trace lookup */
-  mlflow_run_id?: string | null;
+  mlflow_run_id?: string | null
   /** MLflow trace ID for detailed analysis */
-  mlflow_trace_id?: string | null;
+  mlflow_trace_id?: string | null
   /** Execution status */
-  status: EvalResultStatus;
+  status: EvalResultStatus
   /** Agent output (if successful) */
-  output?: Record<string, unknown> | null;
+  output?: Record<string, unknown> | null
   /** Score per scorer type */
-  scores: Record<string, number>;
+  scores: Record<string, number>
   /** Detailed score info per scorer */
-  score_details?: Record<string, ScoreDetail> | null;
+  score_details?: Record<string, ScoreDetail> | null
   /** Whether the case passed based on min_score */
-  passed: boolean;
+  passed: boolean
   /** Execution time in milliseconds */
-  execution_time_ms?: number | null;
+  execution_time_ms?: number | null
   /** Error message if status is error/timeout */
-  error?: string | null;
+  error?: string | null
   /** When the result was created */
-  created_at: string;
+  created_at: string
 }
 
 /**
  * Paginated list of eval results.
  */
 export interface EvalResultList {
-  items: EvalResult[];
-  total: number;
+  items: EvalResult[]
+  total: number
 }
 
 // =============================================================================
@@ -324,9 +324,9 @@ export interface EvalResultList {
  */
 export interface RunReference {
   /** Run ID */
-  id: string;
+  id: string
   /** Agent version */
-  agent_version: string | null;
+  agent_version: string | null
 }
 
 /**
@@ -334,15 +334,15 @@ export interface RunReference {
  */
 export interface RegressionItem {
   /** Name of the case */
-  case_name: string;
+  case_name: string
   /** Scorer that detected the change */
-  scorer: string;
+  scorer: string
   /** Score in baseline run (0-1) */
-  baseline_score: number;
+  baseline_score: number
   /** Score in candidate run (0-1) */
-  candidate_score: number;
+  candidate_score: number
   /** Change in score */
-  delta: number;
+  delta: number
 }
 
 /**
@@ -350,11 +350,11 @@ export interface RegressionItem {
  */
 export interface CompareRequest {
   /** Run ID to use as baseline */
-  baseline_run_id: string;
+  baseline_run_id: string
   /** Run ID to compare against baseline */
-  candidate_run_id: string;
+  candidate_run_id: string
   /** Minimum score drop to count as regression (0-1, default 0.05) */
-  threshold?: number;
+  threshold?: number
 }
 
 /**
@@ -362,21 +362,21 @@ export interface CompareRequest {
  */
 export interface CompareResponse {
   /** Baseline run reference */
-  baseline: RunReference;
+  baseline: RunReference
   /** Candidate run reference */
-  candidate: RunReference;
+  candidate: RunReference
   /** True if no significant regressions detected */
-  passed: boolean;
+  passed: boolean
   /** Overall change in average score */
-  overall_delta: number;
+  overall_delta: number
   /** Cases that regressed */
-  regressions: RegressionItem[];
+  regressions: RegressionItem[]
   /** Cases that improved */
-  improvements: RegressionItem[];
+  improvements: RegressionItem[]
   /** Number of cases with no significant change */
-  unchanged: number;
+  unchanged: number
   /** Threshold used for comparison */
-  threshold: number;
+  threshold: number
 }
 
 // =============================================================================
@@ -388,13 +388,13 @@ export interface CompareResponse {
  */
 export interface RunsFilter {
   /** Filter by suite ID */
-  suite_id?: string;
+  suite_id?: string
   /** Filter by run status */
-  status?: EvalRunStatus;
+  status?: EvalRunStatus
   /** Maximum number of results */
-  limit?: number;
+  limit?: number
   /** Number of results to skip */
-  offset?: number;
+  offset?: number
 }
 
 /**
@@ -402,5 +402,5 @@ export interface RunsFilter {
  */
 export interface ResultsFilter {
   /** Only return failed results */
-  failed_only?: boolean;
+  failed_only?: boolean
 }
