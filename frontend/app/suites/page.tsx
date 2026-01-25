@@ -1,10 +1,10 @@
 'use client'
 
-import { SuiteCard, SuiteCardSkeleton } from '@/components/suites/suite-card'
-import { useSuites } from '@/hooks/use-suites'
 import { FileText, Plus, Search } from 'lucide-react'
 import Link from 'next/link'
 import { useMemo, useState } from 'react'
+import { SuiteCard, SuiteCardSkeleton } from '@/components/suites/suite-card'
+import { useSuites } from '@/hooks/use-suites'
 
 export default function SuitesPage() {
   const { data: suites, isLoading } = useSuites()
@@ -18,7 +18,7 @@ export default function SuitesPage() {
     return suites.filter(
       (suite) =>
         suite.name.toLowerCase().includes(query) ||
-        suite.description?.toLowerCase().includes(query)
+        suite.description?.toLowerCase().includes(query),
     )
   }, [suites, searchQuery])
 
@@ -28,9 +28,14 @@ export default function SuitesPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Eval Suites</h1>
-          <p className="mt-1 text-gray-500">Manage your evaluation test suites</p>
+          <p className="mt-1 text-gray-500">
+            Manage your evaluation test suites
+          </p>
         </div>
-        <Link href="/suites/new" className="btn btn-primary flex items-center space-x-2">
+        <Link
+          href="/suites/new"
+          className="btn btn-primary flex items-center space-x-2"
+        >
           <Plus className="w-4 h-4" />
           <span>New Suite</span>
         </Link>
@@ -65,8 +70,8 @@ export default function SuitesPage() {
           </div>
           <h3 className="text-lg font-semibold text-gray-900">No suites yet</h3>
           <p className="mt-2 text-gray-500 max-w-md mx-auto">
-            Create your first eval suite to start testing your agents with structured test cases and
-            automated scoring.
+            Create your first eval suite to start testing your agents with
+            structured test cases and automated scoring.
           </p>
           <Link
             href="/suites/new"
@@ -79,22 +84,27 @@ export default function SuitesPage() {
       )}
 
       {/* No Search Results */}
-      {!isLoading && suites && suites.length > 0 && filteredSuites.length === 0 && (
-        <div className="card p-8 text-center">
-          <Search className="w-12 h-12 mx-auto text-gray-400" />
-          <h3 className="mt-4 text-lg font-medium text-gray-900">No suites match your search</h3>
-          <p className="mt-2 text-gray-500">
-            Try adjusting your search terms or{' '}
-            <button
-              type="button"
-              onClick={() => setSearchQuery('')}
-              className="text-primary-600 hover:underline"
-            >
-              clear the search
-            </button>
-          </p>
-        </div>
-      )}
+      {!isLoading &&
+        suites &&
+        suites.length > 0 &&
+        filteredSuites.length === 0 && (
+          <div className="card p-8 text-center">
+            <Search className="w-12 h-12 mx-auto text-gray-400" />
+            <h3 className="mt-4 text-lg font-medium text-gray-900">
+              No suites match your search
+            </h3>
+            <p className="mt-2 text-gray-500">
+              Try adjusting your search terms or{' '}
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="text-primary-600 hover:underline"
+              >
+                clear the search
+              </button>
+            </p>
+          </div>
+        )}
 
       {/* Suite Cards Grid */}
       {!isLoading && filteredSuites.length > 0 && (

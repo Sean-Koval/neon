@@ -1,8 +1,14 @@
 'use client'
 
-import { CheckCircle, XCircle, Clock, AlertCircle, FileText } from 'lucide-react'
-import Link from 'next/link'
 import { formatDistanceToNow } from 'date-fns'
+import {
+  AlertCircle,
+  CheckCircle,
+  Clock,
+  FileText,
+  XCircle,
+} from 'lucide-react'
+import Link from 'next/link'
 import { DashboardStatCards } from '@/components/dashboard/stat-cards'
 import { useRecentRuns } from '@/hooks/use-runs'
 import type { EvalRun, EvalRunStatus } from '@/lib/types'
@@ -11,9 +17,7 @@ export default function Dashboard() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">
-          Dashboard
-        </h1>
+        <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
         <p className="text-gray-500">Overview of your agent evaluations</p>
       </div>
 
@@ -108,10 +112,7 @@ function RecentRunsEmpty() {
       <p className="text-sm text-gray-500 mb-4">
         Start by creating an evaluation suite and running your first evaluation.
       </p>
-      <Link
-        href="/suites"
-        className="btn btn-primary inline-flex items-center"
-      >
+      <Link href="/suites" className="btn btn-primary inline-flex items-center">
         Create a suite
       </Link>
     </div>
@@ -158,7 +159,15 @@ function RunRow({ run }: RunRowProps) {
             {run.summary ? (
               <>
                 <p className="font-medium text-gray-900">
-                  <span className={passedCount === totalCount ? 'text-green-600' : passedCount > 0 ? 'text-yellow-600' : 'text-red-600'}>
+                  <span
+                    className={
+                      passedCount === totalCount
+                        ? 'text-green-600'
+                        : passedCount > 0
+                          ? 'text-yellow-600'
+                          : 'text-red-600'
+                    }
+                  >
                     {passedCount}
                   </span>
                   <span className="text-gray-400">/</span>
@@ -182,12 +191,40 @@ function RunRow({ run }: RunRowProps) {
 }
 
 function StatusBadge({ status }: { status: EvalRunStatus }) {
-  const statusConfig: Record<EvalRunStatus, { icon: typeof CheckCircle; color: string; bg: string; border: string }> = {
-    completed: { icon: CheckCircle, color: 'text-emerald-700', bg: 'bg-emerald-50', border: 'border-emerald-200' },
-    running: { icon: Clock, color: 'text-amber-700', bg: 'bg-amber-50', border: 'border-amber-200' },
-    failed: { icon: XCircle, color: 'text-rose-700', bg: 'bg-rose-50', border: 'border-rose-200' },
-    pending: { icon: Clock, color: 'text-gray-600', bg: 'bg-gray-50', border: 'border-gray-200' },
-    cancelled: { icon: AlertCircle, color: 'text-gray-600', bg: 'bg-gray-50', border: 'border-gray-200' },
+  const statusConfig: Record<
+    EvalRunStatus,
+    { icon: typeof CheckCircle; color: string; bg: string; border: string }
+  > = {
+    completed: {
+      icon: CheckCircle,
+      color: 'text-emerald-700',
+      bg: 'bg-emerald-50',
+      border: 'border-emerald-200',
+    },
+    running: {
+      icon: Clock,
+      color: 'text-amber-700',
+      bg: 'bg-amber-50',
+      border: 'border-amber-200',
+    },
+    failed: {
+      icon: XCircle,
+      color: 'text-rose-700',
+      bg: 'bg-rose-50',
+      border: 'border-rose-200',
+    },
+    pending: {
+      icon: Clock,
+      color: 'text-gray-600',
+      bg: 'bg-gray-50',
+      border: 'border-gray-200',
+    },
+    cancelled: {
+      icon: AlertCircle,
+      color: 'text-gray-600',
+      bg: 'bg-gray-50',
+      border: 'border-gray-200',
+    },
   }
 
   const config = statusConfig[status] || statusConfig.pending
@@ -205,7 +242,11 @@ function StatusBadge({ status }: { status: EvalRunStatus }) {
 
 function ScoreValue({ score }: { score: number }) {
   const color =
-    score >= 0.8 ? 'text-emerald-600' : score >= 0.6 ? 'text-amber-600' : 'text-rose-600'
+    score >= 0.8
+      ? 'text-emerald-600'
+      : score >= 0.6
+        ? 'text-amber-600'
+        : 'text-rose-600'
 
   return <span className={`font-medium ${color}`}>{score.toFixed(2)}</span>
 }

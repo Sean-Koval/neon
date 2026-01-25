@@ -2,23 +2,22 @@
  * React Query hooks exports.
  */
 
-// Suite hooks
-export {
-  useSuites,
-  useSuite,
-  useCreateSuite,
-  useUpdateSuite,
-  useDeleteSuite,
-} from './use-suites';
+// Compare hooks
+export { useCompare } from './use-compare'
 
 // Run hooks
 export {
-  useRuns,
+  useCancelRun,
   useRun,
   useRunResults,
+  useRuns,
   useTriggerRun,
-  useCancelRun,
-} from './use-runs';
-
-// Compare hooks
-export { useCompare } from './use-compare';
+} from './use-runs'
+// Suite hooks
+export {
+  useCreateSuite,
+  useDeleteSuite,
+  useSuite,
+  useSuites,
+  useUpdateSuite,
+} from './use-suites'

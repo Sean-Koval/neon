@@ -1,17 +1,17 @@
 'use client'
 
 import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
   CartesianGrid,
-  Tooltip,
+  Line,
+  LineChart,
   ReferenceLine,
   ResponsiveContainer,
-  TooltipProps,
+  Tooltip,
+  type TooltipProps,
+  XAxis,
+  YAxis,
 } from 'recharts'
-import { useScoreTrend, ScoreTrendPoint } from '@/hooks/use-runs'
+import { type ScoreTrendPoint, useScoreTrend } from '@/hooks/use-runs'
 
 interface ScoreTrendChartProps {
   days?: number
@@ -114,7 +114,9 @@ export function ScoreTrendChart({
 
   if (isError) {
     return (
-      <div className={`h-[300px] bg-red-50 rounded-lg flex flex-col items-center justify-center ${className}`}>
+      <div
+        className={`h-[300px] bg-red-50 rounded-lg flex flex-col items-center justify-center ${className}`}
+      >
         <p className="font-medium text-red-600">Failed to load chart data</p>
         <p className="text-sm text-red-500 mt-1">
           {error instanceof Error ? error.message : 'Unknown error'}

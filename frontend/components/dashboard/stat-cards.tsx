@@ -1,7 +1,14 @@
 'use client'
 
-import { Activity, CheckCircle, XCircle, TrendingUp, AlertCircle, RefreshCw } from 'lucide-react'
-import { useDashboardStats, type DashboardStats } from '@/hooks/use-runs'
+import {
+  Activity,
+  AlertCircle,
+  CheckCircle,
+  RefreshCw,
+  TrendingUp,
+  XCircle,
+} from 'lucide-react'
+import { type DashboardStats, useDashboardStats } from '@/hooks/use-runs'
 
 interface StatCardProps {
   title: string
@@ -30,7 +37,9 @@ function StatCard({ title, value, icon, subtitle, trend }: StatCardProps) {
         <span className="text-3xl font-bold text-gray-900">{value}</span>
       </div>
       <div className="mt-2">
-        <span className={`text-sm ${trend ? trendColors[trend] : 'text-gray-500'}`}>
+        <span
+          className={`text-sm ${trend ? trendColors[trend] : 'text-gray-500'}`}
+        >
           {subtitle}
         </span>
       </div>
@@ -77,7 +86,9 @@ function StatCardsError({ error, onRetry }: StatCardsErrorProps) {
       <div className="flex items-center space-x-3">
         <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
         <div className="flex-1">
-          <h3 className="text-sm font-medium text-red-800">Failed to load stats</h3>
+          <h3 className="text-sm font-medium text-red-800">
+            Failed to load stats
+          </h3>
           <p className="mt-1 text-sm text-red-600">{error.message}</p>
         </div>
         <button
@@ -115,14 +126,26 @@ function StatCardsContent({ stats }: StatCardsContentProps) {
         value={stats.passedRuns.toLocaleString()}
         icon={<CheckCircle className="w-5 h-5 text-emerald-500" />}
         subtitle={`${stats.passedPercentage}% pass rate`}
-        trend={stats.passedPercentage >= 80 ? 'up' : stats.passedPercentage >= 50 ? 'neutral' : 'down'}
+        trend={
+          stats.passedPercentage >= 80
+            ? 'up'
+            : stats.passedPercentage >= 50
+              ? 'neutral'
+              : 'down'
+        }
       />
       <StatCard
         title="Failed"
         value={stats.failedRuns.toLocaleString()}
         icon={<XCircle className="w-5 h-5 text-rose-500" />}
         subtitle={`${stats.failedPercentage}% failure rate`}
-        trend={stats.failedPercentage <= 10 ? 'up' : stats.failedPercentage <= 30 ? 'neutral' : 'down'}
+        trend={
+          stats.failedPercentage <= 10
+            ? 'up'
+            : stats.failedPercentage <= 30
+              ? 'neutral'
+              : 'down'
+        }
       />
       <StatCard
         title="Avg Score"
@@ -135,7 +158,13 @@ function StatCardsContent({ stats }: StatCardsContentProps) {
               ? 'Good performance'
               : 'Needs improvement'
         }
-        trend={stats.averageScore >= 0.8 ? 'up' : stats.averageScore >= 0.6 ? 'neutral' : 'down'}
+        trend={
+          stats.averageScore >= 0.8
+            ? 'up'
+            : stats.averageScore >= 0.6
+              ? 'neutral'
+              : 'down'
+        }
       />
     </div>
   )
@@ -199,4 +228,10 @@ export function DashboardStatCards() {
 }
 
 // Export individual components for flexibility
-export { StatCard, StatCardSkeleton, StatCardsLoading, StatCardsError, StatCardsEmpty }
+export {
+  StatCard,
+  StatCardSkeleton,
+  StatCardsLoading,
+  StatCardsError,
+  StatCardsEmpty,
+}
