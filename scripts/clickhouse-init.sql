@@ -125,17 +125,17 @@ GROUP BY project_id, date;
 -- Materialized view: Model usage statistics
 CREATE MATERIALIZED VIEW IF NOT EXISTS neon.model_usage_mv
 ENGINE = SummingMergeTree()
-ORDER BY (project_id, model, date)
+ORDER BY (project_id, model_name, date)
 AS SELECT
     project_id,
-    model,
+    coalesce(model, 'unknown') as model_name,
     toDate(timestamp) as date,
     count() as call_count,
     sum(total_tokens) as total_tokens,
     sum(cost_usd) as total_cost
 FROM neon.spans
 WHERE span_type = 'generation' AND model IS NOT NULL
-GROUP BY project_id, model, date;
+GROUP BY project_id, model_name, date;
 
 -- Materialized view: Score trends
 CREATE MATERIALIZED VIEW IF NOT EXISTS neon.score_trends_mv

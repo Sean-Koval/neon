@@ -32,34 +32,34 @@ docker compose --profile streaming up -d
 
 ---
 
-## Phase 1: Cleanup (Day 1-2)
+## Phase 1: Cleanup (Day 1-2) ✅ MOSTLY COMPLETE
 **Goal:** Remove dead code, consolidate to single architecture
 
 ### Tasks
-- [ ] **CLEAN-001**: Archive `api/` directory (Python FastAPI)
-- [ ] **CLEAN-002**: Archive `moose-app/` directory (over-engineered)
+- [x] **CLEAN-001**: Archive `api/` directory (Python FastAPI) → `archive/api/`
+- [x] **CLEAN-002**: Archive `moose-app/` directory → `archive/moose-app/`
 - [ ] **CLEAN-003**: Remove MLflow references from frontend
-- [ ] **CLEAN-004**: Clean up `.project/tasks/` - archive completed, remove stale
-- [ ] **CLEAN-005**: Clean up `.beads/` - consolidate or remove
-- [ ] **CLEAN-006**: Update `docker-compose.yml` - remove unused services
+- [x] **CLEAN-004**: Clean up `.project/tasks/` - archive completed, remove stale
+- [x] **CLEAN-005**: Clean up `.beads/` - consolidate or remove → `archive/.beads/`
+- [x] **CLEAN-006**: Update `docker-compose.yml` - simplified for new architecture
 - [ ] **CLEAN-007**: Update root `package.json` / `turbo.json` for monorepo
 
 **Deliverable:** Clean repo with only: `frontend/`, `temporal-workers/`, `packages/sdk/`, `scripts/`
 
 ---
 
-## Phase 2: Core Backend (Day 3-5)
+## Phase 2: Core Backend (Day 3-5) ✅ MOSTLY COMPLETE
 **Goal:** Working ClickHouse + Temporal integration
 
 ### Tasks
-- [ ] **CORE-001**: Install missing deps (`@clickhouse/client`, `@temporalio/client`)
-- [ ] **CORE-002**: Create `frontend/lib/db.ts` - ClickHouse client singleton
-- [ ] **CORE-003**: Create ClickHouse schema migration script
-- [ ] **CORE-004**: Implement `/api/traces` - list, get, insert
-- [ ] **CORE-005**: Implement `/api/scores` - list, get, insert
-- [ ] **CORE-006**: Implement `/api/evals` - start, status, cancel (Temporal)
+- [x] **CORE-001**: Install missing deps (`@clickhouse/client`, `@temporalio/client`)
+- [x] **CORE-002**: Create `frontend/lib/clickhouse.ts` - ClickHouse client singleton
+- [x] **CORE-003**: Create ClickHouse schema migration script
+- [x] **CORE-004**: Implement `/api/traces` - list, get, insert
+- [x] **CORE-005**: Implement `/api/scores` - list, get, insert
+- [x] **CORE-006**: Implement `/api/runs` - start, status, cancel (Temporal via tRPC)
 - [ ] **CORE-007**: Create Temporal worker with eval workflows
-- [ ] **CORE-008**: Test: Insert trace → Query trace → Display in UI
+- [x] **CORE-008**: Test: Insert trace → Query trace → Display in UI
 
 **Deliverable:** Can start eval via API, see results in ClickHouse
 
