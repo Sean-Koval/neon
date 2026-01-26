@@ -14,3 +14,4 @@ export {
   hasScorer,
   type ScoreResult,
 } from "./score-trace";
+export { healthCheck, ping, type HealthCheckResult } from "./health";

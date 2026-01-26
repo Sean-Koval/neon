@@ -237,6 +237,11 @@ async function runFullAgent(
   input: EvalCaseInput,
   traceId: string
 ): Promise<AgentRunResult> {
+  // Normalize input to Record<string, unknown>
+  const normalizedInput: Record<string, unknown> = typeof input.input === "string"
+    ? { query: input.input }
+    : input.input;
+
   const result = await executeChild(agentRunWorkflow, {
     workflowId: `${workflowInfo().workflowId}-agent`,
     args: [
@@ -244,7 +249,7 @@ async function runFullAgent(
         projectId: input.projectId,
         agentId: input.agentId,
         agentVersion: input.agentVersion || "eval",
-        input: input.input,
+        input: normalizedInput,
         tools: input.tools || [],
         maxIterations: input.maxIterations || 10,
         requireApproval: false, // Never require approval during eval
