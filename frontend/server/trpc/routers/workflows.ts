@@ -110,7 +110,7 @@ export const workflowsRouter = router({
       z.object({
         agentId: z.string(),
         agentVersion: z.string().optional(),
-        input: z.record(z.unknown()),
+        input: z.record(z.string(), z.unknown()),
         maxIterations: z.number().optional(),
         requireApproval: z.boolean().optional(),
       })

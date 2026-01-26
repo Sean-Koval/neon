@@ -2,5 +2,5 @@
  * Trace Components Index
  */
 
-export { TraceTimeline } from "./trace-timeline";
-export { SpanDetail } from "./span-detail";
+export { SpanDetail } from './span-detail'
+export { TraceTimeline } from './trace-timeline'

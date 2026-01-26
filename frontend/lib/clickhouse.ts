@@ -4,10 +4,10 @@
  * Provides connection to ClickHouse for trace/span/score storage.
  */
 
-import { createClient, ClickHouseClient } from "@clickhouse/client";
+import { type ClickHouseClient, createClient } from '@clickhouse/client'
 
 // Singleton client instance
-let client: ClickHouseClient | null = null;
+let client: ClickHouseClient | null = null
 
 /**
  * Get or create ClickHouse client
@@ -15,171 +15,171 @@ let client: ClickHouseClient | null = null;
 export function getClickHouseClient(): ClickHouseClient {
   if (!client) {
     client = createClient({
-      url: process.env.CLICKHOUSE_URL || "http://localhost:8123",
-      username: process.env.CLICKHOUSE_USER || "default",
-      password: process.env.CLICKHOUSE_PASSWORD || "",
-      database: process.env.CLICKHOUSE_DATABASE || "neon",
-    });
+      url: process.env.CLICKHOUSE_URL || 'http://localhost:8123',
+      username: process.env.CLICKHOUSE_USER || 'default',
+      password: process.env.CLICKHOUSE_PASSWORD || '',
+      database: process.env.CLICKHOUSE_DATABASE || 'neon',
+    })
   }
-  return client;
+  return client
 }
 
 /**
  * Trace record as stored in ClickHouse
  */
 export interface TraceRecord {
-  project_id: string;
-  trace_id: string;
-  name: string;
-  timestamp: string;
-  end_time: string | null;
-  duration_ms: number;
-  status: "unset" | "ok" | "error";
-  metadata: Record<string, string>;
-  agent_id: string | null;
-  agent_version: string | null;
-  workflow_id: string | null;
-  run_id: string | null;
-  total_tokens: number;
-  total_cost: number;
-  llm_calls: number;
-  tool_calls: number;
+  project_id: string
+  trace_id: string
+  name: string
+  timestamp: string
+  end_time: string | null
+  duration_ms: number
+  status: 'unset' | 'ok' | 'error'
+  metadata: Record<string, string>
+  agent_id: string | null
+  agent_version: string | null
+  workflow_id: string | null
+  run_id: string | null
+  total_tokens: number
+  total_cost: number
+  llm_calls: number
+  tool_calls: number
 }
 
 /**
  * Span record as stored in ClickHouse
  */
 export interface SpanRecord {
-  project_id: string;
-  trace_id: string;
-  span_id: string;
-  parent_span_id: string | null;
-  name: string;
-  kind: "internal" | "server" | "client" | "producer" | "consumer";
-  span_type: "span" | "generation" | "tool" | "retrieval" | "event";
-  timestamp: string;
-  end_time: string | null;
-  duration_ms: number;
-  status: "unset" | "ok" | "error";
-  status_message: string;
-  model: string | null;
-  model_parameters: Record<string, string>;
-  input: string;
-  output: string;
-  input_tokens: number | null;
-  output_tokens: number | null;
-  total_tokens: number | null;
-  cost_usd: number | null;
-  tool_name: string | null;
-  tool_input: string;
-  tool_output: string;
-  attributes: Record<string, string>;
+  project_id: string
+  trace_id: string
+  span_id: string
+  parent_span_id: string | null
+  name: string
+  kind: 'internal' | 'server' | 'client' | 'producer' | 'consumer'
+  span_type: 'span' | 'generation' | 'tool' | 'retrieval' | 'event'
+  timestamp: string
+  end_time: string | null
+  duration_ms: number
+  status: 'unset' | 'ok' | 'error'
+  status_message: string
+  model: string | null
+  model_parameters: Record<string, string>
+  input: string
+  output: string
+  input_tokens: number | null
+  output_tokens: number | null
+  total_tokens: number | null
+  cost_usd: number | null
+  tool_name: string | null
+  tool_input: string
+  tool_output: string
+  attributes: Record<string, string>
 }
 
 /**
  * Score record as stored in ClickHouse
  */
 export interface ScoreRecord {
-  project_id: string;
-  score_id: string;
-  trace_id: string;
-  span_id: string | null;
-  run_id: string | null;
-  case_id: string | null;
-  name: string;
-  value: number;
-  score_type: "numeric" | "categorical" | "boolean";
-  string_value: string | null;
-  comment: string;
-  source: "api" | "sdk" | "annotation" | "eval" | "temporal";
-  config_id: string | null;
-  author_id: string | null;
-  timestamp: string;
+  project_id: string
+  score_id: string
+  trace_id: string
+  span_id: string | null
+  run_id: string | null
+  case_id: string | null
+  name: string
+  value: number
+  score_type: 'numeric' | 'categorical' | 'boolean'
+  string_value: string | null
+  comment: string
+  source: 'api' | 'sdk' | 'annotation' | 'eval' | 'temporal'
+  config_id: string | null
+  author_id: string | null
+  timestamp: string
 }
 
 /**
  * Insert traces into ClickHouse
  */
 export async function insertTraces(traces: TraceRecord[]): Promise<void> {
-  const ch = getClickHouseClient();
+  const ch = getClickHouseClient()
   await ch.insert({
-    table: "traces",
+    table: 'traces',
     values: traces,
-    format: "JSONEachRow",
-  });
+    format: 'JSONEachRow',
+  })
 }
 
 /**
  * Insert spans into ClickHouse
  */
 export async function insertSpans(spans: SpanRecord[]): Promise<void> {
-  const ch = getClickHouseClient();
+  const ch = getClickHouseClient()
   await ch.insert({
-    table: "spans",
+    table: 'spans',
     values: spans,
-    format: "JSONEachRow",
-  });
+    format: 'JSONEachRow',
+  })
 }
 
 /**
  * Insert scores into ClickHouse
  */
 export async function insertScores(scores: ScoreRecord[]): Promise<void> {
-  const ch = getClickHouseClient();
+  const ch = getClickHouseClient()
   await ch.insert({
-    table: "scores",
+    table: 'scores',
     values: scores,
-    format: "JSONEachRow",
-  });
+    format: 'JSONEachRow',
+  })
 }
 
 /**
  * Query traces with filters
  */
 export async function queryTraces(params: {
-  projectId: string;
-  status?: "ok" | "error";
-  startDate?: string;
-  endDate?: string;
-  limit?: number;
-  offset?: number;
+  projectId: string
+  status?: 'ok' | 'error'
+  startDate?: string
+  endDate?: string
+  limit?: number
+  offset?: number
 }): Promise<TraceRecord[]> {
-  const ch = getClickHouseClient();
+  const ch = getClickHouseClient()
 
-  const conditions = [`project_id = {projectId:String}`];
+  const conditions = [`project_id = {projectId:String}`]
   if (params.status) {
-    conditions.push(`status = {status:String}`);
+    conditions.push(`status = {status:String}`)
   }
   if (params.startDate) {
-    conditions.push(`timestamp >= {startDate:DateTime64(3)}`);
+    conditions.push(`timestamp >= {startDate:DateTime64(3)}`)
   }
   if (params.endDate) {
-    conditions.push(`timestamp <= {endDate:DateTime64(3)}`);
+    conditions.push(`timestamp <= {endDate:DateTime64(3)}`)
   }
 
   const query = `
     SELECT *
     FROM traces
-    WHERE ${conditions.join(" AND ")}
+    WHERE ${conditions.join(' AND ')}
     ORDER BY timestamp DESC
     LIMIT {limit:UInt32}
     OFFSET {offset:UInt32}
-  `;
+  `
 
   const result = await ch.query({
     query,
     query_params: {
       projectId: params.projectId,
-      status: params.status || "",
-      startDate: params.startDate || "1970-01-01",
-      endDate: params.endDate || "2100-01-01",
+      status: params.status || '',
+      startDate: params.startDate || '1970-01-01',
+      endDate: params.endDate || '2100-01-01',
       limit: params.limit || 50,
       offset: params.offset || 0,
     },
-    format: "JSONEachRow",
-  });
+    format: 'JSONEachRow',
+  })
 
-  return result.json<TraceRecord[]>();
+  return result.json<TraceRecord>()
 }
 
 /**
@@ -187,9 +187,9 @@ export async function queryTraces(params: {
  */
 export async function getTraceWithSpans(
   projectId: string,
-  traceId: string
+  traceId: string,
 ): Promise<{ trace: TraceRecord; spans: SpanRecord[] } | null> {
-  const ch = getClickHouseClient();
+  const ch = getClickHouseClient()
 
   // Get trace
   const traceResult = await ch.query({
@@ -199,12 +199,12 @@ export async function getTraceWithSpans(
       LIMIT 1
     `,
     query_params: { projectId, traceId },
-    format: "JSONEachRow",
-  });
+    format: 'JSONEachRow',
+  })
 
-  const traces = await traceResult.json<TraceRecord[]>();
+  const traces = await traceResult.json<TraceRecord>()
   if (traces.length === 0) {
-    return null;
+    return null
   }
 
   // Get spans
@@ -215,12 +215,12 @@ export async function getTraceWithSpans(
       ORDER BY timestamp ASC
     `,
     query_params: { projectId, traceId },
-    format: "JSONEachRow",
-  });
+    format: 'JSONEachRow',
+  })
 
-  const spans = await spansResult.json<SpanRecord[]>();
+  const spans = await spansResult.json<SpanRecord>()
 
-  return { trace: traces[0], spans };
+  return { trace: traces[0], spans }
 }
 
 /**
@@ -228,9 +228,9 @@ export async function getTraceWithSpans(
  */
 export async function getScoresForTrace(
   projectId: string,
-  traceId: string
+  traceId: string,
 ): Promise<ScoreRecord[]> {
-  const ch = getClickHouseClient();
+  const ch = getClickHouseClient()
 
   const result = await ch.query({
     query: `
@@ -239,10 +239,10 @@ export async function getScoresForTrace(
       ORDER BY timestamp DESC
     `,
     query_params: { projectId, traceId },
-    format: "JSONEachRow",
-  });
+    format: 'JSONEachRow',
+  })
 
-  return result.json<ScoreRecord[]>();
+  return result.json<ScoreRecord>()
 }
 
 /**
@@ -251,17 +251,17 @@ export async function getScoresForTrace(
 export async function getDailyStats(
   projectId: string,
   startDate: string,
-  endDate: string
+  endDate: string,
 ): Promise<
   {
-    date: string;
-    trace_count: number;
-    error_count: number;
-    total_tokens: number;
-    total_cost: number;
+    date: string
+    trace_count: number
+    error_count: number
+    total_tokens: number
+    total_cost: number
   }[]
 > {
-  const ch = getClickHouseClient();
+  const ch = getClickHouseClient()
 
   const result = await ch.query({
     query: `
@@ -279,8 +279,8 @@ export async function getDailyStats(
       ORDER BY date ASC
     `,
     query_params: { projectId, startDate, endDate },
-    format: "JSONEachRow",
-  });
+    format: 'JSONEachRow',
+  })
 
-  return result.json();
+  return result.json()
 }

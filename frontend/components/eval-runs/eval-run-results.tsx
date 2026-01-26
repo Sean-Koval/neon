@@ -1,4 +1,4 @@
-"use client";
+'use client'
 
 /**
  * Eval Run Results Component
@@ -6,63 +6,63 @@
  * Displays the results of individual eval cases within a run.
  */
 
-import { useState } from "react";
-import Link from "next/link";
 import {
   CheckCircle,
-  XCircle,
   ChevronDown,
   ChevronRight,
-  ExternalLink,
   Clock,
+  ExternalLink,
+  XCircle,
   Zap,
-} from "lucide-react";
+} from 'lucide-react'
+import Link from 'next/link'
+import { useState } from 'react'
 
 /**
  * Score from an evaluation
  */
 interface Score {
-  name: string;
-  value: number;
-  reason?: string;
+  name: string
+  value: number
+  reason?: string
 }
 
 /**
  * Result from a single eval case
  */
 interface EvalCaseResult {
-  caseIndex: number;
+  caseIndex: number
   result: {
-    traceId: string;
-    status: string;
-    iterations: number;
-    reason?: string;
-  };
-  scores: Score[];
+    traceId: string
+    status: string
+    iterations: number
+    reason?: string
+  }
+  scores: Score[]
 }
 
 interface EvalRunResultsProps {
-  results: EvalCaseResult[];
-  showAll?: boolean;
+  results: EvalCaseResult[]
+  showAll?: boolean
 }
 
 /**
  * Format score as percentage with color
  */
 function ScoreBadge({ value }: { value: number }) {
-  const percentage = Math.round(value * 100);
+  const percentage = Math.round(value * 100)
   const color =
     percentage >= 80
-      ? "bg-green-100 text-green-800"
+      ? 'bg-green-100 text-green-800'
       : percentage >= 60
-        ? "bg-yellow-100 text-yellow-800"
-        : "bg-red-100 text-red-800";
+        ? 'bg-yellow-100 text-yellow-800'
+        : 'bg-red-100 text-red-800'
 
   return (
     <span className={`px-2 py-0.5 rounded text-sm font-medium ${color}`}>
       {percentage}%
     </span>
-  );
+  )
 }
 
 /**
@@ -73,15 +73,16 @@ function ResultRow({
   isExpanded,
   onToggle,
 }: {
-  result: EvalCaseResult;
-  isExpanded: boolean;
-  onToggle: () => void;
+  result: EvalCaseResult
+  isExpanded: boolean
+  onToggle: () => void
 }) {
-  const passed = result.result.status === "completed";
+  const passed = result.result.status === 'completed'
   const avgScore =
     result.scores.length > 0
-      ? result.scores.reduce((sum, s) => sum + s.value, 0) / result.scores.length
-      : 0;
+      ? result.scores.reduce((sum, s) => sum + s.value, 0) /
+        result.scores.length
+      : 0
 
   return (
     <div className="border-b last:border-b-0">
@@ -156,8 +157,8 @@ function ResultRow({
               <span
                 className={
                   passed
-                    ? "text-green-600 font-medium"
-                    : "text-red-600 font-medium"
+                    ? 'text-green-600 font-medium'
+                    : 'text-red-600 font-medium'
                 }
               >
                 {result.result.status}
@@ -180,43 +181,46 @@ function ResultRow({
         </div>
       )}
     </div>
-  );
+  )
 }
 
-export function EvalRunResults({ results, showAll = false }: EvalRunResultsProps) {
-  const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
-  const [filter, setFilter] = useState<"all" | "passed" | "failed">("all");
+export function EvalRunResults({
+  results,
+  showAll = false,
+}: EvalRunResultsProps) {
+  const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set())
+  const [filter, setFilter] = useState<'all' | 'passed' | 'failed'>('all')
 
   const toggleRow = (index: number) => {
     setExpandedRows((prev) => {
-      const next = new Set(prev);
+      const next = new Set(prev)
       if (next.has(index)) {
-        next.delete(index);
+        next.delete(index)
       } else {
-        next.add(index);
+        next.add(index)
       }
-      return next;
-    });
-  };
+      return next
+    })
+  }
 
   const expandAll = () => {
-    setExpandedRows(new Set(results.map((_, i) => i)));
-  };
+    setExpandedRows(new Set(results.map((_, i) => i)))
+  }
 
   const collapseAll = () => {
-    setExpandedRows(new Set());
-  };
+    setExpandedRows(new Set())
+  }
 
   // Filter results
   const filteredResults = results.filter((r) => {
-    if (filter === "all") return true;
-    if (filter === "passed") return r.result.status === "completed";
-    return r.result.status !== "completed";
-  });
+    if (filter === 'all') return true
+    if (filter === 'passed') return r.result.status === 'completed'
+    return r.result.status !== 'completed'
+  })
 
   // Calculate summary
-  const passed = results.filter((r) => r.result.status === "completed").length;
-  const failed = results.length - passed;
+  const passed = results.filter((r) => r.result.status === 'completed').length
+  const failed = results.length - passed
 
   return (
     <div className="border rounded-lg overflow-hidden">
@@ -225,8 +229,8 @@ export function EvalRunResults({ results, showAll = false }: EvalRunResultsProps
         <div className="flex items-center gap-4">
           <h3 className="font-semibold">Results</h3>
           <span className="text-sm text-gray-500">
-            {results.length} cases •{" "}
-            <span className="text-green-600">{passed} passed</span> •{" "}
+            {results.length} cases •{' '}
+            <span className="text-green-600">{passed} passed</span> •{' '}
             <span className="text-red-600">{failed} failed</span>
           </span>
         </div>
@@ -278,7 +282,7 @@ export function EvalRunResults({ results, showAll = false }: EvalRunResultsProps
         )}
       </div>
     </div>
-  );
+  )
 }
 
-export default EvalRunResults;
+export default EvalRunResults

@@ -160,8 +160,13 @@ export function useControlWorkflowRun(options?: UseControlWorkflowRunOptions) {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: ({ id, action }: { id: string; action: WorkflowControlAction }) =>
-      api.controlWorkflowRun(id, action),
+    mutationFn: ({
+      id,
+      action,
+    }: {
+      id: string
+      action: WorkflowControlAction
+    }) => api.controlWorkflowRun(id, action),
     onSuccess: (data, { id }) => {
       // Invalidate specific workflow
       queryClient.invalidateQueries({

@@ -1,4 +1,4 @@
-"use client";
+'use client'
 
 /**
  * Eval Runs Page
@@ -6,88 +6,85 @@
  * Lists all Temporal-based eval runs with real-time status updates.
  */
 
-import { useState } from "react";
-import Link from "next/link";
-import { formatDistanceToNow } from "date-fns";
+import { formatDistanceToNow } from 'date-fns'
 import {
-  Play,
   CheckCircle,
-  XCircle,
-  Clock,
-  Loader2,
-  RefreshCw,
   ChevronRight,
+  Clock,
   Filter,
+  Loader2,
+  Play,
+  RefreshCw,
   Square,
-} from "lucide-react";
-import {
-  useWorkflowRuns,
-  useStartWorkflowRun,
-} from "@/hooks/use-workflow-runs";
-import { StartEvalRunDialog } from "@/components/eval-runs";
-import type { WorkflowStatus, WorkflowStatusResponse } from "@/lib/types";
+  XCircle,
+} from 'lucide-react'
+import Link from 'next/link'
+import { useState } from 'react'
+import { StartEvalRunDialog } from '@/components/eval-runs'
+import { useStartWorkflowRun, useWorkflowRuns } from '@/hooks/use-workflow-runs'
+import type { WorkflowStatus, WorkflowStatusResponse } from '@/lib/types'
 
 /**
  * Get status display info
  */
 function getStatusInfo(status: WorkflowStatus) {
   switch (status) {
-    case "RUNNING":
+    case 'RUNNING':
       return {
         Icon: Loader2,
-        color: "text-blue-600",
-        bg: "bg-blue-50",
-        label: "Running",
+        color: 'text-blue-600',
+        bg: 'bg-blue-50',
+        label: 'Running',
         animate: true,
-      };
-    case "COMPLETED":
+      }
+    case 'COMPLETED':
       return {
         Icon: CheckCircle,
-        color: "text-green-600",
-        bg: "bg-green-50",
-        label: "Completed",
+        color: 'text-green-600',
+        bg: 'bg-green-50',
+        label: 'Completed',
         animate: false,
-      };
-    case "FAILED":
+      }
+    case 'FAILED':
       return {
         Icon: XCircle,
-        color: "text-red-600",
-        bg: "bg-red-50",
-        label: "Failed",
+        color: 'text-red-600',
+        bg: 'bg-red-50',
+        label: 'Failed',
         animate: false,
-      };
-    case "CANCELLED":
+      }
+    case 'CANCELLED':
       return {
         Icon: Square,
-        color: "text-gray-600",
-        bg: "bg-gray-100",
-        label: "Cancelled",
+        color: 'text-gray-600',
+        bg: 'bg-gray-100',
+        label: 'Cancelled',
         animate: false,
-      };
-    case "TERMINATED":
+      }
+    case 'TERMINATED':
       return {
         Icon: XCircle,
-        color: "text-gray-600",
-        bg: "bg-gray-100",
-        label: "Terminated",
+        color: 'text-gray-600',
+        bg: 'bg-gray-100',
+        label: 'Terminated',
         animate: false,
-      };
-    case "TIMED_OUT":
+      }
+    case 'TIMED_OUT':
       return {
         Icon: Clock,
-        color: "text-orange-600",
-        bg: "bg-orange-50",
-        label: "Timed Out",
+        color: 'text-orange-600',
+        bg: 'bg-orange-50',
+        label: 'Timed Out',
         animate: false,
-      };
+      }
     default:
       return {
         Icon: Clock,
-        color: "text-gray-600",
-        bg: "bg-gray-100",
-        label: "Unknown",
+        color: 'text-gray-600',
+        bg: 'bg-gray-100',
+        label: 'Unknown',
         animate: false,
-      };
+      }
   }
 }
 
@@ -95,25 +92,27 @@ function getStatusInfo(status: WorkflowStatus) {
  * Status badge component
  */
 function StatusBadge({ status }: { status: WorkflowStatus }) {
-  const info = getStatusInfo(status);
+  const info = getStatusInfo(status)
   return (
     <span
       className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${info.bg} ${info.color}`}
     >
-      <info.Icon className={`w-3.5 h-3.5 ${info.animate ? "animate-spin" : ""}`} />
+      <info.Icon
+        className={`w-3.5 h-3.5 ${info.animate ? 'animate-spin' : ''}`}
+      />
       {info.label}
     </span>
-  );
+  )
 }
 
 /**
  * Progress indicator
  */
 function ProgressIndicator({ run }: { run: WorkflowStatusResponse }) {
-  if (!run.progress) return null;
+  if (!run.progress) return null
 
-  const { completed, total, passed, failed } = run.progress;
-  const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
+  const { completed, total, passed, failed } = run.progress
+  const percent = total > 0 ? Math.round((completed / total) * 100) : 0
 
   return (
     <div className="w-32">
@@ -134,7 +133,7 @@ function ProgressIndicator({ run }: { run: WorkflowStatusResponse }) {
         <span className="text-red-600">{failed} fail</span>
       </div>
     </div>
-  );
+  )
 }
 
 /**
@@ -171,27 +170,27 @@ function RunRow({ run }: { run: WorkflowStatusResponse }) {
         <ChevronRight className="w-4 h-4 text-gray-400" />
       </div>
     </Link>
-  );
+  )
 }
 
 export default function EvalRunsPage() {
-  const [statusFilter, setStatusFilter] = useState<WorkflowStatus | "">("");
-  const [showStartDialog, setShowStartDialog] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<WorkflowStatus | ''>('')
+  const [showStartDialog, setShowStartDialog] = useState(false)
 
   const {
     data: runs,
     isLoading,
     refetch,
   } = useWorkflowRuns(
-    statusFilter ? { status: statusFilter as WorkflowStatus } : undefined
-  );
+    statusFilter ? { status: statusFilter as WorkflowStatus } : undefined,
+  )
 
   const startMutation = useStartWorkflowRun({
     onSuccess: () => {
-      setShowStartDialog(false);
-      refetch();
+      setShowStartDialog(false)
+      refetch()
     },
-  });
+  })
 
   return (
     <div className="p-6">
@@ -199,9 +198,7 @@ export default function EvalRunsPage() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Eval Runs</h1>
-          <p className="text-gray-500">
-            Temporal-orchestrated evaluation runs
-          </p>
+          <p className="text-gray-500">Temporal-orchestrated evaluation runs</p>
         </div>
 
         <div className="flex items-center gap-3">
@@ -228,7 +225,9 @@ export default function EvalRunsPage() {
           <Filter className="w-4 h-4 text-gray-500" />
           <select
             value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as WorkflowStatus | "")}
+            onChange={(e) =>
+              setStatusFilter(e.target.value as WorkflowStatus | '')
+            }
             className="px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
           >
             <option value="">All Status</option>
@@ -296,5 +295,5 @@ export default function EvalRunsPage() {
         error={startMutation.error?.message}
       />
     </div>
-  );
+  )
 }

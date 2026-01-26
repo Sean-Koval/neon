@@ -1,4 +1,4 @@
-"use client";
+'use client'
 
 /**
  * Trace Detail Page
@@ -6,51 +6,51 @@
  * Shows full trace details with span tree and scores.
  */
 
-import { useState } from "react";
-import { useParams } from "next/navigation";
-import Link from "next/link";
-import { useTrace } from "@/hooks/use-traces";
-import { TraceTimeline } from "@/components/traces/trace-timeline";
-import { SpanDetail } from "@/components/traces/span-detail";
 import {
   ArrowLeft,
-  Clock,
-  MessageSquare,
-  Wrench,
   CheckCircle,
-  XCircle,
+  Clock,
   DollarSign,
   Hash,
+  MessageSquare,
   RefreshCw,
-} from "lucide-react";
-import { cn } from "@/lib/utils";
+  Wrench,
+  XCircle,
+} from 'lucide-react'
+import Link from 'next/link'
+import { useParams } from 'next/navigation'
+import { useState } from 'react'
+import { SpanDetail } from '@/components/traces/span-detail'
+import { TraceTimeline } from '@/components/traces/trace-timeline'
+import { useTrace } from '@/hooks/use-traces'
+import { cn } from '@/lib/utils'
 
 /**
  * Format duration
  */
 function formatDuration(ms: number): string {
-  if (ms < 1000) return `${ms}ms`;
-  if (ms < 60000) return `${(ms / 1000).toFixed(2)}s`;
-  return `${(ms / 60000).toFixed(2)}m`;
+  if (ms < 1000) return `${ms}ms`
+  if (ms < 60000) return `${(ms / 1000).toFixed(2)}s`
+  return `${(ms / 60000).toFixed(2)}m`
 }
 
 export default function TraceDetailPage() {
-  const params = useParams();
-  const traceId = params.id as string;
+  const params = useParams()
+  const traceId = params.id as string
 
-  const { data, isLoading, refetch } = useTrace(traceId);
-  const [selectedSpanId, setSelectedSpanId] = useState<string | null>(null);
+  const { data, isLoading, refetch } = useTrace(traceId)
+  const [selectedSpanId, setSelectedSpanId] = useState<string | null>(null)
 
   const selectedSpan = selectedSpanId
     ? findSpan(data?.spans || [], selectedSpanId)
-    : null;
+    : null
 
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-screen">
         <RefreshCw className="w-8 h-8 animate-spin text-gray-400" />
       </div>
-    );
+    )
   }
 
   if (!data) {
@@ -62,28 +62,22 @@ export default function TraceDetailPage() {
           Back to traces
         </Link>
       </div>
-    );
+    )
   }
 
-  const { trace, spans, scores } = data;
+  const { trace, spans, scores } = data
 
   // Calculate stats
-  const totalTokens = spans.reduce(
-    (sum, s) => sum + (s.total_tokens || 0),
-    0
-  );
-  const llmCalls = spans.filter((s) => s.span_type === "generation").length;
-  const toolCalls = spans.filter((s) => s.span_type === "tool").length;
+  const totalTokens = spans.reduce((sum, s) => sum + (s.total_tokens || 0), 0)
+  const llmCalls = spans.filter((s) => s.span_type === 'generation').length
+  const toolCalls = spans.filter((s) => s.span_type === 'tool').length
 
   return (
     <div className="h-screen flex flex-col">
       {/* Header */}
       <div className="border-b px-6 py-4">
         <div className="flex items-center gap-4 mb-4">
-          <Link
-            href="/traces"
-            className="p-2 hover:bg-gray-100 rounded-lg"
-          >
+          <Link href="/traces" className="p-2 hover:bg-gray-100 rounded-lg">
             <ArrowLeft className="w-5 h-5" />
           </Link>
           <div className="flex-1">
@@ -102,16 +96,18 @@ export default function TraceDetailPage() {
         <div className="flex items-center gap-6">
           {/* Status */}
           <div className="flex items-center gap-2">
-            {trace.status === "ok" ? (
+            {trace.status === 'ok' ? (
               <CheckCircle className="w-5 h-5 text-green-500" />
             ) : (
               <XCircle className="w-5 h-5 text-red-500" />
             )}
-            <span className={cn(
-              "font-medium",
-              trace.status === "ok" ? "text-green-600" : "text-red-600"
-            )}>
-              {trace.status === "ok" ? "Success" : "Error"}
+            <span
+              className={cn(
+                'font-medium',
+                trace.status === 'ok' ? 'text-green-600' : 'text-red-600',
+              )}
+            >
+              {trace.status === 'ok' ? 'Success' : 'Error'}
             </span>
           </div>
 
@@ -149,10 +145,9 @@ export default function TraceDetailPage() {
       {/* Main content */}
       <div className="flex-1 flex overflow-hidden">
         {/* Timeline */}
-        <div className={cn(
-          "flex-1 overflow-auto p-6",
-          selectedSpan && "border-r"
-        )}>
+        <div
+          className={cn('flex-1 overflow-auto p-6', selectedSpan && 'border-r')}
+        >
           {/* Scores summary */}
           {scores && scores.length > 0 && (
             <div className="mb-6">
@@ -195,7 +190,7 @@ export default function TraceDetailPage() {
         )}
       </div>
     </div>
-  );
+  )
 }
 
 /**
@@ -203,11 +198,11 @@ export default function TraceDetailPage() {
  */
 function findSpan(spans: any[], spanId: string): any | null {
   for (const span of spans) {
-    if (span.span_id === spanId) return span;
+    if (span.span_id === spanId) return span
     if (span.children) {
-      const found = findSpan(span.children, spanId);
-      if (found) return found;
+      const found = findSpan(span.children, spanId)
+      if (found) return found
     }
   }
-  return null;
+  return null
 }

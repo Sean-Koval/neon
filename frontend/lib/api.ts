@@ -362,9 +362,13 @@ export class ApiClient {
     id: string,
     action: WorkflowControlAction,
   ): Promise<WorkflowControlResponse> {
-    return this.request<WorkflowControlResponse>('POST', `/runs/${id}/control`, {
-      body: { action },
-    })
+    return this.request<WorkflowControlResponse>(
+      'POST',
+      `/runs/${id}/control`,
+      {
+        body: { action },
+      },
+    )
   }
 
   /**

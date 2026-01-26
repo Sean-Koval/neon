@@ -1,4 +1,4 @@
-"use client";
+'use client'
 
 /**
  * Traces List Page
@@ -6,52 +6,52 @@
  * Shows all traces with filtering and search.
  */
 
-import { useState } from "react";
-import Link from "next/link";
-import { useTraces, type TraceFilters } from "@/hooks/use-traces";
 import {
-  Search,
-  Filter,
-  Clock,
-  MessageSquare,
-  Wrench,
   CheckCircle,
-  XCircle,
   ChevronRight,
+  Clock,
+  Filter,
+  MessageSquare,
   RefreshCw,
-} from "lucide-react";
-import { cn } from "@/lib/utils";
+  Search,
+  Wrench,
+  XCircle,
+} from 'lucide-react'
+import Link from 'next/link'
+import { useState } from 'react'
+import { type TraceFilters, useTraces } from '@/hooks/use-traces'
+import { cn } from '@/lib/utils'
 
 /**
  * Format duration
  */
 function formatDuration(ms: number): string {
-  if (ms < 1000) return `${ms}ms`;
-  if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`;
-  return `${(ms / 60000).toFixed(1)}m`;
+  if (ms < 1000) return `${ms}ms`
+  if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`
+  return `${(ms / 60000).toFixed(1)}m`
 }
 
 /**
  * Format relative time
  */
 function formatRelativeTime(timestamp: string): string {
-  const now = Date.now();
-  const time = new Date(timestamp).getTime();
-  const diff = now - time;
+  const now = Date.now()
+  const time = new Date(timestamp).getTime()
+  const diff = now - time
 
-  if (diff < 60000) return "just now";
-  if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
-  if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
-  return `${Math.floor(diff / 86400000)}d ago`;
+  if (diff < 60000) return 'just now'
+  if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`
+  if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`
+  return `${Math.floor(diff / 86400000)}d ago`
 }
 
 export default function TracesPage() {
   const [filters, setFilters] = useState<TraceFilters>({
     limit: 50,
-  });
-  const [searchQuery, setSearchQuery] = useState("");
+  })
+  const [searchQuery, setSearchQuery] = useState('')
 
-  const { data: traces, isLoading, refetch } = useTraces(filters);
+  const { data: traces, isLoading, refetch } = useTraces(filters)
 
   return (
     <div className="p-6">
@@ -59,7 +59,9 @@ export default function TracesPage() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold">Traces</h1>
-          <p className="text-gray-500">View and analyze agent execution traces</p>
+          <p className="text-gray-500">
+            View and analyze agent execution traces
+          </p>
         </div>
 
         <button
@@ -81,8 +83,8 @@ export default function TracesPage() {
             placeholder="Search traces..."
             value={searchQuery}
             onChange={(e) => {
-              setSearchQuery(e.target.value);
-              setFilters((f) => ({ ...f, search: e.target.value || undefined }));
+              setSearchQuery(e.target.value)
+              setFilters((f) => ({ ...f, search: e.target.value || undefined }))
             }}
             className="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           />
@@ -90,11 +92,11 @@ export default function TracesPage() {
 
         {/* Status filter */}
         <select
-          value={filters.status || ""}
+          value={filters.status || ''}
           onChange={(e) =>
             setFilters((f) => ({
               ...f,
-              status: (e.target.value as "ok" | "error") || undefined,
+              status: (e.target.value as 'ok' | 'error') || undefined,
             }))
           }
           className="px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
@@ -160,7 +162,7 @@ export default function TracesPage() {
             </div>
 
             <div className="w-24 flex justify-center">
-              {trace.status === "ok" ? (
+              {trace.status === 'ok' ? (
                 <span className="flex items-center gap-1 text-green-600 text-sm">
                   <CheckCircle className="w-4 h-4" />
                   OK
@@ -213,5 +215,5 @@ export default function TracesPage() {
         </div>
       )}
     </div>
-  );
+  )
 }

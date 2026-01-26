@@ -1,492 +1,321 @@
 {
   "tasks": {
-    "FND-001": {
-      "file": "tasks/FND-001.json",
+    "CLEAN-001": {
+      "file": "tasks/CLEAN-001.json",
       "status": "completed",
-      "phase_id": "phase-1-foundation",
-      "title": "Setup FastAPI project structure",
-      "pr_merged": "https://github.com/Sean-Koval/neon/pull/1"
+      "phase_id": "phase-1-cleanup",
+      "title": "Archive api/ directory (Python FastAPI)"
     },
-    "FND-002": {
-      "file": "tasks/FND-002.json",
+    "CLEAN-002": {
+      "file": "tasks/CLEAN-002.json",
       "status": "completed",
-      "phase_id": "phase-1-foundation",
-      "title": "Define Pydantic models for eval entities",
-      "pr_merged": "https://github.com/Sean-Koval/neon/pull/4"
+      "phase_id": "phase-1-cleanup",
+      "title": "Archive moose-app/ directory"
     },
-    "FND-003": {
-      "file": "tasks/FND-003.json",
+    "CLEAN-003": {
+      "file": "tasks/CLEAN-003.json",
+      "status": "in_progress",
+      "phase_id": "phase-1-cleanup",
+      "title": "Remove MLflow references from frontend"
+    },
+    "CLEAN-004": {
+      "file": "tasks/CLEAN-004.json",
       "status": "completed",
-      "phase_id": "phase-1-foundation",
-      "title": "Create SQLAlchemy database models",
-      "pr_merged": "https://github.com/Sean-Koval/neon/pull/7"
+      "phase_id": "phase-1-cleanup",
+      "title": "Archive old task files"
     },
-    "FND-004": {
-      "file": "tasks/FND-004.json",
+    "CLEAN-005": {
+      "file": "tasks/CLEAN-005.json",
       "status": "completed",
-      "phase_id": "phase-1-foundation",
-      "title": "Create database migrations",
-      "pr_merged": "https://github.com/Sean-Koval/neon/pull/8"
+      "phase_id": "phase-1-cleanup",
+      "title": "Archive .beads directory"
     },
-    "FND-005": {
-      "file": "tasks/FND-005.json",
-      "status": "completed",
-      "phase_id": "phase-1-foundation",
-      "title": "MLflow integration spike",
-      "pr_merged": "https://github.com/Sean-Koval/neon/pull/2"
-    },
-    "SCR-001": {
-      "file": "tasks/SCR-001.json",
-      "status": "completed",
-      "phase_id": "phase-2-scorers",
-      "title": "Implement ToolSelectionScorer",
-      "pr_merged": "https://github.com/Sean-Koval/neon/pull/3"
-    },
-    "SCR-002": {
-      "file": "tasks/SCR-002.json",
-      "status": "completed",
-      "phase_id": "phase-2-scorers",
-      "title": "Implement ReasoningScorer",
-      "pr_merged": "https://github.com/Sean-Koval/neon/pull/5"
-    },
-    "SCR-003": {
-      "file": "tasks/SCR-003.json",
-      "status": "completed",
-      "phase_id": "phase-2-scorers",
-      "title": "Implement GroundingScorer",
-      "pr_merged": "https://github.com/Sean-Koval/neon/pull/6"
-    },
-    "RUN-001": {
-      "file": "tasks/RUN-001.json",
-      "status": "completed",
-      "phase_id": "phase-3-runner-cli",
-      "title": "Integrate MLflow tracing into EvalRunner",
-      "pr_merged": "https://github.com/Sean-Koval/neon/pull/13"
-    },
-    "RUN-002": {
-      "file": "tasks/RUN-002.json",
-      "status": "completed",
-      "phase_id": "phase-3-runner-cli",
-      "title": "Implement agent loader from module path",
-      "pr_merged": "https://github.com/Sean-Koval/neon/pull/12"
-    },
-    "RUN-003": {
-      "file": "tasks/RUN-003.json",
-      "status": "completed",
-      "phase_id": "phase-3-runner-cli",
-      "title": "Add local execution mode to CLI",
-      "pr_merged": "https://github.com/Sean-Koval/neon/pull/14"
-    },
-    "RUN-004": {
-      "file": "tasks/RUN-004.json",
-      "status": "completed",
-      "phase_id": "phase-3-runner-cli",
-      "title": "Wire API run endpoint to execute agents",
-      "pr_merged": "https://github.com/Sean-Koval/neon/pull/15"
-    },
-    "RUN-005": {
-      "file": "tasks/RUN-005.json",
-      "status": "completed",
-      "phase_id": "phase-3-runner-cli",
-      "title": "Create example eval suite and demo agent",
-      "pr_merged": "https://github.com/Sean-Koval/neon/pull/9"
-    },
-    "RUN-006": {
-      "file": "tasks/RUN-006.json",
-      "status": "completed",
-      "phase_id": "phase-3-runner-cli",
-      "title": "End-to-end integration tests for runner and CLI",
-      "pr_merged": "https://github.com/Sean-Koval/neon/pull/16"
-    },
-    "API-001": {
-      "file": "tasks/API-001.json",
-      "status": "completed",
-      "phase_id": "phase-4-api-auth",
-      "title": "Add rate limiting to API endpoints",
-      "pr_merged": "https://github.com/Sean-Koval/neon/pull/18"
-    },
-    "API-002": {
-      "file": "tasks/API-002.json",
-      "status": "completed",
-      "phase_id": "phase-4-api-auth",
-      "title": "Complete API router tests",
-      "pr_merged": "https://github.com/Sean-Koval/neon/pull/17"
-    },
-    "API-003": {
-      "file": "tasks/API-003.json",
-      "status": "completed",
-      "phase_id": "phase-4-api-auth",
-      "title": "Add individual case endpoints",
-      "pr_merged": "https://github.com/Sean-Koval/neon/pull/19"
-    },
-    "FE-001": {
-      "file": "tasks/FE-001.json",
-      "status": "completed",
-      "phase_id": "phase-5-frontend",
-      "title": "Define TypeScript types from API models",
-      "pr_merged": "https://github.com/Sean-Koval/neon/pull/20"
-    },
-    "FE-002": {
-      "file": "tasks/FE-002.json",
-      "status": "completed",
-      "phase_id": "phase-5-frontend",
-      "title": "Implement API client with error handling",
-      "pr_merged": "https://github.com/Sean-Koval/neon/pull/21"
-    },
-    "FE-003": {
-      "file": "tasks/FE-003.json",
-      "status": "completed",
-      "phase_id": "phase-5-frontend",
-      "title": "Create React Query hooks for all endpoints",
-      "pr_merged": "https://github.com/Sean-Koval/neon/pull/23"
-    },
-    "FE-004": {
-      "file": "tasks/FE-004.json",
-      "status": "completed",
-      "phase_id": "phase-5-frontend",
-      "title": "Add API key configuration and storage",
-      "pr_merged": "https://github.com/Sean-Koval/neon/pull/24"
-    },
-    "FE-005": {
-      "file": "tasks/FE-005.json",
-      "status": "completed",
-      "phase_id": "phase-5-frontend",
-      "title": "Configure QueryClientProvider and app providers",
-      "pr_merged": "https://github.com/Sean-Koval/neon/pull/27"
-    },
-    "FE-006": {
-      "file": "tasks/FE-006.json",
-      "status": "completed",
-      "phase_id": "phase-5-frontend",
-      "title": "Implement base UI component library with design system",
-      "pr_merged": "https://github.com/Sean-Koval/neon/pull/26"
-    },
-    "FE-010": {
-      "file": "tasks/FE-010.json",
-      "status": "completed",
-      "phase_id": "phase-5-frontend",
-      "title": "Dashboard: Fetch and display summary stats",
-      "pr_merged": "https://github.com/Sean-Koval/neon/pull/28"
-    },
-    "FE-011": {
-      "file": "tasks/FE-011.json",
-      "status": "completed",
-      "phase_id": "phase-5-frontend",
-      "title": "Dashboard: Recent runs table with live data",
-      "pr_merged": "https://github.com/Sean-Koval/neon/pull/29"
-    },
-    "FE-012": {
-      "file": "tasks/FE-012.json",
-      "status": "completed",
-      "phase_id": "phase-5-frontend",
-      "title": "Dashboard: Score trend chart",
-      "pr_merged": "https://github.com/Sean-Koval/neon/pull/30"
-    },
-    "FE-013": {
-      "file": "tasks/FE-013.json",
+    "CLEAN-006": {
+      "file": "tasks/CLEAN-006.json",
       "status": "ready",
-      "phase_id": "phase-5-frontend",
-      "title": "Dashboard: Pass/fail distribution by scorer type"
+      "phase_id": "phase-1-cleanup",
+      "title": "Update root package.json / turbo.json"
     },
-    "FE-020": {
-      "file": "tasks/FE-020.json",
-      "status": "completed",
-      "phase_id": "phase-5-frontend",
-      "title": "Suites list page with search and filtering",
-      "pr_merged": "https://github.com/Sean-Koval/neon/pull/31"
-    },
-    "FE-021": {
-      "file": "tasks/FE-021.json",
+    "CORE-001": {
+      "file": "tasks/CORE-001.json",
       "status": "ready",
-      "phase_id": "phase-5-frontend",
-      "title": "Suite detail page with metadata and actions"
+      "phase_id": "phase-2-core-backend",
+      "title": "Install missing deps (@clickhouse/client, @temporalio/client)"
     },
-    "FE-022": {
-      "file": "tasks/FE-022.json",
+    "CORE-002": {
+      "file": "tasks/CORE-002.json",
+      "status": "ready",
+      "phase_id": "phase-2-core-backend",
+      "title": "Create frontend/lib/db.ts - ClickHouse client singleton"
+    },
+    "CORE-003": {
+      "file": "tasks/CORE-003.json",
+      "status": "ready",
+      "phase_id": "phase-2-core-backend",
+      "title": "Create ClickHouse schema migration script"
+    },
+    "CORE-004": {
+      "file": "tasks/CORE-004.json",
+      "status": "ready",
+      "phase_id": "phase-2-core-backend",
+      "title": "Implement /api/traces - list, get, insert"
+    },
+    "CORE-005": {
+      "file": "tasks/CORE-005.json",
+      "status": "ready",
+      "phase_id": "phase-2-core-backend",
+      "title": "Implement /api/scores - list, get, insert"
+    },
+    "CORE-006": {
+      "file": "tasks/CORE-006.json",
+      "status": "completed",
+      "phase_id": "phase-2-core-backend",
+      "title": "Implement /api/runs - start, status, cancel (Temporal)"
+    },
+    "CORE-007": {
+      "file": "tasks/CORE-007.json",
+      "status": "ready",
+      "phase_id": "phase-2-core-backend",
+      "title": "Create Temporal worker with eval workflows"
+    },
+    "CORE-008": {
+      "file": "tasks/CORE-008.json",
       "status": "pending",
-      "phase_id": "phase-5-frontend",
-      "title": "Cases list within suite detail"
+      "phase_id": "phase-2-core-backend",
+      "title": "Test: Insert trace → Query trace → Display in UI"
     },
-    "FE-023": {
-      "file": "tasks/FE-023.json",
+    "SDK-001": {
+      "file": "tasks/SDK-001.json",
       "status": "ready",
-      "phase_id": "phase-5-frontend",
-      "title": "Create suite form/modal"
+      "phase_id": "phase-3-sdk",
+      "title": "Simplify packages/sdk/ - remove bloat"
     },
-    "FE-024": {
-      "file": "tasks/FE-024.json",
-      "status": "pending",
-      "phase_id": "phase-5-frontend",
-      "title": "Create case form with full configuration"
-    },
-    "FE-025": {
-      "file": "tasks/FE-025.json",
-      "status": "pending",
-      "phase_id": "phase-5-frontend",
-      "title": "Edit and delete suite/case functionality"
-    },
-    "FE-030": {
-      "file": "tasks/FE-030.json",
+    "SDK-002": {
+      "file": "tasks/SDK-002.json",
       "status": "ready",
-      "phase_id": "phase-5-frontend",
-      "title": "Runs list page with status filters"
+      "phase_id": "phase-3-sdk",
+      "title": "Core API: defineTest(), defineSuite(), run()"
     },
-    "FE-031": {
-      "file": "tasks/FE-031.json",
-      "status": "pending",
-      "phase_id": "phase-5-frontend",
-      "title": "Run detail page with summary"
-    },
-    "FE-032": {
-      "file": "tasks/FE-032.json",
-      "status": "pending",
-      "phase_id": "phase-5-frontend",
-      "title": "Results table with expandable score details"
-    },
-    "FE-033": {
-      "file": "tasks/FE-033.json",
-      "status": "pending",
-      "phase_id": "phase-5-frontend",
-      "title": "Score breakdown visualization per case"
-    },
-    "FE-034": {
-      "file": "tasks/FE-034.json",
+    "SDK-003": {
+      "file": "tasks/SDK-003.json",
       "status": "ready",
-      "phase_id": "phase-5-frontend",
-      "title": "Trigger new run from suite"
+      "phase_id": "phase-3-sdk",
+      "title": "Built-in scorers: exactMatch, contains, llmJudge"
     },
-    "FE-035": {
-      "file": "tasks/FE-035.json",
+    "SDK-004": {
+      "file": "tasks/SDK-004.json",
       "status": "pending",
-      "phase_id": "phase-5-frontend",
-      "title": "Polling for in-progress runs"
+      "phase_id": "phase-3-sdk",
+      "title": "CLI: npx neon eval runs tests locally"
     },
-    "FE-036": {
-      "file": "tasks/FE-036.json",
+    "SDK-005": {
+      "file": "tasks/SDK-005.json",
       "status": "pending",
-      "phase_id": "phase-5-frontend",
-      "title": "Cancel run action"
+      "phase_id": "phase-3-sdk",
+      "title": "CI mode: JSON output, exit codes, threshold checks"
     },
-    "FE-040": {
-      "file": "tasks/FE-040.json",
+    "SDK-006": {
+      "file": "tasks/SDK-006.json",
+      "status": "pending",
+      "phase_id": "phase-3-sdk",
+      "title": "Optional: Send results to Neon cloud/self-hosted"
+    },
+    "UI-001": {
+      "file": "tasks/UI-001.json",
+      "status": "ready",
+      "phase_id": "phase-4-frontend",
+      "title": "Dashboard - recent evals, pass/fail rates, trends"
+    },
+    "UI-002": {
+      "file": "tasks/UI-002.json",
       "status": "completed",
-      "phase_id": "phase-5-frontend",
-      "title": "Compare: Run selector UI",
-      "pr_merged": "https://github.com/Sean-Koval/neon/pull/32"
+      "phase_id": "phase-4-frontend",
+      "title": "Eval detail - real-time progress, case results"
     },
-    "FE-041": {
-      "file": "tasks/FE-041.json",
+    "UI-003": {
+      "file": "tasks/UI-003.json",
       "status": "ready",
-      "phase_id": "phase-5-frontend",
-      "title": "Compare: Results display with pass/fail state"
+      "phase_id": "phase-4-frontend",
+      "title": "Trace viewer - agent-native (tool calls, reasoning)"
     },
-    "FE-042": {
-      "file": "tasks/FE-042.json",
-      "status": "pending",
-      "phase_id": "phase-5-frontend",
-      "title": "Compare: Regression highlighting"
-    },
-    "FE-043": {
-      "file": "tasks/FE-043.json",
-      "status": "pending",
-      "phase_id": "phase-5-frontend",
-      "title": "Compare: Improvements section"
-    },
-    "FE-044": {
-      "file": "tasks/FE-044.json",
-      "status": "pending",
-      "phase_id": "phase-5-frontend",
-      "title": "Compare: Side-by-side score comparison chart"
-    },
-    "FE-045": {
-      "file": "tasks/FE-045.json",
-      "status": "pending",
-      "phase_id": "phase-5-frontend",
-      "title": "Compare: Visual polish and result reveal animation"
-    },
-    "FE-050": {
-      "file": "tasks/FE-050.json",
+    "UI-004": {
+      "file": "tasks/UI-004.json",
       "status": "ready",
-      "phase_id": "phase-5-frontend",
-      "title": "Loading skeletons for all data fetches"
+      "phase_id": "phase-4-frontend",
+      "title": "Score trends - regression detection visualization"
     },
-    "FE-051": {
-      "file": "tasks/FE-051.json",
-      "status": "ready",
-      "phase_id": "phase-5-frontend",
-      "title": "Error boundaries and error states"
-    },
-    "FE-052": {
-      "file": "tasks/FE-052.json",
-      "status": "ready",
-      "phase_id": "phase-5-frontend",
-      "title": "Empty states for all list views"
-    },
-    "FE-053": {
-      "file": "tasks/FE-053.json",
-      "status": "ready",
-      "phase_id": "phase-5-frontend",
-      "title": "Mobile responsive layout"
-    },
-    "FE-054": {
-      "file": "tasks/FE-054.json",
-      "status": "ready",
-      "phase_id": "phase-5-frontend",
-      "title": "Keyboard navigation and accessibility"
-    },
-    "FE-055": {
-      "file": "tasks/FE-055.json",
-      "status": "ready",
-      "phase_id": "phase-5-frontend",
-      "title": "Settings page with API key management"
-    },
-    "FE-060": {
-      "file": "tasks/FE-060.json",
-      "status": "ready",
-      "phase_id": "phase-5-frontend",
-      "title": "Rebrand AgentEval to Neon throughout codebase"
-    },
-    "API-004": {
-      "file": "tasks/API-004.json",
+    "UI-005": {
+      "file": "tasks/UI-005.json",
       "status": "completed",
-      "phase_id": "phase-4-api-auth",
-      "title": "Add /stats/dashboard endpoint for pre-aggregated stats",
-      "pr_merged": "https://github.com/Sean-Koval/neon/pull/34"
+      "phase_id": "phase-4-frontend",
+      "title": "Start eval dialog - configure and launch"
     },
-    "FE-070": {
-      "file": "tasks/FE-070.json",
+    "UI-006": {
+      "file": "tasks/UI-006.json",
       "status": "ready",
-      "phase_id": "phase-5-frontend",
-      "title": "Dashboard performance optimization"
+      "phase_id": "phase-4-frontend",
+      "title": "WebSocket for real-time updates (or polling fallback)"
     },
-    "FE-071": {
-      "file": "tasks/FE-071.json",
+    "UI-007": {
+      "file": "tasks/UI-007.json",
       "status": "ready",
-      "phase_id": "phase-5-frontend",
-      "title": "Runs page server-side pagination and filtering"
+      "phase_id": "phase-4-frontend",
+      "title": "Remove/hide old pages (suites, old runs)"
+    },
+    "PERF-001": {
+      "file": "tasks/PERF-001.json",
+      "status": "ready",
+      "phase_id": "phase-5-performance",
+      "title": "ClickHouse batch inserts"
+    },
+    "PERF-002": {
+      "file": "tasks/PERF-002.json",
+      "status": "pending",
+      "phase_id": "phase-5-performance",
+      "title": "Materialized views for dashboard aggregations"
+    },
+    "PERF-003": {
+      "file": "tasks/PERF-003.json",
+      "status": "pending",
+      "phase_id": "phase-5-performance",
+      "title": "Add indexes to ClickHouse tables"
+    },
+    "PERF-004": {
+      "file": "tasks/PERF-004.json",
+      "status": "pending",
+      "phase_id": "phase-5-performance",
+      "title": "Lazy load trace details"
+    },
+    "PERF-005": {
+      "file": "tasks/PERF-005.json",
+      "status": "pending",
+      "phase_id": "phase-5-performance",
+      "title": "Optimize bundle size (code splitting)"
+    },
+    "PERF-006": {
+      "file": "tasks/PERF-006.json",
+      "status": "pending",
+      "phase_id": "phase-5-performance",
+      "title": "Add loading states, error boundaries"
+    },
+    "DOC-001": {
+      "file": "tasks/DOC-001.json",
+      "status": "ready",
+      "phase_id": "phase-6-docs",
+      "title": "README with quick start"
+    },
+    "DOC-002": {
+      "file": "tasks/DOC-002.json",
+      "status": "pending",
+      "phase_id": "phase-6-docs",
+      "title": "SDK documentation"
+    },
+    "DOC-003": {
+      "file": "tasks/DOC-003.json",
+      "status": "pending",
+      "phase_id": "phase-6-docs",
+      "title": "Self-hosting guide (Docker Compose)"
+    },
+    "DOC-004": {
+      "file": "tasks/DOC-004.json",
+      "status": "pending",
+      "phase_id": "phase-6-docs",
+      "title": "Example eval suite"
+    },
+    "DOC-005": {
+      "file": "tasks/DOC-005.json",
+      "status": "pending",
+      "phase_id": "phase-6-docs",
+      "title": "Update CLAUDE.md for new architecture"
     }
   },
   "dependency_graph": {
-    "FND-001": [],
-    "FND-002": ["FND-001"],
-    "FND-003": ["FND-002"],
-    "FND-004": ["FND-003"],
-    "FND-005": ["FND-001"],
-    "SCR-001": ["FND-005"],
-    "SCR-002": ["FND-005"],
-    "SCR-003": ["FND-005"],
-    "RUN-001": [],
-    "RUN-002": [],
-    "RUN-003": ["RUN-002"],
-    "RUN-004": ["RUN-001", "RUN-002"],
-    "RUN-005": [],
-    "RUN-006": ["RUN-001", "RUN-003", "RUN-004", "RUN-005"],
-    "API-001": [],
-    "API-002": [],
-    "API-003": [],
-    "FE-001": [],
-    "FE-002": ["FE-001"],
-    "FE-003": ["FE-002"],
-    "FE-004": [],
-    "FE-005": [],
-    "FE-006": [],
-    "FE-010": ["FE-003", "FE-006"],
-    "FE-011": ["FE-003", "FE-006"],
-    "FE-012": ["FE-003", "FE-006"],
-    "FE-013": ["FE-003", "FE-006"],
-    "FE-020": ["FE-003", "FE-006"],
-    "FE-021": ["FE-020"],
-    "FE-022": ["FE-021"],
-    "FE-023": ["FE-003"],
-    "FE-024": ["FE-022"],
-    "FE-025": ["FE-023", "FE-024"],
-    "FE-030": ["FE-003", "FE-006"],
-    "FE-031": ["FE-030"],
-    "FE-032": ["FE-031"],
-    "FE-033": ["FE-032"],
-    "FE-034": ["FE-003"],
-    "FE-035": ["FE-031"],
-    "FE-036": ["FE-031"],
-    "FE-040": ["FE-003", "FE-006"],
-    "FE-041": ["FE-040"],
-    "FE-042": ["FE-041"],
-    "FE-043": ["FE-041"],
-    "FE-044": ["FE-041"],
-    "FE-045": ["FE-041", "FE-042"],
-    "FE-050": [],
-    "FE-051": [],
-    "FE-052": [],
-    "FE-053": [],
-    "FE-054": [],
-    "FE-055": ["FE-004"],
-    "FE-060": [],
-    "API-004": [],
-    "FE-070": ["API-004"],
-    "FE-071": []
+    "CLEAN-001": [],
+    "CLEAN-002": [],
+    "CLEAN-003": [],
+    "CLEAN-004": [],
+    "CLEAN-005": [],
+    "CLEAN-006": ["CLEAN-001", "CLEAN-002"],
+    "CORE-001": ["CLEAN-001", "CLEAN-002"],
+    "CORE-002": ["CORE-001"],
+    "CORE-003": ["CORE-001"],
+    "CORE-004": ["CORE-002", "CORE-003"],
+    "CORE-005": ["CORE-002", "CORE-003"],
+    "CORE-006": ["CORE-001"],
+    "CORE-007": ["CORE-006"],
+    "CORE-008": ["CORE-004", "CORE-005", "CORE-007"],
+    "SDK-001": ["CORE-001"],
+    "SDK-002": ["SDK-001"],
+    "SDK-003": ["SDK-002"],
+    "SDK-004": ["SDK-002", "SDK-003"],
+    "SDK-005": ["SDK-004"],
+    "SDK-006": ["SDK-004"],
+    "UI-001": ["CORE-004", "CORE-005"],
+    "UI-002": ["CORE-006"],
+    "UI-003": ["CORE-004"],
+    "UI-004": ["CORE-005"],
+    "UI-005": ["CORE-006"],
+    "UI-006": ["CORE-007"],
+    "UI-007": [],
+    "PERF-001": ["CORE-004", "CORE-005"],
+    "PERF-002": ["PERF-001"],
+    "PERF-003": ["PERF-001"],
+    "PERF-004": ["UI-003"],
+    "PERF-005": ["UI-001", "UI-002", "UI-003"],
+    "PERF-006": ["UI-001", "UI-002"],
+    "DOC-001": ["CORE-008"],
+    "DOC-002": ["SDK-004"],
+    "DOC-003": ["CORE-008"],
+    "DOC-004": ["SDK-004"],
+    "DOC-005": ["DOC-001"]
   },
-  "parallel_groups": [
-    {
-      "group_id": "foundation-parallel",
-      "tasks": ["FND-002", "FND-005"],
-      "reason": "Both only depend on FND-001, no inter-dependencies"
+  "phases": {
+    "phase-1-cleanup": {
+      "name": "Cleanup",
+      "description": "Remove dead code, consolidate to single architecture",
+      "target_days": 2,
+      "tasks": ["CLEAN-001", "CLEAN-002", "CLEAN-003", "CLEAN-004", "CLEAN-005", "CLEAN-006"]
     },
-    {
-      "group_id": "scorers-parallel",
-      "tasks": ["SCR-001", "SCR-002", "SCR-003"],
-      "reason": "All three scorers can be implemented in parallel"
+    "phase-2-core-backend": {
+      "name": "Core Backend",
+      "description": "Working ClickHouse + Temporal integration",
+      "target_days": 3,
+      "tasks": ["CORE-001", "CORE-002", "CORE-003", "CORE-004", "CORE-005", "CORE-006", "CORE-007", "CORE-008"]
     },
-    {
-      "group_id": "runner-parallel-1",
-      "tasks": ["RUN-001", "RUN-002", "RUN-005"],
-      "reason": "MLflow integration, agent loader, and examples have no inter-dependencies"
+    "phase-3-sdk": {
+      "name": "SDK",
+      "description": "Evals-as-code that works locally",
+      "target_days": 2,
+      "tasks": ["SDK-001", "SDK-002", "SDK-003", "SDK-004", "SDK-005", "SDK-006"]
     },
-    {
-      "group_id": "api-auth-parallel",
-      "tasks": ["API-001", "API-002", "API-003"],
-      "reason": "All three API tasks can be implemented in parallel with no inter-dependencies"
+    "phase-4-frontend": {
+      "name": "Frontend Polish",
+      "description": "Clean, fast, agent-native UX",
+      "target_days": 3,
+      "tasks": ["UI-001", "UI-002", "UI-003", "UI-004", "UI-005", "UI-006", "UI-007"]
     },
-    {
-      "group_id": "fe-foundation-parallel",
-      "tasks": ["FE-001", "FE-004", "FE-005", "FE-006"],
-      "reason": "Types, auth config, providers, and UI components can be built in parallel"
+    "phase-5-performance": {
+      "name": "Performance & Polish",
+      "description": "Production-ready performance",
+      "target_days": 2,
+      "tasks": ["PERF-001", "PERF-002", "PERF-003", "PERF-004", "PERF-005", "PERF-006"]
     },
-    {
-      "group_id": "fe-dashboard-parallel",
-      "tasks": ["FE-010", "FE-011", "FE-012", "FE-013"],
-      "reason": "Dashboard components can be built in parallel once hooks exist"
-    },
-    {
-      "group_id": "fe-views-parallel",
-      "tasks": ["FE-020", "FE-030", "FE-040"],
-      "reason": "Suite list, runs list, and compare selector can be built in parallel"
-    },
-    {
-      "group_id": "fe-compare-parallel",
-      "tasks": ["FE-042", "FE-043", "FE-044"],
-      "reason": "Regression, improvement, and chart components can be built in parallel"
-    },
-    {
-      "group_id": "fe-polish-parallel",
-      "tasks": ["FE-050", "FE-051", "FE-052", "FE-053", "FE-054"],
-      "reason": "Polish tasks have no inter-dependencies"
-    },
-    {
-      "group_id": "performance-parallel",
-      "tasks": ["API-004", "FE-071"],
-      "reason": "Backend stats endpoint and runs pagination can be implemented in parallel"
+    "phase-6-docs": {
+      "name": "Documentation & Launch",
+      "description": "Ready for users",
+      "target_days": 2,
+      "tasks": ["DOC-001", "DOC-002", "DOC-003", "DOC-004", "DOC-005"]
     }
-  ],
-  "ready_tasks": ["FE-013", "FE-021", "FE-023", "FE-030", "FE-034", "FE-041", "FE-050", "FE-051", "FE-052", "FE-053", "FE-054", "FE-055", "FE-060", "FE-070", "FE-071"],
-  "critical_path": ["FE-001", "FE-002", "FE-003", "FE-006", "FE-040", "FE-041", "FE-042", "FE-045"],
-  "metrics": {
-    "total_tasks": 50,
-    "pending": 10,
-    "ready": 15,
-    "in_progress": 0,
-    "completed": 28,
-    "estimated_hours_total": 154,
-    "actual_hours_total": null
   },
-  "phases_completed": ["phase-1-foundation", "phase-2-scorers", "phase-3-runner-cli", "phase-4-api-auth"],
-  "last_computed": "2026-01-24T20:00:00Z"
+  "ready_tasks": ["CLEAN-003", "CLEAN-006", "CORE-001", "UI-007", "DOC-001"],
+  "critical_path": ["CORE-001", "CORE-002", "CORE-004", "UI-001", "PERF-001", "PERF-002"],
+  "metrics": {
+    "total_tasks": 38,
+    "completed": 9,
+    "in_progress": 1,
+    "ready": 20,
+    "pending": 8,
+    "estimated_days_total": 14
+  },
+  "last_computed": "2026-01-25T00:00:00Z"
 }

@@ -1,4 +1,4 @@
-"use client";
+'use client'
 
 /**
  * Eval Run Progress Component
@@ -6,28 +6,28 @@
  * Shows real-time progress of an eval run with progress bar and case results.
  */
 
-import { useEffect, useState } from "react";
 import {
-  CheckCircle,
-  XCircle,
-  Loader2,
-  Clock,
   AlertTriangle,
+  CheckCircle,
+  Clock,
+  Loader2,
   Pause,
   Play,
   Square,
-} from "lucide-react";
-import type { WorkflowStatus, WorkflowStatusPoll } from "@/lib/types";
+  XCircle,
+} from 'lucide-react'
+import { useEffect, useState } from 'react'
+import type { WorkflowStatus, WorkflowStatusPoll } from '@/lib/types'
 
 interface EvalRunProgressProps {
-  runId: string;
-  status: WorkflowStatusPoll;
-  onPause?: () => void;
-  onResume?: () => void;
-  onCancel?: () => void;
-  isPausing?: boolean;
-  isResuming?: boolean;
-  isCancelling?: boolean;
+  runId: string
+  status: WorkflowStatusPoll
+  onPause?: () => void
+  onResume?: () => void
+  onCancel?: () => void
+  isPausing?: boolean
+  isResuming?: boolean
+  isCancelling?: boolean
 }
 
 /**
@@ -35,69 +35,69 @@ interface EvalRunProgressProps {
  */
 function getStatusInfo(status: WorkflowStatus) {
   switch (status) {
-    case "RUNNING":
+    case 'RUNNING':
       return {
         Icon: Loader2,
-        color: "text-blue-600",
-        bgColor: "bg-blue-50",
-        borderColor: "border-blue-200",
-        label: "Running",
+        color: 'text-blue-600',
+        bgColor: 'bg-blue-50',
+        borderColor: 'border-blue-200',
+        label: 'Running',
         animate: true,
-      };
-    case "COMPLETED":
+      }
+    case 'COMPLETED':
       return {
         Icon: CheckCircle,
-        color: "text-green-600",
-        bgColor: "bg-green-50",
-        borderColor: "border-green-200",
-        label: "Completed",
+        color: 'text-green-600',
+        bgColor: 'bg-green-50',
+        borderColor: 'border-green-200',
+        label: 'Completed',
         animate: false,
-      };
-    case "FAILED":
+      }
+    case 'FAILED':
       return {
         Icon: XCircle,
-        color: "text-red-600",
-        bgColor: "bg-red-50",
-        borderColor: "border-red-200",
-        label: "Failed",
+        color: 'text-red-600',
+        bgColor: 'bg-red-50',
+        borderColor: 'border-red-200',
+        label: 'Failed',
         animate: false,
-      };
-    case "CANCELLED":
+      }
+    case 'CANCELLED':
       return {
         Icon: Square,
-        color: "text-gray-600",
-        bgColor: "bg-gray-50",
-        borderColor: "border-gray-200",
-        label: "Cancelled",
+        color: 'text-gray-600',
+        bgColor: 'bg-gray-50',
+        borderColor: 'border-gray-200',
+        label: 'Cancelled',
         animate: false,
-      };
-    case "TERMINATED":
+      }
+    case 'TERMINATED':
       return {
         Icon: XCircle,
-        color: "text-gray-600",
-        bgColor: "bg-gray-50",
-        borderColor: "border-gray-200",
-        label: "Terminated",
+        color: 'text-gray-600',
+        bgColor: 'bg-gray-50',
+        borderColor: 'border-gray-200',
+        label: 'Terminated',
         animate: false,
-      };
-    case "TIMED_OUT":
+      }
+    case 'TIMED_OUT':
       return {
         Icon: Clock,
-        color: "text-orange-600",
-        bgColor: "bg-orange-50",
-        borderColor: "border-orange-200",
-        label: "Timed Out",
+        color: 'text-orange-600',
+        bgColor: 'bg-orange-50',
+        borderColor: 'border-orange-200',
+        label: 'Timed Out',
         animate: false,
-      };
+      }
     default:
       return {
         Icon: AlertTriangle,
-        color: "text-gray-600",
-        bgColor: "bg-gray-50",
-        borderColor: "border-gray-200",
-        label: "Unknown",
+        color: 'text-gray-600',
+        bgColor: 'bg-gray-50',
+        borderColor: 'border-gray-200',
+        label: 'Unknown',
         animate: false,
-      };
+      }
   }
 }
 
@@ -105,16 +105,16 @@ function getStatusInfo(status: WorkflowStatus) {
  * Format duration from milliseconds
  */
 function formatDuration(ms: number): string {
-  if (ms < 1000) return "<1s";
-  if (ms < 60000) return `${Math.round(ms / 1000)}s`;
+  if (ms < 1000) return '<1s'
+  if (ms < 60000) return `${Math.round(ms / 1000)}s`
   if (ms < 3600000) {
-    const mins = Math.floor(ms / 60000);
-    const secs = Math.round((ms % 60000) / 1000);
-    return secs > 0 ? `${mins}m ${secs}s` : `${mins}m`;
+    const mins = Math.floor(ms / 60000)
+    const secs = Math.round((ms % 60000) / 1000)
+    return secs > 0 ? `${mins}m ${secs}s` : `${mins}m`
   }
-  const hours = Math.floor(ms / 3600000);
-  const mins = Math.round((ms % 3600000) / 60000);
-  return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
+  const hours = Math.floor(ms / 3600000)
+  const mins = Math.round((ms % 3600000) / 60000)
+  return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`
 }
 
 export function EvalRunProgress({
@@ -127,23 +127,23 @@ export function EvalRunProgress({
   isResuming,
   isCancelling,
 }: EvalRunProgressProps) {
-  const statusInfo = getStatusInfo(status.status);
-  const [elapsedMs, setElapsedMs] = useState(0);
-  const startTime = Date.now(); // Would come from status in real impl
+  const statusInfo = getStatusInfo(status.status)
+  const [elapsedMs, setElapsedMs] = useState(0)
+  const startTime = Date.now() // Would come from status in real impl
 
   // Update elapsed time for running workflows
   useEffect(() => {
-    if (!status.isRunning) return;
+    if (!status.isRunning) return
 
     const interval = setInterval(() => {
-      setElapsedMs((prev) => prev + 1000);
-    }, 1000);
+      setElapsedMs((prev) => prev + 1000)
+    }, 1000)
 
-    return () => clearInterval(interval);
-  }, [status.isRunning]);
+    return () => clearInterval(interval)
+  }, [status.isRunning])
 
-  const progress = status.progress;
-  const percentComplete = progress?.percentComplete ?? 0;
+  const progress = status.progress
+  const percentComplete = progress?.percentComplete ?? 0
 
   return (
     <div
@@ -153,7 +153,7 @@ export function EvalRunProgress({
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
           <statusInfo.Icon
-            className={`w-6 h-6 ${statusInfo.color} ${statusInfo.animate ? "animate-spin" : ""}`}
+            className={`w-6 h-6 ${statusInfo.color} ${statusInfo.animate ? 'animate-spin' : ''}`}
           />
           <div>
             <h3 className={`font-semibold ${statusInfo.color}`}>
@@ -210,11 +210,11 @@ export function EvalRunProgress({
           <div className="w-full bg-white/50 rounded-full h-3 overflow-hidden">
             <div
               className={`h-full rounded-full transition-all duration-500 ${
-                status.status === "COMPLETED"
-                  ? "bg-green-500"
-                  : status.status === "FAILED"
-                    ? "bg-red-500"
-                    : "bg-blue-500"
+                status.status === 'COMPLETED'
+                  ? 'bg-green-500'
+                  : status.status === 'FAILED'
+                    ? 'bg-red-500'
+                    : 'bg-blue-500'
               }`}
               style={{ width: `${percentComplete}%` }}
             />
@@ -266,10 +266,10 @@ export function EvalRunProgress({
             <span
               className={`text-lg font-bold ${
                 status.summary.avgScore >= 0.8
-                  ? "text-green-600"
+                  ? 'text-green-600'
                   : status.summary.avgScore >= 0.6
-                    ? "text-yellow-600"
-                    : "text-red-600"
+                    ? 'text-yellow-600'
+                    : 'text-red-600'
               }`}
             >
               {(status.summary.avgScore * 100).toFixed(1)}%
@@ -285,7 +285,7 @@ export function EvalRunProgress({
         </div>
       )}
     </div>
-  );
+  )
 }
 
-export default EvalRunProgress;
+export default EvalRunProgress

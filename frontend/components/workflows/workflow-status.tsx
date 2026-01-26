@@ -1,4 +1,4 @@
-"use client";
+'use client'
 
 /**
  * Workflow Status Component
@@ -6,50 +6,50 @@
  * Shows real-time status of Temporal workflows.
  */
 
-import { useEffect, useState } from "react";
-import { cn } from "@/lib/utils";
 import {
-  Play,
-  CheckCircle,
-  XCircle,
-  Clock,
-  Pause,
   AlertTriangle,
+  CheckCircle,
+  Clock,
   Loader2,
+  Pause,
+  Play,
   RefreshCw,
-} from "lucide-react";
+  XCircle,
+} from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { cn } from '@/lib/utils'
 
 /**
  * Workflow status type
  */
 type WorkflowStatus =
-  | "RUNNING"
-  | "COMPLETED"
-  | "FAILED"
-  | "CANCELLED"
-  | "TERMINATED"
-  | "TIMED_OUT"
-  | "awaiting_approval";
+  | 'RUNNING'
+  | 'COMPLETED'
+  | 'FAILED'
+  | 'CANCELLED'
+  | 'TERMINATED'
+  | 'TIMED_OUT'
+  | 'awaiting_approval'
 
 /**
  * Workflow progress
  */
 interface WorkflowProgress {
-  iteration: number;
-  maxIterations: number;
-  status: string;
+  iteration: number
+  maxIterations: number
+  status: string
 }
 
 interface WorkflowStatusProps {
-  workflowId: string;
-  status: WorkflowStatus;
-  progress?: WorkflowProgress;
-  startTime: string;
-  closeTime?: string | null;
-  workflowType?: string;
-  onRefresh?: () => void;
-  onApprove?: () => void;
-  onCancel?: () => void;
+  workflowId: string
+  status: WorkflowStatus
+  progress?: WorkflowProgress
+  startTime: string
+  closeTime?: string | null
+  workflowType?: string
+  onRefresh?: () => void
+  onApprove?: () => void
+  onCancel?: () => void
 }
 
 /**
@@ -57,63 +57,63 @@ interface WorkflowStatusProps {
  */
 function getStatusInfo(status: WorkflowStatus) {
   switch (status) {
-    case "RUNNING":
+    case 'RUNNING':
       return {
         Icon: Loader2,
-        color: "text-blue-500",
-        bgColor: "bg-blue-50",
-        label: "Running",
+        color: 'text-blue-500',
+        bgColor: 'bg-blue-50',
+        label: 'Running',
         animate: true,
-      };
-    case "COMPLETED":
+      }
+    case 'COMPLETED':
       return {
         Icon: CheckCircle,
-        color: "text-green-500",
-        bgColor: "bg-green-50",
-        label: "Completed",
+        color: 'text-green-500',
+        bgColor: 'bg-green-50',
+        label: 'Completed',
         animate: false,
-      };
-    case "FAILED":
+      }
+    case 'FAILED':
       return {
         Icon: XCircle,
-        color: "text-red-500",
-        bgColor: "bg-red-50",
-        label: "Failed",
+        color: 'text-red-500',
+        bgColor: 'bg-red-50',
+        label: 'Failed',
         animate: false,
-      };
-    case "CANCELLED":
-    case "TERMINATED":
+      }
+    case 'CANCELLED':
+    case 'TERMINATED':
       return {
         Icon: XCircle,
-        color: "text-gray-500",
-        bgColor: "bg-gray-50",
-        label: status === "CANCELLED" ? "Cancelled" : "Terminated",
+        color: 'text-gray-500',
+        bgColor: 'bg-gray-50',
+        label: status === 'CANCELLED' ? 'Cancelled' : 'Terminated',
         animate: false,
-      };
-    case "TIMED_OUT":
+      }
+    case 'TIMED_OUT':
       return {
         Icon: Clock,
-        color: "text-orange-500",
-        bgColor: "bg-orange-50",
-        label: "Timed Out",
+        color: 'text-orange-500',
+        bgColor: 'bg-orange-50',
+        label: 'Timed Out',
         animate: false,
-      };
-    case "awaiting_approval":
+      }
+    case 'awaiting_approval':
       return {
         Icon: Pause,
-        color: "text-yellow-500",
-        bgColor: "bg-yellow-50",
-        label: "Awaiting Approval",
+        color: 'text-yellow-500',
+        bgColor: 'bg-yellow-50',
+        label: 'Awaiting Approval',
         animate: false,
-      };
+      }
     default:
       return {
         Icon: AlertTriangle,
-        color: "text-gray-500",
-        bgColor: "bg-gray-50",
-        label: "Unknown",
+        color: 'text-gray-500',
+        bgColor: 'bg-gray-50',
+        label: 'Unknown',
         animate: false,
-      };
+      }
   }
 }
 
@@ -121,14 +121,14 @@ function getStatusInfo(status: WorkflowStatus) {
  * Format duration
  */
 function formatDuration(startTime: string, endTime?: string | null): string {
-  const start = new Date(startTime).getTime();
-  const end = endTime ? new Date(endTime).getTime() : Date.now();
-  const durationMs = end - start;
+  const start = new Date(startTime).getTime()
+  const end = endTime ? new Date(endTime).getTime() : Date.now()
+  const durationMs = end - start
 
-  if (durationMs < 1000) return "<1s";
-  if (durationMs < 60000) return `${Math.round(durationMs / 1000)}s`;
-  if (durationMs < 3600000) return `${Math.round(durationMs / 60000)}m`;
-  return `${(durationMs / 3600000).toFixed(1)}h`;
+  if (durationMs < 1000) return '<1s'
+  if (durationMs < 60000) return `${Math.round(durationMs / 1000)}s`
+  if (durationMs < 3600000) return `${Math.round(durationMs / 60000)}m`
+  return `${(durationMs / 3600000).toFixed(1)}h`
 }
 
 /**
@@ -145,19 +145,19 @@ export function WorkflowStatus({
   onApprove,
   onCancel,
 }: WorkflowStatusProps) {
-  const statusInfo = getStatusInfo(status);
-  const [elapsed, setElapsed] = useState(formatDuration(startTime, closeTime));
+  const statusInfo = getStatusInfo(status)
+  const [elapsed, setElapsed] = useState(formatDuration(startTime, closeTime))
 
   // Update elapsed time for running workflows
   useEffect(() => {
-    if (status !== "RUNNING" && status !== "awaiting_approval") return;
+    if (status !== 'RUNNING' && status !== 'awaiting_approval') return
 
     const interval = setInterval(() => {
-      setElapsed(formatDuration(startTime, closeTime));
-    }, 1000);
+      setElapsed(formatDuration(startTime, closeTime))
+    }, 1000)
 
-    return () => clearInterval(interval);
-  }, [status, startTime, closeTime]);
+    return () => clearInterval(interval)
+  }, [status, startTime, closeTime])
 
   return (
     <div className="border rounded-lg p-4">
@@ -166,12 +166,12 @@ export function WorkflowStatus({
         <div className="flex items-center gap-2">
           <statusInfo.Icon
             className={cn(
-              "w-5 h-5",
+              'w-5 h-5',
               statusInfo.color,
-              statusInfo.animate && "animate-spin"
+              statusInfo.animate && 'animate-spin',
             )}
           />
-          <span className={cn("font-medium", statusInfo.color)}>
+          <span className={cn('font-medium', statusInfo.color)}>
             {statusInfo.label}
           </span>
         </div>
@@ -222,7 +222,7 @@ export function WorkflowStatus({
       </div>
 
       {/* Progress */}
-      {progress && status === "RUNNING" && (
+      {progress && status === 'RUNNING' && (
         <div className="mt-4">
           <div className="flex justify-between text-sm mb-1">
             <span className="text-gray-500">Progress</span>
@@ -242,7 +242,7 @@ export function WorkflowStatus({
       )}
 
       {/* Approval Actions */}
-      {status === "awaiting_approval" && onApprove && onCancel && (
+      {status === 'awaiting_approval' && onApprove && onCancel && (
         <div className="mt-4 flex gap-2">
           <button
             onClick={onApprove}
@@ -260,7 +260,7 @@ export function WorkflowStatus({
       )}
 
       {/* Cancel Action */}
-      {status === "RUNNING" && onCancel && (
+      {status === 'RUNNING' && onCancel && (
         <div className="mt-4">
           <button
             onClick={onCancel}
@@ -271,7 +271,7 @@ export function WorkflowStatus({
         </div>
       )}
     </div>
-  );
+  )
 }
 
-export default WorkflowStatus;
+export default WorkflowStatus

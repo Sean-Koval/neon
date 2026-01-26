@@ -1,4 +1,4 @@
-"use client";
+'use client'
 
 /**
  * Eval Run Detail Page
@@ -6,50 +6,45 @@
  * Shows real-time status and results for a single eval run.
  */
 
-import { useParams, useRouter } from "next/navigation";
-import Link from "next/link";
-import { formatDistanceToNow, format } from "date-fns";
+import { format, formatDistanceToNow } from 'date-fns'
 import {
   ArrowLeft,
-  RefreshCw,
-  Loader2,
-  XCircle,
-  ExternalLink,
   Download,
-} from "lucide-react";
+  ExternalLink,
+  Loader2,
+  RefreshCw,
+  XCircle,
+} from 'lucide-react'
+import Link from 'next/link'
+import { useParams, useRouter } from 'next/navigation'
+import { EvalRunProgress, EvalRunResults } from '@/components/eval-runs'
 import {
-  useWorkflowRun,
-  useWorkflowRunStatus,
+  useCancelWorkflowRun,
   usePauseWorkflowRun,
   useResumeWorkflowRun,
-  useCancelWorkflowRun,
-} from "@/hooks/use-workflow-runs";
-import { EvalRunProgress, EvalRunResults } from "@/components/eval-runs";
+  useWorkflowRun,
+  useWorkflowRunStatus,
+} from '@/hooks/use-workflow-runs'
 
 export default function EvalRunDetailPage() {
-  const params = useParams();
-  const router = useRouter();
-  const runId = params.id as string;
+  const params = useParams()
+  const router = useRouter()
+  const runId = params.id as string
 
   // Fetch full run details
-  const {
-    data: run,
-    isLoading,
-    error,
-    refetch,
-  } = useWorkflowRun(runId);
+  const { data: run, isLoading, error, refetch } = useWorkflowRun(runId)
 
   // Fetch lightweight status for polling
-  const { data: status } = useWorkflowRunStatus(runId);
+  const { data: status } = useWorkflowRunStatus(runId)
 
   // Control mutations
-  const pauseMutation = usePauseWorkflowRun();
-  const resumeMutation = useResumeWorkflowRun();
+  const pauseMutation = usePauseWorkflowRun()
+  const resumeMutation = useResumeWorkflowRun()
   const cancelMutation = useCancelWorkflowRun({
     onSuccess: () => {
-      refetch();
+      refetch()
     },
-  });
+  })
 
   // Loading state
   if (isLoading) {
@@ -57,7 +52,7 @@ export default function EvalRunDetailPage() {
       <div className="flex items-center justify-center h-screen">
         <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
       </div>
-    );
+    )
   }
 
   // Error state
@@ -67,25 +62,25 @@ export default function EvalRunDetailPage() {
         <XCircle className="w-12 h-12 text-red-400 mb-4" />
         <h2 className="text-xl font-medium mb-2">Run not found</h2>
         <p className="text-gray-500 mb-4">
-          {error?.message || "The eval run could not be loaded."}
+          {error?.message || 'The eval run could not be loaded.'}
         </p>
-        <Link
-          href="/eval-runs"
-          className="text-blue-600 hover:text-blue-800"
-        >
+        <Link href="/eval-runs" className="text-blue-600 hover:text-blue-800">
           Back to runs
         </Link>
       </div>
-    );
+    )
   }
 
   // Use status for real-time updates, fall back to run data
   const currentStatus = status || {
     id: run.id,
     status: run.status,
-    isRunning: run.status === "RUNNING",
-    isComplete: run.status === "COMPLETED",
-    isFailed: run.status === "FAILED" || run.status === "CANCELLED" || run.status === "TERMINATED",
+    isRunning: run.status === 'RUNNING',
+    isComplete: run.status === 'COMPLETED',
+    isFailed:
+      run.status === 'FAILED' ||
+      run.status === 'CANCELLED' ||
+      run.status === 'TERMINATED',
     progress: run.progress
       ? {
           completed: run.progress.completed,
@@ -98,12 +93,14 @@ export default function EvalRunDetailPage() {
               : 0,
         }
       : undefined,
-    summary: run.result as { total: number; passed: number; failed: number; avgScore: number } | undefined,
+    summary: run.result as
+      | { total: number; passed: number; failed: number; avgScore: number }
+      | undefined,
     error: run.error,
-  };
+  }
 
   // Get results from run progress
-  const results = run.progress?.results || [];
+  const results = run.progress?.results || []
 
   return (
     <div className="p-6 max-w-5xl mx-auto">
@@ -136,8 +133,8 @@ export default function EvalRunDetailPage() {
           onPause={() => pauseMutation.mutate(runId)}
           onResume={() => resumeMutation.mutate(runId)}
           onCancel={() => {
-            if (confirm("Are you sure you want to cancel this eval run?")) {
-              cancelMutation.mutate(runId);
+            if (confirm('Are you sure you want to cancel this eval run?')) {
+              cancelMutation.mutate(runId)
             }
           }}
           isPausing={pauseMutation.isPending}
@@ -161,7 +158,7 @@ export default function EvalRunDetailPage() {
             Started
           </p>
           <p className="text-sm">
-            {format(new Date(run.startTime), "MMM d, yyyy h:mm a")}
+            {format(new Date(run.startTime), 'MMM d, yyyy h:mm a')}
           </p>
         </div>
         <div className="bg-white border rounded-lg p-4">
@@ -170,8 +167,10 @@ export default function EvalRunDetailPage() {
           </p>
           <p className="text-sm">
             {run.closeTime
-              ? formatDistanceToNow(new Date(run.startTime), { includeSeconds: true })
-              : "In progress..."}
+              ? formatDistanceToNow(new Date(run.startTime), {
+                  includeSeconds: true,
+                })
+              : 'In progress...'}
           </p>
         </div>
         <div className="bg-white border rounded-lg p-4">
@@ -200,14 +199,14 @@ export default function EvalRunDetailPage() {
               onClick={() => {
                 // Export results as JSON
                 const blob = new Blob([JSON.stringify(results, null, 2)], {
-                  type: "application/json",
-                });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement("a");
-                a.href = url;
-                a.download = `eval-run-${runId}-results.json`;
-                a.click();
-                URL.revokeObjectURL(url);
+                  type: 'application/json',
+                })
+                const url = URL.createObjectURL(blob)
+                const a = document.createElement('a')
+                a.href = url
+                a.download = `eval-run-${runId}-results.json`
+                a.click()
+                URL.revokeObjectURL(url)
               }}
             >
               <Download className="w-4 h-4" />
@@ -229,7 +228,9 @@ export default function EvalRunDetailPage() {
       {results.length === 0 && currentStatus.isRunning && (
         <div className="border rounded-lg p-8 text-center">
           <Loader2 className="w-8 h-8 animate-spin text-blue-500 mx-auto mb-3" />
-          <p className="text-gray-600 font-medium">Running evaluation cases...</p>
+          <p className="text-gray-600 font-medium">
+            Running evaluation cases...
+          </p>
           <p className="text-sm text-gray-500">
             Results will appear here as cases complete
           </p>
@@ -246,5 +247,5 @@ export default function EvalRunDetailPage() {
         </div>
       )}
     </div>
-  );
+  )
 }

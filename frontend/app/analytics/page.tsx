@@ -1,4 +1,4 @@
-"use client";
+'use client'
 
 /**
  * Analytics Page
@@ -6,76 +6,76 @@
  * Shows usage analytics, cost tracking, and performance metrics.
  */
 
-import { useState, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
-import {
-  BarChart,
-  Bar,
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-} from "recharts";
+import { useQuery } from '@tanstack/react-query'
 import {
   Calendar,
-  DollarSign,
-  Zap,
   Clock,
-  TrendingUp,
+  DollarSign,
   Hash,
-} from "lucide-react";
-import { cn } from "@/lib/utils";
+  TrendingUp,
+  Zap,
+} from 'lucide-react'
+import { useMemo, useState } from 'react'
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Line,
+  LineChart,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts'
+import { cn } from '@/lib/utils'
 
-const MOOSE_API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+const MOOSE_API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
 
 /**
  * Date range options
  */
 const DATE_RANGES = [
-  { label: "Last 7 days", days: 7 },
-  { label: "Last 30 days", days: 30 },
-  { label: "Last 90 days", days: 90 },
-];
+  { label: 'Last 7 days', days: 7 },
+  { label: 'Last 30 days', days: 30 },
+  { label: 'Last 90 days', days: 90 },
+]
 
 /**
  * Format currency
  */
 function formatCurrency(value: number): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
     minimumFractionDigits: 2,
-  }).format(value);
+  }).format(value)
 }
 
 /**
  * Format large numbers
  */
 function formatNumber(value: number): string {
-  if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
-  if (value >= 1000) return `${(value / 1000).toFixed(1)}K`;
-  return value.toFixed(0);
+  if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`
+  if (value >= 1000) return `${(value / 1000).toFixed(1)}K`
+  return value.toFixed(0)
 }
 
 export default function AnalyticsPage() {
-  const [dateRange, setDateRange] = useState(7);
+  const [dateRange, setDateRange] = useState(7)
 
-  const endDate = useMemo(() => new Date().toISOString().split("T")[0], []);
+  const endDate = useMemo(() => new Date().toISOString().split('T')[0], [])
   const startDate = useMemo(() => {
-    const date = new Date();
-    date.setDate(date.getDate() - dateRange);
-    return date.toISOString().split("T")[0];
-  }, [dateRange]);
+    const date = new Date()
+    date.setDate(date.getDate() - dateRange)
+    return date.toISOString().split('T')[0]
+  }, [dateRange])
 
   // Fetch analytics data
   const { data: summary } = useQuery({
-    queryKey: ["analytics", "summary", startDate, endDate],
+    queryKey: ['analytics', 'summary', startDate, endDate],
     queryFn: async () => {
       // Mock data for now
       return {
@@ -87,34 +87,34 @@ export default function AnalyticsPage() {
         total_scores: 890,
         avg_score: 0.82,
         top_models: [
-          { model: "claude-3-5-sonnet", calls: 800, cost: 85.0 },
-          { model: "claude-3-haiku", calls: 350, cost: 12.5 },
-          { model: "gpt-4o", calls: 84, cost: 30.0 },
+          { model: 'claude-3-5-sonnet', calls: 800, cost: 85.0 },
+          { model: 'claude-3-haiku', calls: 350, cost: 12.5 },
+          { model: 'gpt-4o', calls: 84, cost: 30.0 },
         ],
-      };
+      }
     },
-  });
+  })
 
   const { data: dailyStats } = useQuery({
-    queryKey: ["analytics", "daily", startDate, endDate],
+    queryKey: ['analytics', 'daily', startDate, endDate],
     queryFn: async () => {
       // Mock data
-      const data = [];
+      const data = []
       for (let i = dateRange - 1; i >= 0; i--) {
-        const date = new Date();
-        date.setDate(date.getDate() - i);
+        const date = new Date()
+        date.setDate(date.getDate() - i)
         data.push({
-          date: date.toISOString().split("T")[0],
+          date: date.toISOString().split('T')[0],
           traces: Math.floor(Math.random() * 200 + 100),
           tokens: Math.floor(Math.random() * 500000 + 200000),
           cost: Math.random() * 20 + 10,
-        });
+        })
       }
-      return data;
+      return data
     },
-  });
+  })
 
-  const COLORS = ["#8884d8", "#82ca9d", "#ffc658", "#ff7300"];
+  const COLORS = ['#8884d8', '#82ca9d', '#ffc658', '#ff7300']
 
   return (
     <div className="p-6">
@@ -204,9 +204,9 @@ export default function AnalyticsPage() {
                   dataKey="date"
                   tick={{ fontSize: 12 }}
                   tickFormatter={(value) =>
-                    new Date(value).toLocaleDateString("en-US", {
-                      month: "short",
-                      day: "numeric",
+                    new Date(value).toLocaleDateString('en-US', {
+                      month: 'short',
+                      day: 'numeric',
                     })
                   }
                 />
@@ -234,9 +234,9 @@ export default function AnalyticsPage() {
                   dataKey="date"
                   tick={{ fontSize: 12 }}
                   tickFormatter={(value) =>
-                    new Date(value).toLocaleDateString("en-US", {
-                      month: "short",
-                      day: "numeric",
+                    new Date(value).toLocaleDateString('en-US', {
+                      month: 'short',
+                      day: 'numeric',
                     })
                   }
                 />
@@ -264,7 +264,7 @@ export default function AnalyticsPage() {
                   cy="50%"
                   outerRadius={80}
                   label={({ model, percent }) =>
-                    `${model.split("-").pop()} (${(percent * 100).toFixed(0)}%)`
+                    `${model.split('-').pop()} (${(percent * 100).toFixed(0)}%)`
                   }
                 >
                   {summary?.top_models.map((entry, index) => (
@@ -287,7 +287,9 @@ export default function AnalyticsPage() {
               <div key={model.model}>
                 <div className="flex justify-between text-sm mb-1">
                   <span>{model.model}</span>
-                  <span className="font-medium">{formatCurrency(model.cost)}</span>
+                  <span className="font-medium">
+                    {formatCurrency(model.cost)}
+                  </span>
                 </div>
                 <div className="w-full bg-gray-200 rounded-full h-2">
                   <div
@@ -304,5 +306,5 @@ export default function AnalyticsPage() {
         </div>
       </div>
     </div>
-  );
+  )
 }

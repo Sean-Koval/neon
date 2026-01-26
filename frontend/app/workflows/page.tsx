@@ -1,4 +1,4 @@
-"use client";
+'use client'
 
 /**
  * Workflows Page
@@ -6,39 +6,39 @@
  * Shows Temporal workflow status and management.
  */
 
-import { useState } from "react";
-import Link from "next/link";
-import { useWorkflows, type WorkflowStatus } from "@/hooks/use-workflows";
 import {
-  Play,
   CheckCircle,
-  XCircle,
-  Clock,
-  Pause,
-  RefreshCw,
-  Filter,
   ChevronRight,
-} from "lucide-react";
-import { cn } from "@/lib/utils";
+  Clock,
+  Filter,
+  Pause,
+  Play,
+  RefreshCw,
+  XCircle,
+} from 'lucide-react'
+import Link from 'next/link'
+import { useState } from 'react'
+import { useWorkflows, type WorkflowStatus } from '@/hooks/use-workflows'
+import { cn } from '@/lib/utils'
 
 /**
  * Get status info
  */
 function getStatusInfo(status: WorkflowStatus) {
   switch (status) {
-    case "RUNNING":
-      return { Icon: Play, color: "text-blue-500", bg: "bg-blue-50" };
-    case "COMPLETED":
-      return { Icon: CheckCircle, color: "text-green-500", bg: "bg-green-50" };
-    case "FAILED":
-      return { Icon: XCircle, color: "text-red-500", bg: "bg-red-50" };
-    case "CANCELLED":
-    case "TERMINATED":
-      return { Icon: XCircle, color: "text-gray-500", bg: "bg-gray-50" };
-    case "TIMED_OUT":
-      return { Icon: Clock, color: "text-orange-500", bg: "bg-orange-50" };
+    case 'RUNNING':
+      return { Icon: Play, color: 'text-blue-500', bg: 'bg-blue-50' }
+    case 'COMPLETED':
+      return { Icon: CheckCircle, color: 'text-green-500', bg: 'bg-green-50' }
+    case 'FAILED':
+      return { Icon: XCircle, color: 'text-red-500', bg: 'bg-red-50' }
+    case 'CANCELLED':
+    case 'TERMINATED':
+      return { Icon: XCircle, color: 'text-gray-500', bg: 'bg-gray-50' }
+    case 'TIMED_OUT':
+      return { Icon: Clock, color: 'text-orange-500', bg: 'bg-orange-50' }
     default:
-      return { Icon: Clock, color: "text-gray-500", bg: "bg-gray-50" };
+      return { Icon: Clock, color: 'text-gray-500', bg: 'bg-gray-50' }
   }
 }
 
@@ -46,19 +46,23 @@ function getStatusInfo(status: WorkflowStatus) {
  * Format relative time
  */
 function formatRelativeTime(timestamp: string): string {
-  const now = Date.now();
-  const time = new Date(timestamp).getTime();
-  const diff = now - time;
+  const now = Date.now()
+  const time = new Date(timestamp).getTime()
+  const diff = now - time
 
-  if (diff < 60000) return "just now";
-  if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
-  if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
-  return `${Math.floor(diff / 86400000)}d ago`;
+  if (diff < 60000) return 'just now'
+  if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`
+  if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`
+  return `${Math.floor(diff / 86400000)}d ago`
 }
 
 export default function WorkflowsPage() {
-  const [statusFilter, setStatusFilter] = useState<WorkflowStatus | undefined>();
-  const { data: workflows, isLoading, refetch } = useWorkflows({ status: statusFilter });
+  const [statusFilter, setStatusFilter] = useState<WorkflowStatus | undefined>()
+  const {
+    data: workflows,
+    isLoading,
+    refetch,
+  } = useWorkflows({ status: statusFilter })
 
   return (
     <div className="p-6">
@@ -83,7 +87,7 @@ export default function WorkflowsPage() {
       {/* Filters */}
       <div className="flex items-center gap-4 mb-6">
         <select
-          value={statusFilter || ""}
+          value={statusFilter || ''}
           onChange={(e) =>
             setStatusFilter((e.target.value as WorkflowStatus) || undefined)
           }
@@ -132,7 +136,7 @@ export default function WorkflowsPage() {
 
         {/* Workflow rows */}
         {workflows?.map((workflow) => {
-          const statusInfo = getStatusInfo(workflow.status);
+          const statusInfo = getStatusInfo(workflow.status)
 
           return (
             <Link
@@ -141,7 +145,9 @@ export default function WorkflowsPage() {
               className="flex items-center px-4 py-3 border-b hover:bg-gray-50 cursor-pointer"
             >
               <div className="flex-1 min-w-0">
-                <div className="font-medium truncate">{workflow.workflowId}</div>
+                <div className="font-medium truncate">
+                  {workflow.workflowId}
+                </div>
                 <div className="text-sm text-gray-500 font-mono truncate">
                   {workflow.runId}
                 </div>
@@ -154,9 +160,9 @@ export default function WorkflowsPage() {
               <div className="w-24 flex justify-center">
                 <span
                   className={cn(
-                    "flex items-center gap-1 px-2 py-1 rounded-full text-sm",
+                    'flex items-center gap-1 px-2 py-1 rounded-full text-sm',
                     statusInfo.bg,
-                    statusInfo.color
+                    statusInfo.color,
                   )}
                 >
                   <statusInfo.Icon className="w-3 h-3" />
@@ -172,9 +178,9 @@ export default function WorkflowsPage() {
                 <ChevronRight className="w-4 h-4 text-gray-400" />
               </div>
             </Link>
-          );
+          )
         })}
       </div>
     </div>
-  );
+  )
 }

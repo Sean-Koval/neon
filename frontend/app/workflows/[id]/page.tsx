@@ -1,4 +1,4 @@
-"use client";
+'use client'
 
 /**
  * Workflow Detail Page
@@ -6,36 +6,36 @@
  * Shows detailed status and controls for a Temporal workflow.
  */
 
-import { useState } from "react";
-import { useParams } from "next/navigation";
-import Link from "next/link";
+import { ArrowLeft, RefreshCw, XCircle } from 'lucide-react'
+import Link from 'next/link'
+import { useParams } from 'next/navigation'
+import { useState } from 'react'
+import { ApprovalDialog } from '@/components/workflows/approval-dialog'
+import { WorkflowStatus } from '@/components/workflows/workflow-status'
 import {
-  useWorkflow,
-  useWorkflowProgress,
   useApproveWorkflow,
   useCancelWorkflow,
-} from "@/hooks/use-workflows";
-import { WorkflowStatus } from "@/components/workflows/workflow-status";
-import { ApprovalDialog } from "@/components/workflows/approval-dialog";
-import { ArrowLeft, RefreshCw, XCircle } from "lucide-react";
+  useWorkflow,
+  useWorkflowProgress,
+} from '@/hooks/use-workflows'
 
 export default function WorkflowDetailPage() {
-  const params = useParams();
-  const workflowId = params.id as string;
+  const params = useParams()
+  const workflowId = params.id as string
 
-  const { data: workflow, isLoading, refetch } = useWorkflow(workflowId);
-  const { data: progress } = useWorkflowProgress(workflowId);
-  const approveMutation = useApproveWorkflow();
-  const cancelMutation = useCancelWorkflow();
+  const { data: workflow, isLoading, refetch } = useWorkflow(workflowId)
+  const { data: progress } = useWorkflowProgress(workflowId)
+  const approveMutation = useApproveWorkflow()
+  const cancelMutation = useCancelWorkflow()
 
-  const [showApprovalDialog, setShowApprovalDialog] = useState(false);
+  const [showApprovalDialog, setShowApprovalDialog] = useState(false)
 
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-screen">
         <RefreshCw className="w-8 h-8 animate-spin text-gray-400" />
       </div>
-    );
+    )
   }
 
   if (!workflow) {
@@ -47,29 +47,29 @@ export default function WorkflowDetailPage() {
           Back to workflows
         </Link>
       </div>
-    );
+    )
   }
 
   const handleApprove = () => {
     approveMutation.mutate({
       workflowId,
       approved: true,
-    });
-  };
+    })
+  }
 
   const handleReject = (reason: string) => {
     approveMutation.mutate({
       workflowId,
       approved: false,
       reason,
-    });
-  };
+    })
+  }
 
   const handleCancel = () => {
-    if (confirm("Are you sure you want to cancel this workflow?")) {
-      cancelMutation.mutate(workflowId);
+    if (confirm('Are you sure you want to cancel this workflow?')) {
+      cancelMutation.mutate(workflowId)
     }
-  };
+  }
 
   return (
     <div className="p-6 max-w-2xl mx-auto">
@@ -99,16 +99,8 @@ export default function WorkflowDetailPage() {
         closeTime={workflow.closeTime}
         workflowType={workflow.type}
         onRefresh={() => refetch()}
-        onApprove={
-          workflow.status === "awaiting_approval"
-            ? () => setShowApprovalDialog(true)
-            : undefined
-        }
-        onCancel={
-          workflow.status === "RUNNING" || workflow.status === "awaiting_approval"
-            ? handleCancel
-            : undefined
-        }
+        onApprove={undefined}
+        onCancel={workflow.status === 'RUNNING' ? handleCancel : undefined}
       />
 
       {/* Timeline would go here */}
@@ -123,10 +115,10 @@ export default function WorkflowDetailPage() {
       <ApprovalDialog
         request={{
           workflowId,
-          toolName: "example_tool",
-          toolInput: { example: "data" },
-          reason: "This action requires human approval",
-          riskLevel: "medium",
+          toolName: 'example_tool',
+          toolInput: { example: 'data' },
+          reason: 'This action requires human approval',
+          riskLevel: 'medium',
         }}
         isOpen={showApprovalDialog}
         onApprove={handleApprove}
@@ -134,5 +126,5 @@ export default function WorkflowDetailPage() {
         onClose={() => setShowApprovalDialog(false)}
       />
     </div>
-  );
+  )
 }

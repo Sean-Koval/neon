@@ -1,4 +1,4 @@
-"use client";
+'use client'
 
 /**
  * Start Eval Run Dialog
@@ -6,35 +6,48 @@
  * Modal dialog for configuring and starting a new eval run.
  */
 
-import { useState } from "react";
-import {
-  X,
-  Play,
-  Loader2,
-  Plus,
-  Trash2,
-  AlertCircle,
-} from "lucide-react";
-import type { StartEvalRunRequest } from "@/lib/types";
+import { AlertCircle, Loader2, Play, Plus, Trash2, X } from 'lucide-react'
+import { useState } from 'react'
+import type { StartEvalRunRequest } from '@/lib/types'
 
 interface StartEvalRunDialogProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onStart: (request: StartEvalRunRequest) => void;
-  isStarting?: boolean;
-  error?: string | null;
+  isOpen: boolean
+  onClose: () => void
+  onStart: (request: StartEvalRunRequest) => void
+  isStarting?: boolean
+  error?: string | null
 }
 
 /**
  * Default scorers available
  */
 const DEFAULT_SCORERS = [
-  { id: "tool_selection", name: "Tool Selection", description: "Evaluates correct tool usage" },
-  { id: "response_quality", name: "Response Quality", description: "LLM judge for output quality" },
-  { id: "latency", name: "Latency", description: "Response time within threshold" },
-  { id: "token_efficiency", name: "Token Efficiency", description: "Token usage optimization" },
-  { id: "contains", name: "Contains Keywords", description: "Output contains expected text" },
-];
+  {
+    id: 'tool_selection',
+    name: 'Tool Selection',
+    description: 'Evaluates correct tool usage',
+  },
+  {
+    id: 'response_quality',
+    name: 'Response Quality',
+    description: 'LLM judge for output quality',
+  },
+  {
+    id: 'latency',
+    name: 'Latency',
+    description: 'Response time within threshold',
+  },
+  {
+    id: 'token_efficiency',
+    name: 'Token Efficiency',
+    description: 'Token usage optimization',
+  },
+  {
+    id: 'contains',
+    name: 'Contains Keywords',
+    description: 'Output contains expected text',
+  },
+]
 
 export function StartEvalRunDialog({
   isOpen,
@@ -43,54 +56,57 @@ export function StartEvalRunDialog({
   isStarting,
   error,
 }: StartEvalRunDialogProps) {
-  const [projectId, setProjectId] = useState("default");
-  const [agentId, setAgentId] = useState("");
-  const [agentVersion, setAgentVersion] = useState("latest");
-  const [selectedScorers, setSelectedScorers] = useState<string[]>(["tool_selection", "response_quality"]);
-  const [parallel, setParallel] = useState(true);
-  const [parallelism, setParallelism] = useState(5);
+  const [projectId, setProjectId] = useState('default')
+  const [agentId, setAgentId] = useState('')
+  const [agentVersion, setAgentVersion] = useState('latest')
+  const [selectedScorers, setSelectedScorers] = useState<string[]>([
+    'tool_selection',
+    'response_quality',
+  ])
+  const [parallel, setParallel] = useState(true)
+  const [parallelism, setParallelism] = useState(5)
 
   // Dataset items
   const [datasetItems, setDatasetItems] = useState<
     Array<{ input: string; expected: string }>
-  >([{ input: "", expected: "" }]);
+  >([{ input: '', expected: '' }])
 
   const addDatasetItem = () => {
-    setDatasetItems([...datasetItems, { input: "", expected: "" }]);
-  };
+    setDatasetItems([...datasetItems, { input: '', expected: '' }])
+  }
 
   const removeDatasetItem = (index: number) => {
-    setDatasetItems(datasetItems.filter((_, i) => i !== index));
-  };
+    setDatasetItems(datasetItems.filter((_, i) => i !== index))
+  }
 
   const updateDatasetItem = (
     index: number,
-    field: "input" | "expected",
-    value: string
+    field: 'input' | 'expected',
+    value: string,
   ) => {
     setDatasetItems(
       datasetItems.map((item, i) =>
-        i === index ? { ...item, [field]: value } : item
-      )
-    );
-  };
+        i === index ? { ...item, [field]: value } : item,
+      ),
+    )
+  }
 
   const toggleScorer = (scorerId: string) => {
     setSelectedScorers((prev) =>
       prev.includes(scorerId)
         ? prev.filter((s) => s !== scorerId)
-        : [...prev, scorerId]
-    );
-  };
+        : [...prev, scorerId],
+    )
+  }
 
   const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+    e.preventDefault()
 
     // Build request
     const request: StartEvalRunRequest = {
       projectId,
       agentId,
-      agentVersion: agentVersion || "latest",
+      agentVersion: agentVersion || 'latest',
       dataset: {
         items: datasetItems
           .filter((item) => item.input.trim())
@@ -102,20 +118,17 @@ export function StartEvalRunDialog({
       scorers: selectedScorers,
       parallel,
       parallelism,
-    };
+    }
 
-    onStart(request);
-  };
+    onStart(request)
+  }
 
-  if (!isOpen) return null;
+  if (!isOpen) return null
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       {/* Backdrop */}
-      <div
-        className="absolute inset-0 bg-black/50"
-        onClick={onClose}
-      />
+      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
 
       {/* Dialog */}
       <div className="relative bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-hidden">
@@ -131,7 +144,10 @@ export function StartEvalRunDialog({
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="overflow-y-auto max-h-[calc(90vh-8rem)]">
+        <form
+          onSubmit={handleSubmit}
+          className="overflow-y-auto max-h-[calc(90vh-8rem)]"
+        >
           <div className="p-6 space-y-6">
             {/* Error */}
             {error && (
@@ -193,7 +209,7 @@ export function StartEvalRunDialog({
                         type="text"
                         value={item.input}
                         onChange={(e) =>
-                          updateDatasetItem(index, "input", e.target.value)
+                          updateDatasetItem(index, 'input', e.target.value)
                         }
                         placeholder="Input (e.g., 'What is the weather?')"
                         className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
@@ -202,7 +218,7 @@ export function StartEvalRunDialog({
                         type="text"
                         value={item.expected}
                         onChange={(e) =>
-                          updateDatasetItem(index, "expected", e.target.value)
+                          updateDatasetItem(index, 'expected', e.target.value)
                         }
                         placeholder="Expected output (optional)"
                         className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
@@ -231,8 +247,8 @@ export function StartEvalRunDialog({
                     key={scorer.id}
                     className={`flex items-start gap-3 p-3 border rounded-lg cursor-pointer transition-colors ${
                       selectedScorers.includes(scorer.id)
-                        ? "border-blue-500 bg-blue-50"
-                        : "hover:bg-gray-50"
+                        ? 'border-blue-500 bg-blue-50'
+                        : 'hover:bg-gray-50'
                     }`}
                   >
                     <input
@@ -243,7 +259,9 @@ export function StartEvalRunDialog({
                     />
                     <div>
                       <p className="text-sm font-medium">{scorer.name}</p>
-                      <p className="text-xs text-gray-500">{scorer.description}</p>
+                      <p className="text-xs text-gray-500">
+                        {scorer.description}
+                      </p>
                     </div>
                   </label>
                 ))}
@@ -287,7 +305,11 @@ export function StartEvalRunDialog({
             </button>
             <button
               type="submit"
-              disabled={isStarting || !agentId || datasetItems.every((d) => !d.input.trim())}
+              disabled={
+                isStarting ||
+                !agentId ||
+                datasetItems.every((d) => !d.input.trim())
+              }
               className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isStarting ? (
@@ -301,7 +323,7 @@ export function StartEvalRunDialog({
         </form>
       </div>
     </div>
-  );
+  )
 }
 
-export default StartEvalRunDialog;
+export default StartEvalRunDialog

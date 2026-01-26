@@ -25,6 +25,9 @@ export {
 
 // Workflow run hooks (Temporal-based)
 export {
+  canControlWorkflow,
+  getProgressPercentage,
+  getStatusText,
   useCancelWorkflowRun,
   useControlWorkflowRun,
   usePauseWorkflowRun,
@@ -34,7 +37,4 @@ export {
   useWorkflowRunStatus,
   useWorkflowRuns,
   workflowQueryKeys,
-  canControlWorkflow,
-  getProgressPercentage,
-  getStatusText,
 } from './use-workflow-runs'
