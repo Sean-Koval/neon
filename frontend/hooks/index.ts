@@ -13,6 +13,7 @@ export {
   useRuns,
   useTriggerRun,
 } from './use-runs'
+
 // Suite hooks
 export {
   useCreateSuite,
@@ -21,3 +22,19 @@ export {
   useSuites,
   useUpdateSuite,
 } from './use-suites'
+
+// Workflow run hooks (Temporal-based)
+export {
+  useCancelWorkflowRun,
+  useControlWorkflowRun,
+  usePauseWorkflowRun,
+  useResumeWorkflowRun,
+  useStartWorkflowRun,
+  useWorkflowRun,
+  useWorkflowRunStatus,
+  useWorkflowRuns,
+  workflowQueryKeys,
+  canControlWorkflow,
+  getProgressPercentage,
+  getStatusText,
+} from './use-workflow-runs'

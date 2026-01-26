@@ -20,6 +20,14 @@ import type {
   EvalSuiteUpdate,
   ResultsFilter,
   RunsFilter,
+  StartEvalRunRequest,
+  StartEvalRunResponse,
+  WorkflowControlAction,
+  WorkflowControlResponse,
+  WorkflowRunList,
+  WorkflowStatus,
+  WorkflowStatusPoll,
+  WorkflowStatusResponse,
 } from './types'
 
 // =============================================================================
@@ -301,6 +309,83 @@ export class ApiClient {
    */
   async compare(request: CompareRequest): Promise<CompareResponse> {
     return this.request<CompareResponse>('POST', '/compare', { body: request })
+  }
+
+  // ===========================================================================
+  // Temporal Workflow Runs
+  // ===========================================================================
+
+  /**
+   * Start a new eval run via Temporal workflow.
+   */
+  async startWorkflowRun(
+    request: StartEvalRunRequest,
+  ): Promise<StartEvalRunResponse> {
+    return this.request<StartEvalRunResponse>('POST', '/runs', {
+      body: request,
+    })
+  }
+
+  /**
+   * List workflow runs from Temporal.
+   */
+  async listWorkflowRuns(options?: {
+    limit?: number
+    status?: WorkflowStatus
+  }): Promise<WorkflowRunList> {
+    return this.request<WorkflowRunList>('GET', '/runs', {
+      query: {
+        limit: options?.limit,
+        status: options?.status,
+      },
+    })
+  }
+
+  /**
+   * Get detailed status for a workflow run.
+   */
+  async getWorkflowRun(id: string): Promise<WorkflowStatusResponse> {
+    return this.request<WorkflowStatusResponse>('GET', `/runs/${id}`)
+  }
+
+  /**
+   * Get lightweight status for polling.
+   */
+  async getWorkflowRunStatus(id: string): Promise<WorkflowStatusPoll> {
+    return this.request<WorkflowStatusPoll>('GET', `/runs/${id}/status`)
+  }
+
+  /**
+   * Control a running workflow (pause/resume/cancel).
+   */
+  async controlWorkflowRun(
+    id: string,
+    action: WorkflowControlAction,
+  ): Promise<WorkflowControlResponse> {
+    return this.request<WorkflowControlResponse>('POST', `/runs/${id}/control`, {
+      body: { action },
+    })
+  }
+
+  /**
+   * Cancel a running workflow.
+   */
+  async cancelWorkflowRun(id: string): Promise<WorkflowControlResponse> {
+    return this.controlWorkflowRun(id, 'cancel')
+  }
+
+  /**
+   * Pause a running workflow.
+   */
+  async pauseWorkflowRun(id: string): Promise<WorkflowControlResponse> {
+    return this.controlWorkflowRun(id, 'pause')
+  }
+
+  /**
+   * Resume a paused workflow.
+   */
+  async resumeWorkflowRun(id: string): Promise<WorkflowControlResponse> {
+    return this.controlWorkflowRun(id, 'resume')
   }
 }
 
