@@ -9,6 +9,27 @@ Durable agent evaluation with real-time observability.
 3. **Real-time by default** - Streaming results, live dashboards
 4. **Durable execution** - Evals never fail, they checkpoint and resume
 
+## Architecture Decision: Direct ClickHouse (MVP) + Streaming (Opt-in)
+
+**MVP Path (Now):**
+- Direct ClickHouse writes via `@clickhouse/client`
+- Simple, debuggable, no extra infrastructure
+- Sufficient for moderate ingestion (100s of traces/sec)
+
+**Scale Path (Opt-in via `--profile streaming`):**
+- Redpanda for high-throughput buffering
+- Enables batch inserts (10-100x faster)
+- Real-time streaming to multiple consumers (UI, alerting, ML)
+- Enable when hitting ingestion bottlenecks
+
+```bash
+# MVP
+docker compose up -d
+
+# With streaming (scale)
+docker compose --profile streaming up -d
+```
+
 ---
 
 ## Phase 1: Cleanup (Day 1-2)
