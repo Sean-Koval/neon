@@ -404,3 +404,209 @@ export interface ResultsFilter {
   /** Only return failed results */
   failed_only?: boolean
 }
+
+// =============================================================================
+// Temporal Workflow Types
+// =============================================================================
+
+/**
+ * Workflow execution status from Temporal.
+ */
+export type WorkflowStatus =
+  | 'RUNNING'
+  | 'COMPLETED'
+  | 'FAILED'
+  | 'CANCELLED'
+  | 'TERMINATED'
+  | 'TIMED_OUT'
+
+/**
+ * Progress information for an eval run workflow.
+ */
+export interface EvalRunProgress {
+  /** Number of cases completed */
+  completed: number
+  /** Total number of cases */
+  total: number
+  /** Number of cases that passed */
+  passed: number
+  /** Number of cases that failed */
+  failed: number
+  /** Results for completed cases */
+  results?: Array<{
+    caseIndex: number
+    result: {
+      traceId: string
+      status: string
+      iterations: number
+      reason?: string
+    }
+    scores: Array<{
+      name: string
+      value: number
+      reason?: string
+    }>
+  }>
+}
+
+/**
+ * Dataset item for starting an eval run.
+ */
+export interface DatasetItem {
+  /** Input data for the agent */
+  input: Record<string, unknown>
+  /** Expected output or behavior */
+  expected?: Record<string, unknown>
+}
+
+/**
+ * Tool definition for agent execution.
+ */
+export interface ToolDefinition {
+  /** Tool name */
+  name: string
+  /** Tool description */
+  description: string
+  /** JSON Schema for tool parameters */
+  parameters: Record<string, unknown>
+}
+
+/**
+ * Request to start an eval run via Temporal.
+ */
+export interface StartEvalRunRequest {
+  /** Project ID */
+  projectId: string
+  /** Agent ID */
+  agentId: string
+  /** Agent version (optional, defaults to "latest") */
+  agentVersion?: string
+  /** Dataset of test cases */
+  dataset: {
+    items: DatasetItem[]
+  }
+  /** Available tools for the agent */
+  tools?: ToolDefinition[]
+  /** Scorer names to run */
+  scorers: string[]
+  /** Run cases in parallel */
+  parallel?: boolean
+  /** Number of parallel workers */
+  parallelism?: number
+  /** Optional custom run ID */
+  runId?: string
+}
+
+/**
+ * Response from starting an eval run.
+ */
+export interface StartEvalRunResponse {
+  /** Success message */
+  message: string
+  /** Generated run ID */
+  runId: string
+  /** Temporal workflow ID */
+  workflowId: string
+  /** Initial status */
+  status: WorkflowStatus
+  /** Number of items in dataset */
+  dataset_size: number
+  /** Scorers being used */
+  scorers: string[]
+  /** Whether running in parallel */
+  parallel: boolean
+}
+
+/**
+ * Workflow status response from Temporal.
+ */
+export interface WorkflowStatusResponse {
+  /** Run ID */
+  id: string
+  /** Temporal workflow ID */
+  workflowId: string
+  /** Current status */
+  status: WorkflowStatus
+  /** Workflow start time */
+  startTime: string
+  /** Workflow close time (if completed) */
+  closeTime?: string
+  /** Progress information */
+  progress?: EvalRunProgress
+  /** Final result (if completed) */
+  result?: unknown
+  /** Error message (if failed) */
+  error?: string
+}
+
+/**
+ * Lightweight status response for polling.
+ */
+export interface WorkflowStatusPoll {
+  /** Run ID */
+  id: string
+  /** Current status */
+  status: WorkflowStatus
+  /** Is workflow currently running */
+  isRunning: boolean
+  /** Is workflow complete (success) */
+  isComplete: boolean
+  /** Is workflow in a failed state */
+  isFailed: boolean
+  /** Progress information */
+  progress?: {
+    completed: number
+    total: number
+    passed: number
+    failed: number
+    percentComplete: number
+  }
+  /** Summary (if completed) */
+  summary?: {
+    total: number
+    passed: number
+    failed: number
+    avgScore: number
+  }
+  /** Error message (if failed) */
+  error?: string
+}
+
+/**
+ * Control action for a workflow.
+ */
+export type WorkflowControlAction = 'pause' | 'resume' | 'cancel'
+
+/**
+ * Request to control a workflow.
+ */
+export interface WorkflowControlRequest {
+  /** Action to perform */
+  action: WorkflowControlAction
+}
+
+/**
+ * Response from controlling a workflow.
+ */
+export interface WorkflowControlResponse {
+  /** Success message */
+  message: string
+  /** Run ID */
+  id: string
+  /** Workflow ID */
+  workflowId: string
+  /** Action performed */
+  action: WorkflowControlAction
+}
+
+/**
+ * List of workflow runs.
+ */
+export interface WorkflowRunList {
+  /** List of runs */
+  items: WorkflowStatusResponse[]
+  /** Number of items returned */
+  count: number
+  /** Limit used in query */
+  limit: number
+}
