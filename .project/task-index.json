@@ -200,7 +200,7 @@
     },
     "DOC-001": {
       "file": "tasks/DOC-001.json",
-      "status": "ready",
+      "status": "completed",
       "phase_id": "phase-6-docs",
       "title": "README with quick start"
     },
@@ -307,13 +307,13 @@
       "tasks": ["DOC-001", "DOC-002", "DOC-003", "DOC-004", "DOC-005"]
     }
   },
-  "ready_tasks": ["CLEAN-003", "CLEAN-006", "CORE-007", "SDK-001", "UI-001", "UI-003", "UI-004", "UI-006", "UI-007", "PERF-001", "DOC-001", "DOC-003"],
+  "ready_tasks": ["CLEAN-003", "CLEAN-006", "CORE-007", "SDK-001", "UI-001", "UI-003", "UI-004", "UI-006", "UI-007", "PERF-001", "DOC-003", "DOC-005"],
   "critical_path": ["CORE-007", "UI-006", "SDK-001", "SDK-002", "SDK-003", "SDK-004"],
   "metrics": {
     "total_tasks": 38,
-    "completed": 15,
+    "completed": 16,
     "in_progress": 1,
-    "ready": 12,
+    "ready": 11,
     "pending": 10,
     "estimated_days_total": 14
   },
