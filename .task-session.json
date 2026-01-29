@@ -1,32 +1,17 @@
 {
-  "task_id": "FE-021",
-  "title": "Suite detail page with metadata and actions",
-  "started_at": "2026-01-25T10:53:41-05:00",
-  "scope": {
-    "primary_files": [
-      "frontend/app/suites/[id]/page.tsx",
-      "frontend/components/suites/suite-header.tsx"
-    ],
-    "test_files": [],
-    "related_files": [
-      "frontend/hooks/use-suites.ts"
-    ]
-  },
+  "task_id": "SDK-001",
+  "title": "Simplify packages/sdk/ - remove bloat",
+  "started_at": "2026-01-28T21:47:29-05:00",
+  "scope": null,
   "acceptance_criteria": [
-    "Displays suite name, description",
-    "Shows agent_id, default_scorers, default_min_score",
-    "Shows parallel, stop_on_failure, timeout settings",
-    "Run button triggers new evaluation",
-    "Edit button navigates to edit page",
-    "Delete button with confirmation",
-    "Breadcrumb navigation (Suites / suite-name)",
-    "Loading state while fetching",
-    "404 handling for invalid suite ID"
+    "Remove unused exports and dead code from src/index.ts",
+    "Remove @neon/shared peer dependency if not needed",
+    "Simplify or remove complex abstractions (combineScorers, invertScorer, withThreshold if unused)",
+    "Keep core API: defineTest(), defineSuite(), run(), and essential scorers",
+    "Remove or simplify tracing module if not needed for local eval",
+    "Ensure package still builds: bun run build",
+    "Ensure tests pass: bun run test",
+    "Update exports in package.json to match simplified structure"
   ],
-  "context": {
-    "research_refs": [
-      ".project/docs/frontend-design-spec.md#suite-detail"
-    ],
-    "code_refs": []
-  }
+  "context": null
 }
