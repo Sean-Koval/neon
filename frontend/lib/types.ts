@@ -608,3 +608,203 @@ export interface WorkflowRunList {
   /** Limit used in query */
   limit: number
 }
+
+// =============================================================================
+// WebSocket / Real-time Types
+// =============================================================================
+
+/**
+ * WebSocket connection states.
+ */
+export type ConnectionStatus =
+  | 'connecting'
+  | 'connected'
+  | 'disconnected'
+  | 'reconnecting'
+  | 'error'
+
+/**
+ * WebSocket message types.
+ */
+export type WebSocketMessageType =
+  | 'subscribe'
+  | 'unsubscribe'
+  | 'update'
+  | 'error'
+  | 'ping'
+  | 'pong'
+  | 'ack'
+
+/**
+ * Base WebSocket message structure.
+ */
+export interface WebSocketMessage<T = unknown> {
+  /** Message type */
+  type: WebSocketMessageType
+  /** Optional message ID for correlation */
+  id?: string
+  /** Timestamp */
+  timestamp: string
+  /** Message payload */
+  payload?: T
+}
+
+/**
+ * Subscribe message payload.
+ */
+export interface SubscribePayload {
+  /** Run ID to subscribe to */
+  runId: string
+}
+
+/**
+ * Unsubscribe message payload.
+ */
+export interface UnsubscribePayload {
+  /** Run ID to unsubscribe from */
+  runId: string
+}
+
+/**
+ * Run status update payload received via WebSocket.
+ */
+export interface RunStatusUpdate {
+  /** Run ID */
+  runId: string
+  /** Current workflow status */
+  status: WorkflowStatus
+  /** Progress information */
+  progress?: {
+    completed: number
+    total: number
+    passed: number
+    failed: number
+    percentComplete: number
+  }
+  /** Summary (when completed) */
+  summary?: {
+    total: number
+    passed: number
+    failed: number
+    avgScore: number
+  }
+  /** Error message if failed */
+  error?: string
+  /** Latest case result if just completed */
+  latestResult?: {
+    caseIndex: number
+    result: {
+      traceId: string
+      status: string
+      iterations: number
+      reason?: string
+    }
+    scores: Array<{
+      name: string
+      value: number
+      reason?: string
+    }>
+  }
+}
+
+/**
+ * Error payload from WebSocket.
+ */
+export interface WebSocketErrorPayload {
+  /** Error code */
+  code: string
+  /** Error message */
+  message: string
+  /** Additional details */
+  details?: unknown
+}
+
+/**
+ * Acknowledgment payload.
+ */
+export interface AckPayload {
+  /** ID of the acknowledged message */
+  messageId: string
+  /** Whether the operation was successful */
+  success: boolean
+  /** Error message if not successful */
+  error?: string
+}
+
+/**
+ * Typed WebSocket messages.
+ */
+export type SubscribeMessage = WebSocketMessage<SubscribePayload> & {
+  type: 'subscribe'
+}
+export type UnsubscribeMessage = WebSocketMessage<UnsubscribePayload> & {
+  type: 'unsubscribe'
+}
+export type UpdateMessage = WebSocketMessage<RunStatusUpdate> & {
+  type: 'update'
+}
+export type ErrorMessage = WebSocketMessage<WebSocketErrorPayload> & {
+  type: 'error'
+}
+export type PingMessage = WebSocketMessage<void> & { type: 'ping' }
+export type PongMessage = WebSocketMessage<void> & { type: 'pong' }
+export type AckMessage = WebSocketMessage<AckPayload> & { type: 'ack' }
+
+/**
+ * All possible incoming WebSocket messages.
+ */
+export type IncomingWebSocketMessage =
+  | UpdateMessage
+  | ErrorMessage
+  | PongMessage
+  | AckMessage
+
+/**
+ * All possible outgoing WebSocket messages.
+ */
+export type OutgoingWebSocketMessage =
+  | SubscribeMessage
+  | UnsubscribeMessage
+  | PingMessage
+
+/**
+ * Options for the useRealtime hook.
+ */
+export interface UseRealtimeOptions {
+  /** WebSocket URL (defaults to auto-detected) */
+  wsUrl?: string
+  /** Enable WebSocket (defaults to true) */
+  enableWebSocket?: boolean
+  /** Polling interval in ms when WebSocket unavailable (defaults to 2000) */
+  pollingInterval?: number
+  /** Reconnect attempts before falling back to polling (defaults to 3) */
+  maxReconnectAttempts?: number
+  /** Reconnect delay in ms (defaults to 1000, doubles each attempt) */
+  reconnectDelay?: number
+  /** Ping interval in ms to keep connection alive (defaults to 30000) */
+  pingInterval?: number
+  /** Callback when connection status changes */
+  onConnectionChange?: (status: ConnectionStatus) => void
+  /** Callback when an error occurs */
+  onError?: (error: WebSocketErrorPayload) => void
+}
+
+/**
+ * Return type for the useRealtime hook.
+ */
+export interface UseRealtimeReturn {
+  /** Current connection status */
+  connectionStatus: ConnectionStatus
+  /** Whether using WebSocket (true) or polling fallback (false) */
+  isWebSocket: boolean
+  /** Subscribe to updates for a run */
+  subscribe: (runId: string) => void
+  /** Unsubscribe from updates for a run */
+  unsubscribe: (runId: string) => void
+  /** Get current status for a run */
+  getRunStatus: (runId: string) => RunStatusUpdate | undefined
+  /** All current run statuses */
+  runStatuses: Map<string, RunStatusUpdate>
+  /** Reconnect manually */
+  reconnect: () => void
+}
