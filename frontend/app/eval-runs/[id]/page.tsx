@@ -114,7 +114,9 @@ export default function EvalRunDetailPage() {
               failed: run.progress.failed,
               percentComplete:
                 run.progress.total > 0
-                  ? Math.round((run.progress.completed / run.progress.total) * 100)
+                  ? Math.round(
+                      (run.progress.completed / run.progress.total) * 100,
+                    )
                   : 0,
             }
           : undefined,

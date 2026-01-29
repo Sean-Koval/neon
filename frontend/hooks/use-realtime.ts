@@ -61,7 +61,10 @@ function isWebSocketSupported(): boolean {
 /**
  * Convert WorkflowStatusPoll to RunStatusUpdate format.
  */
-function pollToUpdate(runId: string, poll: WorkflowStatusPoll): RunStatusUpdate {
+function pollToUpdate(
+  runId: string,
+  poll: WorkflowStatusPoll,
+): RunStatusUpdate {
   return {
     runId,
     status: poll.status,
@@ -93,7 +96,9 @@ function pollToUpdate(runId: string, poll: WorkflowStatusPoll): RunStatusUpdate 
  * const status = getRunStatus(runId)
  * ```
  */
-export function useRealtime(options: UseRealtimeOptions = {}): UseRealtimeReturn {
+export function useRealtime(
+  options: UseRealtimeOptions = {},
+): UseRealtimeReturn {
   const {
     wsUrl = getDefaultWsUrl(),
     enableWebSocket = DEFAULT_OPTIONS.enableWebSocket,
@@ -112,7 +117,7 @@ export function useRealtime(options: UseRealtimeOptions = {}): UseRealtimeReturn
     useState<ConnectionStatus>('disconnected')
   const [isWebSocket, setIsWebSocket] = useState(false)
   const [runStatuses, setRunStatuses] = useState<Map<string, RunStatusUpdate>>(
-    () => new Map()
+    () => new Map(),
   )
 
   // Refs for mutable state that doesn't trigger re-renders
@@ -121,9 +126,9 @@ export function useRealtime(options: UseRealtimeOptions = {}): UseRealtimeReturn
   const reconnectAttemptsRef = useRef(0)
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const pingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
-  const pollingIntervalsRef = useRef<Map<string, ReturnType<typeof setInterval>>>(
-    new Map()
-  )
+  const pollingIntervalsRef = useRef<
+    Map<string, ReturnType<typeof setInterval>>
+  >(new Map())
   const mountedRef = useRef(true)
 
   /**
@@ -135,7 +140,7 @@ export function useRealtime(options: UseRealtimeOptions = {}): UseRealtimeReturn
       setConnectionStatus(status)
       onConnectionChange?.(status)
     },
-    [onConnectionChange]
+    [onConnectionChange],
   )
 
   /**
@@ -170,7 +175,7 @@ export function useRealtime(options: UseRealtimeOptions = {}): UseRealtimeReturn
                 progress: update.progress,
                 summary: update.summary,
                 error: update.error,
-              }
+              },
             )
           }
           break
@@ -190,7 +195,7 @@ export function useRealtime(options: UseRealtimeOptions = {}): UseRealtimeReturn
           break
       }
     },
-    [queryClient, onError]
+    [queryClient, onError],
   )
 
   /**
@@ -246,7 +251,7 @@ export function useRealtime(options: UseRealtimeOptions = {}): UseRealtimeReturn
       const interval = setInterval(poll, pollingInterval)
       pollingIntervalsRef.current.set(runId, interval)
     },
-    [pollingInterval]
+    [pollingInterval],
   )
 
   /**
@@ -368,7 +373,10 @@ export function useRealtime(options: UseRealtimeOptions = {}): UseRealtimeReturn
         stopPingInterval()
 
         // Don't reconnect if closed cleanly or max attempts reached
-        if (event.wasClean || reconnectAttemptsRef.current >= maxReconnectAttempts) {
+        if (
+          event.wasClean ||
+          reconnectAttemptsRef.current >= maxReconnectAttempts
+        ) {
           setIsWebSocket(false)
           updateConnectionStatus('disconnected')
 
@@ -381,7 +389,8 @@ export function useRealtime(options: UseRealtimeOptions = {}): UseRealtimeReturn
 
         // Attempt reconnection with exponential backoff
         reconnectAttemptsRef.current++
-        const delay = reconnectDelay * Math.pow(2, reconnectAttemptsRef.current - 1)
+        const delay =
+          reconnectDelay * Math.pow(2, reconnectAttemptsRef.current - 1)
 
         updateConnectionStatus('reconnecting')
 
@@ -458,7 +467,7 @@ export function useRealtime(options: UseRealtimeOptions = {}): UseRealtimeReturn
         startPolling(runId)
       }
     },
-    [isWebSocket, sendMessage, startPolling]
+    [isWebSocket, sendMessage, startPolling],
   )
 
   /**
@@ -487,7 +496,7 @@ export function useRealtime(options: UseRealtimeOptions = {}): UseRealtimeReturn
         })
       }
     },
-    [isWebSocket, sendMessage, stopPolling]
+    [isWebSocket, sendMessage, stopPolling],
   )
 
   /**
@@ -497,7 +506,7 @@ export function useRealtime(options: UseRealtimeOptions = {}): UseRealtimeReturn
     (runId: string): RunStatusUpdate | undefined => {
       return runStatuses.get(runId)
     },
-    [runStatuses]
+    [runStatuses],
   )
 
   /**
@@ -543,14 +552,19 @@ export function useRealtime(options: UseRealtimeOptions = {}): UseRealtimeReturn
  */
 export function useRealtimeRun(
   runId: string | undefined,
-  options: UseRealtimeOptions = {}
+  options: UseRealtimeOptions = {},
 ): {
   status: RunStatusUpdate | undefined
   connectionStatus: ConnectionStatus
   isWebSocket: boolean
 } {
-  const { connectionStatus, isWebSocket, subscribe, unsubscribe, getRunStatus } =
-    useRealtime(options)
+  const {
+    connectionStatus,
+    isWebSocket,
+    subscribe,
+    unsubscribe,
+    getRunStatus,
+  } = useRealtime(options)
 
   useEffect(() => {
     if (!runId) return

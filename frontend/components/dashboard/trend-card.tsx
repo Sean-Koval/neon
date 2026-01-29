@@ -16,7 +16,9 @@ export function TrendCard({ dateRange }: TrendCardProps) {
       <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-lg font-semibold text-gray-900">Score Trends</h2>
+            <h2 className="text-lg font-semibold text-gray-900">
+              Score Trends
+            </h2>
             <p className="text-sm text-gray-500 mt-0.5">
               Average evaluation scores over the last {days} days
             </p>

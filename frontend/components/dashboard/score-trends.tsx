@@ -512,7 +512,7 @@ function DrillDownModal({ point, onClose }: DrillDownModalProps) {
               {point.runIds.map((runId) => (
                 <Link
                   key={runId}
-                  href={`/runs/${runId}`}
+                  href={`/eval-runs/${runId}`}
                   className="flex items-center justify-between p-2 rounded-lg hover:bg-gray-50 transition-colors group"
                 >
                   <span className="text-sm text-gray-600 font-mono truncate">

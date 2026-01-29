@@ -5,9 +5,17 @@
  */
 
 import { useMemo, useState } from 'react'
-import type { DashboardFilters, DateRangeOption } from '@/components/dashboard/filters'
+import type {
+  DashboardFilters,
+  DateRangeOption,
+} from '@/components/dashboard/filters'
 import { getDateFromRange } from '@/components/dashboard/filters'
-import { useRuns, useDashboardStats, useScoreTrend, type ScoreTrendPoint } from './use-runs'
+import {
+  useRuns,
+  useDashboardStats,
+  useScoreTrend,
+  type ScoreTrendPoint,
+} from './use-runs'
 import { useSuites } from './use-suites'
 import type { EvalRun, EvalSuite } from '@/lib/types'
 
@@ -90,7 +98,8 @@ export function useDashboard(): UseDashboardReturn {
   } = useDashboardStats()
 
   // Trend data for the chart
-  const trendDays = filters.dateRange === '7d' ? 7 : filters.dateRange === '30d' ? 30 : 90
+  const trendDays =
+    filters.dateRange === '7d' ? 7 : filters.dateRange === '30d' ? 30 : 90
   const {
     data: trendData = [],
     isLoading: isLoadingTrend,
@@ -120,7 +129,7 @@ export function useDashboard(): UseDashboardReturn {
     // Sort by most recent first
     result.sort(
       (a, b) =>
-        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
     )
 
     return result

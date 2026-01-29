@@ -137,7 +137,7 @@ function RecentRunsCard({
 
       <div className="p-4 text-center border-t border-gray-100 bg-gray-50/50">
         <Link
-          href="/runs"
+          href="/eval-runs"
           className="text-primary-600 hover:text-accent-600 text-sm font-medium transition-colors"
         >
           View all runs
@@ -214,8 +214,11 @@ function RecentRunsEmpty({ hasFilters }: RecentRunsEmptyProps) {
       <p className="text-sm text-gray-500 mb-4">
         Start by creating an evaluation suite and running your first evaluation.
       </p>
-      <Link href="/suites" className="btn btn-primary inline-flex items-center">
-        Create a suite
+      <Link
+        href="/eval-runs"
+        className="btn btn-primary inline-flex items-center"
+      >
+        View eval runs
       </Link>
     </div>
   )
@@ -232,7 +235,7 @@ function RunRow({ run }: RunRowProps) {
 
   return (
     <Link
-      href={`/runs/${run.id}`}
+      href={`/eval-runs/${run.id}`}
       className="block p-4 hover:bg-gray-50 transition-colors"
     >
       <div className="flex items-center justify-between">
@@ -243,7 +246,7 @@ function RunRow({ run }: RunRowProps) {
                 onClick={(e) => {
                   e.preventDefault()
                   e.stopPropagation()
-                  window.location.href = `/suites/${run.suite_id}`
+                  window.location.href = `/eval-runs`
                 }}
                 className="font-medium text-gray-900 hover:text-primary-600 truncate cursor-pointer"
               >
