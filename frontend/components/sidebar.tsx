@@ -3,10 +3,8 @@
 import { clsx } from 'clsx'
 import {
   Activity,
-  FileText,
   GitCompare,
   LayoutDashboard,
-  Play,
   Settings,
   Workflow,
   Zap,
@@ -16,8 +14,6 @@ import { usePathname } from 'next/navigation'
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
-  { name: 'Suites', href: '/suites', icon: FileText },
-  { name: 'Runs', href: '/runs', icon: Play },
   { name: 'Eval Runs', href: '/eval-runs', icon: Workflow },
   { name: 'Traces', href: '/traces', icon: Activity },
   { name: 'Compare', href: '/compare', icon: GitCompare },

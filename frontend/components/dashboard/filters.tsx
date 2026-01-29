@@ -172,11 +172,13 @@ export function DashboardFiltersBar({
           More Filters
           {hasActiveFilters && (
             <span className="ml-1 px-1.5 py-0.5 bg-primary-600 text-white text-xs rounded-full">
-              {[
-                filters.status !== 'all',
-                filters.suiteId !== 'all',
-                filters.dateRange !== '7d',
-              ].filter(Boolean).length}
+              {
+                [
+                  filters.status !== 'all',
+                  filters.suiteId !== 'all',
+                  filters.dateRange !== '7d',
+                ].filter(Boolean).length
+              }
             </span>
           )}
         </button>

@@ -38,7 +38,7 @@ export function RecentRuns({ limit = 10 }: RecentRunsProps) {
 
       <div className="p-4 text-center border-t border-gray-100 bg-gray-50/50">
         <Link
-          href="/runs"
+          href="/eval-runs"
           className="text-primary-600 hover:text-accent-600 text-sm font-medium transition-colors"
         >
           View all runs
@@ -59,7 +59,7 @@ function RunRow({ run }: RunRowProps) {
 
   return (
     <Link
-      href={`/runs/${run.id}`}
+      href={`/eval-runs/${run.id}`}
       className="block p-4 hover:bg-gray-50 transition-colors"
     >
       <div className="flex items-center justify-between">
@@ -67,13 +67,9 @@ function RunRow({ run }: RunRowProps) {
         <div className="flex items-center space-x-3 min-w-0 flex-1">
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
-              <Link
-                href={`/suites/${run.suite_id}`}
-                onClick={(e) => e.stopPropagation()}
-                className="font-medium text-gray-900 hover:text-primary-600 truncate"
-              >
+              <span className="font-medium text-gray-900 truncate">
                 {run.suite_name}
-              </Link>
+              </span>
             </div>
             {run.agent_version && (
               <p className="text-sm text-gray-500 truncate">
@@ -143,8 +139,11 @@ function RecentRunsEmpty() {
       <p className="text-sm text-gray-500 mb-4">
         Start by creating an evaluation suite and running your first evaluation.
       </p>
-      <Link href="/suites" className="btn btn-primary inline-flex items-center">
-        Create a suite
+      <Link
+        href="/eval-runs"
+        className="btn btn-primary inline-flex items-center"
+      >
+        View eval runs
       </Link>
     </div>
   )

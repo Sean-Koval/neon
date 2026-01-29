@@ -199,7 +199,7 @@ describe('WebSocket Message Handling', () => {
 
     // Create a new WebSocket to test URL generation
     const ws = new (WebSocket as unknown as typeof MockWebSocket)(
-      `${expectedProtocol}//${expectedHost}${expectedPath}`
+      `${expectedProtocol}//${expectedHost}${expectedPath}`,
     )
 
     expect(ws.url).toBe('ws://localhost:3000/api/ws')
@@ -322,7 +322,13 @@ describe('Connection Status', () => {
     ]
 
     for (const state of states) {
-      expect(['connecting', 'connected', 'disconnected', 'reconnecting', 'error']).toContain(state)
+      expect([
+        'connecting',
+        'connected',
+        'disconnected',
+        'reconnecting',
+        'error',
+      ]).toContain(state)
     }
   })
 
