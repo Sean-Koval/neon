@@ -43,11 +43,16 @@ export {
   defineSuite,
   validateTest,
   validateSuite,
+  run,
   type Test,
   type Dataset,
   type Suite,
   type TestResult,
   type SuiteResult,
+  type ExpectedOutput,
+  type InlineScorer,
+  type RunOptions,
+  type AgentOutput,
 } from "./test";
 
 // Scorers
