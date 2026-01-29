@@ -1,19 +1,19 @@
 {
-  "task_id": "SDK-004",
-  "title": "CLI: npx neon eval runs tests locally",
-  "started_at": "2026-01-29T16:29:34-05:00",
+  "task_id": "UI-006",
+  "title": "WebSocket for real-time updates (or polling fallback)",
+  "started_at": "2026-01-29T17:06:16-05:00",
   "scope": null,
   "acceptance_criteria": [
-    "npx neon eval command discovers and runs test files",
-    "Supports glob patterns for test file discovery (e.g., **/*.eval.ts)",
-    "Console output shows test progress with pass/fail status",
-    "Summary at end: total tests, passed, failed, duration",
-    "Individual test case results with scorer names and scores",
-    "Colored output (green=pass, red=fail, yellow=warning)",
-    "Exit code 0 on all pass, non-zero on any failure",
-    "--help flag shows usage information",
-    "Handles async test execution properly",
-    "Error handling with clear error messages for common issues"
+    "WebSocket connection for real-time eval progress updates",
+    "Subscribe to specific run IDs for targeted updates",
+    "Real-time updates for: run status, case progress, scores",
+    "Automatic reconnection on connection loss",
+    "Polling fallback when WebSocket unavailable",
+    "Connection status indicator in UI",
+    "Unsubscribe/cleanup on component unmount",
+    "Handle concurrent subscriptions efficiently",
+    "TypeScript types for all WebSocket messages",
+    "Unit tests for WebSocket hook and message handling"
   ],
   "context": null
 }
