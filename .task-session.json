@@ -1,17 +1,17 @@
 {
-  "task_id": "SDK-001",
-  "title": "Simplify packages/sdk/ - remove bloat",
-  "started_at": "2026-01-28T21:47:29-05:00",
+  "task_id": "UI-001",
+  "title": "Dashboard - recent evals, pass/fail rates, trends",
+  "started_at": "2026-01-28T22:56:14-05:00",
   "scope": null,
   "acceptance_criteria": [
-    "Remove unused exports and dead code from src/index.ts",
-    "Remove @neon/shared peer dependency if not needed",
-    "Simplify or remove complex abstractions (combineScorers, invertScorer, withThreshold if unused)",
-    "Keep core API: defineTest(), defineSuite(), run(), and essential scorers",
-    "Remove or simplify tracing module if not needed for local eval",
-    "Ensure package still builds: bun run build",
-    "Ensure tests pass: bun run test",
-    "Update exports in package.json to match simplified structure"
+    "Dashboard shows list of recent evaluation runs with status (pass/fail/running)",
+    "Pass/fail rate summary displayed prominently (percentage, counts)",
+    "Trend chart showing pass rates over time (last 7/30 days)",
+    "Quick filters: by status, by suite, by date range",
+    "Links to individual eval run details",
+    "Loading states and empty states handled",
+    "Responsive layout works on desktop and tablet",
+    "Uses existing tRPC endpoints for data fetching"
   ],
   "context": null
 }
