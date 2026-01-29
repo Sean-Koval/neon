@@ -3,32 +3,29 @@
 /**
  * Trace Timeline Component
  *
- * Waterfall visualization of spans in a trace.
+ * Waterfall visualization of spans in a trace with color coding
+ * by span type and mobile-responsive layout.
  */
 
-import {
-  ChevronDown,
-  ChevronRight,
-  Clock,
-  Database,
-  MessageSquare,
-  Wrench,
-  Zap,
-} from 'lucide-react'
+import { clsx } from 'clsx'
+import { ChevronDown, ChevronRight } from 'lucide-react'
 import { useState } from 'react'
-import { cn } from '@/lib/utils'
+import { getSpanTypeConfig, type SpanType } from './span-type-badge'
 
 /**
  * Span type for the timeline
  */
-interface TimelineSpan {
+export interface TimelineSpan {
   span_id: string
   parent_span_id: string | null
   name: string
-  span_type: 'span' | 'generation' | 'tool' | 'retrieval' | 'event'
+  span_type: SpanType | string
   timestamp: string
   duration_ms: number
   status: 'unset' | 'ok' | 'error'
+  model?: string
+  tool_name?: string
+  total_tokens?: number
   children?: TimelineSpan[]
 }
 
@@ -39,50 +36,15 @@ interface TraceTimelineProps {
 }
 
 /**
- * Get color for span type
- */
-function getSpanColor(type: TimelineSpan['span_type']): string {
-  switch (type) {
-    case 'generation':
-      return 'bg-purple-500'
-    case 'tool':
-      return 'bg-blue-500'
-    case 'retrieval':
-      return 'bg-green-500'
-    case 'event':
-      return 'bg-yellow-500'
-    default:
-      return 'bg-gray-500'
-  }
-}
-
-/**
- * Get icon for span type
- */
-function getSpanIcon(type: TimelineSpan['span_type']) {
-  switch (type) {
-    case 'generation':
-      return MessageSquare
-    case 'tool':
-      return Wrench
-    case 'retrieval':
-      return Database
-    case 'event':
-      return Zap
-    default:
-      return Clock
-  }
-}
-
-/**
  * Calculate timeline metrics
  */
 function calculateMetrics(spans: TimelineSpan[]) {
-  if (spans.length === 0) return { startTime: 0, endTime: 0, totalDuration: 0 }
+  if (spans.length === 0) return { startTime: 0, endTime: 0, totalDuration: 1 }
 
-  const timestamps = spans.map((s) => new Date(s.timestamp).getTime())
+  const allSpans = flattenSpans(spans)
+  const timestamps = allSpans.map((s) => new Date(s.timestamp).getTime())
   const startTime = Math.min(...timestamps)
-  const endTimes = spans.map(
+  const endTimes = allSpans.map(
     (s) => new Date(s.timestamp).getTime() + s.duration_ms,
   )
   const endTime = Math.max(...endTimes)
@@ -90,7 +52,7 @@ function calculateMetrics(spans: TimelineSpan[]) {
   return {
     startTime,
     endTime,
-    totalDuration: endTime - startTime,
+    totalDuration: Math.max(endTime - startTime, 1),
   }
 }
 
@@ -114,6 +76,29 @@ function flattenSpans(
 }
 
 /**
+ * Format duration in a human-readable way
+ */
+function formatDuration(ms: number): string {
+  if (ms < 1) return '<1ms'
+  if (ms < 1000) return `${Math.round(ms)}ms`
+  if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`
+  return `${(ms / 60000).toFixed(1)}m`
+}
+
+/**
+ * Get display label for span (name or tool/model info)
+ */
+function getSpanLabel(span: TimelineSpan): string {
+  if (span.span_type === 'tool' && span.tool_name) {
+    return span.tool_name
+  }
+  if (span.span_type === 'generation' && span.model) {
+    return span.model
+  }
+  return span.name
+}
+
+/**
  * Single span row in the timeline
  */
 function SpanRow({
@@ -131,7 +116,8 @@ function SpanRow({
   onToggle: () => void
   onSelect: () => void
 }) {
-  const Icon = getSpanIcon(span.span_type)
+  const typeConfig = getSpanTypeConfig(span.span_type)
+  const Icon = typeConfig.icon
   const hasChildren = span.children && span.children.length > 0
 
   // Calculate position in timeline
@@ -142,70 +128,83 @@ function SpanRow({
 
   return (
     <div
-      className={cn(
-        'flex items-center border-b border-gray-100 hover:bg-gray-50 cursor-pointer',
-        isSelected && 'bg-blue-50',
+      className={clsx(
+        'flex items-center border-b border-gray-100 hover:bg-gray-50 cursor-pointer transition-colors',
+        isSelected && 'bg-blue-50 hover:bg-blue-100',
       )}
       onClick={onSelect}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          onSelect()
+        }
+      }}
     >
-      {/* Span info */}
+      {/* Span info - responsive width */}
       <div
-        className="flex items-center gap-2 py-2 px-3 min-w-[300px] max-w-[300px] border-r border-gray-100"
-        style={{ paddingLeft: `${span.depth * 20 + 12}px` }}
+        className="flex items-center gap-1.5 sm:gap-2 py-2 px-2 sm:px-3 min-w-[180px] sm:min-w-[280px] max-w-[180px] sm:max-w-[280px] border-r border-gray-100"
+        style={{ paddingLeft: `${span.depth * 16 + 8}px` }}
       >
         {hasChildren ? (
           <button
+            type="button"
             onClick={(e) => {
               e.stopPropagation()
               onToggle()
             }}
-            className="p-0.5 hover:bg-gray-200 rounded"
+            className="p-0.5 hover:bg-gray-200 rounded flex-shrink-0"
+            aria-label={isExpanded ? 'Collapse' : 'Expand'}
           >
             {isExpanded ? (
-              <ChevronDown className="w-4 h-4" />
+              <ChevronDown className="w-4 h-4 text-gray-500" />
             ) : (
-              <ChevronRight className="w-4 h-4" />
+              <ChevronRight className="w-4 h-4 text-gray-500" />
             )}
           </button>
         ) : (
-          <div className="w-5" />
+          <div className="w-5 flex-shrink-0" />
         )}
 
+        {/* Status indicator dot */}
         <div
-          className={cn(
-            'w-2 h-2 rounded-full',
-            span.status === 'error'
-              ? 'bg-red-500'
-              : getSpanColor(span.span_type),
+          className={clsx(
+            'w-2 h-2 rounded-full flex-shrink-0',
+            span.status === 'error' ? 'bg-red-500' : typeConfig.barColor,
           )}
         />
 
-        <Icon className="w-4 h-4 text-gray-500" />
+        {/* Type icon */}
+        <Icon className={clsx('w-4 h-4 flex-shrink-0', typeConfig.textColor)} />
 
-        <span className="text-sm truncate" title={span.name}>
-          {span.name}
+        {/* Span name */}
+        <span
+          className="text-sm truncate"
+          title={`${span.name}${span.tool_name ? ` (${span.tool_name})` : ''}`}
+        >
+          {getSpanLabel(span)}
         </span>
       </div>
 
-      {/* Timeline bar */}
-      <div className="flex-1 relative h-10 bg-gray-50">
+      {/* Timeline bar - hidden on very small screens */}
+      <div className="hidden sm:block flex-1 relative h-10 bg-gray-50/50">
         <div
-          className={cn(
-            'absolute top-1/2 -translate-y-1/2 h-4 rounded',
-            span.status === 'error'
-              ? 'bg-red-400'
-              : getSpanColor(span.span_type),
-            'opacity-80',
+          className={clsx(
+            'absolute top-1/2 -translate-y-1/2 h-4 rounded transition-all',
+            span.status === 'error' ? 'bg-red-400' : typeConfig.barColor,
+            isSelected ? 'opacity-100' : 'opacity-75 hover:opacity-90',
           )}
           style={{
-            left: `${offsetPercent}%`,
+            left: `${Math.min(offsetPercent, 99)}%`,
             width: `${Math.max(widthPercent, 0.5)}%`,
+            minWidth: '4px',
           }}
         />
       </div>
 
       {/* Duration */}
-      <div className="w-20 text-right pr-3 text-sm text-gray-500">
+      <div className="w-16 sm:w-20 text-right pr-2 sm:pr-3 text-xs sm:text-sm text-gray-500 font-medium">
         {formatDuration(span.duration_ms)}
       </div>
     </div>
@@ -213,13 +212,30 @@ function SpanRow({
 }
 
 /**
- * Format duration in a human-readable way
+ * Legend component showing span type colors
  */
-function formatDuration(ms: number): string {
-  if (ms < 1) return '<1ms'
-  if (ms < 1000) return `${Math.round(ms)}ms`
-  if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`
-  return `${(ms / 60000).toFixed(1)}m`
+function TimelineLegend() {
+  const types: Array<{ type: SpanType; label: string }> = [
+    { type: 'generation', label: 'LLM' },
+    { type: 'tool', label: 'Tool' },
+    { type: 'agent', label: 'Agent' },
+    { type: 'retrieval', label: 'Retrieval' },
+    { type: 'span', label: 'Other' },
+  ]
+
+  return (
+    <div className="flex flex-wrap gap-3 px-3 py-2 border-t bg-gray-50 text-xs">
+      {types.map(({ type, label }) => {
+        const config = getSpanTypeConfig(type)
+        return (
+          <div key={type} className="flex items-center gap-1.5">
+            <div className={clsx('w-2.5 h-2.5 rounded-sm', config.barColor)} />
+            <span className="text-gray-600">{label}</span>
+          </div>
+        )
+      })}
+    </div>
+  )
 }
 
 /**
@@ -230,11 +246,20 @@ export function TraceTimeline({
   onSpanSelect,
   selectedSpanId,
 }: TraceTimelineProps) {
-  const [expandedSpans, setExpandedSpans] = useState<Set<string>>(
-    new Set(spans.map((s) => s.span_id)), // Start expanded
-  )
+  const [expandedSpans, setExpandedSpans] = useState<Set<string>>(() => {
+    // Start with all spans expanded
+    const allSpanIds = new Set<string>()
+    const collectIds = (spanList: TimelineSpan[]) => {
+      for (const span of spanList) {
+        allSpanIds.add(span.span_id)
+        if (span.children) collectIds(span.children)
+      }
+    }
+    collectIds(spans)
+    return allSpanIds
+  })
 
-  const metrics = calculateMetrics(flattenSpans(spans))
+  const metrics = calculateMetrics(spans)
   const flatSpans = flattenSpans(spans)
 
   // Filter to visible spans (based on expanded state)
@@ -247,10 +272,9 @@ export function TraceTimeline({
       if (!expandedSpans.has(current.parent_span_id)) {
         return false
       }
-      current = flatSpans.find(
-        (s) => s.span_id === current.parent_span_id,
-      ) as typeof span
-      if (!current) break
+      const parent = flatSpans.find((s) => s.span_id === current.parent_span_id)
+      if (!parent) break
+      current = parent
     }
     return true
   })
@@ -267,9 +291,18 @@ export function TraceTimeline({
     })
   }
 
+  const expandAll = () => {
+    const allIds = flatSpans.map((s) => s.span_id)
+    setExpandedSpans(new Set(allIds))
+  }
+
+  const collapseAll = () => {
+    setExpandedSpans(new Set())
+  }
+
   if (spans.length === 0) {
     return (
-      <div className="flex items-center justify-center h-40 text-gray-500">
+      <div className="flex items-center justify-center h-40 text-gray-500 border rounded-lg">
         No spans in this trace
       </div>
     )
@@ -279,11 +312,31 @@ export function TraceTimeline({
     <div className="border rounded-lg overflow-hidden">
       {/* Header */}
       <div className="flex items-center bg-gray-100 border-b text-sm font-medium text-gray-600">
-        <div className="min-w-[300px] max-w-[300px] px-3 py-2 border-r">
-          Span
+        <div className="min-w-[180px] sm:min-w-[280px] max-w-[180px] sm:max-w-[280px] px-2 sm:px-3 py-2 border-r flex items-center justify-between">
+          <span>Span</span>
+          <div className="flex gap-1">
+            <button
+              type="button"
+              onClick={expandAll}
+              className="text-xs text-gray-500 hover:text-gray-700 px-1"
+              title="Expand all"
+            >
+              +
+            </button>
+            <button
+              type="button"
+              onClick={collapseAll}
+              className="text-xs text-gray-500 hover:text-gray-700 px-1"
+              title="Collapse all"
+            >
+              −
+            </button>
+          </div>
         </div>
-        <div className="flex-1 px-3 py-2">Timeline</div>
-        <div className="w-20 text-right pr-3 py-2">Duration</div>
+        <div className="hidden sm:block flex-1 px-3 py-2">Timeline</div>
+        <div className="w-16 sm:w-20 text-right pr-2 sm:pr-3 py-2">
+          Duration
+        </div>
       </div>
 
       {/* Span rows */}
@@ -300,6 +353,9 @@ export function TraceTimeline({
           />
         ))}
       </div>
+
+      {/* Legend */}
+      <TimelineLegend />
     </div>
   )
 }
