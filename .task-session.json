@@ -1,16 +1,18 @@
 {
-  "task_id": "SDK-002",
-  "title": "Core API: defineTest(), defineSuite(), run()",
-  "started_at": "2026-01-28T22:55:59-05:00",
+  "task_id": "UI-003",
+  "title": "Trace viewer - agent-native (tool calls, reasoning)",
+  "started_at": "2026-01-28T23:54:45-05:00",
   "scope": null,
   "acceptance_criteria": [
-    "defineTest() function creates a test case with input, expected output, and optional scorer",
-    "defineSuite() function groups multiple tests with shared config",
-    "run() function executes tests and returns structured results",
-    "Supports async test execution",
-    "TypeScript types are fully defined and exported",
-    "Unit tests cover happy path and edge cases",
-    "Example usage in README or docs"
+    "Trace detail page shows hierarchical view of spans",
+    "Tool calls displayed with input/output and duration",
+    "LLM reasoning steps shown with model, tokens, latency",
+    "Collapsible sections for large payloads (inputs/outputs)",
+    "Timeline visualization showing span durations",
+    "Color coding by span type (llm, tool, agent)",
+    "Copy-to-clipboard for trace ID and payloads",
+    "Loading states and error handling",
+    "Mobile-friendly responsive layout"
   ],
   "context": null
 }

@@ -49,7 +49,7 @@ export interface Span {
   trace_id: string
   parent_span_id: string | null
   name: string
-  span_type: 'span' | 'generation' | 'tool' | 'retrieval' | 'event'
+  span_type: 'span' | 'generation' | 'tool' | 'retrieval' | 'event' | 'agent'
   timestamp: string
   end_time: string | null
   duration_ms: number

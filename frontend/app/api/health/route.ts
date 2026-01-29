@@ -17,7 +17,9 @@ interface HealthStatus {
   }
 }
 
-export async function GET(request: NextRequest): Promise<NextResponse<HealthStatus>> {
+export async function GET(
+  request: NextRequest,
+): Promise<NextResponse<HealthStatus>> {
   const checks = {
     api: true, // If we're running, API is working
     clickhouse: false,
