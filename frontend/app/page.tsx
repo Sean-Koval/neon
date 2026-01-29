@@ -6,51 +6,117 @@ import {
   CheckCircle,
   Clock,
   FileText,
+  RefreshCw,
   XCircle,
 } from 'lucide-react'
 import Link from 'next/link'
+import { DashboardFiltersBar, type DashboardFilters } from '@/components/dashboard/filters'
 import { DashboardStatCards } from '@/components/dashboard/stat-cards'
-import { useRecentRuns } from '@/hooks/use-runs'
+import { TrendCard } from '@/components/dashboard/trend-card'
+import { useDashboard } from '@/hooks/use-dashboard'
 import type { EvalRun, EvalRunStatus } from '@/lib/types'
 
 export default function Dashboard() {
+  const {
+    filters,
+    setFilters,
+    recentRuns,
+    suites,
+    isLoadingRuns,
+    isLoadingSuites,
+    runsError,
+    refresh,
+  } = useDashboard()
+
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-        <p className="text-gray-500">Overview of your agent evaluations</p>
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
+          <p className="text-gray-500">Overview of your agent evaluations</p>
+        </div>
+        <button
+          onClick={refresh}
+          className="btn btn-secondary inline-flex items-center gap-2"
+          title="Refresh dashboard"
+        >
+          <RefreshCw className="w-4 h-4" />
+          Refresh
+        </button>
       </div>
+
+      {/* Filters */}
+      <DashboardFiltersBar
+        filters={filters}
+        onFiltersChange={setFilters}
+        suites={suites}
+        isLoadingSuites={isLoadingSuites}
+      />
 
       {/* Stats */}
       <DashboardStatCards />
 
-      {/* Recent Runs */}
-      <RecentRunsSection />
+      {/* Two column layout: Trend Chart + Recent Runs */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Trend Chart */}
+        <TrendCard dateRange={filters.dateRange} />
+
+        {/* Recent Runs */}
+        <RecentRunsCard
+          runs={recentRuns}
+          isLoading={isLoadingRuns}
+          error={runsError}
+          filters={filters}
+        />
+      </div>
     </div>
   )
 }
 
-function RecentRunsSection() {
-  const { data: runs, isLoading, error } = useRecentRuns(10)
+interface RecentRunsCardProps {
+  runs: EvalRun[]
+  isLoading: boolean
+  error: Error | null
+  filters: DashboardFilters
+}
+
+function RecentRunsCard({ runs, isLoading, error, filters }: RecentRunsCardProps) {
+  const hasFilters =
+    filters.status !== 'all' ||
+    filters.suiteId !== 'all' ||
+    filters.dateRange !== '7d'
 
   return (
     <div className="card overflow-hidden">
       <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white">
-        <h2 className="text-lg font-semibold text-gray-900">Recent Runs</h2>
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900">Recent Runs</h2>
+            <p className="text-sm text-gray-500 mt-0.5">
+              {hasFilters ? 'Filtered results' : 'Latest evaluation runs'}
+            </p>
+          </div>
+          {runs.length > 0 && (
+            <span className="text-sm text-gray-500">
+              {runs.length} run{runs.length !== 1 ? 's' : ''}
+            </span>
+          )}
+        </div>
       </div>
 
       {isLoading ? (
         <RecentRunsSkeleton />
       ) : error ? (
-        <RecentRunsError error={error as Error} />
-      ) : runs && runs.length > 0 ? (
-        <div className="divide-y divide-gray-100">
+        <RecentRunsError error={error} />
+      ) : runs.length > 0 ? (
+        <div className="divide-y divide-gray-100 max-h-[400px] overflow-y-auto">
           {runs.map((run) => (
             <RunRow key={run.id} run={run} />
           ))}
         </div>
       ) : (
-        <RecentRunsEmpty />
+        <RecentRunsEmpty hasFilters={hasFilters} />
       )}
 
       <div className="p-4 text-center border-t border-gray-100 bg-gray-50/50">
@@ -102,7 +168,27 @@ function RecentRunsError({ error }: { error: Error }) {
   )
 }
 
-function RecentRunsEmpty() {
+interface RecentRunsEmptyProps {
+  hasFilters: boolean
+}
+
+function RecentRunsEmpty({ hasFilters }: RecentRunsEmptyProps) {
+  if (hasFilters) {
+    return (
+      <div className="p-12 text-center">
+        <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gray-100 flex items-center justify-center">
+          <FileText className="w-8 h-8 text-gray-400" />
+        </div>
+        <h3 className="text-sm font-medium text-gray-900 mb-1">
+          No matching runs
+        </h3>
+        <p className="text-sm text-gray-500">
+          Try adjusting your filters to see more results.
+        </p>
+      </div>
+    )
+  }
+
   return (
     <div className="p-12 text-center">
       <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-primary-100 to-accent-100 flex items-center justify-center">
