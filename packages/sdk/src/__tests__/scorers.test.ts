@@ -416,23 +416,11 @@ describe("llmJudge", () => {
   });
 
   describe("prompt substitution", () => {
-    it("substitutes {{output}} in prompt", async () => {
-      process.env.ANTHROPIC_API_KEY = "test-key";
-
-      // Mock Anthropic
-      const mockCreate = vi.fn().mockResolvedValue({
-        content: [{ type: "text", text: '{"score": 0.8, "reason": "Good"}' }],
-      });
-
-      vi.doMock("@anthropic-ai/sdk", () => ({
-        default: class MockAnthropic {
-          messages = { create: mockCreate };
-        },
-      }));
-
-      // Since we can't easily mock ES modules, we'll just verify the scorer structure
+    it("creates scorer with prompt template", () => {
+      // Verify scorer is created with prompt containing template variables
+      // Actual prompt substitution is tested implicitly when API is available
       const scorer = llmJudge({
-        prompt: "Rate this output: {{output}}",
+        prompt: "Rate this output: {{output}} given input: {{input}}",
       });
 
       expect(scorer.name).toBe("llm_judge");
