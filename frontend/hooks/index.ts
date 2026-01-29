@@ -8,6 +8,9 @@ export { useCompare } from './use-compare'
 // Dashboard hooks
 export { useDashboard } from './use-dashboard'
 
+// Real-time hooks (WebSocket + polling)
+export { useRealtime, useRealtimeRun } from './use-realtime'
+
 // Run hooks
 export {
   useCancelRun,

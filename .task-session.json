@@ -1,16 +1,19 @@
 {
-  "task_id": "SDK-003",
-  "title": "Built-in scorers: exactMatch, contains, llmJudge",
-  "started_at": "2026-01-28T23:43:19-05:00",
+  "task_id": "UI-006",
+  "title": "WebSocket for real-time updates (or polling fallback)",
+  "started_at": "2026-01-29T17:06:16-05:00",
   "scope": null,
   "acceptance_criteria": [
-    "exactMatch() scorer - compares output to expected exactly",
-    "contains() scorer - checks if output contains expected substring(s)",
-    "llmJudge() scorer - uses LLM to evaluate quality with configurable criteria",
-    "All scorers return consistent ScoreResult format (value 0-1, reason string)",
-    "Scorers are well-typed with TypeScript generics where appropriate",
-    "Unit tests cover edge cases (empty strings, null handling, etc.)",
-    "Exported from packages/sdk/src/index.ts"
+    "WebSocket connection for real-time eval progress updates",
+    "Subscribe to specific run IDs for targeted updates",
+    "Real-time updates for: run status, case progress, scores",
+    "Automatic reconnection on connection loss",
+    "Polling fallback when WebSocket unavailable",
+    "Connection status indicator in UI",
+    "Unsubscribe/cleanup on component unmount",
+    "Handle concurrent subscriptions efficiently",
+    "TypeScript types for all WebSocket messages",
+    "Unit tests for WebSocket hook and message handling"
   ],
   "context": null
 }

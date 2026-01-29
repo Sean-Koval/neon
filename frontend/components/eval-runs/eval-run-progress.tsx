@@ -4,6 +4,7 @@
  * Eval Run Progress Component
  *
  * Shows real-time progress of an eval run with progress bar and case results.
+ * Includes connection status indicator for real-time updates.
  */
 
 import {
@@ -17,7 +18,8 @@ import {
   XCircle,
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import type { WorkflowStatus, WorkflowStatusPoll } from '@/lib/types'
+import type { ConnectionStatus, WorkflowStatus, WorkflowStatusPoll } from '@/lib/types'
+import { ConnectionDot } from '@/components/realtime'
 
 interface EvalRunProgressProps {
   runId: string
@@ -28,6 +30,12 @@ interface EvalRunProgressProps {
   isPausing?: boolean
   isResuming?: boolean
   isCancelling?: boolean
+  /** Optional connection status for real-time indicator */
+  connectionStatus?: ConnectionStatus
+  /** Whether using WebSocket (true) or polling (false) */
+  isWebSocket?: boolean
+  /** Callback to trigger reconnection */
+  onReconnect?: () => void
 }
 
 /**
@@ -126,6 +134,9 @@ export function EvalRunProgress({
   isPausing,
   isResuming,
   isCancelling,
+  connectionStatus,
+  isWebSocket,
+  onReconnect,
 }: EvalRunProgressProps) {
   const statusInfo = getStatusInfo(status.status)
   const [elapsedMs, setElapsedMs] = useState(0)
@@ -156,9 +167,20 @@ export function EvalRunProgress({
             className={`w-6 h-6 ${statusInfo.color} ${statusInfo.animate ? 'animate-spin' : ''}`}
           />
           <div>
-            <h3 className={`font-semibold ${statusInfo.color}`}>
-              {statusInfo.label}
-            </h3>
+            <div className="flex items-center gap-2">
+              <h3 className={`font-semibold ${statusInfo.color}`}>
+                {statusInfo.label}
+              </h3>
+              {connectionStatus && status.isRunning && (
+                <div
+                  className="flex items-center gap-1 text-xs text-gray-500"
+                  title={`${connectionStatus === 'connected' ? (isWebSocket ? 'Live updates via WebSocket' : 'Polling for updates') : connectionStatus}`}
+                >
+                  <ConnectionDot status={connectionStatus} />
+                  <span>{isWebSocket ? 'Live' : 'Polling'}</span>
+                </div>
+              )}
+            </div>
             <p className="text-sm text-gray-500 font-mono">{runId}</p>
           </div>
         </div>

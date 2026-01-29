@@ -4,6 +4,7 @@
  * Eval Run Detail Page
  *
  * Shows real-time status and results for a single eval run.
+ * Uses WebSocket for live updates with polling fallback.
  */
 
 import { format, formatDistanceToNow } from 'date-fns'
@@ -18,6 +19,7 @@ import {
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { EvalRunProgress, EvalRunResults } from '@/components/eval-runs'
+import { ConnectionStatusIndicator } from '@/components/realtime'
 import {
   useCancelWorkflowRun,
   usePauseWorkflowRun,
@@ -25,6 +27,7 @@ import {
   useWorkflowRun,
   useWorkflowRunStatus,
 } from '@/hooks/use-workflow-runs'
+import { useRealtimeRun } from '@/hooks/use-realtime'
 
 export default function EvalRunDetailPage() {
   const params = useParams()
@@ -36,6 +39,13 @@ export default function EvalRunDetailPage() {
 
   // Fetch lightweight status for polling
   const { data: status } = useWorkflowRunStatus(runId)
+
+  // Real-time updates via WebSocket (with polling fallback)
+  const {
+    status: realtimeStatus,
+    connectionStatus,
+    isWebSocket,
+  } = useRealtimeRun(runId)
 
   // Control mutations
   const pauseMutation = usePauseWorkflowRun()
@@ -71,33 +81,48 @@ export default function EvalRunDetailPage() {
     )
   }
 
-  // Use status for real-time updates, fall back to run data
-  const currentStatus = status || {
-    id: run.id,
-    status: run.status,
-    isRunning: run.status === 'RUNNING',
-    isComplete: run.status === 'COMPLETED',
-    isFailed:
-      run.status === 'FAILED' ||
-      run.status === 'CANCELLED' ||
-      run.status === 'TERMINATED',
-    progress: run.progress
-      ? {
-          completed: run.progress.completed,
-          total: run.progress.total,
-          passed: run.progress.passed,
-          failed: run.progress.failed,
-          percentComplete:
-            run.progress.total > 0
-              ? Math.round((run.progress.completed / run.progress.total) * 100)
-              : 0,
-        }
-      : undefined,
-    summary: run.result as
-      | { total: number; passed: number; failed: number; avgScore: number }
-      | undefined,
-    error: run.error,
-  }
+  // Use realtime status first, then polling status, then run data
+  // Priority: WebSocket realtime > polling status > initial run data
+  const currentStatus = realtimeStatus
+    ? {
+        id: run.id,
+        status: realtimeStatus.status,
+        isRunning: realtimeStatus.status === 'RUNNING',
+        isComplete: realtimeStatus.status === 'COMPLETED',
+        isFailed:
+          realtimeStatus.status === 'FAILED' ||
+          realtimeStatus.status === 'CANCELLED' ||
+          realtimeStatus.status === 'TERMINATED',
+        progress: realtimeStatus.progress,
+        summary: realtimeStatus.summary,
+        error: realtimeStatus.error,
+      }
+    : status || {
+        id: run.id,
+        status: run.status,
+        isRunning: run.status === 'RUNNING',
+        isComplete: run.status === 'COMPLETED',
+        isFailed:
+          run.status === 'FAILED' ||
+          run.status === 'CANCELLED' ||
+          run.status === 'TERMINATED',
+        progress: run.progress
+          ? {
+              completed: run.progress.completed,
+              total: run.progress.total,
+              passed: run.progress.passed,
+              failed: run.progress.failed,
+              percentComplete:
+                run.progress.total > 0
+                  ? Math.round((run.progress.completed / run.progress.total) * 100)
+                  : 0,
+            }
+          : undefined,
+        summary: run.result as
+          | { total: number; passed: number; failed: number; avgScore: number }
+          | undefined,
+        error: run.error,
+      }
 
   // Get results from run progress
   const results = run.progress?.results || []
@@ -116,13 +141,22 @@ export default function EvalRunDetailPage() {
           <h1 className="text-2xl font-bold text-gray-900">Eval Run</h1>
           <p className="text-sm text-gray-500 font-mono">{runId}</p>
         </div>
-        <button
-          onClick={() => refetch()}
-          className="p-2 hover:bg-gray-100 rounded-lg"
-          title="Refresh"
-        >
-          <RefreshCw className="w-5 h-5 text-gray-600" />
-        </button>
+        <div className="flex items-center gap-2">
+          {currentStatus.isRunning && (
+            <ConnectionStatusIndicator
+              status={connectionStatus}
+              isWebSocket={isWebSocket}
+              compact
+            />
+          )}
+          <button
+            onClick={() => refetch()}
+            className="p-2 hover:bg-gray-100 rounded-lg"
+            title="Refresh"
+          >
+            <RefreshCw className="w-5 h-5 text-gray-600" />
+          </button>
+        </div>
       </div>
 
       {/* Progress card */}
@@ -140,6 +174,8 @@ export default function EvalRunDetailPage() {
           isPausing={pauseMutation.isPending}
           isResuming={resumeMutation.isPending}
           isCancelling={cancelMutation.isPending}
+          connectionStatus={connectionStatus}
+          isWebSocket={isWebSocket}
         />
       </div>
 
