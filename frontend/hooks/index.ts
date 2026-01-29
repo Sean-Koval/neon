@@ -5,6 +5,9 @@
 // Compare hooks
 export { useCompare } from './use-compare'
 
+// Dashboard hooks
+export { useDashboard } from './use-dashboard'
+
 // Run hooks
 export {
   useCancelRun,
