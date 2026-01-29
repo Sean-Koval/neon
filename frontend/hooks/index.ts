@@ -20,6 +20,22 @@ export {
   useTriggerRun,
 } from './use-runs'
 
+// Score trends hooks
+export {
+  downloadData,
+  exportToCSV,
+  exportToJSON,
+  type RegressionPoint,
+  type ScoreByScorer,
+  type ScoreBySuite,
+  type ScoreStatistics,
+  type ScoreTrendDataPoint,
+  type TimeRange,
+  type UseScoreTrendsOptions,
+  type UseScoreTrendsResult,
+  useScoreTrends,
+} from './use-scores'
+
 // Suite hooks
 export {
   useCreateSuite,

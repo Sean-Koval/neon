@@ -5,7 +5,7 @@
  */
 
 import type { DatasetItem } from "@neon/shared";
-import type { Scorer, EvalContext, ScoreResult } from "./scorers/base";
+import type { Scorer, EvalContext, ScoreResult } from "./scorers/base.js";
 
 /**
  * Expected output definition for a test

@@ -45,7 +45,7 @@
  */
 
 // Client
-export { Neon, createNeonClient, type NeonConfig } from "./client";
+export { Neon, createNeonClient, type NeonConfig } from "./client.js";
 
 // Test definitions
 export {
@@ -64,7 +64,7 @@ export {
   type InlineScorer,
   type RunOptions,
   type AgentOutput,
-} from "./test";
+} from "./test.js";
 
 // Scorers
 export {
@@ -98,7 +98,7 @@ export {
   type RuleBasedConfig,
   type ContainsConfig,
   type ExactMatchConfig,
-} from "./scorers";
+} from "./scorers/index.js";
 
 // Tracing (local context management)
 export {
@@ -111,7 +111,7 @@ export {
   setCurrentContext,
   type TraceContext,
   type SpanOptions,
-} from "./tracing";
+} from "./tracing/index.js";
 
 // Runner
 export {
@@ -122,4 +122,4 @@ export {
   jsonReporter,
   type RunnerOptions,
   type Reporter,
-} from "./runner";
+} from "./runner/index.js";
