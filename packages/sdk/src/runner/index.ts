@@ -4,9 +4,9 @@
  * Executes test suites and generates reports.
  */
 
-import type { Suite, Test, TestResult, SuiteResult } from "../test";
-import type { Scorer } from "../scorers/base";
-import { Neon } from "../client";
+import type { Suite, Test, TestResult, SuiteResult } from "../test.js";
+import type { Scorer } from "../scorers/base.js";
+import { Neon } from "../client.js";
 
 /**
  * Runner options

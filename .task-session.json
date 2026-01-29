@@ -1,16 +1,19 @@
 {
-  "task_id": "SDK-003",
-  "title": "Built-in scorers: exactMatch, contains, llmJudge",
-  "started_at": "2026-01-28T23:43:19-05:00",
+  "task_id": "SDK-004",
+  "title": "CLI: npx neon eval runs tests locally",
+  "started_at": "2026-01-29T16:29:34-05:00",
   "scope": null,
   "acceptance_criteria": [
-    "exactMatch() scorer - compares output to expected exactly",
-    "contains() scorer - checks if output contains expected substring(s)",
-    "llmJudge() scorer - uses LLM to evaluate quality with configurable criteria",
-    "All scorers return consistent ScoreResult format (value 0-1, reason string)",
-    "Scorers are well-typed with TypeScript generics where appropriate",
-    "Unit tests cover edge cases (empty strings, null handling, etc.)",
-    "Exported from packages/sdk/src/index.ts"
+    "npx neon eval command discovers and runs test files",
+    "Supports glob patterns for test file discovery (e.g., **/*.eval.ts)",
+    "Console output shows test progress with pass/fail status",
+    "Summary at end: total tests, passed, failed, duration",
+    "Individual test case results with scorer names and scores",
+    "Colored output (green=pass, red=fail, yellow=warning)",
+    "Exit code 0 on all pass, non-zero on any failure",
+    "--help flag shows usage information",
+    "Handles async test execution properly",
+    "Error handling with clear error messages for common issues"
   ],
   "context": null
 }

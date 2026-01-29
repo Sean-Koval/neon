@@ -11,7 +11,7 @@ export {
   type ScorerConfig,
   type EvalContext,
   type ScoreResult,
-} from "./base";
+} from "./base.js";
 
 // LLM Judge
 export {
@@ -20,7 +20,7 @@ export {
   safetyJudge,
   helpfulnessJudge,
   type LLMJudgeConfig,
-} from "./llm-judge";
+} from "./llm-judge.js";
 
 // Rule-based scorers
 export {
@@ -43,4 +43,4 @@ export {
   type RuleBasedConfig,
   type ContainsConfig,
   type ExactMatchConfig,
-} from "./rule-based";
+} from "./rule-based.js";
