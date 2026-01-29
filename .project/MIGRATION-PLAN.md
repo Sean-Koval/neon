@@ -42,7 +42,7 @@ docker compose --profile streaming up -d
 - [x] **CLEAN-004**: Clean up `.project/tasks/` - archive completed, remove stale
 - [x] **CLEAN-005**: Clean up `.beads/` - consolidate or remove → `archive/.beads/`
 - [x] **CLEAN-006**: Update `docker-compose.yml` - simplified for new architecture
-- [ ] **CLEAN-007**: Update root `package.json` / `turbo.json` for monorepo
+- [x] **CLEAN-007**: Update root `package.json` / `turbo.json` for monorepo
 
 **Deliverable:** Clean repo with only: `frontend/`, `temporal-workers/`, `packages/sdk/`, `scripts/`
 

@@ -1,0 +1,28 @@
+{
+  "name": "neon",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Agent evaluation platform with durable execution",
+  "workspaces": [
+    "frontend",
+    "packages/*",
+    "temporal-workers"
+  ],
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "clean": "turbo run clean",
+    "frontend": "turbo run dev --filter=agent-eval-frontend",
+    "workers": "turbo run dev --filter=@neon/temporal-workers"
+  },
+  "devDependencies": {
+    "turbo": "^2.4.0"
+  },
+  "packageManager": "bun@1.2.0",
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

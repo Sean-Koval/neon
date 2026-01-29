@@ -32,7 +32,7 @@
     },
     "CLEAN-006": {
       "file": "tasks/CLEAN-006.json",
-      "status": "ready",
+      "status": "completed",
       "phase_id": "phase-1-cleanup",
       "title": "Update root package.json / turbo.json"
     },
@@ -307,13 +307,13 @@
       "tasks": ["DOC-001", "DOC-002", "DOC-003", "DOC-004", "DOC-005"]
     }
   },
-  "ready_tasks": ["CLEAN-006", "SDK-001", "UI-001", "UI-003", "UI-004", "UI-006", "UI-007", "PERF-001", "DOC-003", "DOC-005"],
+  "ready_tasks": ["SDK-001", "UI-001", "UI-003", "UI-004", "UI-006", "UI-007", "PERF-001", "DOC-003", "DOC-005"],
   "critical_path": ["UI-006", "SDK-001", "SDK-002", "SDK-003", "SDK-004"],
   "metrics": {
     "total_tasks": 38,
-    "completed": 18,
+    "completed": 19,
     "in_progress": 0,
-    "ready": 10,
+    "ready": 9,
     "pending": 10,
     "estimated_days_total": 14
   },
