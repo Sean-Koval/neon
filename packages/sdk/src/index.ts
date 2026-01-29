@@ -5,26 +5,37 @@
  *
  * @example
  * ```typescript
- * import { Neon, defineTest, defineSuite, llmJudge } from '@neon/sdk';
+ * import {
+ *   Neon,
+ *   defineTest,
+ *   defineSuite,
+ *   exactMatch,
+ *   contains,
+ *   llmJudge
+ * } from '@neon/sdk';
  *
  * // Create client
  * const neon = new Neon({ apiKey: process.env.NEON_API_KEY });
  *
- * // Define tests
+ * // Define tests with scorers
  * const test = defineTest({
  *   name: 'weather-query',
  *   input: { query: 'Weather in NYC?' },
  *   expected: { toolCalls: ['get_weather'] },
- *   scorers: ['tool_selection'],
+ *   scorers: ['tool_selection', 'quality'],
  * });
  *
- * // Define suite
+ * // Define suite with scorer implementations
  * const suite = defineSuite({
  *   name: 'my-agent-v1',
  *   tests: [test],
  *   scorers: {
  *     tool_selection: toolSelectionScorer(),
- *     quality: llmJudge({ prompt: 'Rate quality...' }),
+ *     output_check: exactMatch('sunny'),
+ *     keywords: contains(['weather', 'temperature']),
+ *     quality: llmJudge({
+ *       prompt: 'Rate response quality 0-1: {{output}}',
+ *     }),
  *   },
  * });
  *
@@ -69,11 +80,15 @@ export {
   safetyJudge,
   helpfulnessJudge,
   type LLMJudgeConfig,
-  // Rule-based
-  ruleBasedScorer,
-  toolSelectionScorer,
+  // Rule-based (new API - preferred)
+  exactMatch,
+  contains,
+  // Rule-based (legacy aliases)
   containsScorer,
   exactMatchScorer,
+  // Other rule-based
+  ruleBasedScorer,
+  toolSelectionScorer,
   jsonMatchScorer,
   latencyScorer,
   errorRateScorer,
@@ -81,6 +96,8 @@ export {
   successScorer,
   iterationScorer,
   type RuleBasedConfig,
+  type ContainsConfig,
+  type ExactMatchConfig,
 } from "./scorers";
 
 // Tracing (local context management)

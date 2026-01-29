@@ -11,14 +11,20 @@ import { defineScorer, type Scorer, type EvalContext } from "./base";
  * LLM Judge configuration
  */
 export interface LLMJudgeConfig {
-  /** Evaluation prompt template */
+  /** Evaluation prompt template. Use {{input}}, {{output}}, {{expected}} for substitution */
   prompt: string;
-  /** Model to use (default: claude-3-haiku) */
+  /** Model to use (default: claude-3-haiku-20240307) */
   model?: string;
-  /** Custom response parser */
+  /** Custom response parser (should return 0-1) */
   parseResponse?: (response: string) => number;
-  /** Maximum tokens for response */
+  /** Maximum tokens for response (default: 256) */
   maxTokens?: number;
+  /** Name for the scorer (default: "llm_judge") */
+  name?: string;
+  /** Description for the scorer */
+  description?: string;
+  /** Temperature for LLM (default: 0) */
+  temperature?: number;
 }
 
 /**
@@ -63,14 +69,57 @@ function defaultParser(response: string): number {
  * });
  * ```
  */
+/**
+ * Create an LLM judge scorer
+ *
+ * @example
+ * ```typescript
+ * // Basic usage
+ * const qualityScorer = llmJudge({
+ *   prompt: `Rate the response quality from 0 to 1.
+ *
+ * Input: {{input}}
+ * Output: {{output}}
+ *
+ * Provide your rating as JSON: {"score": <0-1>, "reason": "<explanation>"}`,
+ * });
+ *
+ * // With custom parser
+ * const binaryScorer = llmJudge({
+ *   prompt: 'Is this response helpful? Answer YES or NO.',
+ *   parseResponse: (text) => text.toUpperCase().includes('YES') ? 1 : 0,
+ * });
+ * ```
+ */
 export function llmJudge(config: LLMJudgeConfig): Scorer {
-  const { prompt, model = "claude-3-haiku-20240307", parseResponse = defaultParser, maxTokens = 256 } = config;
+  const {
+    prompt,
+    model = "claude-3-haiku-20240307",
+    parseResponse = defaultParser,
+    maxTokens = 256,
+    name = "llm_judge",
+    description = "LLM-based evaluation",
+    temperature = 0,
+  } = config;
+
+  // Validate required config
+  if (!prompt || typeof prompt !== "string") {
+    throw new Error("llmJudge requires a prompt string");
+  }
 
   return defineScorer({
-    name: "llm_judge",
-    description: "LLM-based evaluation",
+    name,
+    description,
     dataType: "numeric",
     evaluate: async (context: EvalContext) => {
+      // Check for API key
+      if (!process.env.ANTHROPIC_API_KEY) {
+        return {
+          value: 0,
+          reason: "LLM judge error: ANTHROPIC_API_KEY environment variable not set",
+        };
+      }
+
       const anthropic = new Anthropic();
 
       // Build the evaluation prompt
@@ -80,33 +129,65 @@ export function llmJudge(config: LLMJudgeConfig): Scorer {
         const response = await anthropic.messages.create({
           model,
           max_tokens: maxTokens,
+          temperature,
           messages: [{ role: "user", content: evalPrompt }],
         });
 
         const text =
-          response.content[0].type === "text"
-            ? response.content[0].text
-            : "";
+          response.content[0].type === "text" ? response.content[0].text : "";
+
+        if (!text) {
+          return {
+            value: 0,
+            reason: "LLM judge error: Empty response from model",
+          };
+        }
 
         const score = parseResponse(text);
 
-        // Try to extract reason
+        // Validate score is in range
+        if (typeof score !== "number" || Number.isNaN(score)) {
+          return {
+            value: 0.5,
+            reason: `LLM judge warning: Could not parse score from response, defaulting to 0.5`,
+          };
+        }
+
+        // Try to extract reason from response
         let reason: string | undefined;
         try {
           const jsonMatch = text.match(/\{[\s\S]*\}/);
           if (jsonMatch) {
             const parsed = JSON.parse(jsonMatch[0]);
-            reason = parsed.reason;
+            reason = parsed.reason || parsed.explanation || parsed.rationale;
           }
         } catch {
-          reason = text.slice(0, 200);
+          // If no JSON, use truncated response as reason
+          reason = text.length > 200 ? `${text.slice(0, 197)}...` : text;
         }
 
-        return { value: score, reason };
+        return { value: Math.min(1, Math.max(0, score)), reason };
       } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : "Unknown error";
+
+        // Provide helpful error messages for common issues
+        if (errorMessage.includes("401") || errorMessage.includes("authentication")) {
+          return {
+            value: 0,
+            reason: "LLM judge error: Invalid API key",
+          };
+        }
+        if (errorMessage.includes("429") || errorMessage.includes("rate")) {
+          return {
+            value: 0,
+            reason: "LLM judge error: Rate limit exceeded, please retry",
+          };
+        }
+
         return {
           value: 0,
-          reason: `LLM judge error: ${error instanceof Error ? error.message : "Unknown error"}`,
+          reason: `LLM judge error: ${errorMessage}`,
         };
       }
     },

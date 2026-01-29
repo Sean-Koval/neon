@@ -26,13 +26,21 @@ export {
 export {
   ruleBasedScorer,
   toolSelectionScorer,
+  // New API (preferred)
+  contains,
+  exactMatch,
+  // Legacy aliases (deprecated)
   containsScorer,
   exactMatchScorer,
+  // Other scorers
   jsonMatchScorer,
   latencyScorer,
   errorRateScorer,
   tokenEfficiencyScorer,
   successScorer,
   iterationScorer,
+  // Types
   type RuleBasedConfig,
+  type ContainsConfig,
+  type ExactMatchConfig,
 } from "./rule-based";

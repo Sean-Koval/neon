@@ -75,42 +75,200 @@ export function toolSelectionScorer(expectedTools?: string[]): Scorer {
 }
 
 /**
- * Check if output contains expected strings
+ * Configuration for contains scorer
  */
-export function containsScorer(expected?: string[]): Scorer {
-  return ruleBasedScorer({
+export interface ContainsConfig {
+  /** Strings to check for (case-insensitive by default) */
+  expected?: string | string[];
+  /** Whether to use case-sensitive matching (default: false) */
+  caseSensitive?: boolean;
+  /** Require all strings to match (AND) vs any string (OR). Default: true (AND) */
+  matchAll?: boolean;
+}
+
+/**
+ * Check if output contains expected string(s)
+ *
+ * @example
+ * ```typescript
+ * // Simple usage
+ * contains('hello')
+ * contains(['hello', 'world'])
+ *
+ * // With options
+ * contains({ expected: ['error', 'warning'], matchAll: false })
+ * contains({ expected: 'SUCCESS', caseSensitive: true })
+ * ```
+ */
+export function contains(config?: string | string[] | ContainsConfig): Scorer {
+  // Normalize config
+  const normalizedConfig: ContainsConfig =
+    typeof config === "string"
+      ? { expected: [config] }
+      : Array.isArray(config)
+        ? { expected: config }
+        : config ?? {};
+
+  const { expected, caseSensitive = false, matchAll = true } = normalizedConfig;
+
+  return defineScorer({
     name: "contains",
-    description: "Checks if output contains expected strings",
-    check: (context) => {
+    description: "Checks if output contains expected string(s)",
+    dataType: "numeric",
+    evaluate: (context: EvalContext) => {
       const output = getLastOutput(context);
-      const strings = expected || (context.expected?.outputContains as string[]) || [];
 
-      if (strings.length === 0) return 1;
+      // Get expected strings from config or context
+      const rawExpected = expected ?? (context.expected?.outputContains as string | string[]);
+      const strings = normalizeToArray(rawExpected);
 
-      const matches = strings.filter((s) =>
-        output.toLowerCase().includes(s.toLowerCase())
-      );
-      return matches.length / strings.length;
+      // Handle edge cases
+      if (strings.length === 0) {
+        return { value: 1, reason: "No expected strings specified" };
+      }
+
+      if (output === "") {
+        return { value: 0, reason: "Output is empty" };
+      }
+
+      const normalizedOutput = caseSensitive ? output : output.toLowerCase();
+      const matches = strings.filter((s) => {
+        if (s === null || s === undefined) return false;
+        const normalizedSearch = caseSensitive ? String(s) : String(s).toLowerCase();
+        return normalizedOutput.includes(normalizedSearch);
+      });
+
+      const matchCount = matches.length;
+      const total = strings.length;
+
+      if (matchAll) {
+        // AND mode: score is ratio of matches
+        const value = matchCount / total;
+        const reason =
+          value === 1
+            ? `All ${total} expected string(s) found`
+            : `Found ${matchCount}/${total} expected strings: missing [${strings.filter((s) => !matches.includes(s)).join(", ")}]`;
+        return { value, reason };
+      } else {
+        // OR mode: 1 if any match, 0 otherwise
+        const value = matchCount > 0 ? 1 : 0;
+        const reason =
+          value === 1
+            ? `Found matching string: "${matches[0]}"`
+            : `None of the expected strings found: [${strings.join(", ")}]`;
+        return { value, reason };
+      }
     },
   });
 }
 
 /**
- * Check for exact output match
+ * @deprecated Use `contains()` instead for cleaner API
  */
-export function exactMatchScorer(expected?: string): Scorer {
-  return ruleBasedScorer({
+export function containsScorer(expected?: string[]): Scorer {
+  return contains(expected);
+}
+
+/**
+ * Configuration for exact match scorer
+ */
+export interface ExactMatchConfig {
+  /** Expected output string */
+  expected?: string;
+  /** Whether to trim whitespace before comparison (default: true) */
+  trim?: boolean;
+  /** Whether to normalize whitespace (collapse multiple spaces/newlines) (default: false) */
+  normalizeWhitespace?: boolean;
+  /** Whether to use case-sensitive matching (default: true) */
+  caseSensitive?: boolean;
+}
+
+/**
+ * Check for exact output match
+ *
+ * @example
+ * ```typescript
+ * // Simple usage - expects exact string
+ * exactMatch('hello world')
+ *
+ * // With options
+ * exactMatch({ expected: 'Hello World', caseSensitive: false })
+ * exactMatch({ expected: 'result', normalizeWhitespace: true })
+ * ```
+ */
+export function exactMatch(config?: string | ExactMatchConfig): Scorer {
+  // Normalize config
+  const normalizedConfig: ExactMatchConfig =
+    typeof config === "string" ? { expected: config } : config ?? {};
+
+  const {
+    expected,
+    trim = true,
+    normalizeWhitespace = false,
+    caseSensitive = true,
+  } = normalizedConfig;
+
+  return defineScorer({
     name: "exact_match",
     description: "Checks for exact output match",
-    check: (context) => {
-      const output = getLastOutput(context);
-      const expectedOutput = expected || (context.expected?.output as string);
+    dataType: "numeric",
+    evaluate: (context: EvalContext) => {
+      const rawOutput = getLastOutput(context);
+      const rawExpected = expected ?? (context.expected?.output as string);
 
-      if (!expectedOutput) return 1;
+      // Handle null/undefined expected
+      if (rawExpected === null || rawExpected === undefined) {
+        return { value: 1, reason: "No expected output specified" };
+      }
 
-      return output.trim() === expectedOutput.trim() ? 1 : 0;
+      // Handle null/undefined output
+      if (rawOutput === null || rawOutput === undefined) {
+        return { value: 0, reason: "Output is null or undefined" };
+      }
+
+      // Normalize strings
+      let output = String(rawOutput);
+      let expectedStr = String(rawExpected);
+
+      if (trim) {
+        output = output.trim();
+        expectedStr = expectedStr.trim();
+      }
+
+      if (normalizeWhitespace) {
+        output = output.replace(/\s+/g, " ");
+        expectedStr = expectedStr.replace(/\s+/g, " ");
+      }
+
+      if (!caseSensitive) {
+        output = output.toLowerCase();
+        expectedStr = expectedStr.toLowerCase();
+      }
+
+      const matches = output === expectedStr;
+
+      if (matches) {
+        return { value: 1, reason: "Output matches expected exactly" };
+      }
+
+      // Provide helpful diff info for debugging
+      const outputPreview = output.length > 50 ? `${output.slice(0, 50)}...` : output;
+      const expectedPreview =
+        expectedStr.length > 50 ? `${expectedStr.slice(0, 50)}...` : expectedStr;
+
+      return {
+        value: 0,
+        reason: `Output "${outputPreview}" does not match expected "${expectedPreview}"`,
+      };
     },
   });
+}
+
+/**
+ * @deprecated Use `exactMatch()` instead for cleaner API
+ */
+export function exactMatchScorer(expected?: string): Scorer {
+  return exactMatch(expected);
 }
 
 /**
@@ -249,6 +407,14 @@ function getLastOutput(context: EvalContext): string {
   );
   const lastGen = generations[generations.length - 1];
   return lastGen?.output || "";
+}
+
+/**
+ * Normalize a value to an array
+ */
+function normalizeToArray<T>(value: T | T[] | undefined | null): T[] {
+  if (value === null || value === undefined) return [];
+  return Array.isArray(value) ? value : [value];
 }
 
 /**
