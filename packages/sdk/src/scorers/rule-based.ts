@@ -4,7 +4,7 @@
  * Deterministic scorers that don't require LLM calls.
  */
 
-import { defineScorer, type Scorer, type EvalContext } from "./base";
+import { defineScorer, type Scorer, type EvalContext } from "./base.js";
 
 /**
  * Rule-based scorer configuration

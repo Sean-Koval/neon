@@ -5,7 +5,7 @@
  */
 
 import Anthropic from "@anthropic-ai/sdk";
-import { defineScorer, type Scorer, type EvalContext } from "./base";
+import { defineScorer, type Scorer, type EvalContext } from "./base.js";
 
 /**
  * LLM Judge configuration
