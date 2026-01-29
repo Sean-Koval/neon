@@ -10,9 +10,12 @@ import {
   XCircle,
 } from 'lucide-react'
 import Link from 'next/link'
-import { DashboardFiltersBar, type DashboardFilters } from '@/components/dashboard/filters'
+import {
+  type DashboardFilters,
+  DashboardFiltersBar,
+} from '@/components/dashboard/filters'
+import { ScoreTrends } from '@/components/dashboard/score-trends'
 import { DashboardStatCards } from '@/components/dashboard/stat-cards'
-import { TrendCard } from '@/components/dashboard/trend-card'
 import { useDashboard } from '@/hooks/use-dashboard'
 import type { EvalRun, EvalRunStatus } from '@/lib/types'
 
@@ -37,6 +40,7 @@ export default function Dashboard() {
           <p className="text-gray-500">Overview of your agent evaluations</p>
         </div>
         <button
+          type="button"
           onClick={refresh}
           className="btn btn-secondary inline-flex items-center gap-2"
           title="Refresh dashboard"
@@ -57,19 +61,26 @@ export default function Dashboard() {
       {/* Stats */}
       <DashboardStatCards />
 
-      {/* Two column layout: Trend Chart + Recent Runs */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Trend Chart */}
-        <TrendCard dateRange={filters.dateRange} />
+      {/* Score Trends - Full Width */}
+      <ScoreTrends
+        defaultTimeRange={
+          filters.dateRange === '7d'
+            ? '7d'
+            : filters.dateRange === '30d'
+              ? '30d'
+              : '90d'
+        }
+        showSuiteFilter={true}
+        threshold={0.7}
+      />
 
-        {/* Recent Runs */}
-        <RecentRunsCard
-          runs={recentRuns}
-          isLoading={isLoadingRuns}
-          error={runsError}
-          filters={filters}
-        />
-      </div>
+      {/* Recent Runs */}
+      <RecentRunsCard
+        runs={recentRuns}
+        isLoading={isLoadingRuns}
+        error={runsError}
+        filters={filters}
+      />
     </div>
   )
 }
@@ -81,7 +92,12 @@ interface RecentRunsCardProps {
   filters: DashboardFilters
 }
 
-function RecentRunsCard({ runs, isLoading, error, filters }: RecentRunsCardProps) {
+function RecentRunsCard({
+  runs,
+  isLoading,
+  error,
+  filters,
+}: RecentRunsCardProps) {
   const hasFilters =
     filters.status !== 'all' ||
     filters.suiteId !== 'all' ||

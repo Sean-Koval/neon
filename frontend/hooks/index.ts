@@ -7,7 +7,6 @@ export { useCompare } from './use-compare'
 
 // Dashboard hooks
 export { useDashboard } from './use-dashboard'
-
 // Run hooks
 export {
   useCancelRun,
@@ -16,6 +15,21 @@ export {
   useRuns,
   useTriggerRun,
 } from './use-runs'
+// Score trends hooks
+export {
+  downloadData,
+  exportToCSV,
+  exportToJSON,
+  type RegressionPoint,
+  type ScoreByScorer,
+  type ScoreBySuite,
+  type ScoreStatistics,
+  type ScoreTrendDataPoint,
+  type TimeRange,
+  type UseScoreTrendsOptions,
+  type UseScoreTrendsResult,
+  useScoreTrends,
+} from './use-scores'
 
 // Suite hooks
 export {
