@@ -1,20 +1,19 @@
 /**
  * Tracing Utilities
  *
- * Helpers for manual span creation and decorators.
+ * Local context management for structuring async evaluation code.
+ * For production tracing to Neon API, use the full @neon/tracing package.
  */
 
-import type { SpanType } from "@neon/shared";
-
 /**
- * Trace context for span creation
+ * Trace context for span tracking
  */
 export interface TraceContext {
   traceId: string;
   parentSpanId?: string;
 }
 
-// Global trace context (thread-local style)
+// Global trace context (async-local style)
 let currentContext: TraceContext | null = null;
 
 /**
@@ -51,7 +50,7 @@ export async function withContext<T>(
  * Span options
  */
 export interface SpanOptions {
-  type?: SpanType;
+  type?: "span" | "generation" | "tool";
   attributes?: Record<string, string>;
 }
 
@@ -68,47 +67,11 @@ export interface SpanOptions {
 export async function span<T>(
   name: string,
   fn: () => Promise<T>,
-  options?: SpanOptions
+  _options?: SpanOptions
 ): Promise<T> {
-  const context = getCurrentContext();
-  const spanId = `span-${crypto.randomUUID()}`;
-  const startTime = Date.now();
-
-  try {
-    const result = await fn();
-
-    // Emit span if we have a context
-    if (context) {
-      await emitSpanToApi({
-        traceId: context.traceId,
-        spanId,
-        parentSpanId: context.parentSpanId,
-        name,
-        spanType: options?.type ?? "span",
-        status: "ok",
-        durationMs: Date.now() - startTime,
-        attributes: options?.attributes,
-      });
-    }
-
-    return result;
-  } catch (error) {
-    // Emit error span
-    if (context) {
-      await emitSpanToApi({
-        traceId: context.traceId,
-        spanId,
-        parentSpanId: context.parentSpanId,
-        name,
-        spanType: options?.type ?? "span",
-        status: "error",
-        statusMessage: error instanceof Error ? error.message : "Unknown error",
-        durationMs: Date.now() - startTime,
-        attributes: options?.attributes,
-      });
-    }
-    throw error;
-  }
+  // For local eval, just execute the function
+  // The span name and options can be used for debugging/logging
+  return fn();
 }
 
 /**
@@ -124,14 +87,12 @@ export async function span<T>(
 export async function trace<T>(
   name: string,
   fn: () => Promise<T>,
-  metadata?: Record<string, string>
+  _metadata?: Record<string, string>
 ): Promise<T> {
   const traceId = `trace-${crypto.randomUUID()}`;
   const context: TraceContext = { traceId };
 
-  return withContext(context, async () => {
-    return span(name, fn, { attributes: metadata });
-  });
+  return withContext(context, fn);
 }
 
 /**
@@ -140,19 +101,13 @@ export async function trace<T>(
 export async function generation<T>(
   name: string,
   fn: () => Promise<T>,
-  options?: {
+  _options?: {
     model?: string;
     input?: string;
     attributes?: Record<string, string>;
   }
 ): Promise<T> {
-  return span(name, fn, {
-    type: "generation",
-    attributes: {
-      ...options?.attributes,
-      ...(options?.model && { model: options.model }),
-    },
-  });
+  return span(name, fn, { type: "generation" });
 }
 
 /**
@@ -161,149 +116,11 @@ export async function generation<T>(
 export async function tool<T>(
   name: string,
   fn: () => Promise<T>,
-  options?: {
+  _options?: {
     toolName?: string;
     toolInput?: string;
     attributes?: Record<string, string>;
   }
 ): Promise<T> {
-  return span(name, fn, {
-    type: "tool",
-    attributes: {
-      ...options?.attributes,
-      ...(options?.toolName && { tool_name: options.toolName }),
-    },
-  });
-}
-
-// ==================== Decorators ====================
-
-/**
- * Decorator for tracing a method
- *
- * @example
- * ```typescript
- * class MyService {
- *   @traced('process')
- *   async process(input: string): Promise<string> {
- *     return input.toUpperCase();
- *   }
- * }
- * ```
- */
-export function traced(name?: string): MethodDecorator {
-  return function (
-    target: object,
-    propertyKey: string | symbol,
-    descriptor: PropertyDescriptor
-  ) {
-    const originalMethod = descriptor.value;
-    const spanName = name || String(propertyKey);
-
-    descriptor.value = async function (...args: unknown[]) {
-      return span(spanName, async () => {
-        return originalMethod.apply(this, args);
-      });
-    };
-
-    return descriptor;
-  };
-}
-
-/**
- * Decorator for scoring a method's trace
- *
- * @example
- * ```typescript
- * class MyAgent {
- *   @scored(['tool_selection', 'response_quality'])
- *   async run(query: string): Promise<string> {
- *     return this.process(query);
- *   }
- * }
- * ```
- */
-export function scored(scorers: string[]): MethodDecorator {
-  return function (
-    target: object,
-    propertyKey: string | symbol,
-    descriptor: PropertyDescriptor
-  ) {
-    const originalMethod = descriptor.value;
-
-    descriptor.value = async function (...args: unknown[]) {
-      const context = getCurrentContext();
-      const result = await originalMethod.apply(this, args);
-
-      // Schedule scoring (non-blocking)
-      if (context) {
-        scheduleScoring(context.traceId, scorers).catch(console.error);
-      }
-
-      return result;
-    };
-
-    return descriptor;
-  };
-}
-
-// ==================== Internal Helpers ====================
-
-const NEON_API_URL = process.env.NEON_API_URL || "http://localhost:4000";
-const NEON_API_KEY = process.env.NEON_API_KEY || "";
-
-/**
- * Emit a span to the Neon API
- */
-async function emitSpanToApi(span: {
-  traceId: string;
-  spanId: string;
-  parentSpanId?: string;
-  name: string;
-  spanType: SpanType;
-  status: "ok" | "error";
-  statusMessage?: string;
-  durationMs: number;
-  attributes?: Record<string, string>;
-}): Promise<void> {
-  if (!NEON_API_KEY) {
-    // No API key, skip emission
-    return;
-  }
-
-  try {
-    await fetch(`${NEON_API_URL}/api/spans`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${NEON_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(span),
-    });
-  } catch {
-    // Silently fail - tracing should not break the application
-  }
-}
-
-/**
- * Schedule scoring for a trace
- */
-async function scheduleScoring(
-  traceId: string,
-  scorers: string[]
-): Promise<void> {
-  if (!NEON_API_KEY) return;
-
-  try {
-    await fetch(`${NEON_API_URL}/api/scores/schedule`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${NEON_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ traceId, scorers }),
-    });
-  } catch {
-    // Silently fail
-  }
+  return span(name, fn, { type: "tool" });
 }

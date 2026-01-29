@@ -54,9 +54,6 @@ export {
 export {
   // Base
   defineScorer,
-  combineScorers,
-  invertScorer,
-  withThreshold,
   type Scorer,
   type ScorerConfig,
   type EvalContext,
@@ -81,14 +78,12 @@ export {
   type RuleBasedConfig,
 } from "./scorers";
 
-// Tracing
+// Tracing (local context management)
 export {
   trace,
   span,
   generation,
   tool,
-  traced,
-  scored,
   withContext,
   getCurrentContext,
   setCurrentContext,
