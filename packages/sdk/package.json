@@ -5,9 +5,6 @@
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
-  "bin": {
-    "neon": "./bin/neon.js"
-  },
   "exports": {
     ".": {
       "import": "./dist/index.js",
@@ -28,8 +25,7 @@
     "test": "vitest"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.32.0",
-    "commander": "^12.0.0"
+    "@anthropic-ai/sdk": "^0.32.0"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",
@@ -40,8 +36,7 @@
     "@neon/shared": "workspace:*"
   },
   "files": [
-    "dist",
-    "bin"
+    "dist"
   ],
   "keywords": [
     "neon",

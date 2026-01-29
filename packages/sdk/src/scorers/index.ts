@@ -7,9 +7,6 @@
 // Base types and utilities
 export {
   defineScorer,
-  combineScorers,
-  invertScorer,
-  withThreshold,
   type Scorer,
   type ScorerConfig,
   type EvalContext,

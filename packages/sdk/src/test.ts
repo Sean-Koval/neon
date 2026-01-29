@@ -4,7 +4,7 @@
  * Define tests, datasets, and test suites for agent evaluation.
  */
 
-import type { DatasetItem, ScorerDefinition } from "@neon/shared";
+import type { DatasetItem } from "@neon/shared";
 import type { Scorer } from "./scorers/base";
 
 /**
