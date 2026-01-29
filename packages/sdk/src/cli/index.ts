@@ -35,6 +35,7 @@ function createProgram(): Command {
     .option("--format <type>", "Output format (console, json)", "console")
     .option("--verbose", "Show verbose output", false)
     .option("--cwd <path>", "Working directory for test discovery", process.cwd())
+    .option("--no-sync", "Disable syncing results to Neon cloud")
     .action(async (patterns: string[], options) => {
       const exitCode = await runEval({
         pattern: patterns.length > 0 ? patterns : undefined,
@@ -44,6 +45,7 @@ function createProgram(): Command {
         format: options.format,
         verbose: options.verbose,
         cwd: options.cwd,
+        noSync: options.sync === false, // Commander.js negates the flag
       });
       process.exit(exitCode);
     });

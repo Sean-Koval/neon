@@ -1,19 +1,18 @@
 {
-  "task_id": "SDK-004",
-  "title": "CLI: npx neon eval runs tests locally",
-  "started_at": "2026-01-29T16:29:34-05:00",
+  "task_id": "SDK-006",
+  "title": "Optional: Send results to Neon cloud/self-hosted",
+  "started_at": "2026-01-29T17:13:40-05:00",
   "scope": null,
   "acceptance_criteria": [
-    "npx neon eval command discovers and runs test files",
-    "Supports glob patterns for test file discovery (e.g., **/*.eval.ts)",
-    "Console output shows test progress with pass/fail status",
-    "Summary at end: total tests, passed, failed, duration",
-    "Individual test case results with scorer names and scores",
-    "Colored output (green=pass, red=fail, yellow=warning)",
-    "Exit code 0 on all pass, non-zero on any failure",
-    "--help flag shows usage information",
-    "Handles async test execution properly",
-    "Error handling with clear error messages for common issues"
+    "Results are sent to Neon server when NEON_API_URL and NEON_API_KEY env vars are set",
+    "Works silently in the background - doesn't block local eval execution",
+    "Graceful degradation: if server is unavailable, log warning and continue",
+    "Sends: suite name, test cases, scores, timing, metadata",
+    "API client handles authentication with API key",
+    "Configurable via environment variables (NEON_API_URL, NEON_API_KEY)",
+    "Optional --no-sync flag to disable sending even when configured",
+    "Clear success/failure message in CLI output (e.g., 'Results synced to Neon')",
+    "Unit tests for API client with mocked responses"
   ],
   "context": null
 }

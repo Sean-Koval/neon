@@ -123,3 +123,20 @@ export {
   type RunnerOptions,
   type Reporter,
 } from "./runner/index.js";
+
+// Cloud sync
+export {
+  NeonCloudClient,
+  CloudSyncError,
+  createCloudClientFromEnv,
+  isCloudSyncConfigured,
+  syncResultsToCloud,
+  syncSuiteResult,
+  createBackgroundSync,
+  formatSyncStatus,
+  type CloudConfig,
+  type EvalSyncPayload,
+  type SyncResponse,
+  type SyncOptions,
+  type SyncResult,
+} from "./cloud/index.js";

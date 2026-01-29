@@ -17,6 +17,12 @@ import {
   printInfo,
   type ReporterFormat,
 } from "../reporter.js";
+import {
+  isCloudSyncConfigured,
+  createBackgroundSync,
+  formatSyncStatus,
+  type SyncResult,
+} from "../../cloud/index.js";
 
 /**
  * Eval command options
@@ -36,6 +42,8 @@ export interface EvalOptions {
   verbose?: boolean;
   /** Working directory */
   cwd?: string;
+  /** Disable syncing results to Neon cloud */
+  noSync?: boolean;
 }
 
 /**
@@ -61,6 +69,7 @@ export async function runEval(options: EvalOptions = {}): Promise<number> {
     format = "console",
     verbose = false,
     cwd = process.cwd(),
+    noSync = false,
   } = options;
 
   const startTime = Date.now();
@@ -151,11 +160,40 @@ export async function runEval(options: EvalOptions = {}): Promise<number> {
     printAggregatedSummary(results);
   }
 
+  // Sync results to cloud (unless disabled)
+  let syncResults: SyncResult[] = [];
+  if (!noSync && results.length > 0) {
+    // Start background sync - don't block the main flow
+    const syncPromise = createBackgroundSync(results, {
+      metadata: {
+        cwd,
+        patterns: pattern,
+        filter,
+      },
+    });
+
+    // Wait for sync to complete (it handles its own errors)
+    syncResults = await syncPromise;
+  }
+
   // Print total duration
   if (format !== "json") {
     const totalDuration = ((Date.now() - startTime) / 1000).toFixed(2);
     console.log();
     console.log(pc.dim(`Total time: ${totalDuration}s`));
+
+    // Print sync status
+    const syncStatus = formatSyncStatus(syncResults, verbose);
+    if (syncStatus) {
+      console.log();
+      if (syncResults.every((r) => r.success)) {
+        console.log(pc.green(syncStatus));
+      } else if (syncResults.some((r) => r.skipped)) {
+        console.log(pc.dim(syncStatus));
+      } else {
+        console.log(pc.yellow(syncStatus));
+      }
+    }
   }
 
   return hasFailures ? 1 : 0;
