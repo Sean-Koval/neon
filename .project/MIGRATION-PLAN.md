@@ -38,7 +38,7 @@ docker compose --profile streaming up -d
 ### Tasks
 - [x] **CLEAN-001**: Archive `api/` directory (Python FastAPI) → `archive/api/`
 - [x] **CLEAN-002**: Archive `moose-app/` directory → `archive/moose-app/`
-- [ ] **CLEAN-003**: Remove MLflow references from frontend
+- [x] **CLEAN-003**: Remove MLflow references from frontend
 - [x] **CLEAN-004**: Clean up `.project/tasks/` - archive completed, remove stale
 - [x] **CLEAN-005**: Clean up `.beads/` - consolidate or remove → `archive/.beads/`
 - [x] **CLEAN-006**: Update `docker-compose.yml` - simplified for new architecture

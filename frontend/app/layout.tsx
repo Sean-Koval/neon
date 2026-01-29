@@ -8,7 +8,7 @@ const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
   title: 'Neon',
-  description: 'Agent evaluation platform built on MLflow',
+  description: 'Agent evaluation platform with durable execution',
 }
 
 export default function RootLayout({

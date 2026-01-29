@@ -285,10 +285,8 @@ export interface EvalResult {
   case_id: string
   /** Name of the case that was executed */
   case_name: string
-  /** MLflow run ID for trace lookup */
-  mlflow_run_id?: string | null
-  /** MLflow trace ID for detailed analysis */
-  mlflow_trace_id?: string | null
+  /** Trace ID for detailed analysis */
+  trace_id?: string | null
   /** Execution status */
   status: EvalResultStatus
   /** Agent output (if successful) */

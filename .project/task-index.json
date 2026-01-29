@@ -14,7 +14,7 @@
     },
     "CLEAN-003": {
       "file": "tasks/CLEAN-003.json",
-      "status": "in_progress",
+      "status": "completed",
       "phase_id": "phase-1-cleanup",
       "title": "Remove MLflow references from frontend"
     },
@@ -307,15 +307,15 @@
       "tasks": ["DOC-001", "DOC-002", "DOC-003", "DOC-004", "DOC-005"]
     }
   },
-  "ready_tasks": ["CLEAN-003", "CLEAN-006", "SDK-001", "UI-001", "UI-003", "UI-004", "UI-006", "UI-007", "PERF-001", "DOC-003", "DOC-005"],
+  "ready_tasks": ["CLEAN-006", "SDK-001", "UI-001", "UI-003", "UI-004", "UI-006", "UI-007", "PERF-001", "DOC-003", "DOC-005"],
   "critical_path": ["UI-006", "SDK-001", "SDK-002", "SDK-003", "SDK-004"],
   "metrics": {
     "total_tasks": 38,
-    "completed": 17,
-    "in_progress": 1,
+    "completed": 18,
+    "in_progress": 0,
     "ready": 10,
     "pending": 10,
     "estimated_days_total": 14
   },
-  "last_computed": "2026-01-26T05:00:00Z"
+  "last_computed": "2026-01-28T00:00:00Z"
 }

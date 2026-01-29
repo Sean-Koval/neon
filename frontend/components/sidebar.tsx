@@ -81,7 +81,7 @@ export function Sidebar() {
         <div className="flex items-center justify-between">
           <span className="text-xs text-dark-500">v0.1.0</span>
           <span className="text-[10px] text-dark-600 font-medium">
-            Built on MLflow
+            Temporal + ClickHouse
           </span>
         </div>
       </div>
