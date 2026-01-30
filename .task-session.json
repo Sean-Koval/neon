@@ -1,16 +1,17 @@
 {
-  "task_id": "DOC-002",
-  "title": "SDK documentation",
-  "started_at": "2026-01-29T22:29:09-05:00",
+  "task_id": "DOC-003",
+  "title": "Self-hosting guide (Docker Compose)",
+  "started_at": "2026-01-29T22:50:31-05:00",
   "scope": null,
   "acceptance_criteria": [
-    "Complete API reference for all public exports",
-    "Guide for creating custom scorers with examples",
-    "Guide for integrating with popular agent frameworks (LangChain, CrewAI, etc.)",
-    "CI/CD integration examples (GitHub Actions, GitLab CI)",
-    "Configuration reference (thresholds, parallel execution, etc.)",
+    "docker-compose.yml with all services (ClickHouse, Temporal, Frontend)",
+    "Step-by-step quickstart in docs/self-hosting.md",
+    "Environment variable reference with defaults",
+    "Health check endpoints documented",
     "Troubleshooting section for common issues",
-    "Migration guide from other eval tools (if applicable)"
+    "Resource requirements (CPU, RAM, disk) documented",
+    "Upgrade/migration instructions placeholder",
+    "Works on Linux, macOS, and Windows (WSL2)"
   ],
   "context": null
 }
