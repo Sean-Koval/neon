@@ -7,7 +7,8 @@
 
 import { type NextRequest, NextResponse } from 'next/server'
 import { v4 as uuidv4 } from 'uuid'
-import { insertScores, type ScoreRecord } from '@/lib/clickhouse'
+import { type ScoreRecord } from '@/lib/clickhouse'
+import { batchInsertScores } from '@/lib/clickhouse-batch'
 
 export async function POST(request: NextRequest) {
   try {
@@ -37,7 +38,7 @@ export async function POST(request: NextRequest) {
       timestamp: new Date().toISOString(),
     }
 
-    await insertScores([score])
+    await batchInsertScores([score])
 
     return NextResponse.json({
       message: 'Score created successfully',

@@ -1,7 +1,8 @@
 /**
  * Dashboard data fetching and filtering hook.
  *
- * Combines runs, suites, and stats with client-side filtering.
+ * Combines runs, suites, and stats with server-side or client-side filtering.
+ * Uses server-side materialized views for fast aggregations (<100ms).
  */
 
 import { useMemo, useState } from 'react'
@@ -12,10 +13,15 @@ import type {
 import { getDateFromRange } from '@/components/dashboard/filters'
 import {
   useRuns,
-  useDashboardStats,
-  useScoreTrend,
+  useDashboardStats as useClientDashboardStats,
+  useScoreTrend as useClientScoreTrend,
   type ScoreTrendPoint,
 } from './use-runs'
+import {
+  useDashboardSummary,
+  useFormattedScoreTrends,
+  type FormattedScoreTrendPoint,
+} from './use-dashboard-api'
 import { useSuites } from './use-suites'
 import type { EvalRun, EvalSuite } from '@/lib/types'
 
@@ -29,7 +35,7 @@ export interface UseDashboardReturn {
   recentRuns: EvalRun[]
   allRuns: EvalRun[]
 
-  // Stats (computed from filtered runs)
+  // Stats (from server-side materialized views or client-side)
   stats: {
     totalRuns: number
     passedRuns: number
@@ -42,7 +48,7 @@ export interface UseDashboardReturn {
   // Suites for filter dropdown
   suites: EvalSuite[]
 
-  // Trend data
+  // Trend data (from server-side or client-side)
   trendData: ScoreTrendPoint[]
 
   // Loading states
@@ -57,8 +63,19 @@ export interface UseDashboardReturn {
   statsError: Error | null
   trendError: Error | null
 
+  // Performance metrics
+  queryTimeMs?: number
+
   // Refresh function
   refresh: () => void
+}
+
+export interface UseDashboardOptions {
+  /**
+   * Use server-side materialized views for aggregations.
+   * Default: true (recommended for performance)
+   */
+  useServerSide?: boolean
 }
 
 const DEFAULT_FILTERS: DashboardFilters = {
@@ -68,10 +85,32 @@ const DEFAULT_FILTERS: DashboardFilters = {
 }
 
 /**
- * Hook for fetching and filtering dashboard data.
+ * Convert date range option to number of days.
  */
-export function useDashboard(): UseDashboardReturn {
+function dateRangeToDays(range: DateRangeOption): number {
+  switch (range) {
+    case '7d':
+      return 7
+    case '30d':
+      return 30
+    case '90d':
+      return 90
+    default:
+      return 7
+  }
+}
+
+/**
+ * Hook for fetching and filtering dashboard data.
+ *
+ * Uses server-side materialized views by default for <100ms query latency.
+ * Falls back to client-side computation if server-side is disabled.
+ */
+export function useDashboard(options: UseDashboardOptions = {}): UseDashboardReturn {
+  const { useServerSide = true } = options
   const [filters, setFilters] = useState<DashboardFilters>(DEFAULT_FILTERS)
+
+  const trendDays = dateRangeToDays(filters.dateRange)
 
   // Fetch all runs (with high limit to get enough for filtering)
   const {
@@ -89,22 +128,74 @@ export function useDashboard(): UseDashboardReturn {
     refetch: refetchSuites,
   } = useSuites()
 
-  // Dashboard stats (from existing hook)
+  // Server-side stats from materialized views
   const {
-    stats: rawStats,
-    isLoading: isLoadingStats,
-    error: statsError,
-    refetch: refetchStats,
-  } = useDashboardStats()
+    data: serverStats,
+    isLoading: isLoadingServerStats,
+    error: serverStatsError,
+    refetch: refetchServerStats,
+  } = useDashboardSummary({ days: trendDays }, { enabled: useServerSide })
 
-  // Trend data for the chart
-  const trendDays =
-    filters.dateRange === '7d' ? 7 : filters.dateRange === '30d' ? 30 : 90
+  // Client-side stats (fallback)
   const {
-    data: trendData = [],
-    isLoading: isLoadingTrend,
-    error: trendError,
-  } = useScoreTrend({ days: trendDays, maxRuns: 100 })
+    stats: clientStats,
+    isLoading: isLoadingClientStats,
+    error: clientStatsError,
+    refetch: refetchClientStats,
+  } = useClientDashboardStats()
+
+  // Server-side trend data from materialized views
+  const {
+    data: serverTrendData = [],
+    isLoading: isLoadingServerTrend,
+    error: serverTrendError,
+  } = useFormattedScoreTrends({ days: trendDays })
+
+  // Client-side trend data (fallback)
+  const {
+    data: clientTrendData = [],
+    isLoading: isLoadingClientTrend,
+    error: clientTrendError,
+  } = useClientScoreTrend({ days: trendDays, maxRuns: 100 })
+
+  // Select stats based on mode
+  const isLoadingStats = useServerSide ? isLoadingServerStats : isLoadingClientStats
+  const statsError = useServerSide ? serverStatsError : clientStatsError
+  const refetchStats = useServerSide ? refetchServerStats : refetchClientStats
+
+  // Select trend data based on mode
+  const isLoadingTrend = useServerSide ? isLoadingServerTrend : isLoadingClientTrend
+  const trendError = useServerSide ? serverTrendError : clientTrendError
+
+  // Transform server stats to match expected format
+  const stats = useMemo(() => {
+    if (useServerSide && serverStats) {
+      return {
+        totalRuns: serverStats.totalRuns,
+        passedRuns: serverStats.passedRuns,
+        failedRuns: serverStats.failedRuns,
+        passedPercentage: serverStats.passedPercentage,
+        failedPercentage: serverStats.failedPercentage,
+        averageScore: serverStats.averageScore,
+      }
+    }
+    return clientStats
+  }, [useServerSide, serverStats, clientStats])
+
+  // Select trend data
+  const rawTrendData = useServerSide ? serverTrendData : clientTrendData
+
+  // Transform server trend data to expected format if needed
+  const trendData: ScoreTrendPoint[] = useMemo(() => {
+    if (!rawTrendData) return []
+    // Both formats are compatible now
+    return rawTrendData.map((point) => ({
+      date: point.date,
+      displayDate: point.displayDate,
+      score: point.score,
+      runCount: point.runCount,
+    }))
+  }, [rawTrendData])
 
   // Filter runs based on current filters
   const filteredRuns = useMemo(() => {
@@ -140,52 +231,15 @@ export function useDashboard(): UseDashboardReturn {
     return filteredRuns.slice(0, 10)
   }, [filteredRuns])
 
-  // Compute stats from filtered runs
-  const stats = useMemo(() => {
-    if (filteredRuns.length === 0) return null
-
-    let passedRuns = 0
-    let failedRuns = 0
-    let totalScore = 0
-    let runsWithScores = 0
-
-    for (const run of filteredRuns) {
-      if (run.status === 'completed' && run.summary) {
-        if (run.summary.failed === 0 && run.summary.errored === 0) {
-          passedRuns++
-        } else {
-          failedRuns++
-        }
-        totalScore += run.summary.avg_score
-        runsWithScores++
-      } else if (run.status === 'failed') {
-        failedRuns++
-      }
-    }
-
-    const totalRuns = filteredRuns.length
-    const passedPercentage =
-      totalRuns > 0 ? Math.round((passedRuns / totalRuns) * 100) : 0
-    const failedPercentage =
-      totalRuns > 0 ? Math.round((failedRuns / totalRuns) * 100) : 0
-    const averageScore = runsWithScores > 0 ? totalScore / runsWithScores : 0
-
-    return {
-      totalRuns,
-      passedRuns,
-      failedRuns,
-      passedPercentage,
-      failedPercentage,
-      averageScore,
-    }
-  }, [filteredRuns])
-
   // Combined refresh function
   const refresh = () => {
     refetchRuns()
     refetchSuites()
     refetchStats()
   }
+
+  // Query time from server-side stats (if available)
+  const queryTimeMs = useServerSide ? serverStats?.queryTimeMs : undefined
 
   return {
     filters,
@@ -204,6 +258,7 @@ export function useDashboard(): UseDashboardReturn {
     suitesError: suitesError as Error | null,
     statsError: statsError as Error | null,
     trendError: trendError as Error | null,
+    queryTimeMs,
     refresh,
   }
 }
