@@ -1,18 +1,17 @@
 {
-  "task_id": "SDK-006",
-  "title": "Optional: Send results to Neon cloud/self-hosted",
-  "started_at": "2026-01-29T17:13:40-05:00",
+  "task_id": "DOC-003",
+  "title": "Self-hosting guide (Docker Compose)",
+  "started_at": "2026-01-29T22:50:31-05:00",
   "scope": null,
   "acceptance_criteria": [
-    "Results are sent to Neon server when NEON_API_URL and NEON_API_KEY env vars are set",
-    "Works silently in the background - doesn't block local eval execution",
-    "Graceful degradation: if server is unavailable, log warning and continue",
-    "Sends: suite name, test cases, scores, timing, metadata",
-    "API client handles authentication with API key",
-    "Configurable via environment variables (NEON_API_URL, NEON_API_KEY)",
-    "Optional --no-sync flag to disable sending even when configured",
-    "Clear success/failure message in CLI output (e.g., 'Results synced to Neon')",
-    "Unit tests for API client with mocked responses"
+    "docker-compose.yml with all services (ClickHouse, Temporal, Frontend)",
+    "Step-by-step quickstart in docs/self-hosting.md",
+    "Environment variable reference with defaults",
+    "Health check endpoints documented",
+    "Troubleshooting section for common issues",
+    "Resource requirements (CPU, RAM, disk) documented",
+    "Upgrade/migration instructions placeholder",
+    "Works on Linux, macOS, and Windows (WSL2)"
   ],
   "context": null
 }
