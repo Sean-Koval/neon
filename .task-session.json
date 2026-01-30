@@ -1,17 +1,16 @@
 {
-  "task_id": "PERF-002",
-  "title": "Materialized views for dashboard aggregations",
-  "started_at": "2026-01-30T00:44:59-05:00",
+  "task_id": "DOC-002",
+  "title": "SDK documentation",
+  "started_at": "2026-01-29T22:29:09-05:00",
   "scope": null,
   "acceptance_criteria": [
-    "Materialized view for daily pass/fail counts per suite",
-    "Materialized view for score trends (avg, min, max per scorer per day)",
-    "Materialized view for test duration statistics",
-    "Dashboard API endpoints use materialized views",
-    "Query latency <100ms for dashboard aggregations",
-    "Views update automatically on insert",
-    "Migration script to create views",
-    "Backfill existing data into views"
+    "Complete API reference for all public exports",
+    "Guide for creating custom scorers with examples",
+    "Guide for integrating with popular agent frameworks (LangChain, CrewAI, etc.)",
+    "CI/CD integration examples (GitHub Actions, GitLab CI)",
+    "Configuration reference (thresholds, parallel execution, etc.)",
+    "Troubleshooting section for common issues",
+    "Migration guide from other eval tools (if applicable)"
   ],
   "context": null
 }
