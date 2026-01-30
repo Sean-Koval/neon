@@ -407,3 +407,161 @@ export const apiClient = new ApiClient()
  * Alias for backwards compatibility.
  */
 export const api = apiClient
+
+// =============================================================================
+// Dashboard API Types
+// =============================================================================
+
+export interface DashboardSummaryResponse {
+  total_runs: number
+  passed_runs: number
+  failed_runs: number
+  pass_rate: number
+  avg_duration_ms: number
+  total_tokens: number
+  total_cost: number
+  queryTimeMs: number
+}
+
+export interface ScoreTrendPointResponse {
+  date: string
+  name: string
+  avg_score: number
+  min_score: number
+  max_score: number
+  score_count: number
+}
+
+export interface DurationStatsResponse {
+  date: string
+  avg_duration_ms: number
+  p50_ms: number
+  p95_ms: number
+  p99_ms: number
+  min_duration_ms: number
+  max_duration_ms: number
+  trace_count: number
+}
+
+export interface DailyRunSummaryResponse {
+  date: string
+  total_runs: number
+  passed_runs: number
+  failed_runs: number
+  total_duration_ms: number
+  total_tokens: number
+  total_cost: number
+}
+
+export interface ScorerStatsResponse {
+  name: string
+  source: string
+  date: string
+  avg_score: number
+  min_score: number
+  max_score: number
+  score_count: number
+  passed_count: number
+  failed_count: number
+}
+
+export interface DashboardResponse {
+  summary: DashboardSummaryResponse
+  scoreTrends: ScoreTrendPointResponse[]
+  durationStats: DurationStatsResponse[]
+  dailySummary: DailyRunSummaryResponse[]
+  scorerStats: ScorerStatsResponse[]
+  queryTimeMs: number
+}
+
+export interface DashboardQueryParams {
+  projectId?: string
+  days?: number
+  startDate?: string
+  endDate?: string
+  scorerName?: string
+}
+
+// =============================================================================
+// Dashboard API Client
+// =============================================================================
+
+/**
+ * Client for dashboard API endpoints.
+ * Uses Next.js API routes that query ClickHouse materialized views.
+ */
+export const dashboardApi = {
+  /**
+   * Get complete dashboard data in a single request.
+   */
+  async getDashboard(params?: DashboardQueryParams): Promise<DashboardResponse> {
+    const query = buildQueryString({
+      projectId: params?.projectId,
+      days: params?.days,
+      startDate: params?.startDate,
+      endDate: params?.endDate,
+      scorerName: params?.scorerName,
+    })
+    const response = await fetch(`/api/dashboard${query}`)
+    if (!response.ok) {
+      throw new ApiError(response.status, 'Failed to fetch dashboard data')
+    }
+    return response.json()
+  },
+
+  /**
+   * Get just the summary stats for fast initial load.
+   */
+  async getSummary(params?: DashboardQueryParams): Promise<DashboardSummaryResponse> {
+    const query = buildQueryString({
+      projectId: params?.projectId,
+      days: params?.days,
+    })
+    const response = await fetch(`/api/dashboard/summary${query}`)
+    if (!response.ok) {
+      throw new ApiError(response.status, 'Failed to fetch summary')
+    }
+    return response.json()
+  },
+
+  /**
+   * Get score trends with min/max values.
+   */
+  async getScoreTrends(params?: DashboardQueryParams): Promise<{
+    trends: ScoreTrendPointResponse[]
+    queryTimeMs: number
+  }> {
+    const query = buildQueryString({
+      projectId: params?.projectId,
+      days: params?.days,
+      startDate: params?.startDate,
+      endDate: params?.endDate,
+      scorerName: params?.scorerName,
+    })
+    const response = await fetch(`/api/dashboard/score-trends${query}`)
+    if (!response.ok) {
+      throw new ApiError(response.status, 'Failed to fetch score trends')
+    }
+    return response.json()
+  },
+
+  /**
+   * Get duration statistics with percentiles.
+   */
+  async getDurationStats(params?: DashboardQueryParams): Promise<{
+    stats: DurationStatsResponse[]
+    queryTimeMs: number
+  }> {
+    const query = buildQueryString({
+      projectId: params?.projectId,
+      days: params?.days,
+      startDate: params?.startDate,
+      endDate: params?.endDate,
+    })
+    const response = await fetch(`/api/dashboard/duration-stats${query}`)
+    if (!response.ok) {
+      throw new ApiError(response.status, 'Failed to fetch duration stats')
+    }
+    return response.json()
+  },
+}
