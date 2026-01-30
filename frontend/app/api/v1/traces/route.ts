@@ -10,11 +10,10 @@
 import { type NextRequest, NextResponse } from 'next/server'
 import { v4 as uuidv4 } from 'uuid'
 import {
-  insertSpans,
-  insertTraces,
   type SpanRecord,
   type TraceRecord,
 } from '@/lib/clickhouse'
+import { batchInsertSpans, batchInsertTraces } from '@/lib/clickhouse-batch'
 
 /**
  * OTel OTLP Span format (simplified)
@@ -273,8 +272,8 @@ export async function POST(request: NextRequest) {
       traces.push(aggregateTrace(traceSpans, projectId))
     }
 
-    // Insert into ClickHouse
-    await Promise.all([insertTraces(traces), insertSpans(allSpans)])
+    // Insert into ClickHouse (using batch buffers for high throughput)
+    await Promise.all([batchInsertTraces(traces), batchInsertSpans(allSpans)])
 
     return NextResponse.json({
       message: 'Traces ingested successfully',

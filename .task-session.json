@@ -1,18 +1,18 @@
 {
-  "task_id": "SDK-006",
-  "title": "Optional: Send results to Neon cloud/self-hosted",
-  "started_at": "2026-01-29T17:13:40-05:00",
+  "task_id": "PERF-001",
+  "title": "ClickHouse batch inserts",
+  "started_at": "2026-01-29T22:16:41-05:00",
   "scope": null,
   "acceptance_criteria": [
-    "Results are sent to Neon server when NEON_API_URL and NEON_API_KEY env vars are set",
-    "Works silently in the background - doesn't block local eval execution",
-    "Graceful degradation: if server is unavailable, log warning and continue",
-    "Sends: suite name, test cases, scores, timing, metadata",
-    "API client handles authentication with API key",
-    "Configurable via environment variables (NEON_API_URL, NEON_API_KEY)",
-    "Optional --no-sync flag to disable sending even when configured",
-    "Clear success/failure message in CLI output (e.g., 'Results synced to Neon')",
-    "Unit tests for API client with mocked responses"
+    "Implement batch insert buffer for traces table",
+    "Implement batch insert buffer for scores table",
+    "Configurable batch size (default: 1000 rows)",
+    "Configurable flush interval (default: 5 seconds)",
+    "Auto-flush when buffer is full or interval expires",
+    "Graceful shutdown flushes remaining buffer",
+    "Error handling for partial batch failures",
+    "Performance test showing >10x throughput improvement",
+    "No breaking changes to existing API endpoints"
   ],
   "context": null
 }
