@@ -1,18 +1,17 @@
 {
-  "task_id": "SDK-006",
-  "title": "Optional: Send results to Neon cloud/self-hosted",
-  "started_at": "2026-01-29T17:13:40-05:00",
+  "task_id": "PERF-002",
+  "title": "Materialized views for dashboard aggregations",
+  "started_at": "2026-01-30T00:44:59-05:00",
   "scope": null,
   "acceptance_criteria": [
-    "Results are sent to Neon server when NEON_API_URL and NEON_API_KEY env vars are set",
-    "Works silently in the background - doesn't block local eval execution",
-    "Graceful degradation: if server is unavailable, log warning and continue",
-    "Sends: suite name, test cases, scores, timing, metadata",
-    "API client handles authentication with API key",
-    "Configurable via environment variables (NEON_API_URL, NEON_API_KEY)",
-    "Optional --no-sync flag to disable sending even when configured",
-    "Clear success/failure message in CLI output (e.g., 'Results synced to Neon')",
-    "Unit tests for API client with mocked responses"
+    "Materialized view for daily pass/fail counts per suite",
+    "Materialized view for score trends (avg, min, max per scorer per day)",
+    "Materialized view for test duration statistics",
+    "Dashboard API endpoints use materialized views",
+    "Query latency <100ms for dashboard aggregations",
+    "Views update automatically on insert",
+    "Migration script to create views",
+    "Backfill existing data into views"
   ],
   "context": null
 }
