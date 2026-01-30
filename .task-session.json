@@ -1,18 +1,16 @@
 {
-  "task_id": "SDK-006",
-  "title": "Optional: Send results to Neon cloud/self-hosted",
-  "started_at": "2026-01-29T17:13:40-05:00",
+  "task_id": "DOC-002",
+  "title": "SDK documentation",
+  "started_at": "2026-01-29T22:29:09-05:00",
   "scope": null,
   "acceptance_criteria": [
-    "Results are sent to Neon server when NEON_API_URL and NEON_API_KEY env vars are set",
-    "Works silently in the background - doesn't block local eval execution",
-    "Graceful degradation: if server is unavailable, log warning and continue",
-    "Sends: suite name, test cases, scores, timing, metadata",
-    "API client handles authentication with API key",
-    "Configurable via environment variables (NEON_API_URL, NEON_API_KEY)",
-    "Optional --no-sync flag to disable sending even when configured",
-    "Clear success/failure message in CLI output (e.g., 'Results synced to Neon')",
-    "Unit tests for API client with mocked responses"
+    "Complete API reference for all public exports",
+    "Guide for creating custom scorers with examples",
+    "Guide for integrating with popular agent frameworks (LangChain, CrewAI, etc.)",
+    "CI/CD integration examples (GitHub Actions, GitLab CI)",
+    "Configuration reference (thresholds, parallel execution, etc.)",
+    "Troubleshooting section for common issues",
+    "Migration guide from other eval tools (if applicable)"
   ],
   "context": null
 }
