@@ -1,0 +1,123 @@
+# Example GitHub Actions workflow for Neon evals
+#
+# This workflow demonstrates how to integrate Neon evals into your CI/CD pipeline.
+# The --ci flag outputs JSON and exits with code 1 on threshold failures.
+#
+# Exit codes:
+#   0 - All tests passed thresholds
+#   1 - One or more tests failed thresholds
+#   2 - Error running tests (couldn't execute)
+#
+# JSON Output Schema (version 1.0.0):
+# {
+#   "version": "1.0.0",
+#   "timestamp": "2024-01-15T10:30:00.000Z",
+#   "passed": true,
+#   "threshold": 0.7,
+#   "suites": [{
+#     "name": "suite-name",
+#     "passed": true,
+#     "tests": [{
+#       "name": "test-name",
+#       "passed": true,
+#       "scores": [{"name": "accuracy", "value": 0.85, "passed": true, "threshold": 0.7}],
+#       "durationMs": 150
+#     }],
+#     "summary": {"total": 1, "passed": 1, "failed": 0, "passRate": 1.0, "avgScore": 0.85},
+#     "durationMs": 1500
+#   }],
+#   "summary": {
+#     "totalSuites": 1,
+#     "totalTests": 1,
+#     "passed": 1,
+#     "failed": 0,
+#     "passRate": 1.0,
+#     "avgScore": 0.85,
+#     "durationMs": 1500
+#   }
+# }
+
+name: Neon Agent Evals
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  # Global threshold (optional - can also use --threshold flag)
+  NEON_THRESHOLD: "0.7"
+
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      
+      - name: Install dependencies
+        run: bun install
+      
+      - name: Run evals with CI mode
+        id: eval
+        run: |
+          # Run with --ci flag for JSON output and proper exit codes
+          # --threshold sets the pass/fail threshold (default: 0.7 = 70%)
+          bun run neon eval --ci --threshold 0.7 | tee eval-results.json
+        continue-on-error: true
+      
+      - name: Parse eval results
+        if: always()
+        run: |
+          # Parse JSON output with jq
+          PASSED=$(cat eval-results.json | jq '.passed')
+          TOTAL=$(cat eval-results.json | jq '.summary.totalTests')
+          PASS_RATE=$(cat eval-results.json | jq '.summary.passRate')
+          AVG_SCORE=$(cat eval-results.json | jq '.summary.avgScore')
+          
+          echo "### Eval Results 🧪" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Metric | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Status | $([ "$PASSED" = "true" ] && echo "✅ Passed" || echo "❌ Failed") |" >> $GITHUB_STEP_SUMMARY
+          echo "| Total Tests | $TOTAL |" >> $GITHUB_STEP_SUMMARY
+          echo "| Pass Rate | $(echo "scale=1; $PASS_RATE * 100" | bc)% |" >> $GITHUB_STEP_SUMMARY
+          echo "| Avg Score | $(echo "scale=1; $AVG_SCORE * 100" | bc)% |" >> $GITHUB_STEP_SUMMARY
+      
+      - name: Upload eval results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-results
+          path: eval-results.json
+      
+      - name: Check eval status
+        if: steps.eval.outcome == 'failure'
+        run: |
+          echo "Evals failed! Check the results above."
+          exit 1
+
+  # Alternative: Run with specific patterns and filters
+  eval-subset:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+      
+      - name: Install dependencies
+        run: bun install
+      
+      - name: Run specific evals
+        run: |
+          # Run only critical evals with higher threshold
+          bun run neon eval "tests/critical/**/*.eval.js" --ci --threshold 0.9

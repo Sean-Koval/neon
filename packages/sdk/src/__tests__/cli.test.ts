@@ -15,6 +15,13 @@ import {
   printWarning,
   printInfo,
 } from "../cli/reporter.js";
+import {
+  generateCIOutput,
+  formatCIOutput,
+  JSON_SCHEMA_VERSION,
+  type CIOutput,
+} from "../cli/reporters/json-reporter.js";
+import { EXIT_CODES } from "../cli/commands/eval.js";
 import type { Suite, Test, TestResult, SuiteResult } from "../test.js";
 
 describe("CLI Reporter", () => {
@@ -167,5 +174,264 @@ describe("Suite extraction", () => {
   it("rejects non-suite objects", () => {
     const notASuite = { foo: "bar" };
     expect("tests" in notASuite).toBe(false);
+  });
+});
+
+describe("JSON Reporter", () => {
+  const createMockSuiteResult = (
+    name: string,
+    tests: TestResult[]
+  ): SuiteResult => {
+    const passed = tests.filter((t) => t.passed).length;
+    const failed = tests.length - passed;
+    let totalScore = 0;
+    let scoreCount = 0;
+    for (const test of tests) {
+      for (const score of test.scores) {
+        totalScore += score.value;
+        scoreCount++;
+      }
+    }
+
+    return {
+      name,
+      results: tests,
+      summary: {
+        total: tests.length,
+        passed,
+        failed,
+        passRate: tests.length > 0 ? passed / tests.length : 0,
+        avgScore: scoreCount > 0 ? totalScore / scoreCount : 0,
+      },
+      durationMs: 1000,
+    };
+  };
+
+  describe("generateCIOutput", () => {
+    it("includes schema version", () => {
+      const result = generateCIOutput([]);
+
+      expect(result.version).toBe(JSON_SCHEMA_VERSION);
+    });
+
+    it("includes ISO timestamp", () => {
+      const result = generateCIOutput([]);
+
+      expect(result.timestamp).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/);
+    });
+
+    it("passes when all tests pass threshold", () => {
+      const suiteResult = createMockSuiteResult("test-suite", [
+        {
+          name: "test-1",
+          passed: true,
+          scores: [{ name: "accuracy", value: 0.9 }],
+          durationMs: 100,
+        },
+      ]);
+
+      const result = generateCIOutput([suiteResult], {
+        thresholdConfig: { global: 0.7 },
+      });
+
+      expect(result.passed).toBe(true);
+      expect(result.suites[0].passed).toBe(true);
+      expect(result.suites[0].tests[0].passed).toBe(true);
+    });
+
+    it("fails when any test fails threshold", () => {
+      const suiteResult = createMockSuiteResult("test-suite", [
+        {
+          name: "test-1",
+          passed: true,
+          scores: [{ name: "accuracy", value: 0.5 }],
+          durationMs: 100,
+        },
+      ]);
+
+      const result = generateCIOutput([suiteResult], {
+        thresholdConfig: { global: 0.7 },
+      });
+
+      expect(result.passed).toBe(false);
+      expect(result.suites[0].tests[0].passed).toBe(false);
+    });
+
+    it("includes threshold in score results", () => {
+      const suiteResult = createMockSuiteResult("test-suite", [
+        {
+          name: "test-1",
+          passed: true,
+          scores: [{ name: "accuracy", value: 0.85 }],
+          durationMs: 100,
+        },
+      ]);
+
+      const result = generateCIOutput([suiteResult], {
+        thresholdConfig: { global: 0.8 },
+      });
+
+      expect(result.threshold).toBe(0.8);
+      expect(result.suites[0].tests[0].scores[0].threshold).toBe(0.8);
+    });
+
+    it("aggregates summary across suites", () => {
+      const suite1 = createMockSuiteResult("suite-1", [
+        { name: "t1", passed: true, scores: [{ name: "s", value: 0.8 }], durationMs: 100 },
+        { name: "t2", passed: false, scores: [{ name: "s", value: 0.5 }], durationMs: 100 },
+      ]);
+      const suite2 = createMockSuiteResult("suite-2", [
+        { name: "t3", passed: true, scores: [{ name: "s", value: 0.9 }], durationMs: 100 },
+      ]);
+
+      const result = generateCIOutput([suite1, suite2], {
+        thresholdConfig: { global: 0.7 },
+      });
+
+      expect(result.summary.totalSuites).toBe(2);
+      expect(result.summary.totalTests).toBe(3);
+      expect(result.summary.passed).toBe(2); // t1 and t3 pass based on original passed status
+      expect(result.summary.failed).toBe(1);
+    });
+
+    it("handles empty suites array", () => {
+      const result = generateCIOutput([]);
+
+      expect(result.passed).toBe(true);
+      expect(result.suites).toEqual([]);
+      expect(result.summary.totalSuites).toBe(0);
+      expect(result.summary.totalTests).toBe(0);
+    });
+
+    it("includes error in test results", () => {
+      const suiteResult = createMockSuiteResult("test-suite", [
+        {
+          name: "test-1",
+          passed: false,
+          scores: [],
+          durationMs: 100,
+          error: "Test execution failed",
+        },
+      ]);
+
+      const result = generateCIOutput([suiteResult]);
+
+      expect(result.suites[0].tests[0].error).toBe("Test execution failed");
+    });
+
+    it("includes traceId when available", () => {
+      const suiteResult = createMockSuiteResult("test-suite", [
+        {
+          name: "test-1",
+          passed: true,
+          scores: [{ name: "s", value: 0.8 }],
+          durationMs: 100,
+          traceId: "trace-123",
+        },
+      ]);
+
+      const result = generateCIOutput([suiteResult]);
+
+      expect(result.suites[0].tests[0].traceId).toBe("trace-123");
+    });
+  });
+
+  describe("formatCIOutput", () => {
+    it("outputs single line by default", () => {
+      const output: CIOutput = {
+        version: "1.0.0",
+        timestamp: "2024-01-15T10:00:00.000Z",
+        passed: true,
+        threshold: 0.7,
+        suites: [],
+        summary: {
+          totalSuites: 0,
+          totalTests: 0,
+          passed: 0,
+          failed: 0,
+          passRate: 0,
+          avgScore: 0,
+          durationMs: 0,
+        },
+      };
+
+      const json = formatCIOutput(output);
+
+      expect(json).not.toContain("\n");
+    });
+
+    it("outputs pretty JSON when requested", () => {
+      const output: CIOutput = {
+        version: "1.0.0",
+        timestamp: "2024-01-15T10:00:00.000Z",
+        passed: true,
+        threshold: 0.7,
+        suites: [],
+        summary: {
+          totalSuites: 0,
+          totalTests: 0,
+          passed: 0,
+          failed: 0,
+          passRate: 0,
+          avgScore: 0,
+          durationMs: 0,
+        },
+      };
+
+      const json = formatCIOutput(output, true);
+
+      expect(json).toContain("\n");
+      expect(json).toContain("  ");
+    });
+
+    it("is valid JSON", () => {
+      const output: CIOutput = {
+        version: "1.0.0",
+        timestamp: "2024-01-15T10:00:00.000Z",
+        passed: false,
+        threshold: 0.8,
+        suites: [{
+          name: "suite",
+          passed: false,
+          tests: [{
+            name: "test",
+            passed: false,
+            scores: [{ name: "score", value: 0.5, passed: false, threshold: 0.8 }],
+            durationMs: 100,
+          }],
+          summary: { total: 1, passed: 0, failed: 1, passRate: 0, avgScore: 0.5 },
+          durationMs: 100,
+        }],
+        summary: {
+          totalSuites: 1,
+          totalTests: 1,
+          passed: 0,
+          failed: 1,
+          passRate: 0,
+          avgScore: 0.5,
+          durationMs: 100,
+        },
+      };
+
+      const json = formatCIOutput(output);
+      const parsed = JSON.parse(json);
+
+      expect(parsed.passed).toBe(false);
+      expect(parsed.threshold).toBe(0.8);
+    });
+  });
+});
+
+describe("Exit codes", () => {
+  it("SUCCESS is 0", () => {
+    expect(EXIT_CODES.SUCCESS).toBe(0);
+  });
+
+  it("FAILURE is 1", () => {
+    expect(EXIT_CODES.FAILURE).toBe(1);
+  });
+
+  it("ERROR is 2", () => {
+    expect(EXIT_CODES.ERROR).toBe(2);
   });
 });
