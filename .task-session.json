@@ -1,17 +1,17 @@
 {
-  "task_id": "DOC-003",
-  "title": "Self-hosting guide (Docker Compose)",
-  "started_at": "2026-01-29T22:50:31-05:00",
+  "task_id": "PERF-005",
+  "title": "Optimize bundle size (code splitting)",
+  "started_at": "2026-01-31T14:53:23-05:00",
   "scope": null,
   "acceptance_criteria": [
-    "docker-compose.yml with all services (ClickHouse, Temporal, Frontend)",
-    "Step-by-step quickstart in docs/self-hosting.md",
-    "Environment variable reference with defaults",
-    "Health check endpoints documented",
-    "Troubleshooting section for common issues",
-    "Resource requirements (CPU, RAM, disk) documented",
-    "Upgrade/migration instructions placeholder",
-    "Works on Linux, macOS, and Windows (WSL2)"
+    "Implement route-based code splitting with Next.js dynamic imports",
+    "Lazy load heavy components (charts, trace viewer, code editors)",
+    "Reduce initial bundle size by at least 30%",
+    "Add bundle analyzer to track bundle composition",
+    "Ensure no flash of unstyled content (FOUC)",
+    "Preload critical routes on hover/focus",
+    "Measure and document before/after bundle sizes",
+    "Lighthouse performance score >= 90"
   ],
   "context": null
 }
