@@ -1,10 +1,49 @@
 -- ClickHouse initialization for Neon platform
 -- Trace and span storage for agent observability
+--
+-- =============================================================================
+-- INDEX STRATEGY
+-- =============================================================================
+-- ClickHouse uses "skip indexes" (data skipping indexes) rather than traditional
+-- B-tree indexes. These indexes work by storing aggregated values for blocks of
+-- data (granules), allowing ClickHouse to skip entire blocks during queries.
+--
+-- Index Types:
+-- - bloom_filter(fp_rate): For equality checks on high-cardinality string columns.
+--   Uses probabilistic membership testing. Lower fp_rate = more accurate but larger.
+--   We use 0.01 (1% false positive rate) as a good balance.
+--
+-- - set(N): For equality checks on low-cardinality columns (enums, status).
+--   Stores up to N distinct values per granule. N=8 works well for our enums.
+--
+-- - minmax: For range queries on ordered columns (timestamp).
+--   Stores min/max values per granule. Very compact and effective.
+--
+-- Granularity:
+-- - GRANULARITY 4: For high-selectivity columns (trace_id, span_id)
+-- - GRANULARITY 8: For low-cardinality columns (status, type enums)
+--
+-- Primary Key Ordering:
+-- Tables are ordered by (project_id, ...) to ensure project isolation is fast.
+-- Secondary ordering by timestamp enables efficient time-range queries.
+-- =============================================================================
 
 -- Create database
 CREATE DATABASE IF NOT EXISTS neon;
 
--- Traces table (parent container for agent executions)
+-- =============================================================================
+-- TRACES TABLE
+-- =============================================================================
+-- Parent container for agent executions. Each trace represents a complete
+-- agent workflow or request.
+--
+-- Query patterns:
+--   - List traces by project with time range: project_id + timestamp range
+--   - Direct trace lookup: trace_id equality
+--   - Filter by status: status equality
+--   - Filter by agent: agent_id equality
+--   - Filter by run: run_id equality (evaluation runs)
+--
 CREATE TABLE IF NOT EXISTS neon.traces
 (
     project_id String,
@@ -29,14 +68,34 @@ CREATE TABLE IF NOT EXISTS neon.traces
     tool_calls UInt16 DEFAULT 0,
 
     -- Partitioning key
-    _date Date MATERIALIZED toDate(timestamp)
+    _date Date MATERIALIZED toDate(timestamp),
+
+    -- Skip indexes for common query patterns
+    INDEX idx_trace_id trace_id TYPE bloom_filter(0.01) GRANULARITY 4,
+    INDEX idx_run_id run_id TYPE bloom_filter(0.01) GRANULARITY 4,
+    INDEX idx_agent_id agent_id TYPE bloom_filter(0.01) GRANULARITY 4,
+    INDEX idx_status status TYPE set(8) GRANULARITY 8,
+    INDEX idx_timestamp timestamp TYPE minmax GRANULARITY 4
 )
 ENGINE = MergeTree()
 PARTITION BY toYYYYMM(_date)
 ORDER BY (project_id, timestamp, trace_id)
 TTL _date + INTERVAL 90 DAY;
 
--- Spans table (individual operations within a trace)
+-- =============================================================================
+-- SPANS TABLE
+-- =============================================================================
+-- Individual operations within a trace. Spans represent LLM calls, tool
+-- executions, retrievals, and other discrete operations.
+--
+-- Query patterns:
+--   - Spans for trace: project_id + trace_id (covered by primary key)
+--   - Direct span lookup: span_id equality
+--   - Parent lookup: parent_span_id equality (hierarchy)
+--   - Filter by type: span_type equality
+--   - Filter by model: model equality
+--   - Filter by tool: tool_name equality
+--
 CREATE TABLE IF NOT EXISTS neon.spans
 (
     project_id String,
@@ -71,14 +130,36 @@ CREATE TABLE IF NOT EXISTS neon.spans
     attributes Map(String, String),
 
     -- Partitioning key
-    _date Date MATERIALIZED toDate(timestamp)
+    _date Date MATERIALIZED toDate(timestamp),
+
+    -- Skip indexes for common query patterns
+    INDEX idx_span_id span_id TYPE bloom_filter(0.01) GRANULARITY 4,
+    INDEX idx_parent_span_id parent_span_id TYPE bloom_filter(0.01) GRANULARITY 4,
+    INDEX idx_span_type span_type TYPE set(8) GRANULARITY 8,
+    INDEX idx_status status TYPE set(8) GRANULARITY 8,
+    INDEX idx_model model TYPE bloom_filter(0.01) GRANULARITY 4,
+    INDEX idx_tool_name tool_name TYPE bloom_filter(0.01) GRANULARITY 4,
+    INDEX idx_timestamp timestamp TYPE minmax GRANULARITY 4
 )
 ENGINE = MergeTree()
 PARTITION BY toYYYYMM(_date)
 ORDER BY (project_id, trace_id, timestamp, span_id)
 TTL _date + INTERVAL 90 DAY;
 
--- Scores table
+-- =============================================================================
+-- SCORES TABLE
+-- =============================================================================
+-- Evaluation scores attached to traces or spans. Scores can come from
+-- automated evaluators, human annotations, or the SDK.
+--
+-- Query patterns:
+--   - Scores for trace: project_id + trace_id (covered by primary key)
+--   - Scores for span: span_id equality
+--   - Scores by name: name equality
+--   - Scores by run: run_id equality (evaluation runs)
+--   - Filter by source: source equality
+--   - Filter by type: score_type equality
+--
 CREATE TABLE IF NOT EXISTS neon.scores
 (
     project_id String,
@@ -100,14 +181,28 @@ CREATE TABLE IF NOT EXISTS neon.scores
 
     timestamp DateTime64(3),
 
-    _date Date MATERIALIZED toDate(timestamp)
+    _date Date MATERIALIZED toDate(timestamp),
+
+    -- Skip indexes for common query patterns
+    INDEX idx_span_id span_id TYPE bloom_filter(0.01) GRANULARITY 4,
+    INDEX idx_run_id run_id TYPE bloom_filter(0.01) GRANULARITY 4,
+    INDEX idx_name name TYPE bloom_filter(0.01) GRANULARITY 4,
+    INDEX idx_case_id case_id TYPE bloom_filter(0.01) GRANULARITY 4,
+    INDEX idx_config_id config_id TYPE bloom_filter(0.01) GRANULARITY 4,
+    INDEX idx_source source TYPE set(8) GRANULARITY 8,
+    INDEX idx_score_type score_type TYPE set(8) GRANULARITY 8,
+    INDEX idx_timestamp timestamp TYPE minmax GRANULARITY 4
 )
 ENGINE = MergeTree()
 PARTITION BY toYYYYMM(_date)
 ORDER BY (project_id, trace_id, timestamp, score_id)
 TTL _date + INTERVAL 90 DAY;
 
--- Materialized view: Daily statistics per project
+-- =============================================================================
+-- MATERIALIZED VIEWS
+-- =============================================================================
+
+-- Daily statistics per project (for dashboard overview)
 CREATE MATERIALIZED VIEW IF NOT EXISTS neon.daily_stats_mv
 ENGINE = SummingMergeTree()
 ORDER BY (project_id, date)
@@ -122,7 +217,7 @@ AS SELECT
 FROM neon.traces
 GROUP BY project_id, date;
 
--- Materialized view: Model usage statistics
+-- Model usage statistics (for cost tracking)
 CREATE MATERIALIZED VIEW IF NOT EXISTS neon.model_usage_mv
 ENGINE = SummingMergeTree()
 ORDER BY (project_id, model_name, date)
@@ -137,7 +232,7 @@ FROM neon.spans
 WHERE span_type = 'generation' AND model IS NOT NULL
 GROUP BY project_id, model_name, date;
 
--- Materialized view: Score trends
+-- Score trends (for quality monitoring)
 CREATE MATERIALIZED VIEW IF NOT EXISTS neon.score_trends_mv
 ENGINE = SummingMergeTree()
 ORDER BY (project_id, name, date)

@@ -284,3 +284,514 @@ export async function getDailyStats(
 
   return result.json()
 }
+
+// =============================================================================
+// Lazy Loading Types (PERF-004)
+// =============================================================================
+
+/**
+ * Span summary for list view (without large payload fields)
+ */
+export interface SpanSummary {
+  project_id: string
+  trace_id: string
+  span_id: string
+  parent_span_id: string | null
+  name: string
+  kind: 'internal' | 'server' | 'client' | 'producer' | 'consumer'
+  span_type: 'span' | 'generation' | 'tool' | 'retrieval' | 'event'
+  timestamp: string
+  end_time: string | null
+  duration_ms: number
+  status: 'unset' | 'ok' | 'error'
+  status_message: string
+  model: string | null
+  input_tokens: number | null
+  output_tokens: number | null
+  total_tokens: number | null
+  cost_usd: number | null
+  tool_name: string | null
+}
+
+/**
+ * Span details (large payload fields loaded lazily)
+ */
+export interface SpanDetails {
+  span_id: string
+  input: string
+  output: string
+  tool_input: string
+  tool_output: string
+  model_parameters: Record<string, string>
+  attributes: Record<string, string>
+}
+
+/**
+ * Get trace with span summaries (without large payloads)
+ */
+export async function getTraceWithSpanSummaries(
+  projectId: string,
+  traceId: string,
+): Promise<{ trace: TraceRecord; spans: SpanSummary[] } | null> {
+  const ch = getClickHouseClient()
+
+  // Get trace
+  const traceResult = await ch.query({
+    query: `
+      SELECT * FROM traces
+      WHERE project_id = {projectId:String} AND trace_id = {traceId:String}
+      LIMIT 1
+    `,
+    query_params: { projectId, traceId },
+    format: 'JSONEachRow',
+  })
+
+  const traces = await traceResult.json<TraceRecord>()
+  if (traces.length === 0) {
+    return null
+  }
+
+  // Get span summaries without large payload fields
+  const spansResult = await ch.query({
+    query: `
+      SELECT
+        project_id, trace_id, span_id, parent_span_id, name, kind, span_type,
+        timestamp, end_time, duration_ms, status, status_message, model,
+        input_tokens, output_tokens, total_tokens, cost_usd, tool_name
+      FROM spans
+      WHERE project_id = {projectId:String} AND trace_id = {traceId:String}
+      ORDER BY timestamp ASC
+    `,
+    query_params: { projectId, traceId },
+    format: 'JSONEachRow',
+  })
+
+  const spans = await spansResult.json<SpanSummary>()
+
+  return { trace: traces[0], spans }
+}
+
+/**
+ * Get single span full details
+ */
+export async function getSpanDetails(
+  projectId: string,
+  spanId: string,
+): Promise<SpanDetails | null> {
+  const ch = getClickHouseClient()
+
+  const result = await ch.query({
+    query: `
+      SELECT
+        span_id, input, output, tool_input, tool_output,
+        model_parameters, attributes
+      FROM spans
+      WHERE project_id = {projectId:String} AND span_id = {spanId:String}
+      LIMIT 1
+    `,
+    query_params: { projectId, spanId },
+    format: 'JSONEachRow',
+  })
+
+  const spans = await result.json<SpanDetails>()
+  return spans.length > 0 ? spans[0] : null
+}
+
+// =============================================================================
+// Dashboard Aggregation Types
+// =============================================================================
+
+/**
+ * Score trend data point with min/max values.
+ */
+export interface ScoreTrendPoint {
+  date: string
+  name: string
+  avg_score: number
+  min_score: number
+  max_score: number
+  score_count: number
+}
+
+/**
+ * Duration statistics with percentiles.
+ */
+export interface DurationStats {
+  date: string
+  avg_duration_ms: number
+  p50_ms: number
+  p95_ms: number
+  p99_ms: number
+  min_duration_ms: number
+  max_duration_ms: number
+  trace_count: number
+}
+
+/**
+ * Daily run summary for dashboard cards.
+ */
+export interface DailyRunSummary {
+  date: string
+  total_runs: number
+  passed_runs: number
+  failed_runs: number
+  total_duration_ms: number
+  total_tokens: number
+  total_cost: number
+}
+
+/**
+ * Scorer-level statistics.
+ */
+export interface ScorerStats {
+  name: string
+  source: string
+  date: string
+  avg_score: number
+  min_score: number
+  max_score: number
+  score_count: number
+  passed_count: number
+  failed_count: number
+}
+
+/**
+ * Dashboard summary aggregates.
+ */
+export interface DashboardSummary {
+  total_runs: number
+  passed_runs: number
+  failed_runs: number
+  pass_rate: number
+  avg_duration_ms: number
+  total_tokens: number
+  total_cost: number
+}
+
+// =============================================================================
+// Dashboard Query Functions
+// =============================================================================
+
+/**
+ * Get enhanced score trends with min/max values.
+ * Queries the score_trends_full_mv materialized view.
+ */
+export async function getScoreTrends(
+  projectId: string,
+  startDate: string,
+  endDate: string,
+  scorerName?: string,
+): Promise<ScoreTrendPoint[]> {
+  const ch = getClickHouseClient()
+
+  const conditions = [
+    'project_id = {projectId:String}',
+    'date >= {startDate:Date}',
+    'date <= {endDate:Date}',
+  ]
+  if (scorerName) {
+    conditions.push('name = {scorerName:String}')
+  }
+
+  const result = await ch.query({
+    query: `
+      SELECT
+        date,
+        name,
+        avgMerge(avg_score_state) as avg_score,
+        minMerge(min_score_state) as min_score,
+        maxMerge(max_score_state) as max_score,
+        countMerge(score_count_state) as score_count
+      FROM score_trends_full_mv
+      WHERE ${conditions.join(' AND ')}
+      GROUP BY date, name
+      ORDER BY date ASC, name ASC
+    `,
+    query_params: {
+      projectId,
+      startDate,
+      endDate,
+      scorerName: scorerName || '',
+    },
+    format: 'JSONEachRow',
+  })
+
+  return result.json<ScoreTrendPoint>()
+}
+
+/**
+ * Get duration statistics with percentiles.
+ * Queries the duration_stats_mv materialized view.
+ */
+export async function getDurationStats(
+  projectId: string,
+  startDate: string,
+  endDate: string,
+): Promise<DurationStats[]> {
+  const ch = getClickHouseClient()
+
+  const result = await ch.query({
+    query: `
+      SELECT
+        date,
+        avgMerge(avg_duration_state) as avg_duration_ms,
+        quantileMerge(0.5)(p50_state) as p50_ms,
+        quantileMerge(0.95)(p95_state) as p95_ms,
+        quantileMerge(0.99)(p99_state) as p99_ms,
+        minMerge(min_duration_state) as min_duration_ms,
+        maxMerge(max_duration_state) as max_duration_ms,
+        countMerge(trace_count_state) as trace_count
+      FROM duration_stats_mv
+      WHERE project_id = {projectId:String}
+        AND date >= {startDate:Date}
+        AND date <= {endDate:Date}
+      GROUP BY date
+      ORDER BY date ASC
+    `,
+    query_params: { projectId, startDate, endDate },
+    format: 'JSONEachRow',
+  })
+
+  return result.json<DurationStats>()
+}
+
+/**
+ * Get daily run summary for dashboard cards.
+ * Queries the daily_run_summary_mv materialized view.
+ */
+export async function getDailyRunSummary(
+  projectId: string,
+  startDate: string,
+  endDate: string,
+): Promise<DailyRunSummary[]> {
+  const ch = getClickHouseClient()
+
+  const result = await ch.query({
+    query: `
+      SELECT
+        date,
+        sum(total_runs) as total_runs,
+        sum(passed_runs) as passed_runs,
+        sum(failed_runs) as failed_runs,
+        sum(total_duration_ms) as total_duration_ms,
+        sum(total_tokens) as total_tokens,
+        sum(total_cost) as total_cost
+      FROM daily_run_summary_mv
+      WHERE project_id = {projectId:String}
+        AND date >= {startDate:Date}
+        AND date <= {endDate:Date}
+      GROUP BY date
+      ORDER BY date ASC
+    `,
+    query_params: { projectId, startDate, endDate },
+    format: 'JSONEachRow',
+  })
+
+  return result.json<DailyRunSummary>()
+}
+
+/**
+ * Get aggregated dashboard summary for a date range.
+ * Combines multiple views for efficient dashboard loading.
+ */
+export async function getDashboardSummary(
+  projectId: string,
+  startDate: string,
+  endDate: string,
+): Promise<DashboardSummary> {
+  const ch = getClickHouseClient()
+
+  const result = await ch.query({
+    query: `
+      SELECT
+        sum(total_runs) as total_runs,
+        sum(passed_runs) as passed_runs,
+        sum(failed_runs) as failed_runs,
+        if(sum(total_runs) > 0, sum(passed_runs) / sum(total_runs), 0) as pass_rate,
+        if(sum(total_runs) > 0, sum(total_duration_ms) / sum(total_runs), 0) as avg_duration_ms,
+        sum(total_tokens) as total_tokens,
+        sum(total_cost) as total_cost
+      FROM daily_run_summary_mv
+      WHERE project_id = {projectId:String}
+        AND date >= {startDate:Date}
+        AND date <= {endDate:Date}
+    `,
+    query_params: { projectId, startDate, endDate },
+    format: 'JSONEachRow',
+  })
+
+  const rows = await result.json<DashboardSummary>()
+  return (
+    rows[0] || {
+      total_runs: 0,
+      passed_runs: 0,
+      failed_runs: 0,
+      pass_rate: 0,
+      avg_duration_ms: 0,
+      total_tokens: 0,
+      total_cost: 0,
+    }
+  )
+}
+
+/**
+ * Get scorer statistics.
+ * Queries the scorer_stats_mv materialized view.
+ */
+export async function getScorerStats(
+  projectId: string,
+  startDate: string,
+  endDate: string,
+): Promise<ScorerStats[]> {
+  const ch = getClickHouseClient()
+
+  const result = await ch.query({
+    query: `
+      SELECT
+        name,
+        source,
+        date,
+        avgMerge(avg_score_state) as avg_score,
+        minMerge(min_score_state) as min_score,
+        maxMerge(max_score_state) as max_score,
+        countMerge(score_count_state) as score_count,
+        countMerge(passed_count_state) as passed_count,
+        countMerge(failed_count_state) as failed_count
+      FROM scorer_stats_mv
+      WHERE project_id = {projectId:String}
+        AND date >= {startDate:Date}
+        AND date <= {endDate:Date}
+      GROUP BY name, source, date
+      ORDER BY date ASC, name ASC
+    `,
+    query_params: { projectId, startDate, endDate },
+    format: 'JSONEachRow',
+  })
+
+  return result.json<ScorerStats>()
+}
+
+// =============================================================================
+// Backfill Functions
+// =============================================================================
+
+/**
+ * Backfill all materialized views with existing data.
+ * Should be run once after creating the views.
+ */
+export async function backfillMaterializedViews(
+  projectId?: string,
+): Promise<{ view: string; rows: number }[]> {
+  const ch = getClickHouseClient()
+  const results: { view: string; rows: number }[] = []
+
+  const projectFilter = projectId
+    ? `WHERE project_id = '${projectId}'`
+    : ''
+  const scoresProjectFilter = projectId
+    ? `WHERE project_id = '${projectId}'`
+    : ''
+  const tracesProjectFilter = projectId
+    ? `WHERE project_id = '${projectId}'`
+    : ''
+  const runIdFilter = projectId
+    ? `WHERE run_id IS NOT NULL AND project_id = '${projectId}'`
+    : 'WHERE run_id IS NOT NULL'
+
+  // Backfill score_trends_full_mv
+  await ch.command({
+    query: `
+      INSERT INTO score_trends_full_mv
+      SELECT project_id, name, toDate(timestamp) as date,
+             avgState(value), minState(value), maxState(value), countState()
+      FROM scores
+      ${scoresProjectFilter}
+      GROUP BY project_id, name, date
+    `,
+  })
+  const scoreTrendsCount = await ch.query({
+    query: `SELECT count() as cnt FROM score_trends_full_mv ${projectFilter}`,
+    format: 'JSONEachRow',
+  })
+  const scoreTrendsRows = await scoreTrendsCount.json<{ cnt: number }>()
+  results.push({ view: 'score_trends_full_mv', rows: scoreTrendsRows[0]?.cnt || 0 })
+
+  // Backfill duration_stats_mv
+  await ch.command({
+    query: `
+      INSERT INTO duration_stats_mv
+      SELECT project_id, toDate(timestamp) as date,
+             avgState(duration_ms), quantileState(0.5)(duration_ms),
+             quantileState(0.95)(duration_ms), quantileState(0.99)(duration_ms),
+             minState(duration_ms), maxState(duration_ms), countState()
+      FROM traces
+      ${tracesProjectFilter}
+      GROUP BY project_id, date
+    `,
+  })
+  const durationCount = await ch.query({
+    query: `SELECT count() as cnt FROM duration_stats_mv ${projectFilter}`,
+    format: 'JSONEachRow',
+  })
+  const durationRows = await durationCount.json<{ cnt: number }>()
+  results.push({ view: 'duration_stats_mv', rows: durationRows[0]?.cnt || 0 })
+
+  // Backfill run_scores_mv
+  await ch.command({
+    query: `
+      INSERT INTO run_scores_mv
+      SELECT project_id, run_id, toDate(timestamp) as date,
+             avgState(value), minState(value), countState(),
+             countIfState(value >= 0.7), countIfState(value < 0.7)
+      FROM scores
+      ${runIdFilter}
+      GROUP BY project_id, run_id, date
+    `,
+  })
+  const runScoresCount = await ch.query({
+    query: `SELECT count() as cnt FROM run_scores_mv ${projectFilter}`,
+    format: 'JSONEachRow',
+  })
+  const runScoresRows = await runScoresCount.json<{ cnt: number }>()
+  results.push({ view: 'run_scores_mv', rows: runScoresRows[0]?.cnt || 0 })
+
+  // Backfill daily_run_summary_mv
+  await ch.command({
+    query: `
+      INSERT INTO daily_run_summary_mv
+      SELECT project_id, toDate(timestamp) as date,
+             count(), countIf(status = 'ok'), countIf(status = 'error'),
+             sum(duration_ms), sum(total_tokens), sum(total_cost)
+      FROM traces
+      ${runIdFilter}
+      GROUP BY project_id, date
+    `,
+  })
+  const dailySummaryCount = await ch.query({
+    query: `SELECT count() as cnt FROM daily_run_summary_mv ${projectFilter}`,
+    format: 'JSONEachRow',
+  })
+  const dailySummaryRows = await dailySummaryCount.json<{ cnt: number }>()
+  results.push({ view: 'daily_run_summary_mv', rows: dailySummaryRows[0]?.cnt || 0 })
+
+  // Backfill scorer_stats_mv
+  await ch.command({
+    query: `
+      INSERT INTO scorer_stats_mv
+      SELECT project_id, name, source, toDate(timestamp) as date,
+             avgState(value), minState(value), maxState(value), countState(),
+             countIfState(value >= 0.7), countIfState(value < 0.7)
+      FROM scores
+      ${scoresProjectFilter}
+      GROUP BY project_id, name, source, date
+    `,
+  })
+  const scorerStatsCount = await ch.query({
+    query: `SELECT count() as cnt FROM scorer_stats_mv ${projectFilter}`,
+    format: 'JSONEachRow',
+  })
+  const scorerStatsRows = await scorerStatsCount.json<{ cnt: number }>()
+  results.push({ view: 'scorer_stats_mv', rows: scorerStatsRows[0]?.cnt || 0 })
+
+  return results
+}

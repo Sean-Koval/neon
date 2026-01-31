@@ -22,10 +22,14 @@ import {
   XCircle,
 } from 'lucide-react'
 import Link from 'next/link'
-import { useParams } from 'next/navigation'
-import { useState } from 'react'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
+import { useCallback } from 'react'
 import { CopyButton } from '@/components/traces/copy-button'
-import { type Span, SpanDetail } from '@/components/traces/span-detail'
+import { SpanDetail, type SpanSummary } from '@/components/traces/span-detail'
+
+// Type alias for backward compatibility
+type Span = SpanSummary
+
 import { TraceLoadingSkeleton } from '@/components/traces/trace-loading-skeleton'
 import { TraceTimeline } from '@/components/traces/trace-timeline'
 import { useTrace } from '@/hooks/use-traces'
@@ -224,10 +228,28 @@ function TraceError({ error, onRetry }: { error: Error; onRetry: () => void }) {
 
 export default function TraceDetailPage() {
   const params = useParams()
+  const router = useRouter()
+  const searchParams = useSearchParams()
   const traceId = params.id as string
 
   const { data, isLoading, error, refetch } = useTrace(traceId)
-  const [selectedSpanId, setSelectedSpanId] = useState<string | null>(null)
+
+  // Get selected span from URL for shareable links
+  const selectedSpanId = searchParams.get('span')
+
+  // Update URL when span is selected
+  const setSelectedSpanId = useCallback(
+    (spanId: string | null) => {
+      const params = new URLSearchParams(searchParams.toString())
+      if (spanId) {
+        params.set('span', spanId)
+      } else {
+        params.delete('span')
+      }
+      router.replace(`?${params.toString()}`, { scroll: false })
+    },
+    [router, searchParams],
+  )
 
   // Loading state
   if (isLoading) {
@@ -422,6 +444,7 @@ export default function TraceDetailPage() {
               <SpanDetail
                 span={selectedSpan}
                 onClose={() => setSelectedSpanId(null)}
+                projectId="00000000-0000-0000-0000-000000000001"
               />
             </div>
           </>

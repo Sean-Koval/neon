@@ -2,20 +2,33 @@
 
 TypeScript SDK for Neon Agent Ops - Evals as code.
 
+Build, test, and evaluate AI agents with confidence using a simple, expressive API.
+
+## Features
+
+- **Evals as Code** - Define tests, scorers, and datasets in TypeScript
+- **Built-in Scorers** - Tool selection, LLM judges, rule-based checks
+- **CLI Support** - Run evals from the command line with `npx neon eval`
+- **CI/CD Ready** - JSON output, exit codes, threshold checks
+- **Cloud Sync** - Optional sync to Neon Cloud for tracking and analysis
+
 ## Installation
 
 ```bash
 bun add @neon/sdk
+# or
+npm install @neon/sdk
 ```
 
 ## Quick Start
 
-### Define Tests
+### 1. Define Tests
 
 ```typescript
-import { defineTest, defineSuite, run } from '@neon/sdk';
+// evals/my-agent.eval.ts
+import { defineTest, defineSuite, contains, llmJudge } from '@neon/sdk';
 
-// Define a single test case
+// Define a test case
 const weatherTest = defineTest({
   name: 'weather-query',
   input: { query: 'What is the weather in NYC?' },
@@ -25,48 +38,37 @@ const weatherTest = defineTest({
   },
 });
 
-// Define a test with an inline scorer
-const qualityTest = defineTest({
-  name: 'response-quality',
-  input: { query: 'Explain quantum computing' },
-  scorer: (ctx) => {
-    const output = ctx.metadata?.output as string;
-    const hasKeyTerms = ['quantum', 'qubit', 'superposition'].some(
-      term => output?.toLowerCase().includes(term)
-    );
-    return { value: hasKeyTerms ? 1 : 0, reason: hasKeyTerms ? 'Contains key terms' : 'Missing key terms' };
-  },
-});
-```
-
-### Define Suites
-
-```typescript
-import { defineSuite, llmJudge, toolSelectionScorer } from '@neon/sdk';
-
-const agentSuite = defineSuite({
+// Define a suite with scorers
+export const suite = defineSuite({
   name: 'my-agent-v1',
-  tests: [weatherTest, qualityTest],
+  tests: [weatherTest],
   scorers: {
-    tool_selection: toolSelectionScorer(),
+    keywords: contains(['weather', 'temperature']),
     quality: llmJudge({
-      prompt: 'Rate the response quality from 0-1...',
+      prompt: 'Rate response quality 0-1: {{output}}',
     }),
   },
   config: {
     parallel: 5,
-    timeout: 120000,
+    timeout: 60000,
   },
 });
 ```
 
-### Run Tests
+### 2. Run Evaluations
+
+**CLI:**
+
+```bash
+npx neon eval
+```
+
+**Programmatic:**
 
 ```typescript
 import { run } from '@neon/sdk';
 
-// Run a single test
-const result = await run(weatherTest, {
+const result = await run(suite, {
   agent: async (input) => {
     const response = await myAgent.invoke(input);
     return {
@@ -76,143 +78,224 @@ const result = await run(weatherTest, {
   },
 });
 
-console.log(result.passed); // true/false
-console.log(result.scores); // Array of score results
-
-// Run a suite
-const suiteResult = await run(agentSuite, {
-  agent: myAgentFunction,
-  parallel: 5,
-});
-
-console.log(suiteResult.summary);
-// { total: 2, passed: 2, failed: 0, passRate: 1.0, avgScore: 0.95 }
-
-// Run multiple tests
-const results = await run([test1, test2, test3], {
-  timeout: 30000,
-  filter: /weather/,
-});
+console.log(result.summary);
+// { total: 1, passed: 1, failed: 0, passRate: 1.0, avgScore: 0.95 }
 ```
 
-## API Reference
+### 3. View Results
 
-### `defineTest(config)`
-
-Creates a test case definition.
-
-```typescript
-interface Test {
-  name: string;                    // Test name
-  input: Record<string, unknown>;  // Input passed to agent
-  expected?: {                     // Expected outputs for built-in checks
-    toolCalls?: string[];          // Expected tool calls
-    outputContains?: string[];     // Strings the output should contain
-    output?: string;               // Exact expected output
-  };
-  scorers?: string[];              // Named scorers to run
-  scorer?: Scorer | InlineScorer;  // Inline scorer for this test
-  timeout?: number;                // Test timeout in ms (default: 60000)
-}
 ```
+Suite: my-agent-v1
+  ✓ weather-query (1.2s)
+    - keywords: 1.00
+    - quality: 0.90
 
-### `defineSuite(config)`
-
-Groups tests with shared configuration.
-
-```typescript
-interface Suite {
-  name: string;                            // Suite name
-  tests: Test[];                           // Tests in the suite
-  datasets?: Dataset[];                    // Optional datasets
-  scorers?: Record<string, Scorer>;        // Named scorers
-  config?: {
-    parallel?: number;                     // Parallel execution (default: 1)
-    timeout?: number;                      // Suite timeout (default: 300000)
-    agentId?: string;                      // Agent identifier
-    agentVersion?: string;                 // Agent version
-  };
-}
-```
-
-### `run(testOrSuite, options)`
-
-Executes tests and returns structured results.
-
-```typescript
-interface RunOptions {
-  parallel?: number;                       // Parallel execution count
-  timeout?: number;                        // Test timeout in ms
-  filter?: string | RegExp;                // Filter tests by name
-  agent?: (input) => Promise<AgentOutput>; // Agent execution function
-  scorers?: Record<string, Scorer>;        // Additional scorers
-}
-
-interface AgentOutput {
-  output: string;                          // Agent's text output
-  toolCalls?: string[];                    // Tools called
-  traceId?: string;                        // Trace ID for linking
-  metadata?: Record<string, unknown>;      // Additional metadata
-}
-```
-
-Returns:
-- `TestResult` for a single test
-- `TestResult[]` for an array of tests
-- `SuiteResult` for a suite
-
-### `defineScorer(config)`
-
-Creates a custom scorer.
-
-```typescript
-import { defineScorer } from '@neon/sdk';
-
-const customScorer = defineScorer({
-  name: 'custom-metric',
-  dataType: 'numeric',
-  evaluate: async ({ trace, expected, metadata }) => {
-    // Your scoring logic
-    return { value: 0.95, reason: 'Evaluation passed' };
-  },
-});
+Summary
+  Total:  1
+  Passed: 1
+  Failed: 0
 ```
 
 ## Built-in Scorers
 
-The SDK includes several pre-built scorers:
-
-- `toolSelectionScorer()` - Validates expected tools were called
-- `containsScorer(strings)` - Checks output contains strings
-- `exactMatchScorer()` - Exact output matching
-- `llmJudge(config)` - LLM-based evaluation
-- `responseQualityJudge()` - Response quality scoring
-- `safetyJudge()` - Safety evaluation
-- `latencyScorer(threshold)` - Latency checking
-- `tokenEfficiencyScorer(maxTokens)` - Token usage efficiency
-
-## Async Support
-
-All scorers support async evaluation:
+### Rule-Based
 
 ```typescript
-const asyncScorer = defineScorer({
-  name: 'async-check',
-  evaluate: async ({ trace }) => {
-    const result = await someAsyncOperation(trace);
-    return { value: result ? 1 : 0 };
-  },
-});
+// Exact match
+exactMatch('expected output')
 
-// Inline async scorer
-const test = defineTest({
-  name: 'async-test',
-  input: { query: 'test' },
-  scorer: async (ctx) => {
-    await delay(100);
-    return { value: 0.9 };
+// Contains strings
+contains(['keyword1', 'keyword2'], { matchAll: true })
+
+// Tool selection validation
+toolSelectionScorer()
+
+// JSON structure matching
+jsonMatchScorer({ expected: 'structure' })
+```
+
+### LLM Judges
+
+```typescript
+// Custom LLM judge
+llmJudge({
+  prompt: 'Rate the response: {{output}}',
+  model: 'claude-3-haiku-20240307',
+})
+
+// Pre-built judges
+responseQualityJudge  // Quality, accuracy, clarity
+safetyJudge           // Safety, harmful content
+helpfulnessJudge      // User needs, actionability
+```
+
+### Performance
+
+```typescript
+latencyScorer(5000)           // Max latency in ms
+tokenEfficiencyScorer(1000)   // Max tokens
+errorRateScorer()             // Error tracking
+```
+
+## Custom Scorers
+
+```typescript
+import { defineScorer } from '@neon/sdk';
+
+const wordCountScorer = defineScorer({
+  name: 'word_count',
+  description: 'Checks response length',
+  dataType: 'numeric',
+  evaluate: async (context) => {
+    const output = context.trace.spans[0]?.output || '';
+    const words = output.split(/\s+/).length;
+
+    return {
+      value: words >= 50 ? 1 : words / 50,
+      reason: `Response has ${words} words`,
+    };
   },
 });
+```
+
+## CLI Reference
+
+```bash
+# Run all eval files
+npx neon eval
+
+# Run specific patterns
+npx neon eval "tests/**/*.eval.js"
+
+# Filter by test name
+npx neon eval --filter "weather"
+
+# Parallel execution
+npx neon eval --parallel 5
+
+# JSON output for CI
+npx neon eval --format json
+
+# Verbose output
+npx neon eval --verbose
+
+# Disable cloud sync
+npx neon eval --no-sync
+```
+
+## CI/CD Integration
+
+### GitHub Actions
+
+```yaml
+- name: Run evaluations
+  run: npx neon eval --format json > results.json
+  env:
+    ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
+- name: Check for failures
+  run: |
+    if grep -q '"failed": [1-9]' results.json; then
+      exit 1
+    fi
+```
+
+See [Integrations Guide](./docs/integrations.md) for GitLab CI, CircleCI, and more.
+
+## API Reference
+
+### Test Definitions
+
+| Function | Description |
+|----------|-------------|
+| `defineTest(config)` | Create a test case |
+| `defineSuite(config)` | Group tests with scorers |
+| `defineDataset(config)` | Create a dataset for test generation |
+| `run(testOrSuite, options)` | Execute tests |
+
+### Scorers
+
+| Function | Description |
+|----------|-------------|
+| `defineScorer(config)` | Create a custom scorer |
+| `exactMatch(expected)` | Exact output matching |
+| `contains(strings)` | Contains strings check |
+| `toolSelectionScorer()` | Validate tool calls |
+| `llmJudge(config)` | LLM-based evaluation |
+| `responseQualityJudge` | Pre-built quality judge |
+| `safetyJudge` | Pre-built safety judge |
+| `helpfulnessJudge` | Pre-built helpfulness judge |
+
+### Cloud Sync
+
+| Function | Description |
+|----------|-------------|
+| `isCloudSyncConfigured()` | Check if sync is configured |
+| `syncResultsToCloud(results)` | Sync results to Neon Cloud |
+| `createBackgroundSync(results)` | Non-blocking sync |
+
+## Documentation
+
+- [CLI Reference](./docs/cli-reference.md) - Complete command-line usage
+- [Custom Scorers](./docs/custom-scorers.md) - Creating custom evaluation logic
+- [Integrations](./docs/integrations.md) - CI/CD and framework integrations
+- [API Reference](./docs/api-reference.md) - Complete API documentation
+
+## Environment Variables
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `ANTHROPIC_API_KEY` | For LLM judges | Anthropic API key |
+| `OPENAI_API_KEY` | Alternative | OpenAI API key |
+| `NEON_API_URL` | For cloud sync | Neon Cloud API endpoint |
+| `NEON_API_KEY` | For cloud sync | Neon Cloud API key |
+| `NEON_PROJECT_ID` | For cloud sync | Neon Cloud project ID |
+
+## Examples
+
+See the [examples](./examples) directory:
+
+- [basic.eval.ts](./examples/basic.eval.ts) - Basic test suite with scorers
+
+## Troubleshooting
+
+### TypeScript Files
+
+The CLI runs JavaScript files. For TypeScript:
+
+```bash
+# Option 1: Compile first
+tsc && npx neon eval "dist/**/*.eval.js"
+
+# Option 2: Use tsx
+npx tsx node_modules/@neon/sdk/src/cli/index.ts eval
+
+# Option 3: Use bun
+bun run node_modules/@neon/sdk/src/cli/index.ts eval
+```
+
+### LLM Judge Errors
+
+Ensure `ANTHROPIC_API_KEY` is set:
+
+```bash
+export ANTHROPIC_API_KEY=sk-ant-...
+```
+
+### No Tests Found
+
+Check your file patterns:
+
+```bash
+npx neon eval --verbose
+```
+
+Test files must export a `Suite` object:
+
+```typescript
+export const suite = defineSuite({ ... });
+// or
+export default defineSuite({ ... });
 ```
 
 ## License
