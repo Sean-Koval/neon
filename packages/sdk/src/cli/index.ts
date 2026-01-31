@@ -32,10 +32,13 @@ function createProgram(): Command {
     .option("-f, --filter <pattern>", "Filter tests by name pattern")
     .option("-p, --parallel <number>", "Number of parallel tests", parseInt, 1)
     .option("-t, --timeout <ms>", "Timeout per test in milliseconds", parseInt, 60000)
-    .option("--format <type>", "Output format (console, json)", "console")
+    .option("--format <type>", "Output format (console, json, silent)", "console")
     .option("--verbose", "Show verbose output", false)
     .option("--cwd <path>", "Working directory for test discovery", process.cwd())
     .option("--no-sync", "Disable syncing results to Neon cloud")
+    .option("--json", "Output results as machine-readable JSON (single line)")
+    .option("--ci", "CI mode: JSON output with non-zero exit on failure")
+    .option("--threshold <value>", "Pass/fail threshold (0.0-1.0 or percentage, default: 0.7)")
     .action(async (patterns: string[], options) => {
       const exitCode = await runEval({
         pattern: patterns.length > 0 ? patterns : undefined,
@@ -46,6 +49,9 @@ function createProgram(): Command {
         verbose: options.verbose,
         cwd: options.cwd,
         noSync: options.sync === false, // Commander.js negates the flag
+        json: options.json,
+        ci: options.ci,
+        threshold: options.threshold,
       });
       process.exit(exitCode);
     });

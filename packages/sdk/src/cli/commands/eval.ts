@@ -2,6 +2,7 @@
  * Eval Command
  *
  * Discovers and runs test files matching glob patterns.
+ * Supports CI/CD integration with JSON output and threshold-based pass/fail.
  */
 
 import { glob } from "glob";
@@ -23,6 +24,27 @@ import {
   formatSyncStatus,
   type SyncResult,
 } from "../../cloud/index.js";
+import {
+  parseThreshold,
+  DEFAULT_THRESHOLD,
+  type ThresholdConfig,
+} from "../../threshold.js";
+import {
+  generateCIOutput,
+  formatCIOutput,
+} from "../reporters/json-reporter.js";
+
+/**
+ * Exit codes for CI integration
+ */
+export const EXIT_CODES = {
+  /** All tests passed thresholds */
+  SUCCESS: 0,
+  /** One or more tests failed thresholds */
+  FAILURE: 1,
+  /** Error running tests (couldn't execute) */
+  ERROR: 2,
+} as const;
 
 /**
  * Eval command options
@@ -44,6 +66,12 @@ export interface EvalOptions {
   cwd?: string;
   /** Disable syncing results to Neon cloud */
   noSync?: boolean;
+  /** Output results as JSON (machine-readable) */
+  json?: boolean;
+  /** CI mode: JSON output + non-zero exit on failure */
+  ci?: boolean;
+  /** Global threshold for pass/fail (0-1 or percentage) */
+  threshold?: string | number;
 }
 
 /**
@@ -70,12 +98,32 @@ export async function runEval(options: EvalOptions = {}): Promise<number> {
     verbose = false,
     cwd = process.cwd(),
     noSync = false,
+    json = false,
+    ci = false,
+    threshold,
   } = options;
 
   const startTime = Date.now();
 
+  // Determine output mode
+  const useJsonOutput = json || ci;
+  const effectiveFormat = useJsonOutput ? "json" : format;
+
+  // Parse threshold configuration
+  let thresholdConfig: ThresholdConfig = {};
+  if (threshold !== undefined) {
+    try {
+      thresholdConfig.global = parseThreshold(threshold);
+    } catch (error) {
+      if (!useJsonOutput) {
+        printError(`Invalid threshold: ${error instanceof Error ? error.message : "Unknown error"}`);
+      }
+      return EXIT_CODES.ERROR;
+    }
+  }
+
   // Discover test files
-  if (format !== "json") {
+  if (!useJsonOutput) {
     printInfo(`Discovering test files...`);
     if (verbose) {
       console.log(pc.dim(`  Patterns: ${pattern.join(", ")}`));
@@ -86,7 +134,12 @@ export async function runEval(options: EvalOptions = {}): Promise<number> {
   const files = await discoverTestFiles(pattern, cwd);
 
   if (files.length === 0) {
-    if (format !== "json") {
+    if (useJsonOutput) {
+      // Output empty CI result for JSON mode
+      const emptyOutput = generateCIOutput([], { thresholdConfig });
+      emptyOutput.passed = false;
+      console.log(formatCIOutput(emptyOutput));
+    } else {
       printError(`No test files found matching patterns: ${pattern.join(", ")}`);
       console.log();
       console.log(pc.dim("Tip: Test files should match one of these patterns:"));
@@ -94,10 +147,10 @@ export async function runEval(options: EvalOptions = {}): Promise<number> {
         console.log(pc.dim(`  - ${p}`));
       }
     }
-    return 1;
+    return EXIT_CODES.ERROR;
   }
 
-  if (format !== "json") {
+  if (!useJsonOutput) {
     console.log(pc.green(`Found ${files.length} test file(s)`));
     if (verbose) {
       for (const file of files) {
@@ -108,25 +161,30 @@ export async function runEval(options: EvalOptions = {}): Promise<number> {
   }
 
   // Load test suites from files
-  const suites = await loadTestSuites(files, format !== "json");
+  const suites = await loadTestSuites(files, !useJsonOutput);
 
   if (suites.length === 0) {
-    if (format !== "json") {
+    if (useJsonOutput) {
+      // Output empty CI result for JSON mode
+      const emptyOutput = generateCIOutput([], { thresholdConfig });
+      emptyOutput.passed = false;
+      console.log(formatCIOutput(emptyOutput));
+    } else {
       printError("No test suites found in test files");
       console.log();
       console.log(pc.dim("Tip: Export a suite using `export const suite = defineSuite({...})`"));
       console.log(pc.dim("     or `export default defineSuite({...})`"));
     }
-    return 1;
+    return EXIT_CODES.ERROR;
   }
 
-  if (format !== "json") {
+  if (!useJsonOutput) {
     console.log(pc.green(`Loaded ${suites.length} suite(s)`));
     console.log();
   }
 
   // Create reporter and runner
-  const reporter = createCLIReporter({ format, verbose, showScores: true });
+  const reporter = createCLIReporter({ format: effectiveFormat, verbose, showScores: true });
   const runner = new TestRunner({
     parallel,
     timeout,
@@ -136,33 +194,33 @@ export async function runEval(options: EvalOptions = {}): Promise<number> {
 
   // Run all suites
   const results: SuiteResult[] = [];
-  let hasFailures = false;
+  let hasExecutionError = false;
 
   for (const suite of suites) {
     try {
       const result = await runner.runSuite(suite);
       results.push(result);
-      if (result.summary.failed > 0) {
-        hasFailures = true;
-      }
     } catch (error) {
-      if (format !== "json") {
+      if (!useJsonOutput) {
         printError(`Failed to run suite "${suite.name}": ${error instanceof Error ? error.message : "Unknown error"}`);
       }
-      hasFailures = true;
+      hasExecutionError = true;
     }
   }
 
-  // Print aggregated summary for multiple suites
-  if (format === "json") {
-    console.log(JSON.stringify(results, null, 2));
+  // Generate CI output for threshold evaluation
+  const ciOutput = generateCIOutput(results, { thresholdConfig });
+
+  // Handle JSON output
+  if (useJsonOutput) {
+    console.log(formatCIOutput(ciOutput));
   } else if (results.length > 1) {
     printAggregatedSummary(results);
   }
 
-  // Sync results to cloud (unless disabled)
+  // Sync results to cloud (unless disabled or in JSON mode)
   let syncResults: SyncResult[] = [];
-  if (!noSync && results.length > 0) {
+  if (!noSync && !useJsonOutput && results.length > 0) {
     // Start background sync - don't block the main flow
     const syncPromise = createBackgroundSync(results, {
       metadata: {
@@ -176,8 +234,8 @@ export async function runEval(options: EvalOptions = {}): Promise<number> {
     syncResults = await syncPromise;
   }
 
-  // Print total duration
-  if (format !== "json") {
+  // Print total duration (console mode only)
+  if (!useJsonOutput) {
     const totalDuration = ((Date.now() - startTime) / 1000).toFixed(2);
     console.log();
     console.log(pc.dim(`Total time: ${totalDuration}s`));
@@ -196,7 +254,12 @@ export async function runEval(options: EvalOptions = {}): Promise<number> {
     }
   }
 
-  return hasFailures ? 1 : 0;
+  // Determine exit code based on threshold evaluation
+  if (hasExecutionError) {
+    return EXIT_CODES.ERROR;
+  }
+
+  return ciOutput.passed ? EXIT_CODES.SUCCESS : EXIT_CODES.FAILURE;
 }
 
 /**

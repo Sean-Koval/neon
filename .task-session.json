@@ -1,18 +1,19 @@
 {
-  "task_id": "PERF-001",
-  "title": "ClickHouse batch inserts",
-  "started_at": "2026-01-29T22:16:41-05:00",
+  "task_id": "SDK-005",
+  "title": "CI mode: JSON output, exit codes, threshold checks",
+  "started_at": "2026-01-31T12:50:05-05:00",
   "scope": null,
   "acceptance_criteria": [
-    "Implement batch insert buffer for traces table",
-    "Implement batch insert buffer for scores table",
-    "Configurable batch size (default: 1000 rows)",
-    "Configurable flush interval (default: 5 seconds)",
-    "Auto-flush when buffer is full or interval expires",
-    "Graceful shutdown flushes remaining buffer",
-    "Error handling for partial batch failures",
-    "Performance test showing >10x throughput improvement",
-    "No breaking changes to existing API endpoints"
+    "--json flag outputs results in machine-readable JSON format",
+    "--ci flag combines JSON output with non-zero exit code on failure",
+    "Exit code 0 when all tests pass thresholds",
+    "Exit code 1 when any test fails threshold",
+    "--threshold flag sets global pass threshold (default: 0.7)",
+    "Per-test threshold override via test definition",
+    "JSON output includes: suite name, test results, scores, timing, pass/fail status",
+    "JSON schema is documented for CI integration",
+    "Works with GitHub Actions (example workflow provided)",
+    "Unit tests cover threshold edge cases"
   ],
   "context": null
 }
