@@ -1,17 +1,17 @@
 {
-  "task_id": "PERF-003",
-  "title": "Add indexes to ClickHouse tables",
-  "started_at": "2026-01-31T12:55:14-05:00",
+  "task_id": "DOC-003",
+  "title": "Self-hosting guide (Docker Compose)",
+  "started_at": "2026-01-29T22:50:31-05:00",
   "scope": null,
   "acceptance_criteria": [
-    "Analyze existing queries to identify index candidates",
-    "Add skip indexes for trace_id, run_id, suite_name columns",
-    "Add bloom filter indexes for string columns used in WHERE clauses",
-    "Add minmax indexes for timestamp columns",
-    "Create migration script for index additions",
-    "Benchmark query performance before/after indexes",
-    "Document index strategy in schema.sql comments",
-    "No breaking changes to existing data"
+    "docker-compose.yml with all services (ClickHouse, Temporal, Frontend)",
+    "Step-by-step quickstart in docs/self-hosting.md",
+    "Environment variable reference with defaults",
+    "Health check endpoints documented",
+    "Troubleshooting section for common issues",
+    "Resource requirements (CPU, RAM, disk) documented",
+    "Upgrade/migration instructions placeholder",
+    "Works on Linux, macOS, and Windows (WSL2)"
   ],
   "context": null
 }
