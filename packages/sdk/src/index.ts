@@ -140,3 +140,29 @@ export {
   type SyncOptions,
   type SyncResult,
 } from "./cloud/index.js";
+
+// Threshold configuration (for CI/CD)
+export {
+  parseThreshold,
+  getThreshold,
+  evaluateThreshold,
+  evaluateAllThresholds,
+  DEFAULT_THRESHOLD,
+  type ThresholdConfig,
+  type ThresholdResult,
+} from "./threshold.js";
+
+// CI/CD JSON output
+export {
+  generateCIOutput,
+  formatCIOutput,
+  JSON_SCHEMA_VERSION,
+  type CIOutput,
+  type JSONSuiteResult,
+  type JSONTestResult,
+  type JSONScoreResult,
+  type JSONOutputOptions,
+} from "./cli/reporters/json-reporter.js";
+
+// CLI exit codes
+export { EXIT_CODES } from "./cli/commands/eval.js";
