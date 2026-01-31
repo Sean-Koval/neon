@@ -1,0 +1,185 @@
+# Neon Development Environment
+#
+# Optimized for local development with:
+# - Hot reload support
+# - Debug ports exposed
+# - Smaller resource footprint
+# - Volume mounts for code changes
+#
+# Usage:
+#   docker compose -f docker-compose.dev.yml up -d
+#
+# Then run frontend locally:
+#   cd frontend && bun dev
+
+services:
+  # ===== ClickHouse (Trace Storage) =====
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.3
+    container_name: neon-dev-clickhouse
+    environment:
+      CLICKHOUSE_DB: neon
+      CLICKHOUSE_USER: default
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1
+      # Reduced memory for development
+      CLICKHOUSE_MAX_MEMORY_USAGE: 2000000000  # 2GB
+    volumes:
+      - clickhouse_dev_data:/var/lib/clickhouse
+      - ./scripts/clickhouse-init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    ports:
+      - "8123:8123"   # HTTP interface
+      - "9000:9000"   # Native interface
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "localhost:8123/ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    # Lower resource limits for dev
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+
+  # ===== PostgreSQL (Metadata + Temporal) =====
+  postgres:
+    image: postgres:16-alpine
+    container_name: neon-dev-postgres
+    environment:
+      POSTGRES_USER: neon
+      POSTGRES_PASSWORD: neon
+      POSTGRES_DB: neon
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+      - ./scripts/postgres-init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U neon"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  # ===== Temporal Server (Optional for Managed Execution) =====
+  temporal:
+    image: temporalio/auto-setup:1.24
+    container_name: neon-dev-temporal
+    environment:
+      - DB=postgres12
+      - DB_PORT=5432
+      - POSTGRES_USER=neon
+      - POSTGRES_PWD=neon
+      - POSTGRES_SEEDS=postgres
+      - DYNAMIC_CONFIG_FILE_PATH=config/dynamicconfig/development-sql.yaml
+      # Development settings
+      - LOG_LEVEL=debug
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "7233:7233"
+    healthcheck:
+      test: ["CMD", "tctl", "--address", "temporal:7233", "cluster", "health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    profiles:
+      - temporal
+      - full
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+
+  # ===== Temporal Web UI =====
+  temporal-ui:
+    image: temporalio/ui:2.26
+    container_name: neon-dev-temporal-ui
+    environment:
+      - TEMPORAL_ADDRESS=temporal:7233
+      - TEMPORAL_CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
+    depends_on:
+      temporal:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    profiles:
+      - temporal
+      - full
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  # ===== Temporal Worker (Development) =====
+  # For development, prefer running the worker locally with hot reload:
+  #   cd temporal-workers && bun dev
+  temporal-worker:
+    build:
+      context: ./temporal-workers
+      dockerfile: Dockerfile
+    container_name: neon-dev-temporal-worker
+    environment:
+      - TEMPORAL_ADDRESS=temporal:7233
+      - TEMPORAL_NAMESPACE=default
+      - TEMPORAL_TASK_QUEUE=agent-workers
+      - NEON_API_URL=http://host.docker.internal:3000
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - DEFAULT_PROJECT_ID=00000000-0000-0000-0000-000000000001
+      - LOG_LEVEL=debug
+    depends_on:
+      temporal:
+        condition: service_healthy
+    # Mount source for development (requires rebuild on change)
+    # For true hot reload, run worker locally instead
+    profiles:
+      - worker
+      - full
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  # ===== Adminer (Database UI) =====
+  # Useful for inspecting PostgreSQL during development
+  adminer:
+    image: adminer:4
+    container_name: neon-dev-adminer
+    ports:
+      - "8082:8080"
+    environment:
+      - ADMINER_DEFAULT_SERVER=postgres
+    depends_on:
+      - postgres
+    profiles:
+      - debug
+
+  # ===== Tabix (ClickHouse UI) =====
+  # Useful for inspecting ClickHouse during development
+  tabix:
+    image: spoonest/clickhouse-tabix-web-client
+    container_name: neon-dev-tabix
+    ports:
+      - "8083:80"
+    environment:
+      - CH_HOST=clickhouse
+      - CH_PORT=8123
+    depends_on:
+      - clickhouse
+    profiles:
+      - debug
+
+volumes:
+  clickhouse_dev_data:
+    name: neon-dev-clickhouse-data
+  postgres_dev_data:
+    name: neon-dev-postgres-data
+
+networks:
+  default:
+    name: neon-dev-network

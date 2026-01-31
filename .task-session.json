@@ -1,17 +1,17 @@
 {
-  "task_id": "PERF-004",
-  "title": "Lazy load trace details",
-  "started_at": "2026-01-31T13:55:59-05:00",
+  "task_id": "DOC-003",
+  "title": "Self-hosting guide (Docker Compose)",
+  "started_at": "2026-01-29T22:50:31-05:00",
   "scope": null,
   "acceptance_criteria": [
-    "Trace list loads with minimal data (id, name, status, duration)",
-    "Span details (inputs, outputs, metadata) load on expand",
-    "Loading indicator shown while fetching span details",
-    "Fetched data is cached to avoid re-fetching on collapse/expand",
-    "Large payloads (>10KB) are truncated with 'Show more' option",
-    "API endpoint for fetching individual span details",
-    "No visible delay for traces with <50 spans",
-    "Memory usage reduced for large trace views"
+    "docker-compose.yml with all services (ClickHouse, Temporal, Frontend)",
+    "Step-by-step quickstart in docs/self-hosting.md",
+    "Environment variable reference with defaults",
+    "Health check endpoints documented",
+    "Troubleshooting section for common issues",
+    "Resource requirements (CPU, RAM, disk) documented",
+    "Upgrade/migration instructions placeholder",
+    "Works on Linux, macOS, and Windows (WSL2)"
   ],
   "context": null
 }
