@@ -284,3 +284,111 @@ export async function getDailyStats(
 
   return result.json()
 }
+
+/**
+ * Span summary for list view (without large payload fields)
+ */
+export interface SpanSummary {
+  project_id: string
+  trace_id: string
+  span_id: string
+  parent_span_id: string | null
+  name: string
+  kind: 'internal' | 'server' | 'client' | 'producer' | 'consumer'
+  span_type: 'span' | 'generation' | 'tool' | 'retrieval' | 'event'
+  timestamp: string
+  end_time: string | null
+  duration_ms: number
+  status: 'unset' | 'ok' | 'error'
+  status_message: string
+  model: string | null
+  input_tokens: number | null
+  output_tokens: number | null
+  total_tokens: number | null
+  cost_usd: number | null
+  tool_name: string | null
+}
+
+/**
+ * Span details (large payload fields loaded lazily)
+ */
+export interface SpanDetails {
+  span_id: string
+  input: string
+  output: string
+  tool_input: string
+  tool_output: string
+  model_parameters: Record<string, string>
+  attributes: Record<string, string>
+}
+
+/**
+ * Get trace with span summaries (without large payloads)
+ */
+export async function getTraceWithSpanSummaries(
+  projectId: string,
+  traceId: string,
+): Promise<{ trace: TraceRecord; spans: SpanSummary[] } | null> {
+  const ch = getClickHouseClient()
+
+  // Get trace
+  const traceResult = await ch.query({
+    query: `
+      SELECT * FROM traces
+      WHERE project_id = {projectId:String} AND trace_id = {traceId:String}
+      LIMIT 1
+    `,
+    query_params: { projectId, traceId },
+    format: 'JSONEachRow',
+  })
+
+  const traces = await traceResult.json<TraceRecord>()
+  if (traces.length === 0) {
+    return null
+  }
+
+  // Get span summaries without large payload fields
+  const spansResult = await ch.query({
+    query: `
+      SELECT
+        project_id, trace_id, span_id, parent_span_id, name, kind, span_type,
+        timestamp, end_time, duration_ms, status, status_message, model,
+        input_tokens, output_tokens, total_tokens, cost_usd, tool_name
+      FROM spans
+      WHERE project_id = {projectId:String} AND trace_id = {traceId:String}
+      ORDER BY timestamp ASC
+    `,
+    query_params: { projectId, traceId },
+    format: 'JSONEachRow',
+  })
+
+  const spans = await spansResult.json<SpanSummary>()
+
+  return { trace: traces[0], spans }
+}
+
+/**
+ * Get single span full details
+ */
+export async function getSpanDetails(
+  projectId: string,
+  spanId: string,
+): Promise<SpanDetails | null> {
+  const ch = getClickHouseClient()
+
+  const result = await ch.query({
+    query: `
+      SELECT
+        span_id, input, output, tool_input, tool_output,
+        model_parameters, attributes
+      FROM spans
+      WHERE project_id = {projectId:String} AND span_id = {spanId:String}
+      LIMIT 1
+    `,
+    query_params: { projectId, spanId },
+    format: 'JSONEachRow',
+  })
+
+  const spans = await result.json<SpanDetails>()
+  return spans.length > 0 ? spans[0] : null
+}

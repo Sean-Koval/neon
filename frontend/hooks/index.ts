@@ -7,10 +7,18 @@ export { useCompare } from './use-compare'
 
 // Dashboard hooks
 export { useDashboard } from './use-dashboard'
-
+// Lazy span loading hooks
+export {
+  isLargePayload,
+  type SpanDetails,
+  TRUNCATION_THRESHOLD,
+  truncatePayload,
+  useIsSpanCached,
+  useLazySpan,
+  usePrefetchSpanDetails,
+} from './use-lazy-span'
 // Real-time hooks (WebSocket + polling)
 export { useRealtime, useRealtimeRun } from './use-realtime'
-
 // Run hooks
 export {
   useCancelRun,
@@ -19,7 +27,6 @@ export {
   useRuns,
   useTriggerRun,
 } from './use-runs'
-
 // Score trends hooks
 export {
   downloadData,
@@ -35,7 +42,6 @@ export {
   type UseScoreTrendsResult,
   useScoreTrends,
 } from './use-scores'
-
 // Suite hooks
 export {
   useCreateSuite,
@@ -44,6 +50,17 @@ export {
   useSuites,
   useUpdateSuite,
 } from './use-suites'
+// Trace hooks
+export {
+  type Span,
+  type TraceFilters,
+  type TraceSummary,
+  type TraceWithSpans,
+  useTrace,
+  useTraceCount,
+  useTraceSearch,
+  useTraces,
+} from './use-traces'
 
 // Workflow run hooks (Temporal-based)
 export {

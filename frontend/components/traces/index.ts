@@ -5,7 +5,7 @@
  */
 
 export { CopyButton } from './copy-button'
-export { type Span, SpanDetail } from './span-detail'
+export { type Span, SpanDetail, type SpanSummary } from './span-detail'
 export {
   getSpanTypeConfig,
   type SpanType,
