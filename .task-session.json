@@ -1,19 +1,18 @@
 {
-  "task_id": "SDK-005",
-  "title": "CI mode: JSON output, exit codes, threshold checks",
-  "started_at": "2026-01-31T12:50:05-05:00",
+  "task_id": "PERF-006",
+  "title": "Add loading states, error boundaries",
+  "started_at": "2026-01-31T16:22:39-05:00",
   "scope": null,
   "acceptance_criteria": [
-    "--json flag outputs results in machine-readable JSON format",
-    "--ci flag combines JSON output with non-zero exit code on failure",
-    "Exit code 0 when all tests pass thresholds",
-    "Exit code 1 when any test fails threshold",
-    "--threshold flag sets global pass threshold (default: 0.7)",
-    "Per-test threshold override via test definition",
-    "JSON output includes: suite name, test results, scores, timing, pass/fail status",
-    "JSON schema is documented for CI integration",
-    "Works with GitHub Actions (example workflow provided)",
-    "Unit tests cover threshold edge cases"
+    "Add loading.tsx files for all route segments",
+    "Implement skeleton loaders for dashboard cards",
+    "Implement skeleton loaders for trace list and details",
+    "Add error.tsx error boundaries for all routes",
+    "Create reusable ErrorFallback component with retry button",
+    "Handle network errors gracefully with user-friendly messages",
+    "Add global error boundary at app level",
+    "Ensure loading states don't cause layout shift (CLS)",
+    "Test error boundaries with simulated failures"
   ],
   "context": null
 }
