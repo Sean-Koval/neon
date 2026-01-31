@@ -5,6 +5,7 @@
  *
  * Shows detailed information about a selected span with enhanced
  * support for LLM reasoning steps and tool calls.
+ * Supports lazy loading of large payload fields for performance.
  */
 
 import { clsx } from 'clsx'
@@ -17,11 +18,18 @@ import {
   Copy,
   DollarSign,
   Hash,
+  Loader2,
   Timer,
   X,
   XCircle,
 } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import {
+  TRUNCATION_THRESHOLD,
+  truncatePayload,
+  useLazySpan,
+  usePrefetchSpanDetails,
+} from '@/hooks/use-lazy-span'
 import { CopyButton } from './copy-button'
 import {
   getSpanTypeConfig,
@@ -30,9 +38,9 @@ import {
 } from './span-type-badge'
 
 /**
- * Span data structure
+ * Span summary data structure (minimal fields for list)
  */
-export interface Span {
+export interface SpanSummary {
   span_id: string
   trace_id: string
   parent_span_id: string | null
@@ -43,33 +51,36 @@ export interface Span {
   duration_ms: number
   status: 'unset' | 'ok' | 'error'
   status_message?: string
-  // LLM fields
   model?: string
-  input?: string
-  output?: string
   input_tokens?: number
   output_tokens?: number
   total_tokens?: number
   cost_usd?: number
-  // Tool fields
   tool_name?: string
+  children?: SpanSummary[]
+}
+
+/**
+ * Full span data structure (with lazy-loaded fields)
+ */
+export interface Span extends SpanSummary {
+  input?: string
+  output?: string
   tool_input?: string
   tool_output?: string
-  // Attributes
   attributes?: Record<string, string>
-  // Children (for hierarchical display)
-  children?: Span[]
 }
 
 interface SpanDetailProps {
-  span: Span
+  span: SpanSummary | Span
   onClose?: () => void
+  projectId?: string
 }
 
 /**
  * Get status icon and color
  */
-function getStatusInfo(status: Span['status']) {
+function getStatusInfo(status: SpanSummary['status']) {
   switch (status) {
     case 'ok':
       return {
@@ -113,11 +124,13 @@ function Section({
   children,
   defaultOpen = true,
   badge,
+  isLoading = false,
 }: {
   title: string
   children: React.ReactNode
   defaultOpen?: boolean
   badge?: React.ReactNode
+  isLoading?: boolean
 }) {
   const [isOpen, setIsOpen] = useState(defaultOpen)
 
@@ -134,6 +147,9 @@ function Section({
           <ChevronRight className="w-4 h-4 text-gray-400" />
         )}
         <span className="font-medium text-sm flex-1">{title}</span>
+        {isLoading && (
+          <Loader2 className="w-4 h-4 text-gray-400 animate-spin" />
+        )}
         {badge}
       </button>
       {isOpen && <div className="px-4 pb-4">{children}</div>}
@@ -142,7 +158,21 @@ function Section({
 }
 
 /**
- * Copyable code block with formatting
+ * Skeleton loader for code blocks
+ */
+function CodeBlockSkeleton() {
+  return (
+    <div className="bg-gray-50 rounded-lg p-4 animate-pulse">
+      <div className="h-4 bg-gray-200 rounded w-3/4 mb-2" />
+      <div className="h-4 bg-gray-200 rounded w-1/2 mb-2" />
+      <div className="h-4 bg-gray-200 rounded w-5/6 mb-2" />
+      <div className="h-4 bg-gray-200 rounded w-2/3" />
+    </div>
+  )
+}
+
+/**
+ * Copyable code block with formatting and truncation support
  */
 function CodeBlock({
   content,
@@ -155,6 +185,7 @@ function CodeBlock({
 }) {
   const [copied, setCopied] = useState(false)
   const [isExpanded, setIsExpanded] = useState(false)
+  const [showFullContent, setShowFullContent] = useState(false)
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(content)
@@ -162,12 +193,18 @@ function CodeBlock({
     setTimeout(() => setCopied(false), 2000)
   }
 
+  // Check for large payload
+  const { truncated, isTruncated, originalLength } = truncatePayload(
+    content,
+    showFullContent ? Number.POSITIVE_INFINITY : TRUNCATION_THRESHOLD,
+  )
+
   // Try to format JSON
-  let formatted = content
+  let formatted = showFullContent ? content : truncated
   let isJson = false
   if (language === 'json') {
     try {
-      formatted = JSON.stringify(JSON.parse(content), null, 2)
+      formatted = JSON.stringify(JSON.parse(formatted), null, 2)
       isJson = true
     } catch {
       // Keep original if not valid JSON
@@ -203,7 +240,24 @@ function CodeBlock({
           {formatted}
         </code>
       </pre>
-      {isLong && (
+
+      {/* Truncation indicator */}
+      {isTruncated && !showFullContent && (
+        <button
+          type="button"
+          onClick={() => setShowFullContent(true)}
+          className="w-full py-2 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-b-lg border-t bg-gray-50 transition-colors flex items-center justify-center gap-2"
+        >
+          <span>
+            Showing {(TRUNCATION_THRESHOLD / 1024).toFixed(0)}KB of{' '}
+            {(originalLength / 1024).toFixed(1)}KB
+          </span>
+          <span className="font-medium">Show full content</span>
+        </button>
+      )}
+
+      {/* Collapse/expand for long content */}
+      {!isTruncated && isLong && (
         <button
           type="button"
           onClick={() => setIsExpanded(!isExpanded)}
@@ -289,12 +343,77 @@ function TokenUsage({
 }
 
 /**
+ * Lazy loaded content section
+ */
+function LazyContentSection({
+  title,
+  content,
+  isLoading,
+  defaultOpen = true,
+}: {
+  title: string
+  content: string | undefined
+  isLoading: boolean
+  defaultOpen?: boolean
+}) {
+  if (!isLoading && !content) return null
+
+  return (
+    <Section title={title} defaultOpen={defaultOpen} isLoading={isLoading}>
+      {isLoading ? (
+        <CodeBlockSkeleton />
+      ) : (
+        <CodeBlock content={content || ''} />
+      )}
+    </Section>
+  )
+}
+
+/**
  * Span Detail Component
  */
-export function SpanDetail({ span, onClose }: SpanDetailProps) {
+export function SpanDetail({
+  span,
+  onClose,
+  projectId = '00000000-0000-0000-0000-000000000001',
+}: SpanDetailProps) {
   const statusInfo = getStatusInfo(span.status)
   const typeConfig = getSpanTypeConfig(span.span_type)
   const TypeIcon = typeConfig.icon
+
+  // Check if span already has details (from full trace load)
+  const hasInlineDetails =
+    'input' in span || 'output' in span || 'attributes' in span
+  const fullSpan = span as Span
+
+  // Lazy load details if not already present
+  const { data: details, isLoading } = useLazySpan(span.span_id, {
+    projectId,
+    enabled: !hasInlineDetails,
+  })
+
+  // Get the actual content - prefer inline, fallback to lazy-loaded
+  const input = hasInlineDetails ? fullSpan.input : details?.input
+  const output = hasInlineDetails ? fullSpan.output : details?.output
+  const toolInput = hasInlineDetails ? fullSpan.tool_input : details?.tool_input
+  const toolOutput = hasInlineDetails
+    ? fullSpan.tool_output
+    : details?.tool_output
+  const attributes = hasInlineDetails
+    ? fullSpan.attributes
+    : details?.attributes
+
+  // Prefetch nearby spans for smoother UX
+  const prefetchSpan = usePrefetchSpanDetails()
+  useEffect(() => {
+    if (span.children) {
+      span.children.slice(0, 3).forEach((child) => {
+        prefetchSpan(child.span_id, projectId)
+      })
+    }
+  }, [span, prefetchSpan, projectId])
+
+  const showLoading = !hasInlineDetails && isLoading
 
   return (
     <div className="h-full flex flex-col border-l bg-white">
@@ -411,17 +530,18 @@ export function SpanDetail({ span, onClose }: SpanDetailProps) {
               </div>
             </Section>
 
-            {span.input && (
-              <Section title="Input (Prompt)" defaultOpen={false}>
-                <CodeBlock content={span.input} />
-              </Section>
-            )}
+            <LazyContentSection
+              title="Input (Prompt)"
+              content={input}
+              isLoading={showLoading}
+              defaultOpen={false}
+            />
 
-            {span.output && (
-              <Section title="Output (Response)">
-                <CodeBlock content={span.output} />
-              </Section>
-            )}
+            <LazyContentSection
+              title="Output (Response)"
+              content={output}
+              isLoading={showLoading}
+            />
           </>
         )}
 
@@ -441,62 +561,76 @@ export function SpanDetail({ span, onClose }: SpanDetailProps) {
               <KVRow label="Tool Name" value={span.tool_name} mono />
             </Section>
 
-            {span.tool_input && (
-              <Section title="Tool Input">
-                <CodeBlock content={span.tool_input} />
-              </Section>
-            )}
+            <LazyContentSection
+              title="Tool Input"
+              content={toolInput}
+              isLoading={showLoading}
+            />
 
-            {span.tool_output && (
-              <Section title="Tool Output">
-                <CodeBlock content={span.tool_output} />
-              </Section>
-            )}
+            <LazyContentSection
+              title="Tool Output"
+              content={toolOutput}
+              isLoading={showLoading}
+            />
           </>
         )}
 
         {/* Agent Span Details */}
         {span.span_type === 'agent' && (
           <>
-            {span.input && (
-              <Section title="Agent Input">
-                <CodeBlock content={span.input} />
-              </Section>
-            )}
+            <LazyContentSection
+              title="Agent Input"
+              content={input}
+              isLoading={showLoading}
+            />
 
-            {span.output && (
-              <Section title="Agent Output">
-                <CodeBlock content={span.output} />
-              </Section>
-            )}
+            <LazyContentSection
+              title="Agent Output"
+              content={output}
+              isLoading={showLoading}
+            />
           </>
         )}
 
         {/* Generic Input/Output for other span types */}
         {!['generation', 'tool', 'agent'].includes(span.span_type) && (
           <>
-            {span.input && (
-              <Section title="Input" defaultOpen={false}>
-                <CodeBlock content={span.input} />
-              </Section>
-            )}
+            <LazyContentSection
+              title="Input"
+              content={input}
+              isLoading={showLoading}
+              defaultOpen={false}
+            />
 
-            {span.output && (
-              <Section title="Output" defaultOpen={false}>
-                <CodeBlock content={span.output} />
-              </Section>
-            )}
+            <LazyContentSection
+              title="Output"
+              content={output}
+              isLoading={showLoading}
+              defaultOpen={false}
+            />
           </>
         )}
 
         {/* Attributes */}
-        {span.attributes && Object.keys(span.attributes).length > 0 && (
-          <Section title="Attributes" defaultOpen={false}>
-            <div className="space-y-1">
-              {Object.entries(span.attributes).map(([key, value]) => (
-                <KVRow key={key} label={key} value={value} />
-              ))}
-            </div>
+        {(showLoading ||
+          (attributes && Object.keys(attributes).length > 0)) && (
+          <Section
+            title="Attributes"
+            defaultOpen={false}
+            isLoading={showLoading}
+          >
+            {showLoading ? (
+              <div className="space-y-2 animate-pulse">
+                <div className="h-4 bg-gray-200 rounded w-2/3" />
+                <div className="h-4 bg-gray-200 rounded w-1/2" />
+              </div>
+            ) : (
+              <div className="space-y-1">
+                {Object.entries(attributes || {}).map(([key, value]) => (
+                  <KVRow key={key} label={key} value={value} />
+                ))}
+              </div>
+            )}
           </Section>
         )}
       </div>
