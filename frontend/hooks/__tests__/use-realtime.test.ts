@@ -101,7 +101,7 @@ class MockWebSocket {
 let mockWebSocketInstance: MockWebSocket | null = null
 
 // Mock global WebSocket
-vi.stubGlobal('WebSocket', function (url: string) {
+vi.stubGlobal('WebSocket', (url: string) => {
   mockWebSocketInstance = new MockWebSocket(url)
   return mockWebSocketInstance
 })
@@ -514,7 +514,7 @@ describe('Reconnection Logic', () => {
 
     const delays: number[] = []
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-      delays.push(baseDelay * Math.pow(2, attempt - 1))
+      delays.push(baseDelay * 2 ** (attempt - 1))
     }
 
     expect(delays).toEqual([1000, 2000, 4000])

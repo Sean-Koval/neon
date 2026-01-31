@@ -18,12 +18,12 @@ import {
   XCircle,
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { ConnectionDot } from '@/components/realtime'
 import type {
   ConnectionStatus,
   WorkflowStatus,
   WorkflowStatusPoll,
 } from '@/lib/types'
-import { ConnectionDot } from '@/components/realtime'
 
 interface EvalRunProgressProps {
   runId: string

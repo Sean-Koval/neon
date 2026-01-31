@@ -11,13 +11,13 @@ import {
   type DailyRunSummary,
   type DashboardSummary,
   type DurationStats,
-  type ScoreTrendPoint,
-  type ScorerStats,
   getDailyRunSummary,
   getDashboardSummary,
   getDurationStats,
-  getScoreTrends,
   getScorerStats,
+  getScoreTrends,
+  type ScorerStats,
+  type ScoreTrendPoint,
 } from '@/lib/clickhouse'
 
 // =============================================================================

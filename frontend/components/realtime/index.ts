@@ -3,6 +3,6 @@
  */
 
 export {
-  ConnectionStatusIndicator,
   ConnectionDot,
+  ConnectionStatusIndicator,
 } from './connection-status'

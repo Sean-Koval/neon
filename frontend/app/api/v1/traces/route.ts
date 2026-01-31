@@ -9,10 +9,7 @@
 
 import { type NextRequest, NextResponse } from 'next/server'
 import { v4 as uuidv4 } from 'uuid'
-import {
-  type SpanRecord,
-  type TraceRecord,
-} from '@/lib/clickhouse'
+import type { SpanRecord, TraceRecord } from '@/lib/clickhouse'
 import { batchInsertSpans, batchInsertTraces } from '@/lib/clickhouse-batch'
 
 /**

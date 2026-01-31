@@ -5,14 +5,14 @@
  * materialized views. Provides <100ms query latency for aggregations.
  */
 
-import { useQuery, type UseQueryOptions } from '@tanstack/react-query'
+import { type UseQueryOptions, useQuery } from '@tanstack/react-query'
 
 import {
-  dashboardApi,
   type DashboardQueryParams,
   type DashboardResponse,
   type DashboardSummaryResponse,
   type DurationStatsResponse,
+  dashboardApi,
   type ScoreTrendPointResponse,
 } from '@/lib/api'
 
@@ -53,7 +53,9 @@ export interface ServerDashboardStats {
 /**
  * Transform API response to hook-compatible format.
  */
-function transformSummary(data: DashboardSummaryResponse): ServerDashboardStats {
+function transformSummary(
+  data: DashboardSummaryResponse,
+): ServerDashboardStats {
   const passedPercentage =
     data.total_runs > 0
       ? Math.round((data.passed_runs / data.total_runs) * 100)

@@ -12,8 +12,8 @@
  * - Automatic cleanup on unmount
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { v4 as uuidv4 } from 'uuid'
 
 import { api } from '@/lib/api'
@@ -389,8 +389,7 @@ export function useRealtime(
 
         // Attempt reconnection with exponential backoff
         reconnectAttemptsRef.current++
-        const delay =
-          reconnectDelay * Math.pow(2, reconnectAttemptsRef.current - 1)
+        const delay = reconnectDelay * 2 ** (reconnectAttemptsRef.current - 1)
 
         updateConnectionStatus('reconnecting')
 

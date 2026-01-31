@@ -14,8 +14,10 @@ import {
   type DashboardFilters,
   DashboardFiltersBar,
 } from '@/components/dashboard/filters'
-import { ScoreTrends } from '@/components/dashboard/score-trends'
-import { DashboardStatCards } from '@/components/dashboard/stat-cards'
+import {
+  LazyDashboardStatCards,
+  LazyScoreTrends,
+} from '@/components/dashboard/lazy-components'
 import { useDashboard } from '@/hooks/use-dashboard'
 import type { EvalRun, EvalRunStatus } from '@/lib/types'
 
@@ -58,11 +60,11 @@ export default function Dashboard() {
         isLoadingSuites={isLoadingSuites}
       />
 
-      {/* Stats */}
-      <DashboardStatCards />
+      {/* Stats - Lazy loaded for code splitting */}
+      <LazyDashboardStatCards />
 
-      {/* Score Trends - Full Width */}
-      <ScoreTrends
+      {/* Score Trends - Full Width, lazy loaded with recharts */}
+      <LazyScoreTrends
         defaultTimeRange={
           filters.dateRange === '7d'
             ? '7d'

@@ -494,7 +494,9 @@ export const dashboardApi = {
   /**
    * Get complete dashboard data in a single request.
    */
-  async getDashboard(params?: DashboardQueryParams): Promise<DashboardResponse> {
+  async getDashboard(
+    params?: DashboardQueryParams,
+  ): Promise<DashboardResponse> {
     const query = buildQueryString({
       projectId: params?.projectId,
       days: params?.days,
@@ -512,7 +514,9 @@ export const dashboardApi = {
   /**
    * Get just the summary stats for fast initial load.
    */
-  async getSummary(params?: DashboardQueryParams): Promise<DashboardSummaryResponse> {
+  async getSummary(
+    params?: DashboardQueryParams,
+  ): Promise<DashboardSummaryResponse> {
     const query = buildQueryString({
       projectId: params?.projectId,
       days: params?.days,

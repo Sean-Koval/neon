@@ -685,9 +685,7 @@ export async function backfillMaterializedViews(
   const ch = getClickHouseClient()
   const results: { view: string; rows: number }[] = []
 
-  const projectFilter = projectId
-    ? `WHERE project_id = '${projectId}'`
-    : ''
+  const projectFilter = projectId ? `WHERE project_id = '${projectId}'` : ''
   const scoresProjectFilter = projectId
     ? `WHERE project_id = '${projectId}'`
     : ''
@@ -714,7 +712,10 @@ export async function backfillMaterializedViews(
     format: 'JSONEachRow',
   })
   const scoreTrendsRows = await scoreTrendsCount.json<{ cnt: number }>()
-  results.push({ view: 'score_trends_full_mv', rows: scoreTrendsRows[0]?.cnt || 0 })
+  results.push({
+    view: 'score_trends_full_mv',
+    rows: scoreTrendsRows[0]?.cnt || 0,
+  })
 
   // Backfill duration_stats_mv
   await ch.command({
@@ -772,7 +773,10 @@ export async function backfillMaterializedViews(
     format: 'JSONEachRow',
   })
   const dailySummaryRows = await dailySummaryCount.json<{ cnt: number }>()
-  results.push({ view: 'daily_run_summary_mv', rows: dailySummaryRows[0]?.cnt || 0 })
+  results.push({
+    view: 'daily_run_summary_mv',
+    rows: dailySummaryRows[0]?.cnt || 0,
+  })
 
   // Backfill scorer_stats_mv
   await ch.command({
