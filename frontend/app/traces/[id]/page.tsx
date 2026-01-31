@@ -25,14 +25,16 @@ import Link from 'next/link'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { useCallback } from 'react'
 import { CopyButton } from '@/components/traces/copy-button'
-import { SpanDetail, type SpanSummary } from '@/components/traces/span-detail'
+import {
+  LazySpanDetail,
+  LazyTraceTimeline,
+  TraceLoadingSkeleton,
+} from '@/components/traces/lazy-components'
+import type { SpanSummary } from '@/components/traces/span-detail'
+import { useTrace } from '@/hooks/use-traces'
 
 // Type alias for backward compatibility
 type Span = SpanSummary
-
-import { TraceLoadingSkeleton } from '@/components/traces/trace-loading-skeleton'
-import { TraceTimeline } from '@/components/traces/trace-timeline'
-import { useTrace } from '@/hooks/use-traces'
 
 /**
  * Format duration for display
@@ -406,7 +408,7 @@ export default function TraceDetailPage() {
                 ({spanCounts.total} spans)
               </span>
             </h3>
-            <TraceTimeline
+            <LazyTraceTimeline
               spans={spans}
               selectedSpanId={selectedSpanId || undefined}
               onSpanSelect={(span) => setSelectedSpanId(span.span_id)}
@@ -441,7 +443,7 @@ export default function TraceDetailPage() {
                 'lg:relative lg:w-[400px] lg:max-w-none lg:shadow-none lg:z-auto',
               )}
             >
-              <SpanDetail
+              <LazySpanDetail
                 span={selectedSpan}
                 onClose={() => setSelectedSpanId(null)}
                 projectId="00000000-0000-0000-0000-000000000001"

@@ -20,6 +20,7 @@ import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { EvalRunProgress, EvalRunResults } from '@/components/eval-runs'
 import { ConnectionStatusIndicator } from '@/components/realtime'
+import { useRealtimeRun } from '@/hooks/use-realtime'
 import {
   useCancelWorkflowRun,
   usePauseWorkflowRun,
@@ -27,7 +28,6 @@ import {
   useWorkflowRun,
   useWorkflowRunStatus,
 } from '@/hooks/use-workflow-runs'
-import { useRealtimeRun } from '@/hooks/use-realtime'
 
 export default function EvalRunDetailPage() {
   const params = useParams()

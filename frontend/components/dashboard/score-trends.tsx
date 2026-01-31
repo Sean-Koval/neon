@@ -20,8 +20,8 @@ import { useCallback, useState } from 'react'
 import {
   ChartEmptyState,
   ChartSkeleton,
-  TrendChart,
-} from '@/components/charts/trend-chart'
+  LazyTrendChart,
+} from '@/components/charts/lazy-charts'
 import {
   downloadData,
   exportToCSV,
@@ -664,7 +664,7 @@ export function ScoreTrends({
         ) : data.length === 0 ? (
           <ChartEmptyState />
         ) : (
-          <TrendChart
+          <LazyTrendChart
             data={data}
             threshold={threshold}
             highlightRegressions={true}

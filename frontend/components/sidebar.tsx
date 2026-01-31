@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { PreloadLink } from './ui/preload-link'
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
@@ -52,9 +53,10 @@ export function Sidebar() {
             (item.href !== '/' && pathname.startsWith(item.href))
 
           return (
-            <Link
+            <PreloadLink
               key={item.name}
               href={item.href}
+              preloadDelay={50}
               className={clsx(
                 'nav-item',
                 isActive ? 'nav-item-active' : 'nav-item-inactive',
@@ -67,7 +69,7 @@ export function Sidebar() {
                 )}
               />
               {item.name}
-            </Link>
+            </PreloadLink>
           )
         })}
       </nav>

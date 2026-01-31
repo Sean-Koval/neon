@@ -11,19 +11,19 @@ import type {
   DateRangeOption,
 } from '@/components/dashboard/filters'
 import { getDateFromRange } from '@/components/dashboard/filters'
+import type { EvalRun, EvalSuite } from '@/lib/types'
 import {
-  useRuns,
-  useDashboardStats as useClientDashboardStats,
-  useScoreTrend as useClientScoreTrend,
-  type ScoreTrendPoint,
-} from './use-runs'
-import {
+  type FormattedScoreTrendPoint,
   useDashboardSummary,
   useFormattedScoreTrends,
-  type FormattedScoreTrendPoint,
 } from './use-dashboard-api'
+import {
+  type ScoreTrendPoint,
+  useDashboardStats as useClientDashboardStats,
+  useScoreTrend as useClientScoreTrend,
+  useRuns,
+} from './use-runs'
 import { useSuites } from './use-suites'
-import type { EvalRun, EvalSuite } from '@/lib/types'
 
 export interface UseDashboardReturn {
   // Filters
@@ -106,7 +106,9 @@ function dateRangeToDays(range: DateRangeOption): number {
  * Uses server-side materialized views by default for <100ms query latency.
  * Falls back to client-side computation if server-side is disabled.
  */
-export function useDashboard(options: UseDashboardOptions = {}): UseDashboardReturn {
+export function useDashboard(
+  options: UseDashboardOptions = {},
+): UseDashboardReturn {
   const { useServerSide = true } = options
   const [filters, setFilters] = useState<DashboardFilters>(DEFAULT_FILTERS)
 
@@ -159,12 +161,16 @@ export function useDashboard(options: UseDashboardOptions = {}): UseDashboardRet
   } = useClientScoreTrend({ days: trendDays, maxRuns: 100 })
 
   // Select stats based on mode
-  const isLoadingStats = useServerSide ? isLoadingServerStats : isLoadingClientStats
+  const isLoadingStats = useServerSide
+    ? isLoadingServerStats
+    : isLoadingClientStats
   const statsError = useServerSide ? serverStatsError : clientStatsError
   const refetchStats = useServerSide ? refetchServerStats : refetchClientStats
 
   // Select trend data based on mode
-  const isLoadingTrend = useServerSide ? isLoadingServerTrend : isLoadingClientTrend
+  const isLoadingTrend = useServerSide
+    ? isLoadingServerTrend
+    : isLoadingClientTrend
   const trendError = useServerSide ? serverTrendError : clientTrendError
 
   // Transform server stats to match expected format

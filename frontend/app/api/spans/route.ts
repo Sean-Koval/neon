@@ -6,7 +6,7 @@
  */
 
 import { type NextRequest, NextResponse } from 'next/server'
-import { type SpanRecord } from '@/lib/clickhouse'
+import type { SpanRecord } from '@/lib/clickhouse'
 import { batchInsertSpans } from '@/lib/clickhouse-batch'
 
 export async function POST(request: NextRequest) {

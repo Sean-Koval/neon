@@ -7,7 +7,7 @@
 
 import { type NextRequest, NextResponse } from 'next/server'
 import { v4 as uuidv4 } from 'uuid'
-import { type ScoreRecord } from '@/lib/clickhouse'
+import type { ScoreRecord } from '@/lib/clickhouse'
 import { batchInsertScores } from '@/lib/clickhouse-batch'
 
 export async function POST(request: NextRequest) {

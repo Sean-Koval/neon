@@ -7,7 +7,7 @@
  * Displays WebSocket vs polling mode and connection state.
  */
 
-import { Radio, Wifi, WifiOff, RefreshCw, AlertCircle } from 'lucide-react'
+import { AlertCircle, Radio, RefreshCw, Wifi, WifiOff } from 'lucide-react'
 import type { ConnectionStatus } from '@/lib/types'
 
 interface ConnectionStatusIndicatorProps {
