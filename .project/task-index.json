@@ -86,43 +86,43 @@
     },
     "SDK-001": {
       "file": "tasks/SDK-001.json",
-      "status": "ready",
+      "status": "completed",
       "phase_id": "phase-3-sdk",
       "title": "Simplify packages/sdk/ - remove bloat"
     },
     "SDK-002": {
       "file": "tasks/SDK-002.json",
-      "status": "ready",
+      "status": "completed",
       "phase_id": "phase-3-sdk",
       "title": "Core API: defineTest(), defineSuite(), run()"
     },
     "SDK-003": {
       "file": "tasks/SDK-003.json",
-      "status": "ready",
+      "status": "completed",
       "phase_id": "phase-3-sdk",
       "title": "Built-in scorers: exactMatch, contains, llmJudge"
     },
     "SDK-004": {
       "file": "tasks/SDK-004.json",
-      "status": "pending",
+      "status": "completed",
       "phase_id": "phase-3-sdk",
       "title": "CLI: npx neon eval runs tests locally"
     },
     "SDK-005": {
       "file": "tasks/SDK-005.json",
-      "status": "pending",
+      "status": "ready",
       "phase_id": "phase-3-sdk",
       "title": "CI mode: JSON output, exit codes, threshold checks"
     },
     "SDK-006": {
       "file": "tasks/SDK-006.json",
-      "status": "pending",
+      "status": "completed",
       "phase_id": "phase-3-sdk",
       "title": "Optional: Send results to Neon cloud/self-hosted"
     },
     "UI-001": {
       "file": "tasks/UI-001.json",
-      "status": "ready",
+      "status": "completed",
       "phase_id": "phase-4-frontend",
       "title": "Dashboard - recent evals, pass/fail rates, trends"
     },
@@ -134,13 +134,13 @@
     },
     "UI-003": {
       "file": "tasks/UI-003.json",
-      "status": "ready",
+      "status": "completed",
       "phase_id": "phase-4-frontend",
       "title": "Trace viewer - agent-native (tool calls, reasoning)"
     },
     "UI-004": {
       "file": "tasks/UI-004.json",
-      "status": "ready",
+      "status": "completed",
       "phase_id": "phase-4-frontend",
       "title": "Score trends - regression detection visualization"
     },
@@ -152,49 +152,49 @@
     },
     "UI-006": {
       "file": "tasks/UI-006.json",
-      "status": "ready",
+      "status": "completed",
       "phase_id": "phase-4-frontend",
       "title": "WebSocket for real-time updates (or polling fallback)"
     },
     "UI-007": {
       "file": "tasks/UI-007.json",
-      "status": "ready",
+      "status": "completed",
       "phase_id": "phase-4-frontend",
       "title": "Remove/hide old pages (suites, old runs)"
     },
     "PERF-001": {
       "file": "tasks/PERF-001.json",
-      "status": "ready",
+      "status": "completed",
       "phase_id": "phase-5-performance",
       "title": "ClickHouse batch inserts"
     },
     "PERF-002": {
       "file": "tasks/PERF-002.json",
-      "status": "pending",
+      "status": "completed",
       "phase_id": "phase-5-performance",
       "title": "Materialized views for dashboard aggregations"
     },
     "PERF-003": {
       "file": "tasks/PERF-003.json",
-      "status": "pending",
+      "status": "ready",
       "phase_id": "phase-5-performance",
       "title": "Add indexes to ClickHouse tables"
     },
     "PERF-004": {
       "file": "tasks/PERF-004.json",
-      "status": "pending",
+      "status": "ready",
       "phase_id": "phase-5-performance",
       "title": "Lazy load trace details"
     },
     "PERF-005": {
       "file": "tasks/PERF-005.json",
-      "status": "pending",
+      "status": "completed",
       "phase_id": "phase-5-performance",
       "title": "Optimize bundle size (code splitting)"
     },
     "PERF-006": {
       "file": "tasks/PERF-006.json",
-      "status": "pending",
+      "status": "ready",
       "phase_id": "phase-5-performance",
       "title": "Add loading states, error boundaries"
     },
@@ -206,25 +206,25 @@
     },
     "DOC-002": {
       "file": "tasks/DOC-002.json",
-      "status": "pending",
+      "status": "completed",
       "phase_id": "phase-6-docs",
       "title": "SDK documentation"
     },
     "DOC-003": {
       "file": "tasks/DOC-003.json",
-      "status": "pending",
+      "status": "completed",
       "phase_id": "phase-6-docs",
       "title": "Self-hosting guide (Docker Compose)"
     },
     "DOC-004": {
       "file": "tasks/DOC-004.json",
-      "status": "pending",
+      "status": "completed",
       "phase_id": "phase-6-docs",
       "title": "Example eval suite"
     },
     "DOC-005": {
       "file": "tasks/DOC-005.json",
-      "status": "pending",
+      "status": "ready",
       "phase_id": "phase-6-docs",
       "title": "Update CLAUDE.md for new architecture"
     }
@@ -274,48 +274,54 @@
       "name": "Cleanup",
       "description": "Remove dead code, consolidate to single architecture",
       "target_days": 2,
+      "status": "completed",
       "tasks": ["CLEAN-001", "CLEAN-002", "CLEAN-003", "CLEAN-004", "CLEAN-005", "CLEAN-006"]
     },
     "phase-2-core-backend": {
       "name": "Core Backend",
       "description": "Working ClickHouse + Temporal integration",
       "target_days": 3,
+      "status": "completed",
       "tasks": ["CORE-001", "CORE-002", "CORE-003", "CORE-004", "CORE-005", "CORE-006", "CORE-007", "CORE-008"]
     },
     "phase-3-sdk": {
       "name": "SDK",
       "description": "Evals-as-code that works locally",
       "target_days": 2,
+      "status": "completed",
       "tasks": ["SDK-001", "SDK-002", "SDK-003", "SDK-004", "SDK-005", "SDK-006"]
     },
     "phase-4-frontend": {
       "name": "Frontend Polish",
       "description": "Clean, fast, agent-native UX",
       "target_days": 3,
+      "status": "completed",
       "tasks": ["UI-001", "UI-002", "UI-003", "UI-004", "UI-005", "UI-006", "UI-007"]
     },
     "phase-5-performance": {
       "name": "Performance & Polish",
       "description": "Production-ready performance",
       "target_days": 2,
+      "status": "in_progress",
       "tasks": ["PERF-001", "PERF-002", "PERF-003", "PERF-004", "PERF-005", "PERF-006"]
     },
     "phase-6-docs": {
       "name": "Documentation & Launch",
       "description": "Ready for users",
       "target_days": 2,
+      "status": "in_progress",
       "tasks": ["DOC-001", "DOC-002", "DOC-003", "DOC-004", "DOC-005"]
     }
   },
-  "ready_tasks": ["SDK-001", "UI-001", "UI-003", "UI-004", "UI-006", "UI-007", "PERF-001", "DOC-003", "DOC-005"],
-  "critical_path": ["UI-006", "SDK-001", "SDK-002", "SDK-003", "SDK-004"],
+  "ready_tasks": ["SDK-005", "PERF-003", "PERF-004", "PERF-006", "DOC-005"],
+  "critical_path": ["SDK-005", "PERF-003", "PERF-004", "PERF-006", "DOC-005"],
   "metrics": {
     "total_tasks": 38,
-    "completed": 19,
+    "completed": 33,
     "in_progress": 0,
-    "ready": 9,
-    "pending": 10,
+    "ready": 5,
+    "pending": 0,
     "estimated_days_total": 14
   },
-  "last_computed": "2026-01-28T00:00:00Z"
+  "last_computed": "2026-01-31T12:00:00Z"
 }
