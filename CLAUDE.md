@@ -2,39 +2,79 @@
 
 ## Project Overview
 
-Neon is an agent evaluation platform built on MLflow 3.7+. It provides custom scorers, regression detection, and CI/CD quality gates for tool-using AI agents.
+Neon is an **agent evaluation platform** with durable execution for AI agents. It provides:
+- **Evals-as-code** TypeScript SDK for defining test suites and scorers
+- **Durable execution** via Temporal workflows
+- **Observability** via ClickHouse trace storage
+- **Real-time dashboard** with regression detection
 
 ## Development Commands
 
+### Primary Commands (Turbo monorepo)
 ```bash
-# Development
-make dev              # Install all dependencies
-make api              # Run API server
-make frontend         # Run frontend dev server
-make test             # Run all tests
-make lint             # Lint code
-make typecheck        # Type checking
+bun install           # Install all workspace dependencies
+bun run dev           # Start all services (frontend + workers)
+bun run build         # Build all packages
+bun run test          # Run all tests
+bun run lint          # Lint all code
+bun run typecheck     # Type check all packages
+```
 
-# Docker
-make docker-up        # Start services (Postgres, MLflow)
-make docker-down      # Stop services
+### Workspace-specific
+```bash
+bun run frontend      # Run only frontend dev server
+bun run workers       # Run only Temporal workers
+cd packages/sdk && bun test  # Test SDK only
+```
 
-# Database
-make db-migrate       # Run migrations
+### Docker (infrastructure)
+```bash
+docker compose up -d  # Start ClickHouse, Temporal, Postgres
+docker compose down   # Stop services
+```
+
+### CLI (Python)
+```bash
+cd cli && uv sync     # Install CLI dependencies
+uv run agent-eval --help  # Run CLI
 ```
 
 ## Project Structure
 
 ```
 neon/
-├── api/              # FastAPI backend (Python 3.11+)
-├── cli/              # CLI tool (Typer)
-├── frontend/         # Next.js 16 dashboard (React 19, Biome)
-├── action/           # GitHub Action
-├── terraform/        # GCP infrastructure
-├── docs/research/    # Design docs & research
-└── .project/         # Task management system
+├── frontend/           # Next.js 16 dashboard (React 19, Biome, tRPC)
+├── packages/
+│   ├── sdk/            # @neon/sdk - TypeScript SDK for evals
+│   ├── shared/         # @neon/shared - Shared types
+│   └── temporal-client/ # @neon/temporal-client - Temporal wrapper
+├── temporal-workers/   # Durable execution workers (@neon/temporal-workers)
+├── cli/                # Python CLI (Typer, uv)
+├── examples/           # Example agents and eval suites
+├── docs/research/      # Design docs & architecture specs
+├── scripts/            # Utility scripts (worktree, etc.)
+├── archive/            # Archived code (old FastAPI backend)
+├── terraform/          # GCP infrastructure
+└── .project/           # Task management system
 ```
+
+## Monorepo Architecture
+
+This is a **Turbo monorepo** with Bun as the package manager.
+
+### Workspaces
+| Package | Path | Description |
+|---------|------|-------------|
+| `agent-eval-frontend` | `frontend/` | Next.js dashboard with tRPC API |
+| `@neon/sdk` | `packages/sdk/` | TypeScript SDK for evals-as-code |
+| `@neon/shared` | `packages/shared/` | Shared types across packages |
+| `@neon/temporal-client` | `packages/temporal-client/` | Temporal client wrapper |
+| `@neon/temporal-workers` | `temporal-workers/` | Durable execution workers |
+
+### Requirements
+- Node.js >= 20.0.0
+- Bun 1.2.0 (package manager)
+- Python 3.11+ (for CLI only)
 
 ## Task Management System
 
@@ -83,7 +123,6 @@ Use the `/wt` command or run scripts directly:
 - Use **uv** for package management (not pip/poetry)
 - Ruff for linting/formatting
 - Mypy strict mode
-- Async throughout API
 
 ### TypeScript/Frontend
 - TypeScript strict mode
@@ -106,8 +145,9 @@ bun run typecheck   # Type checking
 
 ## Tool Requirements
 
-- **Frontend**: Use `bun` instead of `npm`/`npx` for all commands
-- **Python**: Use `uv` instead of `pip`/`poetry` for package management
+- **Package Manager**: Use `bun` (not npm/npx) for all JS/TS commands
+- **Python**: Use `uv` (not pip/poetry) for CLI dependencies
+- **Monorepo**: Run commands from root using `bun run <script>`
 
 ## Research Documentation
 
@@ -118,7 +158,9 @@ Extensive research is in `docs/research/`:
 
 ## Key Technical Decisions
 
-- Build ON MLflow 3.7+, not competing with it
-- API keys with project scoping for auth
-- Managed agent execution with trace capture
-- Vertex AI SDK for LLM judge scoring
+- **Temporal** for durable workflow execution (not bare async)
+- **ClickHouse** for trace storage and analytics queries
+- **TypeScript SDK** for evals-as-code (not YAML/config files)
+- **Next.js API routes + tRPC** for backend (no separate FastAPI)
+- **Turbo** for monorepo orchestration with caching
+- **Bun** as package manager for speed

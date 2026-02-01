@@ -1,0 +1,42 @@
+{
+  "id": "DOC-005",
+  "title": "Update CLAUDE.md for new architecture",
+  "description": "Update CLAUDE.md to accurately reflect the current project architecture after all implementation phases are complete. This ensures Claude Code and other AI assistants have accurate context about the project structure, commands, and patterns.",
+  "phase_id": "phase-6-docs",
+  "status": "completed",
+  "priority": "high",
+  "estimated_hours": 2,
+  "dependencies": [
+    "DOC-001"
+  ],
+  "blocks": [],
+  "acceptance_criteria": [
+    "Project overview accurately describes the current architecture",
+    "All development commands are verified and up-to-date",
+    "Project structure reflects actual directory layout",
+    "Task management system documentation is accurate",
+    "Code style guidelines match actual practices",
+    "Tool requirements (bun, uv) are documented",
+    "Key technical decisions are documented"
+  ],
+  "key_files": {
+    "primary": [
+      "CLAUDE.md"
+    ],
+    "reference": [
+      "package.json",
+      "frontend/package.json",
+      "packages/sdk/package.json",
+      "docs/research/02-concept/architecture-spec.md",
+      "README.md"
+    ]
+  },
+  "implementation_notes": [
+    "Review current CLAUDE.md against actual codebase",
+    "Verify all make commands work as documented",
+    "Update project structure tree if directories have changed",
+    "Document any new patterns established during implementation",
+    "Keep the document concise - it's a quick reference, not full docs"
+  ],
+  "created_at": "2026-02-01T00:00:00Z"
+}

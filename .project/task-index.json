@@ -110,7 +110,7 @@
     },
     "SDK-005": {
       "file": "tasks/SDK-005.json",
-      "status": "ready",
+      "status": "completed",
       "phase_id": "phase-3-sdk",
       "title": "CI mode: JSON output, exit codes, threshold checks"
     },
@@ -176,13 +176,13 @@
     },
     "PERF-003": {
       "file": "tasks/PERF-003.json",
-      "status": "ready",
+      "status": "completed",
       "phase_id": "phase-5-performance",
       "title": "Add indexes to ClickHouse tables"
     },
     "PERF-004": {
       "file": "tasks/PERF-004.json",
-      "status": "ready",
+      "status": "completed",
       "phase_id": "phase-5-performance",
       "title": "Lazy load trace details"
     },
@@ -194,7 +194,7 @@
     },
     "PERF-006": {
       "file": "tasks/PERF-006.json",
-      "status": "ready",
+      "status": "completed",
       "phase_id": "phase-5-performance",
       "title": "Add loading states, error boundaries"
     },
@@ -224,7 +224,7 @@
     },
     "DOC-005": {
       "file": "tasks/DOC-005.json",
-      "status": "ready",
+      "status": "completed",
       "phase_id": "phase-6-docs",
       "title": "Update CLAUDE.md for new architecture"
     }
@@ -302,26 +302,26 @@
       "name": "Performance & Polish",
       "description": "Production-ready performance",
       "target_days": 2,
-      "status": "in_progress",
+      "status": "completed",
       "tasks": ["PERF-001", "PERF-002", "PERF-003", "PERF-004", "PERF-005", "PERF-006"]
     },
     "phase-6-docs": {
       "name": "Documentation & Launch",
       "description": "Ready for users",
       "target_days": 2,
-      "status": "in_progress",
+      "status": "completed",
       "tasks": ["DOC-001", "DOC-002", "DOC-003", "DOC-004", "DOC-005"]
     }
   },
-  "ready_tasks": ["SDK-005", "PERF-003", "PERF-004", "PERF-006", "DOC-005"],
-  "critical_path": ["SDK-005", "PERF-003", "PERF-004", "PERF-006", "DOC-005"],
+  "ready_tasks": [],
+  "critical_path": [],
   "metrics": {
     "total_tasks": 38,
-    "completed": 33,
+    "completed": 38,
     "in_progress": 0,
-    "ready": 5,
+    "ready": 0,
     "pending": 0,
     "estimated_days_total": 14
   },
-  "last_computed": "2026-01-31T12:00:00Z"
+  "last_computed": "2026-02-01T00:00:00Z"
 }
