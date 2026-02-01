@@ -51,6 +51,7 @@ CREATE TABLE IF NOT EXISTS neon.spans
     name String,
     kind Enum8('internal' = 0, 'server' = 1, 'client' = 2, 'producer' = 3, 'consumer' = 4),
     span_type Enum8('span' = 0, 'generation' = 1, 'tool' = 2, 'retrieval' = 3, 'event' = 4),
+    component_type Nullable(Enum8('prompt' = 0, 'retrieval' = 1, 'tool' = 2, 'reasoning' = 3, 'planning' = 4, 'memory' = 5, 'routing' = 6, 'other' = 7)),
     timestamp DateTime64(3),
     end_time Nullable(DateTime64(3)),
     duration_ms UInt64,

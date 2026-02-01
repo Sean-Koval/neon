@@ -30,6 +30,20 @@ export type SpanType =
   | "event";
 
 /**
+ * Component type for attribution in compound AI systems
+ * Used to identify which component of the agent system a span belongs to
+ */
+export type ComponentType =
+  | "prompt"      // Prompt construction and formatting
+  | "retrieval"   // RAG/document retrieval operations
+  | "tool"        // Tool selection and execution
+  | "reasoning"   // Chain-of-thought, planning, or reasoning steps
+  | "planning"    // High-level task decomposition and planning
+  | "memory"      // Memory access and management
+  | "routing"     // Agent routing and orchestration
+  | "other";      // Unclassified or custom components
+
+/**
  * Span status
  */
 export type SpanStatus = "unset" | "ok" | "error";
@@ -70,6 +84,7 @@ export interface Span {
   name: string;
   kind: SpanKind;
   spanType: SpanType;
+  componentType?: ComponentType;  // Component attribution for compound AI systems
   timestamp: Date;
   endTime?: Date;
   durationMs: number;

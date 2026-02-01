@@ -106,11 +106,18 @@ export {
   span,
   generation,
   tool,
+  retrieval,
+  reasoning,
+  planning,
+  prompt,
+  routing,
+  memory,
   withContext,
   getCurrentContext,
   setCurrentContext,
   type TraceContext,
   type SpanOptions,
+  type ComponentType,
 } from "./tracing/index.js";
 
 // Runner
