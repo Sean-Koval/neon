@@ -11,7 +11,6 @@ import {
   ChevronRight,
   Clock,
   Filter,
-  Pause,
   Play,
   RefreshCw,
   XCircle,

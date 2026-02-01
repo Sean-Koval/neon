@@ -40,7 +40,8 @@ export function Skeleton({
 
   const animationClasses = {
     pulse: 'animate-pulse',
-    shimmer: 'animate-shimmer bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 bg-[length:200%_100%]',
+    shimmer:
+      'animate-shimmer bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 bg-[length:200%_100%]',
     none: '',
   }
 
@@ -56,7 +57,7 @@ export function Skeleton({
         animationClasses[animation],
         width?.startsWith('w-') && width,
         height?.startsWith('h-') && height,
-        className
+        className,
       )}
       style={Object.keys(inlineStyle).length > 0 ? inlineStyle : undefined}
       aria-hidden="true"
@@ -83,7 +84,7 @@ export function SkeletonText({
           variant="text"
           className={clsx(
             'h-4',
-            i === lines - 1 && lines > 1 ? 'w-3/4' : 'w-full'
+            i === lines - 1 && lines > 1 ? 'w-3/4' : 'w-full',
           )}
         />
       ))}
@@ -146,7 +147,11 @@ export function SkeletonCard({
       {children || (
         <>
           <div className="flex items-center justify-between mb-4">
-            <Skeleton className="h-10 w-10" variant="rounded" animation="none" />
+            <Skeleton
+              className="h-10 w-10"
+              variant="rounded"
+              animation="none"
+            />
             <Skeleton className="h-5 w-16" variant="rounded" animation="none" />
           </div>
           <Skeleton className="h-8 w-20 mb-2" animation="none" />
@@ -171,7 +176,7 @@ export function SkeletonTableRow({
           key={i}
           className={clsx(
             'h-5',
-            i === 0 ? 'flex-1' : i === 1 ? 'w-20' : 'w-16'
+            i === 0 ? 'flex-1' : i === 1 ? 'w-20' : 'w-16',
           )}
           animation="none"
         />
@@ -196,11 +201,7 @@ export function SkeletonTable({
       {showHeader && (
         <div className="border-b bg-gray-50 px-4 py-3 flex gap-4">
           {Array.from({ length: columns }).map((_, i) => (
-            <Skeleton
-              key={i}
-              className="h-4 flex-1"
-              animation="pulse"
-            />
+            <Skeleton key={i} className="h-4 flex-1" animation="pulse" />
           ))}
         </div>
       )}
@@ -224,7 +225,7 @@ export function SkeletonChart({
     <div
       className={clsx(
         'bg-gray-50 rounded-lg animate-pulse flex items-end justify-around p-4 gap-2',
-        className
+        className,
       )}
       style={{ height }}
     >

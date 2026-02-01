@@ -8,9 +8,8 @@
  */
 
 import { type NextRequest, NextResponse } from 'next/server'
-import { v4 as uuidv4 } from 'uuid'
 import type { SpanRecord, TraceRecord } from '@/lib/clickhouse'
-import { batchInsertSpans, batchInsertTraces } from '@/lib/clickhouse-batch'
+import { insertSpans, insertTraces } from '@/lib/clickhouse'
 
 /**
  * OTel OTLP Span format (simplified)
@@ -132,15 +131,22 @@ function mapStatus(code?: number): SpanRecord['status'] {
 }
 
 /**
+ * Format date for ClickHouse DateTime64(3)
+ */
+function formatDateTime(date: Date): string {
+  return date.toISOString().replace('T', ' ').replace('Z', '')
+}
+
+/**
  * Transform OTel span to internal format
  */
 function transformSpan(otelSpan: OTLPSpan, projectId: string): SpanRecord {
   const attrs = attributesToObject(otelSpan.attributes)
-  const startTime = new Date(
-    Number(otelSpan.startTimeUnixNano) / 1e6,
-  ).toISOString()
+  const startTime = formatDateTime(
+    new Date(Number(otelSpan.startTimeUnixNano) / 1e6),
+  )
   const endTime = otelSpan.endTimeUnixNano
-    ? new Date(Number(otelSpan.endTimeUnixNano) / 1e6).toISOString()
+    ? formatDateTime(new Date(Number(otelSpan.endTimeUnixNano) / 1e6))
     : null
   const durationMs = otelSpan.endTimeUnixNano
     ? (Number(otelSpan.endTimeUnixNano) - Number(otelSpan.startTimeUnixNano)) /
@@ -165,13 +171,13 @@ function transformSpan(otelSpan: OTLPSpan, projectId: string): SpanRecord {
     input: attrs['gen_ai.prompt'] || attrs['llm.input'] || '',
     output: attrs['gen_ai.completion'] || attrs['llm.output'] || '',
     input_tokens: attrs['gen_ai.usage.input_tokens']
-      ? parseInt(attrs['gen_ai.usage.input_tokens'])
+      ? parseInt(attrs['gen_ai.usage.input_tokens'], 10)
       : null,
     output_tokens: attrs['gen_ai.usage.output_tokens']
-      ? parseInt(attrs['gen_ai.usage.output_tokens'])
+      ? parseInt(attrs['gen_ai.usage.output_tokens'], 10)
       : null,
     total_tokens: attrs['gen_ai.usage.total_tokens']
-      ? parseInt(attrs['gen_ai.usage.total_tokens'])
+      ? parseInt(attrs['gen_ai.usage.total_tokens'], 10)
       : null,
     cost_usd: null, // TODO: Calculate based on model
     tool_name: attrs['tool.name'] || null,
@@ -206,8 +212,8 @@ function aggregateTrace(spans: SpanRecord[], projectId: string): TraceRecord {
     project_id: projectId,
     trace_id: rootSpan.trace_id,
     name: rootSpan.name,
-    timestamp: new Date(minTime).toISOString(),
-    end_time: new Date(maxTime).toISOString(),
+    timestamp: formatDateTime(new Date(minTime)),
+    end_time: formatDateTime(new Date(maxTime)),
     duration_ms: maxTime - minTime,
     status: hasError ? 'error' : 'ok',
     metadata: {},
@@ -269,8 +275,8 @@ export async function POST(request: NextRequest) {
       traces.push(aggregateTrace(traceSpans, projectId))
     }
 
-    // Insert into ClickHouse (using batch buffers for high throughput)
-    await Promise.all([batchInsertTraces(traces), batchInsertSpans(allSpans)])
+    // Insert into ClickHouse (direct insert, no batching)
+    await Promise.all([insertTraces(traces), insertSpans(allSpans)])
 
     return NextResponse.json({
       message: 'Traces ingested successfully',

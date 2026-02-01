@@ -23,7 +23,8 @@ export default function TraceDetailError({
   }, [error])
 
   // Check if it's a not found error
-  const isNotFound = error.message.toLowerCase().includes('not found') ||
+  const isNotFound =
+    error.message.toLowerCase().includes('not found') ||
     error.message.includes('404')
 
   return (

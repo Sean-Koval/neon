@@ -82,7 +82,11 @@ export function RecentRunsSkeleton({ count = 5 }: { count?: number }) {
                 </div>
               </div>
               <div className="flex items-center space-x-6">
-                <Skeleton className="h-6 w-20" variant="circular" animation="none" />
+                <Skeleton
+                  className="h-6 w-20"
+                  variant="circular"
+                  animation="none"
+                />
                 <Skeleton className="h-4 w-20" animation="none" />
               </div>
             </div>

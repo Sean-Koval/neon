@@ -59,8 +59,8 @@ export async function GET(request: NextRequest) {
     const projectId = searchParams.get('projectId') || 'default'
     const tagsParam = searchParams.get('tags')
     const isProductionParam = searchParams.get('isProduction')
-    const limit = parseInt(searchParams.get('limit') || '50')
-    const offset = parseInt(searchParams.get('offset') || '0')
+    const limit = parseInt(searchParams.get('limit') || '50', 10)
+    const offset = parseInt(searchParams.get('offset') || '0', 10)
 
     const tags = tagsParam ? tagsParam.split(',') : undefined
     const isProduction =

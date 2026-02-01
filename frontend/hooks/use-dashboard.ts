@@ -13,7 +13,6 @@ import type {
 import { getDateFromRange } from '@/components/dashboard/filters'
 import type { EvalRun, EvalSuite } from '@/lib/types'
 import {
-  type FormattedScoreTrendPoint,
   useDashboardSummary,
   useFormattedScoreTrends,
 } from './use-dashboard-api'

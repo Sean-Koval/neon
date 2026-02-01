@@ -94,7 +94,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     if (isUuid) {
       record = await getPromptById(projectId, id)
     } else {
-      const version = versionParam ? parseInt(versionParam) : undefined
+      const version = versionParam ? parseInt(versionParam, 10) : undefined
       record = await getPromptByName(projectId, id, version)
     }
 
@@ -168,7 +168,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     }
 
     // Get next version number
-    const newVersion = await getLatestPromptVersion(projectId, existing.name) + 1
+    const newVersion =
+      (await getLatestPromptVersion(projectId, existing.name)) + 1
     const now = new Date().toISOString()
 
     // Create new version with updates
@@ -179,10 +180,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       name: existing.name,
       description: body.description ?? existing.description,
       type: existing.type,
-      template:
-        body.template !== undefined
-          ? body.template
-          : existing.template,
+      template: body.template !== undefined ? body.template : existing.template,
       messages:
         body.messages !== undefined
           ? JSON.stringify(body.messages)

@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
       attributes: span.attributes || {},
     }))
 
-    await batchInsertSpans(normalizedSpans)
+    await batchInsertSpans(normalizedSpans, { immediate: true })
 
     return NextResponse.json({
       message: 'Span(s) inserted successfully',

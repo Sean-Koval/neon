@@ -120,15 +120,15 @@ export async function POST(request: NextRequest) {
  * - status: "RUNNING" | "COMPLETED" | "FAILED"
  */
 export async function GET(request: NextRequest) {
-  try {
-    const searchParams = request.nextUrl.searchParams
-    const limit = parseInt(searchParams.get('limit') || '50')
-    const status = searchParams.get('status') as
-      | 'RUNNING'
-      | 'COMPLETED'
-      | 'FAILED'
-      | null
+  const searchParams = request.nextUrl.searchParams
+  const limit = parseInt(searchParams.get('limit') || '50', 10)
+  const status = searchParams.get('status') as
+    | 'RUNNING'
+    | 'COMPLETED'
+    | 'FAILED'
+    | null
 
+  try {
     const runs = await listEvalRuns({
       limit,
       status: status || undefined,
@@ -142,15 +142,21 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('Error listing eval runs:', error)
 
-    // Check if it's a Temporal connection error
-    if (error instanceof Error && error.message.includes('UNAVAILABLE')) {
-      return NextResponse.json(
-        {
-          error: 'Temporal service unavailable',
-          details: 'The workflow engine is not reachable.',
-        },
-        { status: 503 },
-      )
+    // Return empty list when Temporal isn't available (graceful degradation)
+    const isTemporalError =
+      error instanceof Error &&
+      (error.message.includes('UNAVAILABLE') ||
+        error.message.includes('connect') ||
+        error.message.includes('deadline') ||
+        error.message.includes('timeout'))
+
+    if (isTemporalError) {
+      return NextResponse.json({
+        items: [],
+        count: 0,
+        limit,
+        warning: 'Temporal service not available. Start it to see eval runs.',
+      })
     }
 
     return NextResponse.json(

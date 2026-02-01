@@ -12,7 +12,6 @@ import {
   Clock,
   Loader2,
   Pause,
-  Play,
   RefreshCw,
   XCircle,
 } from 'lucide-react'

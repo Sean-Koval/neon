@@ -166,7 +166,9 @@ export function CostAnalyticsCards({
               ? 'Normal speed'
               : 'Slow execution'
         }
-        trend={avgDuration < 5000 ? 'up' : avgDuration < 30000 ? 'neutral' : 'down'}
+        trend={
+          avgDuration < 5000 ? 'up' : avgDuration < 30000 ? 'neutral' : 'down'
+        }
       />
       <CostStatCard
         title="Efficiency"
@@ -184,4 +186,10 @@ export function CostAnalyticsCards({
 }
 
 // Export sub-components for flexibility
-export { CostStatCard, CostCardSkeleton, formatCost, formatTokens, formatDuration }
+export {
+  CostStatCard,
+  CostCardSkeleton,
+  formatCost,
+  formatTokens,
+  formatDuration,
+}

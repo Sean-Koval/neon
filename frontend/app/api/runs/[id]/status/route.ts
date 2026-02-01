@@ -14,7 +14,7 @@ import { getWorkflowStatus } from '@/lib/temporal'
  * Returns only essential fields for efficient updates.
  */
 export async function GET(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {

@@ -10,7 +10,6 @@ import {
   CheckCircle,
   ChevronDown,
   ChevronRight,
-  Clock,
   ExternalLink,
   XCircle,
   Zap,

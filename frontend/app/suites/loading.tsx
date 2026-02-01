@@ -30,7 +30,11 @@ export default function SuitesLoading() {
               <Skeleton className="h-5 w-3/4" animation="none" />
               <Skeleton className="h-4 w-full" animation="none" />
               <div className="flex justify-between pt-2">
-                <Skeleton className="h-6 w-16" variant="rounded" animation="none" />
+                <Skeleton
+                  className="h-6 w-16"
+                  variant="rounded"
+                  animation="none"
+                />
                 <Skeleton className="h-4 w-20" animation="none" />
               </div>
             </div>

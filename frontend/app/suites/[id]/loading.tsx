@@ -2,7 +2,11 @@
  * Suite Detail Loading State
  */
 
-import { Skeleton, SkeletonTable, SkeletonChart } from '@/components/ui/skeleton'
+import {
+  Skeleton,
+  SkeletonChart,
+  SkeletonTable,
+} from '@/components/ui/skeleton'
 
 export default function SuiteDetailLoading() {
   return (

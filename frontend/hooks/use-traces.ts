@@ -6,7 +6,7 @@
  * React hooks for trace data fetching.
  */
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 
 // Use local Next.js API routes (will proxy to ClickHouse)
 const API_BASE = ''

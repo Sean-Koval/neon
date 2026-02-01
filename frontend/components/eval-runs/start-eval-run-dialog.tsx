@@ -56,7 +56,7 @@ export function StartEvalRunDialog({
   isStarting,
   error,
 }: StartEvalRunDialogProps) {
-  const [projectId, setProjectId] = useState('default')
+  const [projectId, _setProjectId] = useState('default')
   const [agentId, setAgentId] = useState('')
   const [agentVersion, setAgentVersion] = useState('latest')
   const [selectedScorers, setSelectedScorers] = useState<string[]>([

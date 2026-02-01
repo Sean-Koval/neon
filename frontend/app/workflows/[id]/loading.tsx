@@ -38,7 +38,11 @@ export default function WorkflowDetailLoading() {
           <div className="flex items-center gap-4">
             {[1, 2, 3, 4].map((i) => (
               <div key={i} className="flex items-center gap-2">
-                <Skeleton className="w-24 h-12" variant="rounded" animation="none" />
+                <Skeleton
+                  className="w-24 h-12"
+                  variant="rounded"
+                  animation="none"
+                />
                 {i < 4 && <Skeleton className="w-8 h-1" animation="none" />}
               </div>
             ))}
@@ -54,7 +58,11 @@ export default function WorkflowDetailLoading() {
         <div className="divide-y">
           {[1, 2, 3, 4, 5].map((i) => (
             <div key={i} className="p-4 flex items-center gap-4 animate-pulse">
-              <Skeleton className="w-8 h-8" variant="circular" animation="none" />
+              <Skeleton
+                className="w-8 h-8"
+                variant="circular"
+                animation="none"
+              />
               <div className="flex-1">
                 <Skeleton className="h-4 w-48 mb-1" animation="none" />
                 <Skeleton className="h-3 w-32" animation="none" />

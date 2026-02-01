@@ -7,8 +7,8 @@
  * Used by error.tsx error boundaries throughout the app.
  */
 
-import { AlertCircle, RefreshCw, Home, ChevronLeft } from 'lucide-react'
 import { clsx } from 'clsx'
+import { AlertCircle, ChevronLeft, Home, RefreshCw } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 
 interface ErrorFallbackProps {
@@ -48,7 +48,8 @@ export function ErrorFallback({
     console.error('ErrorFallback:', error)
   }
 
-  const isNetworkError = errorMessage.toLowerCase().includes('network') ||
+  const isNetworkError =
+    errorMessage.toLowerCase().includes('network') ||
     errorMessage.toLowerCase().includes('fetch') ||
     errorMessage.toLowerCase().includes('failed to load')
 
@@ -58,7 +59,12 @@ export function ErrorFallback({
 
   if (variant === 'inline') {
     return (
-      <div className={clsx('flex items-center gap-3 p-4 bg-rose-50 border border-rose-200 rounded-lg', className)}>
+      <div
+        className={clsx(
+          'flex items-center gap-3 p-4 bg-rose-50 border border-rose-200 rounded-lg',
+          className,
+        )}
+      >
         <AlertCircle className="w-5 h-5 text-rose-500 flex-shrink-0" />
         <p className="text-sm text-rose-700 flex-1">{userFriendlyMessage}</p>
         {reset && (
@@ -97,10 +103,12 @@ export function ErrorFallback({
 
   // Full page variant
   return (
-    <div className={clsx(
-      'min-h-[50vh] flex flex-col items-center justify-center px-4 py-16',
-      className
-    )}>
+    <div
+      className={clsx(
+        'min-h-[50vh] flex flex-col items-center justify-center px-4 py-16',
+        className,
+      )}
+    >
       <div className="text-center max-w-md">
         {/* Icon */}
         <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-rose-100 mb-6">
@@ -108,14 +116,10 @@ export function ErrorFallback({
         </div>
 
         {/* Title */}
-        <h1 className="text-2xl font-bold text-gray-900 mb-3">
-          {title}
-        </h1>
+        <h1 className="text-2xl font-bold text-gray-900 mb-3">{title}</h1>
 
         {/* Message */}
-        <p className="text-gray-600 mb-8">
-          {userFriendlyMessage}
-        </p>
+        <p className="text-gray-600 mb-8">{userFriendlyMessage}</p>
 
         {/* Actions */}
         <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
@@ -153,16 +157,18 @@ export function ErrorFallback({
         </div>
 
         {/* Debug info in development */}
-        {process.env.NODE_ENV === 'development' && error instanceof Error && error.stack && (
-          <details className="mt-8 text-left">
-            <summary className="text-sm text-gray-500 cursor-pointer hover:text-gray-700">
-              Error details
-            </summary>
-            <pre className="mt-2 p-4 bg-gray-100 rounded-lg text-xs text-gray-700 overflow-auto max-h-48">
-              {error.stack}
-            </pre>
-          </details>
-        )}
+        {process.env.NODE_ENV === 'development' &&
+          error instanceof Error &&
+          error.stack && (
+            <details className="mt-8 text-left">
+              <summary className="text-sm text-gray-500 cursor-pointer hover:text-gray-700">
+                Error details
+              </summary>
+              <pre className="mt-2 p-4 bg-gray-100 rounded-lg text-xs text-gray-700 overflow-auto max-h-48">
+                {error.stack}
+              </pre>
+            </details>
+          )}
       </div>
     </div>
   )
@@ -202,10 +208,12 @@ export function NotFoundFallback({
   const router = useRouter()
 
   return (
-    <div className={clsx(
-      'min-h-[50vh] flex flex-col items-center justify-center px-4 py-16',
-      className
-    )}>
+    <div
+      className={clsx(
+        'min-h-[50vh] flex flex-col items-center justify-center px-4 py-16',
+        className,
+      )}
+    >
       <div className="text-center max-w-md">
         <div className="text-6xl font-bold text-gray-200 mb-4">404</div>
         <h1 className="text-2xl font-bold text-gray-900 mb-3">

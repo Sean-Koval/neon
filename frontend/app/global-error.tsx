@@ -7,8 +7,8 @@
  * Must render its own html and body tags since the root layout is broken.
  */
 
+import { AlertCircle, Home, RefreshCw } from 'lucide-react'
 import { useEffect } from 'react'
-import { AlertCircle, RefreshCw, Home } from 'lucide-react'
 
 export default function GlobalError({
   error,

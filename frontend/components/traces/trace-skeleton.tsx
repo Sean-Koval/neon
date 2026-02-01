@@ -78,7 +78,11 @@ export function TraceTimelineSkeleton({ rows = 8 }: { rows?: number }) {
           <div key={i} className="flex items-center animate-pulse">
             <div className="min-w-[280px] px-3 py-3 border-r flex items-center gap-2">
               <Skeleton className="w-5 h-5" animation="none" />
-              <Skeleton className="w-2 h-2" variant="circular" animation="none" />
+              <Skeleton
+                className="w-2 h-2"
+                variant="circular"
+                animation="none"
+              />
               <Skeleton className="w-4 h-4" animation="none" />
               <Skeleton
                 className="h-4"

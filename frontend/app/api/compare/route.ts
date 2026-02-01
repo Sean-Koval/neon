@@ -6,7 +6,11 @@
 
 import { type NextRequest, NextResponse } from 'next/server'
 import { getClickHouseClient } from '@/lib/clickhouse'
-import type { CompareRequest, CompareResponse, RegressionItem } from '@/lib/types'
+import type {
+  CompareRequest,
+  CompareResponse,
+  RegressionItem,
+} from '@/lib/types'
 
 /**
  * Score record from ClickHouse for a specific run
@@ -90,8 +94,12 @@ export async function POST(request: NextRequest) {
     const runTraces = await runsResult.json<RunTraceRecord>()
 
     // Extract agent versions
-    const baselineTraces = runTraces.filter(t => t.run_id === body.baseline_run_id)
-    const candidateTraces = runTraces.filter(t => t.run_id === body.candidate_run_id)
+    const baselineTraces = runTraces.filter(
+      (t) => t.run_id === body.baseline_run_id,
+    )
+    const candidateTraces = runTraces.filter(
+      (t) => t.run_id === body.candidate_run_id,
+    )
 
     if (baselineTraces.length === 0) {
       return NextResponse.json(
@@ -132,8 +140,12 @@ export async function POST(request: NextRequest) {
     const scores = await scoresResult.json<RunScoreRecord>()
 
     // Separate scores by run
-    const baselineScores = scores.filter(s => s.run_id === body.baseline_run_id)
-    const candidateScores = scores.filter(s => s.run_id === body.candidate_run_id)
+    const baselineScores = scores.filter(
+      (s) => s.run_id === body.baseline_run_id,
+    )
+    const candidateScores = scores.filter(
+      (s) => s.run_id === body.candidate_run_id,
+    )
 
     // Build maps for comparison
     // Key: trace_name or case_id + scorer_name
@@ -150,7 +162,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Map baseline scores
-    const baselineMap = new Map<ScoreKey, { score: number; caseName: string; scorer: string }>()
+    const baselineMap = new Map<
+      ScoreKey,
+      { score: number; caseName: string; scorer: string }
+    >()
     for (const score of baselineScores) {
       const traceName = traceNameMap.get(score.trace_id) || score.trace_id
       const key = makeKey(score, traceName)
@@ -163,7 +178,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Map candidate scores
-    const candidateMap = new Map<ScoreKey, { score: number; caseName: string; scorer: string }>()
+    const candidateMap = new Map<
+      ScoreKey,
+      { score: number; caseName: string; scorer: string }
+    >()
     for (const score of candidateScores) {
       const traceName = traceNameMap.get(score.trace_id) || score.trace_id
       const key = makeKey(score, traceName)
@@ -196,7 +214,8 @@ export async function POST(request: NextRequest) {
     }
 
     const baselineAvg = baselineCount > 0 ? baselineTotal / baselineCount : 0
-    const candidateAvg = candidateCount > 0 ? candidateTotal / candidateCount : 0
+    const candidateAvg =
+      candidateCount > 0 ? candidateTotal / candidateCount : 0
 
     // Compare each test case/scorer combination
     const allKeys = new Set([...baselineMap.keys(), ...candidateMap.keys()])
@@ -266,7 +285,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           error: 'ClickHouse service unavailable',
-          details: 'The database is not reachable. Please ensure ClickHouse is running.',
+          details:
+            'The database is not reachable. Please ensure ClickHouse is running.',
         },
         { status: 503 },
       )

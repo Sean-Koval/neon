@@ -21,12 +21,32 @@ const config = {
 
 /**
  * Get or create Temporal client
+ *
+ * Uses a short timeout to fail fast when Temporal is unavailable.
  */
 export async function getTemporalClient(): Promise<Client> {
   if (!client) {
-    connection = await Connection.connect({
-      address: config.address,
+    // Create a promise that rejects after timeout
+    const timeoutMs = 3000 // 3 second timeout
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(
+        () =>
+          reject(
+            new Error(
+              'Temporal connection timeout - service may be unavailable',
+            ),
+          ),
+        timeoutMs,
+      )
     })
+
+    // Race between connection and timeout
+    connection = await Promise.race([
+      Connection.connect({
+        address: config.address,
+      }),
+      timeoutPromise,
+    ])
 
     client = new Client({
       connection,

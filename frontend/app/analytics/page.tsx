@@ -7,14 +7,7 @@
  */
 
 import { useQuery } from '@tanstack/react-query'
-import {
-  Calendar,
-  Clock,
-  DollarSign,
-  Hash,
-  TrendingUp,
-  Zap,
-} from 'lucide-react'
+import { Calendar, DollarSign, Hash, TrendingUp, Zap } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import {
   Bar,
@@ -30,9 +23,9 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
-import { cn } from '@/lib/utils'
 
-const MOOSE_API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
+const _MOOSE_API_URL =
+  process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
 
 /**
  * Date range options
@@ -267,7 +260,7 @@ export default function AnalyticsPage() {
                     `${model.split('-').pop()} (${(percent * 100).toFixed(0)}%)`
                   }
                 >
-                  {summary?.top_models.map((entry, index) => (
+                  {summary?.top_models.map((_entry, index) => (
                     <Cell
                       key={`cell-${index}`}
                       fill={COLORS[index % COLORS.length]}

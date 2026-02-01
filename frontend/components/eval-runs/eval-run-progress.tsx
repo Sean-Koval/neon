@@ -13,7 +13,6 @@ import {
   Clock,
   Loader2,
   Pause,
-  Play,
   Square,
   XCircle,
 } from 'lucide-react'
@@ -144,7 +143,7 @@ export function EvalRunProgress({
 }: EvalRunProgressProps) {
   const statusInfo = getStatusInfo(status.status)
   const [elapsedMs, setElapsedMs] = useState(0)
-  const startTime = Date.now() // Would come from status in real impl
+  const _startTime = Date.now() // Would come from status in real impl
 
   // Update elapsed time for running workflows
   useEffect(() => {

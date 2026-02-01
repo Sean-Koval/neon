@@ -63,7 +63,7 @@ export function buildQueryString(params: QueryParams): string {
     .map(([key, value]) => [key, String(value)])
 
   if (entries.length === 0) return ''
-  return '?' + new URLSearchParams(entries).toString()
+  return `?${new URLSearchParams(entries).toString()}`
 }
 
 // =============================================================================

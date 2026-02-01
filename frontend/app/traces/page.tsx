@@ -20,7 +20,6 @@ import {
 import Link from 'next/link'
 import { useState } from 'react'
 import { type TraceFilters, useTraces } from '@/hooks/use-traces'
-import { cn } from '@/lib/utils'
 
 /**
  * Format duration

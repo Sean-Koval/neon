@@ -14,7 +14,7 @@ import { cancelWorkflow, getWorkflowStatus } from '@/lib/temporal'
  * Get detailed status and progress for an eval run.
  */
 export async function GET(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
@@ -67,7 +67,7 @@ export async function GET(
  * Cancel a running eval run.
  */
 export async function DELETE(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {

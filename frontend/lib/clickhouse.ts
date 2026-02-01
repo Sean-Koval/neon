@@ -601,20 +601,21 @@ export async function getDashboardSummary(
 ): Promise<DashboardSummary> {
   const ch = getClickHouseClient()
 
+  // Query traces table directly for summary (simpler than fighting with MV engines)
   const result = await ch.query({
     query: `
       SELECT
-        sum(total_runs) as total_runs,
-        sum(passed_runs) as passed_runs,
-        sum(failed_runs) as failed_runs,
-        if(sum(total_runs) > 0, sum(passed_runs) / sum(total_runs), 0) as pass_rate,
-        if(sum(total_runs) > 0, sum(total_duration_ms) / sum(total_runs), 0) as avg_duration_ms,
+        count() as total_runs,
+        countIf(status = 'ok') as passed_runs,
+        countIf(status = 'error') as failed_runs,
+        if(count() > 0, countIf(status = 'ok') / count(), 0) as pass_rate,
+        if(count() > 0, avg(duration_ms), 0) as avg_duration_ms,
         sum(total_tokens) as total_tokens,
         sum(total_cost) as total_cost
-      FROM daily_run_summary_mv
+      FROM traces
       WHERE project_id = {projectId:String}
-        AND date >= {startDate:Date}
-        AND date <= {endDate:Date}
+        AND timestamp >= {startDate:Date}
+        AND timestamp <= {endDate:Date} + INTERVAL 1 DAY
     `,
     query_params: { projectId, startDate, endDate },
     format: 'JSONEachRow',

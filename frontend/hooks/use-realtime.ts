@@ -24,7 +24,6 @@ import type {
   RunStatusUpdate,
   UseRealtimeOptions,
   UseRealtimeReturn,
-  WebSocketErrorPayload,
   WorkflowStatusPoll,
 } from '@/lib/types'
 import { workflowQueryKeys } from './use-workflow-runs'
@@ -526,7 +525,7 @@ export function useRealtime(
       mountedRef.current = false
       disconnect()
     }
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [connect, disconnect]) // eslint-disable-line react-hooks/exhaustive-deps
 
   return {
     connectionStatus,

@@ -22,14 +22,19 @@ export default function EvalRunDetailError({
     }
   }, [error])
 
-  const isNotFound = error.message.toLowerCase().includes('not found') ||
+  const isNotFound =
+    error.message.toLowerCase().includes('not found') ||
     error.message.includes('404')
 
   return (
     <ErrorFallback
       error={error}
       reset={reset}
-      title={isNotFound ? 'Evaluation run not found' : 'Failed to load evaluation run'}
+      title={
+        isNotFound
+          ? 'Evaluation run not found'
+          : 'Failed to load evaluation run'
+      }
       showBack={true}
       showHome={true}
     />

@@ -20,8 +20,8 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status') as 'ok' | 'error' | null
     const startDate = searchParams.get('start_date')
     const endDate = searchParams.get('end_date')
-    const limit = parseInt(searchParams.get('limit') || '50')
-    const offset = parseInt(searchParams.get('offset') || '0')
+    const limit = parseInt(searchParams.get('limit') || '50', 10)
+    const offset = parseInt(searchParams.get('offset') || '0', 10)
 
     const traces = await queryTraces({
       projectId,

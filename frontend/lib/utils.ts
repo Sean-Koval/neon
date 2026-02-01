@@ -51,7 +51,7 @@ export function formatBytes(bytes: number, decimals = 2): string {
  */
 export function truncate(str: string, maxLength: number): string {
   if (str.length <= maxLength) return str
-  return str.slice(0, maxLength - 3) + '...'
+  return `${str.slice(0, maxLength - 3)}...`
 }
 
 /**

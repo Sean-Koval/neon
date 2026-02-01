@@ -20,7 +20,8 @@ export default function SuiteDetailError({
     }
   }, [error])
 
-  const isNotFound = error.message.toLowerCase().includes('not found') ||
+  const isNotFound =
+    error.message.toLowerCase().includes('not found') ||
     error.message.includes('404')
 
   return (
