@@ -808,3 +808,111 @@ export interface UseRealtimeReturn {
   /** Reconnect manually */
   reconnect: () => void
 }
+
+// =============================================================================
+// Prompt Types
+// =============================================================================
+
+/**
+ * Prompt variable definition.
+ */
+export interface PromptVariable {
+  name: string
+  description?: string
+  type: 'string' | 'number' | 'boolean' | 'object' | 'array'
+  required?: boolean
+  default?: unknown
+}
+
+/**
+ * Prompt message in a chat prompt.
+ */
+export interface PromptMessage {
+  role: 'system' | 'user' | 'assistant'
+  content: string
+}
+
+/**
+ * Prompt configuration.
+ */
+export interface PromptConfig {
+  model?: string
+  temperature?: number
+  maxTokens?: number
+  stopSequences?: string[]
+  parameters?: Record<string, unknown>
+}
+
+/**
+ * Prompt entity.
+ */
+export interface Prompt {
+  id: string
+  project_id: string
+  name: string
+  description?: string
+  type: 'text' | 'chat'
+  template?: string
+  messages?: PromptMessage[]
+  variables?: PromptVariable[]
+  config?: PromptConfig
+  tags?: string[]
+  is_production: boolean
+  version: number
+  commit_message?: string
+  created_by?: string
+  created_at: string
+  updated_at: string
+  parent_version_id?: string
+  variant?: string
+}
+
+/**
+ * Create prompt request.
+ */
+export interface PromptCreate {
+  name: string
+  description?: string
+  type: 'text' | 'chat'
+  template?: string
+  messages?: PromptMessage[]
+  variables?: PromptVariable[]
+  config?: PromptConfig
+  tags?: string[]
+  is_production?: boolean
+  commit_message?: string
+}
+
+/**
+ * Update prompt request.
+ */
+export interface PromptUpdate {
+  description?: string
+  template?: string
+  messages?: PromptMessage[]
+  variables?: PromptVariable[]
+  config?: PromptConfig
+  tags?: string[]
+  is_production?: boolean
+  commit_message?: string
+}
+
+/**
+ * Prompt list response.
+ */
+export interface PromptList {
+  items: Prompt[]
+  total: number
+}
+
+/**
+ * Prompt version history entry.
+ */
+export interface PromptVersionEntry {
+  id: string
+  version: number
+  commit_message?: string
+  created_by?: string
+  created_at: string
+  changes?: string[]
+}

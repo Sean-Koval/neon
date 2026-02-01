@@ -15,3 +15,11 @@ export {
   type ScoreResult,
 } from "./score-trace";
 export { healthCheck, ping, type HealthCheckResult } from "./health";
+export {
+  sendSlackNotification,
+  sendWebhookNotification,
+  sendNotifications,
+  notifyActivities,
+  type NotifyConfig,
+  type EvalRunResult,
+} from "./notify";

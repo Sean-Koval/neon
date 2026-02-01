@@ -44,6 +44,9 @@ export interface DashboardStats {
   passedPercentage: number
   failedPercentage: number
   averageScore: number
+  totalTokens?: number
+  totalCost?: number
+  avgDurationMs?: number
 }
 
 // =============================================================================

@@ -43,6 +43,9 @@ export interface UseDashboardReturn {
     passedPercentage: number
     failedPercentage: number
     averageScore: number
+    totalTokens?: number
+    totalCost?: number
+    avgDurationMs?: number
   } | null
 
   // Suites for filter dropdown
@@ -183,6 +186,9 @@ export function useDashboard(
         passedPercentage: serverStats.passedPercentage,
         failedPercentage: serverStats.failedPercentage,
         averageScore: serverStats.averageScore,
+        totalTokens: serverStats.totalTokens,
+        totalCost: serverStats.totalCost,
+        avgDurationMs: serverStats.avgDurationMs,
       }
     }
     return clientStats

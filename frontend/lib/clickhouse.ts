@@ -679,6 +679,195 @@ export async function getScorerStats(
  * Backfill all materialized views with existing data.
  * Should be run once after creating the views.
  */
+// =============================================================================
+// Prompt Types and Functions
+// =============================================================================
+
+/**
+ * Prompt record as stored in ClickHouse
+ */
+export interface PromptRecord {
+  project_id: string
+  prompt_id: string
+  name: string
+  description: string
+  type: 'text' | 'chat'
+  template: string
+  messages: string // JSON string
+  variables: string // JSON string
+  config: string // JSON string
+  tags: string[] // Array in ClickHouse
+  is_production: number // 0 or 1
+  version: number
+  commit_message: string
+  created_by: string
+  created_at: string
+  updated_at: string
+  parent_version_id: string
+  variant: string
+}
+
+/**
+ * Insert a prompt into ClickHouse
+ */
+export async function insertPrompt(prompt: PromptRecord): Promise<void> {
+  const ch = getClickHouseClient()
+  await ch.insert({
+    table: 'prompts',
+    values: [prompt],
+    format: 'JSONEachRow',
+  })
+}
+
+/**
+ * Get a prompt by ID
+ */
+export async function getPromptById(
+  projectId: string,
+  promptId: string,
+): Promise<PromptRecord | null> {
+  const ch = getClickHouseClient()
+
+  const result = await ch.query({
+    query: `
+      SELECT * FROM prompts
+      WHERE project_id = {projectId:String} AND prompt_id = {promptId:String}
+      ORDER BY version DESC
+      LIMIT 1
+    `,
+    query_params: { projectId, promptId },
+    format: 'JSONEachRow',
+  })
+
+  const prompts = await result.json<PromptRecord>()
+  return prompts.length > 0 ? prompts[0] : null
+}
+
+/**
+ * Get a prompt by name and optionally version
+ */
+export async function getPromptByName(
+  projectId: string,
+  name: string,
+  version?: number,
+): Promise<PromptRecord | null> {
+  const ch = getClickHouseClient()
+
+  let query = `
+    SELECT * FROM prompts
+    WHERE project_id = {projectId:String} AND name = {name:String}
+  `
+  const params: Record<string, string | number> = { projectId, name }
+
+  if (version !== undefined) {
+    query += ' AND version = {version:UInt32}'
+    params.version = version
+  }
+
+  query += ' ORDER BY version DESC LIMIT 1'
+
+  const result = await ch.query({
+    query,
+    query_params: params,
+    format: 'JSONEachRow',
+  })
+
+  const prompts = await result.json<PromptRecord>()
+  return prompts.length > 0 ? prompts[0] : null
+}
+
+/**
+ * List prompts
+ */
+export async function listPrompts(params: {
+  projectId: string
+  tags?: string[]
+  isProduction?: boolean
+  limit?: number
+  offset?: number
+}): Promise<PromptRecord[]> {
+  const ch = getClickHouseClient()
+
+  const conditions = ['project_id = {projectId:String}']
+  const queryParams: Record<string, string | number | string[]> = {
+    projectId: params.projectId,
+    limit: params.limit ?? 50,
+    offset: params.offset ?? 0,
+  }
+
+  if (params.isProduction !== undefined) {
+    conditions.push('is_production = {isProduction:UInt8}')
+    queryParams.isProduction = params.isProduction ? 1 : 0
+  }
+
+  // Get latest version of each prompt
+  const result = await ch.query({
+    query: `
+      SELECT * FROM prompts
+      WHERE ${conditions.join(' AND ')}
+        AND (name, version) IN (
+          SELECT name, max(version)
+          FROM prompts
+          WHERE project_id = {projectId:String}
+          GROUP BY name
+        )
+      ORDER BY updated_at DESC
+      LIMIT {limit:UInt32}
+      OFFSET {offset:UInt32}
+    `,
+    query_params: queryParams,
+    format: 'JSONEachRow',
+  })
+
+  return result.json<PromptRecord>()
+}
+
+/**
+ * Get version history for a prompt
+ */
+export async function getPromptVersionHistory(
+  projectId: string,
+  name: string,
+  limit = 20,
+): Promise<PromptRecord[]> {
+  const ch = getClickHouseClient()
+
+  const result = await ch.query({
+    query: `
+      SELECT * FROM prompts
+      WHERE project_id = {projectId:String} AND name = {name:String}
+      ORDER BY version DESC
+      LIMIT {limit:UInt32}
+    `,
+    query_params: { projectId, name, limit },
+    format: 'JSONEachRow',
+  })
+
+  return result.json<PromptRecord>()
+}
+
+/**
+ * Get the latest version number for a prompt
+ */
+export async function getLatestPromptVersion(
+  projectId: string,
+  name: string,
+): Promise<number> {
+  const ch = getClickHouseClient()
+
+  const result = await ch.query({
+    query: `
+      SELECT max(version) as max_version FROM prompts
+      WHERE project_id = {projectId:String} AND name = {name:String}
+    `,
+    query_params: { projectId, name },
+    format: 'JSONEachRow',
+  })
+
+  const rows = await result.json<{ max_version: number }>()
+  return rows[0]?.max_version ?? 0
+}
+
 export async function backfillMaterializedViews(
   projectId?: string,
 ): Promise<{ view: string; rows: number }[]> {

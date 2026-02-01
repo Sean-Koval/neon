@@ -35,7 +35,7 @@ import type {
 // ACTIVITY PROXIES
 // ============================================================================
 
-const { emitSpan } = proxyActivities<typeof activities>({
+const { emitSpan, sendNotifications } = proxyActivities<typeof activities>({
   startToCloseTimeout: "1 minute",
   retry: {
     initialInterval: "1s",
@@ -220,6 +220,32 @@ export async function evalRunWorkflow(
       "eval.cancelled": String(cancelled),
     },
   });
+
+  // Send notifications if configured
+  if (params.notify && (params.notify.slackWebhookUrl || params.notify.webhookUrl)) {
+    const info = workflowInfo();
+    const durationMs = Date.now() - new Date(info.startTime).getTime();
+
+    try {
+      await sendNotifications(
+        {
+          runId: params.runId,
+          projectId: params.projectId,
+          agentId: params.agentId,
+          agentVersion: params.agentVersion,
+          total: summary.total,
+          passed: summary.passed,
+          failed: summary.failed,
+          avgScore: summary.avgScore,
+          duration: durationMs,
+        },
+        params.notify
+      );
+    } catch (notifyError) {
+      // Log but don't fail the workflow for notification errors
+      console.error("Failed to send notifications:", notifyError);
+    }
+  }
 
   return {
     runId: params.runId,

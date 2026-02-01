@@ -10,6 +10,7 @@ import {
   XCircle,
 } from 'lucide-react'
 import Link from 'next/link'
+import { CostAnalyticsCards } from '@/components/dashboard/cost-analytics'
 import {
   type DashboardFilters,
   DashboardFiltersBar,
@@ -27,8 +28,10 @@ export default function Dashboard() {
     setFilters,
     recentRuns,
     suites,
+    stats,
     isLoadingRuns,
     isLoadingSuites,
+    isLoadingStats,
     runsError,
     refresh,
   } = useDashboard()
@@ -62,6 +65,12 @@ export default function Dashboard() {
 
       {/* Stats - Lazy loaded for code splitting */}
       <LazyDashboardStatCards />
+
+      {/* Cost & Token Analytics */}
+      <div className="space-y-2">
+        <h2 className="text-lg font-semibold text-gray-900">Cost & Usage</h2>
+        <CostAnalyticsCards stats={stats} isLoading={isLoadingStats} />
+      </div>
 
       {/* Score Trends - Full Width, lazy loaded with recharts */}
       <LazyScoreTrends

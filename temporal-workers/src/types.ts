@@ -167,6 +167,24 @@ export interface DatasetItem {
 }
 
 /**
+ * Notification configuration for eval runs
+ */
+export interface NotifyConfig {
+  /** Slack webhook URL */
+  slackWebhookUrl?: string;
+  /** Generic webhook URL */
+  webhookUrl?: string;
+  /** Dashboard URL for linking to results */
+  dashboardUrl?: string;
+  /** Whether to send on success */
+  notifyOnSuccess?: boolean;
+  /** Whether to send on failure (default: true) */
+  notifyOnFailure?: boolean;
+  /** Score threshold below which to notify */
+  scoreThreshold?: number;
+}
+
+/**
  * Input for eval run workflow
  */
 export interface EvalRunInput {
@@ -179,6 +197,8 @@ export interface EvalRunInput {
   };
   tools: ToolDefinition[];
   scorers: string[];
+  /** Notification configuration (optional) */
+  notify?: NotifyConfig;
 }
 
 /**

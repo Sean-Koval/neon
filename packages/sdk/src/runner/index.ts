@@ -4,9 +4,14 @@
  * Executes test suites and generates reports.
  */
 
-import type { Suite, Test, TestResult, SuiteResult } from "../test.js";
-import type { Scorer } from "../scorers/base.js";
+import type { Suite, Test, TestResult, SuiteResult, AgentOutput, ExpectedOutput } from "../test.js";
+import type { Scorer, EvalContext } from "../scorers/base.js";
 import { Neon } from "../client.js";
+
+/**
+ * Agent function type for test execution
+ */
+export type AgentFunction = (input: Record<string, unknown>) => Promise<AgentOutput>;
 
 /**
  * Runner options
@@ -22,6 +27,8 @@ export interface RunnerOptions {
   reporter?: Reporter;
   /** Filter tests by name pattern */
   filter?: string | RegExp;
+  /** Agent function to execute for each test */
+  agent?: AgentFunction;
 }
 
 /**
@@ -85,7 +92,7 @@ export const jsonReporter: Reporter = {
  * Test Runner
  */
 export class TestRunner {
-  private options: Required<RunnerOptions>;
+  private options: Required<Omit<RunnerOptions, 'agent'>> & { agent?: AgentFunction };
   private scorers: Map<string, Scorer> = new Map();
 
   constructor(options: RunnerOptions = {}) {
@@ -95,7 +102,15 @@ export class TestRunner {
       timeout: options.timeout ?? 60000,
       reporter: options.reporter ?? consoleReporter,
       filter: options.filter ?? "",
+      agent: options.agent,
     };
+  }
+
+  /**
+   * Set the agent function for test execution
+   */
+  setAgent(agent: AgentFunction): void {
+    this.options.agent = agent;
   }
 
   /**
@@ -175,18 +190,28 @@ export class TestRunner {
     reporter?.onTestStart?.(test);
 
     try {
-      // Here we would actually run the agent and get a trace
-      // For now, this is a placeholder that would integrate with Temporal
+      // Execute agent if provided
+      let agentOutput: AgentOutput | undefined;
+      if (this.options.agent) {
+        agentOutput = await this.options.agent(test.input);
+      }
 
-      // Simulate running the test
-      const scores = await this.runScorers(test);
+      // Run scorers with actual context
+      const scores = await this.runScorers(test, agentOutput);
 
-      const passed = scores.every((s) => s.value >= 0.7);
+      // Run built-in checks if expected output is defined
+      if (test.expected && agentOutput) {
+        const builtInScores = this.runBuiltInChecks(test.expected, agentOutput);
+        scores.push(...builtInScores);
+      }
+
+      const passed = scores.length === 0 || scores.every((s) => s.value >= 0.7);
 
       const result: TestResult = {
         name: test.name,
         passed,
         scores,
+        traceId: agentOutput?.traceId,
         durationMs: Date.now() - startTime,
       };
 
@@ -212,11 +237,62 @@ export class TestRunner {
    * Run scorers for a test
    */
   private async runScorers(
-    test: Test
+    test: Test,
+    agentOutput?: AgentOutput
   ): Promise<Array<{ name: string; value: number; reason?: string }>> {
     const scorerNames = test.scorers || [];
     const scores: Array<{ name: string; value: number; reason?: string }> = [];
 
+    // Build evaluation context
+    const traceId = agentOutput?.traceId ?? `test-${test.name}-${Date.now()}`;
+    const context: EvalContext = {
+      trace: {
+        trace: {
+          traceId,
+          projectId: "",
+          name: test.name,
+          timestamp: new Date(),
+          durationMs: 0,
+          status: "ok",
+          metadata: {},
+          totalInputTokens: 0,
+          totalOutputTokens: 0,
+          toolCallCount: agentOutput?.toolCalls?.length ?? 0,
+          llmCallCount: 0,
+        },
+        spans: [],
+      } as unknown as EvalContext["trace"],
+      expected: test.expected,
+      metadata: {
+        testName: test.name,
+        input: test.input,
+        output: agentOutput?.output,
+        toolCalls: agentOutput?.toolCalls,
+        ...agentOutput?.metadata,
+      },
+    };
+
+    // Run inline scorer if provided
+    if (test.scorer) {
+      try {
+        const result = typeof test.scorer === "function"
+          ? await test.scorer(context)
+          : await test.scorer.evaluate(context);
+        scores.push({
+          name: "inline",
+          value: result.value,
+          reason: result.reason,
+        });
+      } catch (error) {
+        scores.push({
+          name: "inline",
+          value: 0,
+          reason: error instanceof Error ? error.message : "Inline scorer error",
+        });
+      }
+    }
+
+    // Run named scorers
     for (const name of scorerNames) {
       const scorer = this.scorers.get(name);
       if (!scorer) {
@@ -228,12 +304,70 @@ export class TestRunner {
         continue;
       }
 
-      // This would use actual trace data
-      // For now, return a placeholder
+      try {
+        const result = await scorer.evaluate(context);
+        scores.push({
+          name,
+          value: result.value,
+          reason: result.reason,
+        });
+      } catch (error) {
+        scores.push({
+          name,
+          value: 0,
+          reason: error instanceof Error ? error.message : "Scorer error",
+        });
+      }
+    }
+
+    return scores;
+  }
+
+  /**
+   * Run built-in checks based on expected output
+   */
+  private runBuiltInChecks(
+    expected: ExpectedOutput,
+    output: AgentOutput
+  ): Array<{ name: string; value: number; reason?: string }> {
+    const scores: Array<{ name: string; value: number; reason?: string }> = [];
+
+    // Check tool calls
+    if (expected.toolCalls && expected.toolCalls.length > 0) {
+      const actualTools = output.toolCalls ?? [];
+      const matchedTools = expected.toolCalls.filter((t) =>
+        actualTools.includes(t)
+      );
+      const score = matchedTools.length / expected.toolCalls.length;
       scores.push({
-        name,
-        value: 0.8,
-        reason: "Placeholder score",
+        name: "tool_selection",
+        value: score,
+        reason: `Matched ${matchedTools.length}/${expected.toolCalls.length} expected tools`,
+      });
+    }
+
+    // Check output contains
+    if (expected.outputContains && expected.outputContains.length > 0) {
+      const outputText = output.output ?? "";
+      const matchedContains = expected.outputContains.filter((s) =>
+        outputText.toLowerCase().includes(s.toLowerCase())
+      );
+      const score = matchedContains.length / expected.outputContains.length;
+      scores.push({
+        name: "output_contains",
+        value: score,
+        reason: `Found ${matchedContains.length}/${expected.outputContains.length} expected strings`,
+      });
+    }
+
+    // Check exact output match
+    if (expected.output !== undefined) {
+      const outputText = output.output ?? "";
+      const matches = outputText.trim() === expected.output.trim();
+      scores.push({
+        name: "exact_match",
+        value: matches ? 1 : 0,
+        reason: matches ? "Output matches expected" : "Output does not match expected",
       });
     }
 

@@ -166,3 +166,26 @@ export {
 
 // CLI exit codes
 export { EXIT_CODES } from "./cli/commands/eval.js";
+
+// Prompts
+export {
+  // Types
+  type Prompt,
+  type PromptBase,
+  type PromptVariable,
+  type PromptMessage,
+  type PromptConfig,
+  type CreatePromptRequest,
+  type UpdatePromptRequest,
+  type GetPromptRequest,
+  type ListPromptsRequest,
+  type PromptVersionEntry,
+  type PromptExecutionContext,
+  type CompiledPrompt,
+  // Manager
+  PromptManager,
+  promptManager,
+  definePrompt,
+  defineTextPrompt,
+  defineChatPrompt,
+} from "./prompts/index.js";
