@@ -47,10 +47,24 @@ export async function withContext<T>(
 }
 
 /**
+ * Component type for attribution in compound AI systems
+ */
+export type ComponentType =
+  | "prompt"
+  | "retrieval"
+  | "tool"
+  | "reasoning"
+  | "planning"
+  | "memory"
+  | "routing"
+  | "other";
+
+/**
  * Span options
  */
 export interface SpanOptions {
   type?: "span" | "generation" | "tool";
+  componentType?: ComponentType;
   attributes?: Record<string, string>;
 }
 
@@ -104,10 +118,15 @@ export async function generation<T>(
   _options?: {
     model?: string;
     input?: string;
+    componentType?: ComponentType;
     attributes?: Record<string, string>;
   }
 ): Promise<T> {
-  return span(name, fn, { type: "generation" });
+  return span(name, fn, {
+    type: "generation",
+    componentType: _options?.componentType,
+    attributes: _options?.attributes,
+  });
 }
 
 /**
@@ -119,8 +138,118 @@ export async function tool<T>(
   _options?: {
     toolName?: string;
     toolInput?: string;
+    componentType?: ComponentType;
     attributes?: Record<string, string>;
   }
 ): Promise<T> {
-  return span(name, fn, { type: "tool" });
+  return span(name, fn, {
+    type: "tool",
+    componentType: _options?.componentType ?? "tool",
+    attributes: _options?.attributes,
+  });
+}
+
+/**
+ * Create a retrieval span (for RAG operations)
+ */
+export async function retrieval<T>(
+  name: string,
+  fn: () => Promise<T>,
+  _options?: {
+    query?: string;
+    topK?: number;
+    attributes?: Record<string, string>;
+  }
+): Promise<T> {
+  return span(name, fn, {
+    type: "span",
+    componentType: "retrieval",
+    attributes: _options?.attributes,
+  });
+}
+
+/**
+ * Create a reasoning span (for chain-of-thought, planning steps)
+ */
+export async function reasoning<T>(
+  name: string,
+  fn: () => Promise<T>,
+  _options?: {
+    attributes?: Record<string, string>;
+  }
+): Promise<T> {
+  return span(name, fn, {
+    type: "span",
+    componentType: "reasoning",
+    attributes: _options?.attributes,
+  });
+}
+
+/**
+ * Create a planning span (for high-level task decomposition)
+ */
+export async function planning<T>(
+  name: string,
+  fn: () => Promise<T>,
+  _options?: {
+    attributes?: Record<string, string>;
+  }
+): Promise<T> {
+  return span(name, fn, {
+    type: "span",
+    componentType: "planning",
+    attributes: _options?.attributes,
+  });
+}
+
+/**
+ * Create a prompt span (for prompt construction)
+ */
+export async function prompt<T>(
+  name: string,
+  fn: () => Promise<T>,
+  _options?: {
+    template?: string;
+    attributes?: Record<string, string>;
+  }
+): Promise<T> {
+  return span(name, fn, {
+    type: "span",
+    componentType: "prompt",
+    attributes: _options?.attributes,
+  });
+}
+
+/**
+ * Create a routing span (for agent orchestration)
+ */
+export async function routing<T>(
+  name: string,
+  fn: () => Promise<T>,
+  _options?: {
+    attributes?: Record<string, string>;
+  }
+): Promise<T> {
+  return span(name, fn, {
+    type: "span",
+    componentType: "routing",
+    attributes: _options?.attributes,
+  });
+}
+
+/**
+ * Create a memory span (for memory access and management)
+ */
+export async function memory<T>(
+  name: string,
+  fn: () => Promise<T>,
+  _options?: {
+    attributes?: Record<string, string>;
+  }
+): Promise<T> {
+  return span(name, fn, {
+    type: "span",
+    componentType: "memory",
+    attributes: _options?.attributes,
+  });
 }
