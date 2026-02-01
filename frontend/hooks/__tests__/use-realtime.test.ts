@@ -100,11 +100,22 @@ class MockWebSocket {
 // Store created WebSocket instances for test access
 let mockWebSocketInstance: MockWebSocket | null = null
 
-// Mock global WebSocket
-vi.stubGlobal('WebSocket', (url: string) => {
-  mockWebSocketInstance = new MockWebSocket(url)
-  return mockWebSocketInstance
+// Mock global WebSocket as a constructor class
+const MockWebSocketConstructor = function (this: MockWebSocket, url: string) {
+  const instance = new MockWebSocket(url)
+  mockWebSocketInstance = instance
+  return instance
+} as unknown as typeof WebSocket
+
+// Add static properties
+Object.assign(MockWebSocketConstructor, {
+  CONNECTING: 0,
+  OPEN: 1,
+  CLOSING: 2,
+  CLOSED: 3,
 })
+
+vi.stubGlobal('WebSocket', MockWebSocketConstructor)
 
 // Mock uuid
 vi.mock('uuid', () => ({
@@ -198,7 +209,7 @@ describe('WebSocket Message Handling', () => {
     })
 
     // Create a new WebSocket to test URL generation
-    const ws = new (WebSocket as unknown as typeof MockWebSocket)(
+    const ws = new MockWebSocket(
       `${expectedProtocol}//${expectedHost}${expectedPath}`,
     )
 
