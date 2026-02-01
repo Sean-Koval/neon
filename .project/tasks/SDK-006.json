@@ -1,0 +1,56 @@
+{
+  "id": "SDK-006",
+  "title": "Optional: Send results to Neon cloud/self-hosted",
+  "description": "Add optional cloud sync capability to the SDK. When configured with a NEON_API_URL and NEON_API_KEY, evaluation results are automatically sent to a Neon server (cloud or self-hosted). This enables centralized result storage, team collaboration, and historical tracking without requiring users to set up their own infrastructure.",
+  "phase_id": "phase-3-sdk",
+  "status": "completed",
+  "priority": "medium",
+  "estimated_hours": 4,
+  "dependencies": [
+    "SDK-004"
+  ],
+  "blocks": [],
+  "acceptance_criteria": [
+    "Results are sent to Neon server when NEON_API_URL and NEON_API_KEY env vars are set",
+    "Works silently in the background - doesn't block local eval execution",
+    "Graceful degradation: if server is unavailable, log warning and continue",
+    "Sends: suite name, test cases, scores, timing, metadata",
+    "API client handles authentication with API key",
+    "Configurable via environment variables (NEON_API_URL, NEON_API_KEY)",
+    "Optional --no-sync flag to disable sending even when configured",
+    "Clear success/failure message in CLI output (e.g., 'Results synced to Neon')",
+    "Unit tests for API client with mocked responses"
+  ],
+  "key_files": {
+    "primary": [
+      "packages/sdk/src/cloud/client.ts",
+      "packages/sdk/src/cloud/sync.ts"
+    ],
+    "tests": [
+      "packages/sdk/src/__tests__/cloud.test.ts"
+    ],
+    "modify": [
+      "packages/sdk/src/runner.ts",
+      "packages/sdk/src/cli/commands/eval.ts"
+    ],
+    "reference": [
+      "frontend/lib/api/scores.ts",
+      "frontend/lib/api/traces.ts"
+    ]
+  },
+  "implementation_notes": [
+    "Use native fetch (Node 18+) for HTTP requests",
+    "API endpoints match existing frontend API routes (/api/traces, /api/scores)",
+    "Consider batching results if many test cases",
+    "Add timeout handling for network requests",
+    "The sync should happen after all tests complete, not during",
+    "Consider a --sync-only flag for re-syncing previous results"
+  ],
+  "created_at": "2026-01-29T00:00:00Z",
+  "started_at": "2026-01-29T17:13:40-05:00",
+  "worktree": {
+    "branch": "task/SDK-006",
+    "path": "/home/seanm/repos/neon-task-SDK-006",
+    "created_at": "2026-01-29T17:13:40-05:00"
+  }
+}

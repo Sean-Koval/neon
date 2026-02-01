@@ -1,0 +1,50 @@
+{
+  "id": "PERF-002",
+  "title": "Materialized views for dashboard aggregations",
+  "description": "Create ClickHouse materialized views to pre-compute dashboard aggregations. Currently, the dashboard queries scan raw data on every request. Materialized views will maintain running aggregates for faster queries.",
+  "phase_id": "phase-5-performance",
+  "status": "completed",
+  "priority": "medium",
+  "estimated_hours": 4,
+  "dependencies": [
+    "PERF-001"
+  ],
+  "blocks": [],
+  "acceptance_criteria": [
+    "Materialized view for daily pass/fail counts per suite",
+    "Materialized view for score trends (avg, min, max per scorer per day)",
+    "Materialized view for test duration statistics",
+    "Dashboard API endpoints use materialized views",
+    "Query latency <100ms for dashboard aggregations",
+    "Views update automatically on insert",
+    "Migration script to create views",
+    "Backfill existing data into views"
+  ],
+  "key_files": {
+    "primary": [
+      "frontend/lib/schema.sql",
+      "frontend/app/api/dashboard/route.ts"
+    ],
+    "new": [
+      "frontend/lib/migrations/002_materialized_views.sql"
+    ],
+    "reference": [
+      "frontend/lib/clickhouse.ts",
+      "frontend/components/dashboard/score-trends.tsx"
+    ]
+  },
+  "implementation_notes": [
+    "Use AggregatingMergeTree engine for materialized views",
+    "Consider SummingMergeTree for simple counters",
+    "Partition views by month for easier maintenance",
+    "Test view refresh performance with large datasets",
+    "Document view schema in code comments"
+  ],
+  "created_at": "2026-01-29T00:00:00Z",
+  "started_at": "2026-01-30T00:44:59-05:00",
+  "worktree": {
+    "branch": "task/PERF-002",
+    "path": "/home/seanm/repos/neon-task-PERF-002",
+    "created_at": "2026-01-30T00:44:59-05:00"
+  }
+}

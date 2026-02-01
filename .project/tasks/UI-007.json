@@ -1,0 +1,37 @@
+{
+  "id": "UI-007",
+  "title": "Remove/hide old pages (suites, old runs)",
+  "description": "Clean up the frontend by removing or hiding legacy pages that are no longer needed. This includes old suite management pages and runs pages that have been replaced by the new eval-runs workflow. Simplify navigation to focus on the core user flow.",
+  "status": "completed",
+  "completed_at": "2026-01-29T17:45:00-05:00",
+  "phase_id": "phase-4-frontend",
+  "estimated_hours": 2,
+  "dependencies": [],
+  "acceptance_criteria": [
+    "Remove or hide /suites page and related components",
+    "Remove or hide /runs page (replaced by /eval-runs)",
+    "Update sidebar navigation to remove old links",
+    "Redirect old routes to new equivalents where appropriate",
+    "Remove unused components related to old pages",
+    "Ensure no broken links in the application",
+    "TypeScript compiles without errors",
+    "Application builds successfully"
+  ],
+  "files_to_modify": [
+    "frontend/components/sidebar.tsx",
+    "frontend/app/suites/",
+    "frontend/app/runs/",
+    "frontend/components/suites/"
+  ],
+  "reference_files": [
+    "frontend/app/eval-runs/",
+    "frontend/components/eval-runs/"
+  ],
+  "created_at": "2026-01-29T00:00:00Z",
+  "started_at": "2026-01-29T17:36:54-05:00",
+  "worktree": {
+    "branch": "task/UI-007",
+    "path": "/home/seanm/repos/neon-task-UI-007",
+    "created_at": "2026-01-29T17:36:54-05:00"
+  }
+}

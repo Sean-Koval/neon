@@ -1,0 +1,52 @@
+{
+  "id": "UI-001",
+  "title": "Dashboard - recent evals, pass/fail rates, trends",
+  "description": "Build the main dashboard page showing recent evaluations, pass/fail rates, and trend visualizations. This is the landing page users see when they open the app.",
+  "status": "completed",
+  "phase_id": "phase-4-frontend",
+  "estimated_hours": 4,
+  "dependencies": [
+    "CORE-004",
+    "CORE-005"
+  ],
+  "acceptance_criteria": [
+    "Dashboard shows list of recent evaluation runs with status (pass/fail/running)",
+    "Pass/fail rate summary displayed prominently (percentage, counts)",
+    "Trend chart showing pass rates over time (last 7/30 days)",
+    "Quick filters: by status, by suite, by date range",
+    "Links to individual eval run details",
+    "Loading states and empty states handled",
+    "Responsive layout works on desktop and tablet",
+    "Uses existing tRPC endpoints for data fetching"
+  ],
+  "files_to_modify": [
+    "frontend/app/page.tsx",
+    "frontend/components/dashboard/",
+    "frontend/hooks/use-dashboard.ts"
+  ],
+  "reference_files": [
+    "frontend/server/trpc/routers/",
+    "frontend/lib/clickhouse.ts",
+    "frontend/components/ui/"
+  ],
+  "created_at": "2026-01-28T00:00:00Z",
+  "started_at": "2026-01-28T22:56:14-05:00",
+  "completed_at": "2026-01-28T23:35:00-05:00",
+  "worktree": {
+    "branch": "task/UI-001",
+    "path": "/home/seanm/repos/neon-task-UI-001",
+    "created_at": "2026-01-28T22:56:14-05:00"
+  },
+  "deliverables": {
+    "files_created": [
+      "frontend/components/dashboard/filters.tsx",
+      "frontend/components/dashboard/trend-card.tsx",
+      "frontend/hooks/use-dashboard.ts"
+    ],
+    "files_modified": [
+      "frontend/app/page.tsx",
+      "frontend/hooks/index.ts"
+    ],
+    "summary": "Enhanced dashboard with filters, trend chart, and two-column layout. Added date range quick filters (7d/30d/90d/all), expandable filters panel for status and suite filtering, and integrated ScoreTrendChart in a new TrendCard component."
+  }
+}

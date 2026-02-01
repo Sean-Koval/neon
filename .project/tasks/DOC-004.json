@@ -1,0 +1,51 @@
+{
+  "id": "DOC-004",
+  "title": "Example eval suite",
+  "description": "Create a comprehensive example evaluation suite that demonstrates all SDK features. This serves as both documentation and a template for users to build their own eval suites.",
+  "phase_id": "phase-6-docs",
+  "status": "completed",
+  "completed_at": "2026-01-30T01:15:00-05:00",
+  "priority": "high",
+  "estimated_hours": 3,
+  "dependencies": [
+    "SDK-004"
+  ],
+  "blocks": [],
+  "acceptance_criteria": [
+    "Complete example eval suite in examples/ directory",
+    "Demonstrates defineTest, defineSuite, and run APIs",
+    "Shows all built-in scorers (exactMatch, contains, llmJudge, toolSelectionScorer)",
+    "Includes custom scorer example",
+    "Shows inline scorer usage",
+    "Demonstrates parallel execution and timeout configuration",
+    "Includes comments explaining each part",
+    "Example can be run with npx neon eval",
+    "README in examples directory explaining how to run"
+  ],
+  "key_files": {
+    "primary": [
+      "examples/eval-suite/",
+      "examples/README.md"
+    ],
+    "reference": [
+      "packages/sdk/src/index.ts",
+      "packages/sdk/src/scorers/",
+      "packages/sdk/examples/basic.eval.ts",
+      "packages/sdk/README.md"
+    ]
+  },
+  "implementation_notes": [
+    "Create a realistic agent evaluation scenario (e.g., customer service agent, coding assistant)",
+    "Include both passing and failing test cases for demonstration",
+    "Show how to mock agent responses for testing",
+    "Include dataset-based tests if applicable",
+    "Provide both JavaScript and TypeScript examples"
+  ],
+  "created_at": "2026-01-30T03:30:00Z",
+  "started_at": "2026-01-30T00:55:43-05:00",
+  "worktree": {
+    "branch": "task/DOC-004",
+    "path": "/home/seanm/repos/neon-task-DOC-004",
+    "created_at": "2026-01-30T00:55:43-05:00"
+  }
+}

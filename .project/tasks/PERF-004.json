@@ -1,0 +1,51 @@
+{
+  "id": "PERF-004",
+  "title": "Lazy load trace details",
+  "description": "Optimize the trace viewer by implementing lazy loading for trace details. Currently, all span data is fetched upfront which can be slow for large traces. Implement on-demand loading of span details when expanded.",
+  "phase_id": "phase-5-performance",
+  "status": "completed",
+  "priority": "medium",
+  "estimated_hours": 3,
+  "dependencies": [
+    "UI-003"
+  ],
+  "blocks": [],
+  "acceptance_criteria": [
+    "Trace list loads with minimal data (id, name, status, duration)",
+    "Span details (inputs, outputs, metadata) load on expand",
+    "Loading indicator shown while fetching span details",
+    "Fetched data is cached to avoid re-fetching on collapse/expand",
+    "Large payloads (>10KB) are truncated with 'Show more' option",
+    "API endpoint for fetching individual span details",
+    "No visible delay for traces with <50 spans",
+    "Memory usage reduced for large trace views"
+  ],
+  "key_files": {
+    "primary": [
+      "frontend/app/traces/[id]/page.tsx",
+      "frontend/components/traces/span-details.tsx",
+      "frontend/server/trpc/routers/traces.ts"
+    ],
+    "new": [
+      "frontend/hooks/use-lazy-span.ts"
+    ],
+    "reference": [
+      "frontend/lib/clickhouse.ts",
+      "frontend/components/traces/trace-viewer.tsx"
+    ]
+  },
+  "implementation_notes": [
+    "Use React Query's enabled option for conditional fetching",
+    "Consider virtualization for traces with >100 spans",
+    "Store expanded state in URL for shareable links",
+    "Prefetch next few spans for smoother UX",
+    "Add skeleton loaders for loading states"
+  ],
+  "created_at": "2026-01-31T00:00:00Z",
+  "started_at": "2026-01-31T13:55:59-05:00",
+  "worktree": {
+    "branch": "task/PERF-004",
+    "path": "/home/seanm/repos/neon-task-PERF-004",
+    "created_at": "2026-01-31T13:55:59-05:00"
+  }
+}

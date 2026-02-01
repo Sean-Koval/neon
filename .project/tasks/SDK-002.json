@@ -1,0 +1,47 @@
+{
+  "id": "SDK-002",
+  "title": "Core API: defineTest(), defineSuite(), run()",
+  "description": "Implement the core SDK API for defining and running evals as code. This provides a simple, intuitive API for users to write evaluation suites.",
+  "phase_id": "phase-3-sdk",
+  "status": "completed",
+  "priority": "high",
+  "estimated_hours": 4,
+  "dependencies": [
+    "SDK-001"
+  ],
+  "blocks": [
+    "SDK-003",
+    "SDK-004"
+  ],
+  "acceptance_criteria": [
+    "defineTest() function creates a test case with input, expected output, and optional scorer",
+    "defineSuite() function groups multiple tests with shared config",
+    "run() function executes tests and returns structured results",
+    "Supports async test execution",
+    "TypeScript types are fully defined and exported",
+    "Unit tests cover happy path and edge cases",
+    "Example usage in README or docs"
+  ],
+  "key_files": {
+    "primary": [
+      "packages/sdk/src/test.ts",
+      "packages/sdk/src/index.ts"
+    ],
+    "tests": [
+      "packages/sdk/src/__tests__/test.test.ts"
+    ],
+    "reference": [
+      "packages/sdk/src/client.ts",
+      "docs/research/02-concept/architecture-spec.md"
+    ]
+  },
+  "notes": "Build on top of existing test.ts. Keep API minimal and ergonomic - inspired by Vitest/Jest patterns but for LLM evals.",
+  "created_at": "2026-01-26T00:00:00Z",
+  "updated_at": "2026-01-28T12:00:00Z",
+  "started_at": "2026-01-28T22:55:59-05:00",
+  "worktree": {
+    "branch": "task/SDK-002",
+    "path": "/home/seanm/repos/neon-task-SDK-002",
+    "created_at": "2026-01-28T22:55:59-05:00"
+  }
+}

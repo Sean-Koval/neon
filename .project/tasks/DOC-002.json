@@ -1,0 +1,50 @@
+{
+  "id": "DOC-002",
+  "title": "SDK documentation",
+  "description": "Expand the SDK documentation with comprehensive guides, examples, and API reference. The current README.md provides a good foundation, but needs more detail on advanced usage, configuration options, custom scorers, and integration patterns.",
+  "phase_id": "phase-6-docs",
+  "status": "completed",
+  "priority": "high",
+  "estimated_hours": 4,
+  "dependencies": [
+    "SDK-004"
+  ],
+  "blocks": [],
+  "acceptance_criteria": [
+    "Complete API reference for all public exports",
+    "Guide for creating custom scorers with examples",
+    "Guide for integrating with popular agent frameworks (LangChain, CrewAI, etc.)",
+    "CI/CD integration examples (GitHub Actions, GitLab CI)",
+    "Configuration reference (thresholds, parallel execution, etc.)",
+    "Troubleshooting section for common issues",
+    "Migration guide from other eval tools (if applicable)"
+  ],
+  "key_files": {
+    "primary": [
+      "packages/sdk/README.md",
+      "packages/sdk/docs/"
+    ],
+    "reference": [
+      "packages/sdk/src/index.ts",
+      "packages/sdk/src/test.ts",
+      "packages/sdk/src/suite.ts",
+      "packages/sdk/src/scorers/",
+      "packages/sdk/src/cli/",
+      "packages/sdk/examples/"
+    ]
+  },
+  "implementation_notes": [
+    "Start by reviewing all public exports in src/index.ts",
+    "Document the CLI commands in detail (npx neon eval options)",
+    "Include real-world examples from packages/sdk/examples/",
+    "Consider using typedoc or similar for auto-generated API docs",
+    "Ensure examples are tested and work with current code"
+  ],
+  "created_at": "2026-01-29T22:30:00Z",
+  "started_at": "2026-01-29T22:29:09-05:00",
+  "worktree": {
+    "branch": "task/DOC-002",
+    "path": "/home/seanm/repos/neon-task-DOC-002",
+    "created_at": "2026-01-29T22:29:09-05:00"
+  }
+}

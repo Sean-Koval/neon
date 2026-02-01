@@ -1,0 +1,39 @@
+{
+  "id": "UI-003",
+  "title": "Trace viewer - agent-native (tool calls, reasoning)",
+  "description": "Build an agent-native trace viewer that displays tool calls, reasoning steps, and execution flow. This is different from traditional APM traces - it should highlight agent-specific concepts like tool invocations, LLM reasoning, and decision points.",
+  "status": "completed",
+  "phase_id": "phase-4-frontend",
+  "estimated_hours": 6,
+  "dependencies": [
+    "CORE-004"
+  ],
+  "acceptance_criteria": [
+    "Trace detail page shows hierarchical view of spans",
+    "Tool calls displayed with input/output and duration",
+    "LLM reasoning steps shown with model, tokens, latency",
+    "Collapsible sections for large payloads (inputs/outputs)",
+    "Timeline visualization showing span durations",
+    "Color coding by span type (llm, tool, agent)",
+    "Copy-to-clipboard for trace ID and payloads",
+    "Loading states and error handling",
+    "Mobile-friendly responsive layout"
+  ],
+  "files_to_modify": [
+    "frontend/app/traces/[id]/page.tsx",
+    "frontend/components/traces/",
+    "frontend/hooks/use-traces.ts"
+  ],
+  "reference_files": [
+    "frontend/lib/clickhouse.ts",
+    "frontend/server/trpc/routers/traces.ts",
+    "frontend/lib/types.ts"
+  ],
+  "created_at": "2026-01-28T00:00:00Z",
+  "started_at": "2026-01-28T23:54:45-05:00",
+  "worktree": {
+    "branch": "task/UI-003",
+    "path": "/home/seanm/repos/neon-task-UI-003",
+    "created_at": "2026-01-28T23:54:45-05:00"
+  }
+}

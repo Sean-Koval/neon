@@ -1,0 +1,47 @@
+{
+  "id": "SDK-003",
+  "title": "Built-in scorers: exactMatch, contains, llmJudge",
+  "description": "Implement and polish the built-in scorers that ship with the SDK. These are the most common scoring patterns users need out of the box.",
+  "phase_id": "phase-3-sdk",
+  "status": "completed",
+  "priority": "high",
+  "estimated_hours": 3,
+  "dependencies": [
+    "SDK-002"
+  ],
+  "blocks": [
+    "SDK-004"
+  ],
+  "acceptance_criteria": [
+    "exactMatch() scorer - compares output to expected exactly",
+    "contains() scorer - checks if output contains expected substring(s)",
+    "llmJudge() scorer - uses LLM to evaluate quality with configurable criteria",
+    "All scorers return consistent ScoreResult format (value 0-1, reason string)",
+    "Scorers are well-typed with TypeScript generics where appropriate",
+    "Unit tests cover edge cases (empty strings, null handling, etc.)",
+    "Exported from packages/sdk/src/index.ts"
+  ],
+  "key_files": {
+    "primary": [
+      "packages/sdk/src/scorers/rule-based.ts",
+      "packages/sdk/src/scorers/llm-judge.ts",
+      "packages/sdk/src/scorers/index.ts"
+    ],
+    "tests": [
+      "packages/sdk/src/__tests__/scorers.test.ts"
+    ],
+    "reference": [
+      "packages/sdk/src/scorers/base.ts",
+      "packages/sdk/src/test.ts"
+    ]
+  },
+  "notes": "Some scorer implementations may already exist - review and polish for consistency. Focus on API ergonomics and clear error messages.",
+  "created_at": "2026-01-26T00:00:00Z",
+  "updated_at": "2026-01-28T23:00:00Z",
+  "started_at": "2026-01-28T23:43:19-05:00",
+  "worktree": {
+    "branch": "task/SDK-003",
+    "path": "/home/seanm/repos/neon-task-SDK-003",
+    "created_at": "2026-01-28T23:43:19-05:00"
+  }
+}

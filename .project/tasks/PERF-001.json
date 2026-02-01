@@ -1,0 +1,55 @@
+{
+  "id": "PERF-001",
+  "title": "ClickHouse batch inserts",
+  "description": "Optimize ClickHouse write performance by implementing batch inserts instead of individual row inserts. Currently traces and scores are inserted one at a time, which is inefficient for high-volume scenarios. Implement buffering and batch commit strategies.",
+  "phase_id": "phase-5-performance",
+  "status": "completed",
+  "priority": "high",
+  "estimated_hours": 4,
+  "dependencies": [
+    "CORE-004",
+    "CORE-005"
+  ],
+  "blocks": [
+    "PERF-002",
+    "PERF-003"
+  ],
+  "acceptance_criteria": [
+    "Implement batch insert buffer for traces table",
+    "Implement batch insert buffer for scores table",
+    "Configurable batch size (default: 1000 rows)",
+    "Configurable flush interval (default: 5 seconds)",
+    "Auto-flush when buffer is full or interval expires",
+    "Graceful shutdown flushes remaining buffer",
+    "Error handling for partial batch failures",
+    "Performance test showing >10x throughput improvement",
+    "No breaking changes to existing API endpoints"
+  ],
+  "key_files": {
+    "primary": [
+      "frontend/lib/clickhouse.ts",
+      "frontend/app/api/traces/route.ts",
+      "frontend/app/api/scores/route.ts"
+    ],
+    "new": [
+      "frontend/lib/clickhouse-batch.ts"
+    ],
+    "reference": [
+      "frontend/lib/schema.sql"
+    ]
+  },
+  "implementation_notes": [
+    "ClickHouse is optimized for batch inserts, not single-row operations",
+    "Consider using async insert feature if available in @clickhouse/client",
+    "Buffer should be thread-safe for concurrent API requests",
+    "Add metrics/logging for batch operations",
+    "Consider separate buffers per table for isolation"
+  ],
+  "created_at": "2026-01-29T00:00:00Z",
+  "started_at": "2026-01-29T22:16:41-05:00",
+  "worktree": {
+    "branch": "task/PERF-001",
+    "path": "/home/seanm/repos/neon-task-PERF-001",
+    "created_at": "2026-01-29T22:16:41-05:00"
+  }
+}

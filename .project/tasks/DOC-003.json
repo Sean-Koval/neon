@@ -1,0 +1,52 @@
+{
+  "id": "DOC-003",
+  "title": "Self-hosting guide (Docker Compose)",
+  "description": "Create comprehensive documentation for self-hosting Neon using Docker Compose. This guide should enable developers to run the complete Neon stack locally or on their own infrastructure with minimal friction.",
+  "phase_id": "phase-6-docs",
+  "status": "completed",
+  "priority": "medium",
+  "estimated_hours": 3,
+  "dependencies": [
+    "CORE-008"
+  ],
+  "blocks": [],
+  "acceptance_criteria": [
+    "docker-compose.yml with all services (ClickHouse, Temporal, Frontend)",
+    "Step-by-step quickstart in docs/self-hosting.md",
+    "Environment variable reference with defaults",
+    "Health check endpoints documented",
+    "Troubleshooting section for common issues",
+    "Resource requirements (CPU, RAM, disk) documented",
+    "Upgrade/migration instructions placeholder",
+    "Works on Linux, macOS, and Windows (WSL2)"
+  ],
+  "key_files": {
+    "primary": [
+      "docs/self-hosting.md"
+    ],
+    "new": [
+      "docker-compose.yml",
+      "docker-compose.dev.yml",
+      ".env.example"
+    ],
+    "reference": [
+      "frontend/lib/clickhouse.ts",
+      "temporal-workers/src/index.ts",
+      "README.md"
+    ]
+  },
+  "implementation_notes": [
+    "Use official images where possible (clickhouse/clickhouse-server, temporalio/auto-setup)",
+    "Include volume mounts for data persistence",
+    "Provide both development and production compose files",
+    "Consider including optional services (Grafana, etc.)",
+    "Test on fresh machine to ensure completeness"
+  ],
+  "created_at": "2026-01-29T00:00:00Z",
+  "started_at": "2026-01-29T22:50:31-05:00",
+  "worktree": {
+    "branch": "task/DOC-003",
+    "path": "/home/seanm/repos/neon-task-DOC-003",
+    "created_at": "2026-01-29T22:50:31-05:00"
+  }
+}

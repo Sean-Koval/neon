@@ -1,0 +1,60 @@
+{
+  "id": "SDK-004",
+  "title": "CLI: npx neon eval runs tests locally",
+  "description": "Create the CLI entry point that allows developers to run eval suites locally with 'npx neon eval'. This is the primary developer workflow - define tests in code, run them from the command line, see results in the terminal.",
+  "phase_id": "phase-3-sdk",
+  "status": "completed",
+  "priority": "critical",
+  "estimated_hours": 4,
+  "dependencies": [
+    "SDK-002",
+    "SDK-003"
+  ],
+  "blocks": [
+    "SDK-005",
+    "SDK-006",
+    "DOC-002",
+    "DOC-004"
+  ],
+  "acceptance_criteria": [
+    "npx neon eval command discovers and runs test files",
+    "Supports glob patterns for test file discovery (e.g., **/*.eval.ts)",
+    "Console output shows test progress with pass/fail status",
+    "Summary at end: total tests, passed, failed, duration",
+    "Individual test case results with scorer names and scores",
+    "Colored output (green=pass, red=fail, yellow=warning)",
+    "Exit code 0 on all pass, non-zero on any failure",
+    "--help flag shows usage information",
+    "Handles async test execution properly",
+    "Error handling with clear error messages for common issues"
+  ],
+  "key_files": {
+    "primary": [
+      "packages/sdk/src/cli/index.ts",
+      "packages/sdk/src/cli/commands/eval.ts",
+      "packages/sdk/src/cli/reporter.ts"
+    ],
+    "config": [
+      "packages/sdk/package.json"
+    ],
+    "reference": [
+      "packages/sdk/src/runner.ts",
+      "packages/sdk/src/test.ts",
+      "packages/sdk/src/suite.ts"
+    ]
+  },
+  "implementation_notes": [
+    "Use a CLI framework like commander or yargs for argument parsing",
+    "The bin field in package.json should point to the CLI entry",
+    "Use glob package for test file discovery",
+    "Reporter should be pluggable to support SDK-005 (JSON output)",
+    "Consider using picocolors for terminal colors (lighter than chalk)"
+  ],
+  "created_at": "2026-01-29T00:00:00Z",
+  "started_at": "2026-01-29T16:29:34-05:00",
+  "worktree": {
+    "branch": "task/SDK-004",
+    "path": "/home/seanm/repos/neon-task-SDK-004",
+    "created_at": "2026-01-29T16:29:34-05:00"
+  }
+}

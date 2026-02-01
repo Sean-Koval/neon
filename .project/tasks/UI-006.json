@@ -1,0 +1,42 @@
+{
+  "id": "UI-006",
+  "title": "WebSocket for real-time updates (or polling fallback)",
+  "description": "Implement real-time updates for the evaluation UI using WebSockets. When an evaluation is running, the UI should update in real-time to show progress, case results, and score updates without requiring manual refresh. Include a polling fallback for environments where WebSockets are not available.",
+  "status": "completed",
+  "phase_id": "phase-4-frontend",
+  "estimated_hours": 4,
+  "dependencies": [
+    "CORE-007"
+  ],
+  "acceptance_criteria": [
+    "WebSocket connection for real-time eval progress updates",
+    "Subscribe to specific run IDs for targeted updates",
+    "Real-time updates for: run status, case progress, scores",
+    "Automatic reconnection on connection loss",
+    "Polling fallback when WebSocket unavailable",
+    "Connection status indicator in UI",
+    "Unsubscribe/cleanup on component unmount",
+    "Handle concurrent subscriptions efficiently",
+    "TypeScript types for all WebSocket messages",
+    "Unit tests for WebSocket hook and message handling"
+  ],
+  "files_to_modify": [
+    "frontend/hooks/use-realtime.ts",
+    "frontend/app/api/ws/route.ts",
+    "frontend/components/eval/eval-progress.tsx",
+    "frontend/lib/types.ts"
+  ],
+  "reference_files": [
+    "frontend/lib/clickhouse.ts",
+    "frontend/server/trpc/routers/runs.ts",
+    "temporal-workers/src/workflows/",
+    "frontend/app/runs/[id]/page.tsx"
+  ],
+  "created_at": "2026-01-29T00:00:00Z",
+  "started_at": "2026-01-29T17:06:16-05:00",
+  "worktree": {
+    "branch": "task/UI-006",
+    "path": "/home/seanm/repos/neon-task-UI-006",
+    "created_at": "2026-01-29T17:06:16-05:00"
+  }
+}

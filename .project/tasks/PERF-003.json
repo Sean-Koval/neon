@@ -1,0 +1,51 @@
+{
+  "id": "PERF-003",
+  "title": "Add indexes to ClickHouse tables",
+  "description": "Optimize ClickHouse query performance by adding appropriate indexes to frequently queried columns. Analyze query patterns from the dashboard and API endpoints to identify which columns need indexing.",
+  "phase_id": "phase-5-performance",
+  "status": "completed",
+  "priority": "medium",
+  "estimated_hours": 2,
+  "dependencies": [
+    "PERF-001"
+  ],
+  "blocks": [],
+  "acceptance_criteria": [
+    "Analyze existing queries to identify index candidates",
+    "Add skip indexes for trace_id, run_id, suite_name columns",
+    "Add bloom filter indexes for string columns used in WHERE clauses",
+    "Add minmax indexes for timestamp columns",
+    "Create migration script for index additions",
+    "Benchmark query performance before/after indexes",
+    "Document index strategy in schema.sql comments",
+    "No breaking changes to existing data"
+  ],
+  "key_files": {
+    "primary": [
+      "frontend/lib/schema.sql",
+      "frontend/lib/migrations/"
+    ],
+    "new": [
+      "frontend/lib/migrations/003_add_indexes.sql"
+    ],
+    "reference": [
+      "frontend/lib/clickhouse.ts",
+      "frontend/server/trpc/routers/traces.ts",
+      "frontend/server/trpc/routers/scores.ts"
+    ]
+  },
+  "implementation_notes": [
+    "ClickHouse uses skip indexes, not traditional B-tree indexes",
+    "Bloom filter indexes good for equality checks on strings",
+    "Minmax indexes good for range queries on ordered columns",
+    "Set indexes good for columns with low cardinality",
+    "Test with EXPLAIN to verify index usage"
+  ],
+  "created_at": "2026-01-31T00:00:00Z",
+  "started_at": "2026-01-31T12:55:14-05:00",
+  "worktree": {
+    "branch": "task/PERF-003",
+    "path": "/home/seanm/repos/neon-task-PERF-003",
+    "created_at": "2026-01-31T12:55:14-05:00"
+  }
+}

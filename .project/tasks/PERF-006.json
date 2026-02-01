@@ -1,0 +1,58 @@
+{
+  "id": "PERF-006",
+  "title": "Add loading states, error boundaries",
+  "description": "Improve user experience by adding proper loading states and error boundaries throughout the application. This ensures graceful handling of async operations and runtime errors.",
+  "phase_id": "phase-5-performance",
+  "status": "completed",
+  "priority": "medium",
+  "estimated_hours": 3,
+  "dependencies": [
+    "UI-001",
+    "UI-002"
+  ],
+  "blocks": [],
+  "acceptance_criteria": [
+    "Add loading.tsx files for all route segments",
+    "Implement skeleton loaders for dashboard cards",
+    "Implement skeleton loaders for trace list and details",
+    "Add error.tsx error boundaries for all routes",
+    "Create reusable ErrorFallback component with retry button",
+    "Handle network errors gracefully with user-friendly messages",
+    "Add global error boundary at app level",
+    "Ensure loading states don't cause layout shift (CLS)",
+    "Test error boundaries with simulated failures"
+  ],
+  "key_files": {
+    "primary": [
+      "frontend/app/error.tsx",
+      "frontend/app/loading.tsx",
+      "frontend/app/traces/loading.tsx",
+      "frontend/app/traces/[id]/loading.tsx",
+      "frontend/app/eval-runs/loading.tsx"
+    ],
+    "new": [
+      "frontend/components/ui/skeleton.tsx",
+      "frontend/components/ui/error-fallback.tsx",
+      "frontend/components/dashboard/dashboard-skeleton.tsx",
+      "frontend/components/traces/trace-skeleton.tsx"
+    ],
+    "reference": [
+      "frontend/components/ui/",
+      "frontend/app/page.tsx"
+    ]
+  },
+  "implementation_notes": [
+    "Use Suspense boundaries with loading.tsx for route segments",
+    "Error boundaries should log errors to console in dev",
+    "Consider toast notifications for transient errors",
+    "Skeleton dimensions should match actual content",
+    "Use CSS animations for skeleton pulse effect"
+  ],
+  "created_at": "2026-01-31T00:00:00Z",
+  "started_at": "2026-01-31T16:22:39-05:00",
+  "worktree": {
+    "branch": "task/PERF-006",
+    "path": "/home/seanm/repos/neon-task-PERF-006",
+    "created_at": "2026-01-31T16:22:39-05:00"
+  }
+}

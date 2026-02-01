@@ -1,0 +1,42 @@
+{
+  "id": "UI-004",
+  "title": "Score trends - regression detection visualization",
+  "description": "Build a score trends visualization that shows how scores change over time across evaluations. This enables regression detection by highlighting when scores drop below historical baselines. Should integrate with the existing dashboard and provide drill-down into specific test cases.",
+  "status": "completed",
+  "phase_id": "phase-4-frontend",
+  "estimated_hours": 5,
+  "dependencies": [
+    "CORE-005"
+  ],
+  "acceptance_criteria": [
+    "Trend chart showing score history over time (last N runs)",
+    "Configurable time range selector (7d, 30d, 90d, custom)",
+    "Regression detection: highlight runs where scores dropped significantly",
+    "Threshold visualization: show baseline/target lines on chart",
+    "Drill-down: click a point to see individual test case results",
+    "Group by test suite or scorer type",
+    "Statistical summary: mean, std dev, trend direction",
+    "Export data as CSV/JSON",
+    "Responsive design for dashboard integration",
+    "Loading states and error handling"
+  ],
+  "files_to_modify": [
+    "frontend/app/dashboard/page.tsx",
+    "frontend/components/dashboard/score-trends.tsx",
+    "frontend/components/charts/trend-chart.tsx",
+    "frontend/hooks/use-scores.ts"
+  ],
+  "reference_files": [
+    "frontend/lib/clickhouse.ts",
+    "frontend/server/trpc/routers/scores.ts",
+    "frontend/lib/types.ts",
+    "frontend/components/dashboard/"
+  ],
+  "created_at": "2026-01-29T00:00:00Z",
+  "started_at": "2026-01-29T16:02:25-05:00",
+  "worktree": {
+    "branch": "task/UI-004",
+    "path": "/home/seanm/repos/neon-task-UI-004",
+    "created_at": "2026-01-29T16:02:25-05:00"
+  }
+}

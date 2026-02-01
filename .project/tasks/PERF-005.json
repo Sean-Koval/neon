@@ -1,0 +1,56 @@
+{
+  "id": "PERF-005",
+  "title": "Optimize bundle size (code splitting)",
+  "description": "Reduce the frontend bundle size by implementing code splitting and lazy loading of routes. This improves initial page load time and reduces bandwidth usage.",
+  "phase_id": "phase-5-performance",
+  "status": "completed",
+  "priority": "medium",
+  "estimated_hours": 3,
+  "dependencies": [
+    "UI-001",
+    "UI-002",
+    "UI-003"
+  ],
+  "blocks": [],
+  "acceptance_criteria": [
+    "Implement route-based code splitting with Next.js dynamic imports",
+    "Lazy load heavy components (charts, trace viewer, code editors)",
+    "Reduce initial bundle size by at least 30%",
+    "Add bundle analyzer to track bundle composition",
+    "Ensure no flash of unstyled content (FOUC)",
+    "Preload critical routes on hover/focus",
+    "Measure and document before/after bundle sizes",
+    "Lighthouse performance score >= 90"
+  ],
+  "key_files": {
+    "primary": [
+      "frontend/app/layout.tsx",
+      "frontend/app/page.tsx",
+      "frontend/app/traces/[id]/page.tsx",
+      "frontend/app/eval-runs/[id]/page.tsx"
+    ],
+    "modify": [
+      "frontend/components/dashboard/trend-card.tsx",
+      "frontend/components/traces/trace-viewer.tsx",
+      "frontend/components/charts/"
+    ],
+    "config": [
+      "frontend/next.config.ts",
+      "frontend/package.json"
+    ]
+  },
+  "implementation_notes": [
+    "Use next/dynamic for component-level code splitting",
+    "Add @next/bundle-analyzer for visualization",
+    "Consider tree-shaking unused Recharts components",
+    "Lazy load Monaco editor if used",
+    "Use loading.tsx for route-level loading states"
+  ],
+  "created_at": "2026-01-31T00:00:00Z",
+  "started_at": "2026-01-31T14:53:23-05:00",
+  "worktree": {
+    "branch": "task/PERF-005",
+    "path": "/home/seanm/repos/neon-task-PERF-005",
+    "created_at": "2026-01-31T14:53:23-05:00"
+  }
+}
