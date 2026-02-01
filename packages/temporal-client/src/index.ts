@@ -115,8 +115,9 @@ export class NeonTemporalClient {
 
   /**
    * Get agent run handle
+   * Note: Returns untyped handle since we don't have the workflow type at runtime
    */
-  getAgentRunHandle(workflowId: string): WorkflowHandle<AgentRunResult> {
+  getAgentRunHandle(workflowId: string): WorkflowHandle {
     return this.getClient().getHandle(workflowId);
   }
 
@@ -161,7 +162,7 @@ export class NeonTemporalClient {
    */
   async waitForAgentResult(workflowId: string): Promise<AgentRunResult> {
     const handle = this.getAgentRunHandle(workflowId);
-    return handle.result();
+    return handle.result() as Promise<AgentRunResult>;
   }
 
   // ==================== Evaluation Workflows ====================
@@ -198,8 +199,9 @@ export class NeonTemporalClient {
 
   /**
    * Get eval run handle
+   * Note: Returns untyped handle since we don't have the workflow type at runtime
    */
-  getEvalRunHandle(workflowId: string): WorkflowHandle<EvalRunResult> {
+  getEvalRunHandle(workflowId: string): WorkflowHandle {
     return this.getClient().getHandle(workflowId);
   }
 
@@ -219,7 +221,7 @@ export class NeonTemporalClient {
    */
   async waitForEvalResult(workflowId: string): Promise<EvalRunResult> {
     const handle = this.getEvalRunHandle(workflowId);
-    return handle.result();
+    return handle.result() as Promise<EvalRunResult>;
   }
 
   // ==================== A/B Test Workflows ====================
