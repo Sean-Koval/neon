@@ -3,7 +3,7 @@
 ## Project Overview
 
 Neon is an **agent evaluation platform** with durable execution for AI agents. It provides:
-- **Evals-as-code** TypeScript SDK for defining test suites and scorers
+- **Evals-as-code** SDKs for defining test suites and scorers (TypeScript & Python)
 - **Durable execution** via Temporal workflows
 - **Observability** via ClickHouse trace storage
 - **Real-time dashboard** with regression detection
@@ -39,6 +39,15 @@ cd cli && uv sync     # Install CLI dependencies
 uv run agent-eval --help  # Run CLI
 ```
 
+### Python SDK
+```bash
+cd packages/neon-sdk-python
+uv sync                    # Install dependencies
+uv run pytest              # Run tests
+uv run ruff check neon_sdk # Lint
+uv run mypy neon_sdk       # Type check
+```
+
 ## Project Structure
 
 ```
@@ -46,6 +55,7 @@ neon/
 ├── frontend/           # Next.js 16 dashboard (React 19, Biome, tRPC)
 ├── packages/
 │   ├── sdk/            # @neon/sdk - TypeScript SDK for evals
+│   ├── neon-sdk-python/ # neon-sdk - Python SDK for evals
 │   ├── shared/         # @neon/shared - Shared types
 │   └── temporal-client/ # @neon/temporal-client - Temporal wrapper
 ├── temporal-workers/   # Durable execution workers (@neon/temporal-workers)
@@ -67,6 +77,7 @@ This is a **Turbo monorepo** with Bun as the package manager.
 |---------|------|-------------|
 | `agent-eval-frontend` | `frontend/` | Next.js dashboard with tRPC API |
 | `@neon/sdk` | `packages/sdk/` | TypeScript SDK for evals-as-code |
+| `neon-sdk` (Python) | `packages/neon-sdk-python/` | Python SDK for evals-as-code |
 | `@neon/shared` | `packages/shared/` | Shared types across packages |
 | `@neon/temporal-client` | `packages/temporal-client/` | Temporal client wrapper |
 | `@neon/temporal-workers` | `temporal-workers/` | Durable execution workers |
@@ -74,7 +85,7 @@ This is a **Turbo monorepo** with Bun as the package manager.
 ### Requirements
 - Node.js >= 20.0.0
 - Bun 1.2.0 (package manager)
-- Python 3.11+ (for CLI only)
+- Python 3.11+ (for CLI and Python SDK)
 
 ## Task Management System
 
@@ -160,7 +171,8 @@ Extensive research is in `docs/research/`:
 
 - **Temporal** for durable workflow execution (not bare async)
 - **ClickHouse** for trace storage and analytics queries
-- **TypeScript SDK** for evals-as-code (not YAML/config files)
+- **TypeScript & Python SDKs** for evals-as-code (not YAML/config files)
 - **Next.js API routes + tRPC** for backend (no separate FastAPI)
 - **Turbo** for monorepo orchestration with caching
-- **Bun** as package manager for speed
+- **Bun** as package manager for speed (TypeScript)
+- **uv** as package manager for speed (Python)
