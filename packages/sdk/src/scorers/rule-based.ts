@@ -4,6 +4,7 @@
  * Deterministic scorers that don't require LLM calls.
  */
 
+import type { SpanWithChildren } from "@neon/shared";
 import { defineScorer, type Scorer, type EvalContext } from "./base.js";
 
 /**
@@ -59,8 +60,8 @@ export function toolSelectionScorer(expectedTools?: string[]): Scorer {
     description: "Checks if the expected tools were called",
     check: (context) => {
       const actualTools = context.trace.spans
-        .filter((s) => s.spanType === "tool")
-        .map((s) => s.toolName);
+        .filter((s: SpanWithChildren) => s.spanType === "tool")
+        .map((s: SpanWithChildren) => s.toolName);
 
       const expected = expectedTools || (context.expected?.toolCalls as string[]) || [];
 
@@ -328,7 +329,7 @@ export function errorRateScorer(): Scorer {
       const spans = context.trace.spans;
       if (spans.length === 0) return 1;
 
-      const errors = spans.filter((s) => s.status === "error").length;
+      const errors = spans.filter((s: SpanWithChildren) => s.status === "error").length;
       return 1 - errors / spans.length;
     },
   });
@@ -350,8 +351,8 @@ export function tokenEfficiencyScorer(thresholds?: {
     description: "Scores based on total token usage",
     check: (context) => {
       const totalTokens = context.trace.spans
-        .filter((s) => s.spanType === "generation")
-        .reduce((sum, s) => sum + (s.totalTokens || 0), 0);
+        .filter((s: SpanWithChildren) => s.spanType === "generation")
+        .reduce((sum: number, s: SpanWithChildren) => sum + (s.totalTokens || 0), 0);
 
       if (totalTokens <= excellent) return 1.0;
       if (totalTokens <= good) return 0.8;
@@ -384,7 +385,7 @@ export function iterationScorer(maxIterations: number = 10): Scorer {
     check: (context) => {
       // Count generation spans as proxy for iterations
       const iterations = context.trace.spans.filter(
-        (s) => s.spanType === "generation"
+        (s: SpanWithChildren) => s.spanType === "generation"
       ).length;
 
       if (iterations <= 1) return 1.0;
@@ -403,7 +404,7 @@ export function iterationScorer(maxIterations: number = 10): Scorer {
  */
 function getLastOutput(context: EvalContext): string {
   const generations = context.trace.spans.filter(
-    (s) => s.spanType === "generation"
+    (s: SpanWithChildren) => s.spanType === "generation"
   );
   const lastGen = generations[generations.length - 1];
   return lastGen?.output || "";

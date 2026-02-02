@@ -7,8 +7,6 @@ name: PR Quality Gates
 on:
   pull_request:
     branches: [main]
-  push:
-    branches: [main]
 
 env:
   BUN_VERSION: "1.2.0"
@@ -81,9 +79,9 @@ jobs:
         run: bun run build
         continue-on-error: true  # Remove after fixing build issues
 
-  # Summary job that all checks must pass
-  pr-ready:
-    name: PR Ready
+  # Summary job - reports overall status
+  summary:
+    name: CI Summary
     runs-on: ubuntu-latest
     needs: [quality, test, build]
     if: always()
@@ -93,11 +91,11 @@ jobs:
           echo "Quality: ${{ needs.quality.result }}"
           echo "Tests: ${{ needs.test.result }}"
           echo "Build: ${{ needs.build.result }}"
-          
+
           # Uncomment when ready to enforce
           # if [[ "${{ needs.quality.result }}" != "success" ]]; then
           #   echo "❌ Quality checks failed"
           #   exit 1
           # fi
-          
+
           echo "✅ All checks completed"

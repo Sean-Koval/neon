@@ -5,6 +5,7 @@
  */
 
 import Anthropic from "@anthropic-ai/sdk";
+import type { SpanWithChildren } from "@neon/shared";
 import { defineScorer, type Scorer, type EvalContext } from "./base.js";
 
 /**
@@ -202,7 +203,7 @@ function buildPrompt(template: string, context: EvalContext): string {
 
   // Get the last generation span for input/output
   const generations = context.trace.spans.filter(
-    (s) => s.spanType === "generation"
+    (s: SpanWithChildren) => s.spanType === "generation"
   );
   const lastGen = generations[generations.length - 1];
 
@@ -213,8 +214,8 @@ function buildPrompt(template: string, context: EvalContext): string {
     "{{trace_name}}": context.trace.trace.name,
     "{{duration_ms}}": String(context.trace.trace.durationMs),
     "{{tool_calls}}": context.trace.spans
-      .filter((s) => s.spanType === "tool")
-      .map((s) => s.toolName)
+      .filter((s: SpanWithChildren) => s.spanType === "tool")
+      .map((s: SpanWithChildren) => s.toolName)
       .join(", "),
     "{{expected}}": JSON.stringify(context.expected || {}),
   };
