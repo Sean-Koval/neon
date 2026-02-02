@@ -5,14 +5,18 @@ Python SDK for agent evaluation with tracing and scoring. Full feature parity wi
 ## Installation
 
 ```bash
-# Using pip
+# Core SDK
 pip install neon-sdk
-
-# Using uv
 uv add neon-sdk
 
-# With optional dependencies
-pip install neon-sdk[temporal,clickhouse,all]
+# With Temporal (durable workflow execution)
+pip install neon-sdk[temporal]
+
+# With ClickHouse (trace storage and analytics)
+pip install neon-sdk[clickhouse]
+
+# All optional dependencies
+pip install neon-sdk[all]
 ```
 
 ## Quick Start
@@ -164,7 +168,6 @@ Analyze error propagation and identify root causes:
 ```python
 from neon_sdk.scorers import (
     causal_analysis_scorer,
-    causal_analysis_detailed_scorer,
     root_cause_scorer,
     analyze_causality,
 )
@@ -252,6 +255,140 @@ sync_client = NeonSync(NeonConfig(api_key="your-api-key"))
 traces = sync_client.traces.list()
 ```
 
+### ClickHouse Integration
+
+Direct access to ClickHouse for trace storage and analytics queries:
+
+```bash
+pip install neon-sdk[clickhouse]
+```
+
+```python
+from neon_sdk.clickhouse import NeonClickHouseClient, ClickHouseConfig
+
+# Create client
+client = NeonClickHouseClient(ClickHouseConfig(
+    host="localhost",
+    port=8123,
+    database="neon",
+))
+
+# Insert traces
+from neon_sdk.clickhouse import TraceRecord, SpanRecord
+client.insert_traces([
+    TraceRecord(
+        trace_id="trace-123",
+        project_id="proj-1",
+        name="my-agent",
+        status="ok",
+        timestamp=datetime.now(),
+    )
+])
+
+# Query traces with filtering
+traces = client.query_traces(
+    project_id="proj-1",
+    status="error",
+    limit=100,
+)
+
+# Get trace with all spans
+result = client.get_trace_with_spans("proj-1", "trace-123")
+print(result["trace"])
+print(result["spans"])
+
+# Dashboard analytics
+summary = client.get_dashboard_summary(
+    project_id="proj-1",
+    start_date="2024-01-01",
+    end_date="2024-01-31",
+)
+print(f"Total traces: {summary.total_traces}")
+print(f"Avg duration: {summary.avg_duration_ms}ms")
+print(f"Error rate: {summary.error_rate}%")
+
+# Daily stats for charts
+daily = client.get_daily_stats("proj-1", "2024-01-01", "2024-01-31")
+for day in daily:
+    print(f"{day.date}: {day.trace_count} traces, {day.error_rate}% errors")
+
+# Score trends
+trends = client.get_score_trends("proj-1", "2024-01-01", "2024-01-31")
+for trend in trends:
+    print(f"{trend.scorer_name}: {trend.avg_score:.2f}")
+```
+
+### Temporal Integration
+
+Durable workflow execution for agent runs and evaluations:
+
+```bash
+pip install neon-sdk[temporal]
+```
+
+```python
+from neon_sdk.temporal import (
+    NeonTemporalClient,
+    TemporalClientConfig,
+    StartAgentRunInput,
+    StartEvalRunInput,
+)
+
+# Create and connect client
+client = NeonTemporalClient(TemporalClientConfig(
+    address="localhost:7233",
+    namespace="default",
+    task_queue="agent-workers",
+))
+await client.connect()
+
+# Start an agent run
+result = await client.start_agent_run(StartAgentRunInput(
+    project_id="proj-123",
+    agent_id="agent-456",
+    agent_version="1.0.0",
+    input_data={"query": "Hello, world!"},
+    tools=[{"name": "search", "type": "web"}],
+))
+print(f"Started workflow: {result['workflow_id']}")
+
+# Check agent status
+status = await client.get_agent_status(result["workflow_id"])
+print(f"Status: {status.status}")  # pending, running, completed, failed
+
+# Get progress
+progress = await client.get_agent_progress(result["workflow_id"])
+print(f"Step {progress.current_step}/{progress.total_steps}")
+print(f"Current action: {progress.current_action}")
+
+# Send approval signal (for human-in-the-loop)
+await client.approve_agent(result["workflow_id"], approved=True)
+
+# Wait for result
+final_result = await client.wait_for_agent_result(result["workflow_id"])
+
+# Start an evaluation run
+eval_result = await client.start_eval_run(StartEvalRunInput(
+    run_id="eval-123",
+    project_id="proj-123",
+    agent_id="agent-456",
+    agent_version="1.0.0",
+    dataset={"items": [...]},
+    tools=[...],
+    scorers=["accuracy", "latency"],
+))
+
+# Monitor eval progress
+eval_progress = await client.get_eval_progress(eval_result["workflow_id"])
+print(f"Completed: {eval_progress.completed}/{eval_progress.total}")
+
+# List all workflows
+workflows = await client.list_workflows(query="WorkflowType='agentRunWorkflow'")
+
+# Disconnect when done
+await client.disconnect()
+```
+
 ## Type Definitions
 
 The SDK includes comprehensive type definitions matching the TypeScript SDK:
@@ -278,14 +415,48 @@ from neon_sdk.types import (
 cd packages/neon-sdk-python
 uv sync
 
+# Install with all optional dependencies for development
+uv pip install -e ".[dev,all]"
+
 # Run tests
 uv run pytest
+
+# Run tests with coverage
+uv run pytest --cov=neon_sdk
 
 # Type checking
 uv run mypy neon_sdk
 
 # Linting
 uv run ruff check neon_sdk
+
+# Format code
+uv run ruff format neon_sdk
+```
+
+## Package Structure
+
+```
+neon_sdk/
+├── __init__.py          # Main exports
+├── py.typed             # PEP 561 marker for type checking
+├── types.py             # Pydantic models (Trace, Span, Score, etc.)
+├── client.py            # Async & sync API clients
+├── tracing/             # Tracing utilities
+│   └── __init__.py      # Context managers, decorators
+├── scorers/             # Evaluation scorers
+│   ├── __init__.py      # Exports
+│   ├── base.py          # Base types & define_scorer
+│   ├── rule_based.py    # Deterministic scorers
+│   ├── llm_judge.py     # LLM-based evaluation
+│   └── causal.py        # Causal analysis
+├── clickhouse/          # ClickHouse integration (optional)
+│   └── __init__.py      # Storage & analytics client
+├── temporal/            # Temporal integration (optional)
+│   └── __init__.py      # Workflow execution client
+└── tests/               # Test suite
+    ├── test_tracing.py
+    └── test_scorers.py
 ```
 
 ## License
