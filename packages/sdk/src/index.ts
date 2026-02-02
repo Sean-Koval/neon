@@ -205,6 +205,49 @@ export {
   defineChatPrompt,
 } from "./prompts/index.js";
 
+// Optimization signals
+export {
+  // Types
+  type SignalType,
+  type SignalSource,
+  type SignalGranularity,
+  type Signal,
+  type RewardSignal,
+  type PreferenceSignal,
+  type DemonstrationSignal,
+  type FeedbackSignal,
+  type MetricSignal,
+  type EventSignal,
+  type AnySignal,
+  type DemonstrationAction,
+  type FeedbackCategory,
+  type SignalBatch,
+  type SignalAggregation,
+  type SignalGeneratorConfig,
+  type SignalFilter,
+  type SignalContext,
+  type SignalGenerationResult,
+  // Signal generation
+  generateSignals,
+  generateRewardSignals,
+  generateDemonstrationSignals,
+  generateMetricSignals,
+  generateEventSignals,
+  generatePreferenceSignal,
+  // Utilities
+  filterSignals,
+  aggregateSignals,
+  createSignalBatch,
+  toRLHFFormat,
+  // Config types
+  type RewardSignalConfig,
+  type DemonstrationSignalConfig,
+  type MetricSignalConfig,
+  type EventSignalConfig,
+  type PreferenceSignalConfig,
+  type ComprehensiveSignalConfig,
+} from "./optimization/index.js";
+
 // Export utilities (Agent Lightning, etc.)
 export {
   // Agent Lightning format

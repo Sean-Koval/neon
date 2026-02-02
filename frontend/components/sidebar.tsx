@@ -6,6 +6,7 @@ import {
   BarChart3,
   GitCompare,
   LayoutDashboard,
+  MessageSquare,
   Settings,
   Workflow,
   Zap,
@@ -20,6 +21,7 @@ const navigation = [
   { name: 'Traces', href: '/traces', icon: Activity },
   { name: 'Analysis', href: '/analysis', icon: BarChart3 },
   { name: 'Compare', href: '/compare', icon: GitCompare },
+  { name: 'Feedback', href: '/feedback', icon: MessageSquare },
   { name: 'Settings', href: '/settings', icon: Settings },
 ]
 

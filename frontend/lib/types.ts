@@ -916,3 +916,176 @@ export interface PromptVersionEntry {
   created_at: string
   changes?: string[]
 }
+
+// =============================================================================
+// Human Feedback / RLHF Types
+// =============================================================================
+
+/**
+ * Type of human feedback.
+ */
+export type FeedbackType = 'preference' | 'correction' | 'rating'
+
+/**
+ * A single response option in a preference comparison.
+ */
+export interface ResponseOption {
+  /** Unique identifier for this response */
+  id: string
+  /** The response content (markdown supported) */
+  content: string
+  /** Optional metadata about this response */
+  metadata?: Record<string, unknown>
+  /** Model/agent that generated this response */
+  source?: string
+}
+
+/**
+ * A comparison pair for A vs B preference collection.
+ */
+export interface ComparisonPair {
+  /** Unique identifier for this comparison */
+  id: string
+  /** The input/prompt that generated these responses */
+  prompt: string
+  /** First response option (A) */
+  responseA: ResponseOption
+  /** Second response option (B) */
+  responseB: ResponseOption
+  /** Optional context or additional information */
+  context?: string
+  /** Tags for categorization */
+  tags?: string[]
+  /** When this comparison was created */
+  created_at: string
+}
+
+/**
+ * User's preference choice.
+ */
+export type PreferenceChoice = 'A' | 'B' | 'tie' | 'both_bad'
+
+/**
+ * Human preference feedback submission.
+ */
+export interface PreferenceFeedback {
+  /** ID of the comparison pair */
+  comparison_id: string
+  /** User's choice */
+  choice: PreferenceChoice
+  /** Optional reason for the choice */
+  reason?: string
+  /** Confidence level (1-5) */
+  confidence?: number
+  /** Time spent making the decision (ms) */
+  decision_time_ms?: number
+}
+
+/**
+ * Human correction feedback submission.
+ */
+export interface CorrectionFeedback {
+  /** ID of the response being corrected */
+  response_id: string
+  /** The original response content */
+  original_content: string
+  /** The corrected/edited content */
+  corrected_content: string
+  /** Description of changes made */
+  change_summary?: string
+  /** Categories of corrections (e.g., 'factual', 'tone', 'completeness') */
+  correction_types?: string[]
+}
+
+/**
+ * Create feedback request.
+ */
+export interface FeedbackCreate {
+  /** Type of feedback */
+  type: FeedbackType
+  /** Preference feedback (when type is 'preference') */
+  preference?: PreferenceFeedback
+  /** Correction feedback (when type is 'correction') */
+  correction?: CorrectionFeedback
+  /** Optional user identifier */
+  user_id?: string
+  /** Session identifier for grouping feedback */
+  session_id?: string
+  /** Additional metadata */
+  metadata?: Record<string, unknown>
+}
+
+/**
+ * Feedback item response from API.
+ */
+export interface FeedbackItem {
+  /** Unique identifier */
+  id: string
+  /** Type of feedback */
+  type: FeedbackType
+  /** Preference feedback data */
+  preference?: PreferenceFeedback
+  /** Correction feedback data */
+  correction?: CorrectionFeedback
+  /** User who provided feedback */
+  user_id?: string
+  /** Session this feedback belongs to */
+  session_id?: string
+  /** Additional metadata */
+  metadata?: Record<string, unknown>
+  /** When the feedback was submitted */
+  created_at: string
+}
+
+/**
+ * List of feedback items.
+ */
+export interface FeedbackList {
+  items: FeedbackItem[]
+  total: number
+}
+
+/**
+ * Filter options for listing feedback.
+ */
+export interface FeedbackFilter {
+  /** Filter by feedback type */
+  type?: FeedbackType
+  /** Filter by user ID */
+  user_id?: string
+  /** Filter by session ID */
+  session_id?: string
+  /** Maximum number of results */
+  limit?: number
+  /** Number of results to skip */
+  offset?: number
+}
+
+/**
+ * List of comparison pairs for feedback collection.
+ */
+export interface ComparisonPairList {
+  items: ComparisonPair[]
+  total: number
+}
+
+/**
+ * Statistics for feedback collection.
+ */
+export interface FeedbackStats {
+  /** Total feedback items */
+  total_feedback: number
+  /** Breakdown by type */
+  by_type: Record<FeedbackType, number>
+  /** Preference distribution */
+  preference_distribution?: {
+    choice_A: number
+    choice_B: number
+    tie: number
+    both_bad: number
+  }
+  /** Average confidence score */
+  avg_confidence?: number
+  /** Total corrections */
+  total_corrections?: number
+}
