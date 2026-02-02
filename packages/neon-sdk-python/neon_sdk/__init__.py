@@ -21,6 +21,19 @@ Example:
     scorer = contains(["success", "completed"])
     result = scorer.evaluate(context)
     ```
+
+Optional Dependencies:
+    - temporal: pip install neon-sdk[temporal]
+      ```python
+      from neon_sdk.temporal import NeonTemporalClient, TemporalClientConfig
+      ```
+
+    - clickhouse: pip install neon-sdk[clickhouse]
+      ```python
+      from neon_sdk.clickhouse import NeonClickHouseClient, ClickHouseConfig
+      ```
+
+    - all: pip install neon-sdk[all]
 """
 
 __version__ = "0.1.0"

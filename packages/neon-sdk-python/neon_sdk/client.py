@@ -7,8 +7,9 @@ Type-safe client for the Neon API.
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Coroutine
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, TypeVar
 
 import httpx
 
@@ -290,8 +291,6 @@ class NeonSync:
         self.datasets = SyncDatasetsAPI(self._async_client.datasets)
         self.eval = SyncEvalAPI(self._async_client.eval)
 
-
-from typing import Coroutine, TypeVar
 
 _T = TypeVar("_T")
 

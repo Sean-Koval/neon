@@ -285,7 +285,7 @@ def generation(
     name: str,
     *,
     model: str | None = None,
-    input: str | None = None,
+    input_text: str | None = None,
     component_type: ComponentType | None = None,
     attributes: dict[str, str] | None = None,
 ) -> SpanContextManager:
@@ -301,8 +301,8 @@ def generation(
     attrs = dict(attributes or {})
     if model:
         attrs["model"] = model
-    if input:
-        attrs["input"] = input
+    if input_text:
+        attrs["input"] = input_text
     return SpanContextManager(
         name=name,
         span_type="generation",
