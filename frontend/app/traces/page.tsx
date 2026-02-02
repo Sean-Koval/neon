@@ -11,6 +11,7 @@ import {
   ChevronRight,
   Clock,
   Filter,
+  GitCompare,
   MessageSquare,
   RefreshCw,
   Search,
@@ -63,13 +64,23 @@ export default function TracesPage() {
           </p>
         </div>
 
-        <button
-          onClick={() => refetch()}
-          className="p-2 hover:bg-gray-100 rounded-lg"
-          title="Refresh"
-        >
-          <RefreshCw className="w-5 h-5" />
-        </button>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/traces/diff"
+            className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 bg-white border rounded-lg hover:bg-gray-50 transition-colors"
+          >
+            <GitCompare className="w-4 h-4" />
+            Compare
+          </Link>
+          <button
+            type="button"
+            onClick={() => refetch()}
+            className="p-2 hover:bg-gray-100 rounded-lg"
+            title="Refresh"
+          >
+            <RefreshCw className="w-5 h-5" />
+          </button>
+        </div>
       </div>
 
       {/* Filters */}

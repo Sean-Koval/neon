@@ -5,6 +5,8 @@
  */
 
 export { CopyButton } from './copy-button'
+// Diff components
+export * from './diff'
 export { type Span, SpanDetail, type SpanSummary } from './span-detail'
 export {
   getSpanTypeConfig,
