@@ -18,6 +18,16 @@ export {
   useComponentCorrelation,
 } from './use-component-correlation'
 
+// Settings hooks
+export {
+  type InfrastructureHealth,
+  type LlmProvidersStatus,
+  type ProjectSettings,
+  useInfrastructureHealth,
+  useLlmProviders,
+  useProjectSettings,
+} from './use-settings'
+
 // Dashboard hooks
 export { useDashboard } from './use-dashboard'
 // Lazy span loading hooks
