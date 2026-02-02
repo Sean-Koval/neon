@@ -291,7 +291,12 @@ class NeonSync:
         self.eval = SyncEvalAPI(self._async_client.eval)
 
 
-def _run_sync(coro: Any) -> Any:
+from typing import Coroutine, TypeVar
+
+_T = TypeVar("_T")
+
+
+def _run_sync(coro: Coroutine[Any, Any, _T]) -> _T:
     """Run a coroutine synchronously."""
     try:
         loop = asyncio.get_running_loop()
@@ -299,10 +304,10 @@ def _run_sync(coro: Any) -> Any:
         loop = None
 
     if loop and loop.is_running():
-        # If there's an existing event loop, use nest_asyncio or thread
+        # If there's an existing event loop, use a thread
         import threading
 
-        result: Any = None
+        result: _T | None = None
         exception: BaseException | None = None
 
         def run() -> None:
@@ -323,7 +328,7 @@ def _run_sync(coro: Any) -> Any:
 
         if exception:
             raise exception
-        return result
+        return result  # type: ignore[return-value]
     else:
         return asyncio.run(coro)
 
