@@ -44,3 +44,15 @@ export {
   type ContainsConfig,
   type ExactMatchConfig,
 } from "./rule-based.js";
+
+// Causal analysis scorers
+export {
+  causalAnalysisScorer,
+  causalAnalysisDetailedScorer,
+  rootCauseScorer,
+  analyzeCausality,
+  // Types
+  type CausalAnalysisConfig,
+  type CausalAnalysisResult,
+  type CausalNode,
+} from "./causal.js";
