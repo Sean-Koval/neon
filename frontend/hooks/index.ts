@@ -4,7 +4,6 @@
 
 // Compare hooks
 export { useCompare } from './use-compare'
-
 // Component correlation hooks
 export {
   type ComponentHealth,
@@ -17,19 +16,18 @@ export {
   type UseComponentCorrelationResult,
   useComponentCorrelation,
 } from './use-component-correlation'
-
-// Settings hooks
-export {
-  type InfrastructureHealth,
-  type LlmProvidersStatus,
-  type ProjectSettings,
-  useInfrastructureHealth,
-  useLlmProviders,
-  useProjectSettings,
-} from './use-settings'
-
 // Dashboard hooks
 export { useDashboard } from './use-dashboard'
+// Feedback hooks (RLHF)
+export {
+  feedbackQueryKeys,
+  type PreferenceSession,
+  useComparisons,
+  useCorrection,
+  useFeedback,
+  usePreferenceSession,
+  useSubmitFeedback,
+} from './use-feedback'
 // Lazy span loading hooks
 export {
   isLargePayload,
@@ -65,6 +63,15 @@ export {
   type UseScoreTrendsResult,
   useScoreTrends,
 } from './use-scores'
+// Settings hooks
+export {
+  type InfrastructureHealth,
+  type LlmProvidersStatus,
+  type ProjectSettings,
+  useInfrastructureHealth,
+  useLlmProviders,
+  useProjectSettings,
+} from './use-settings'
 // Suite hooks
 export {
   useCreateSuite,
