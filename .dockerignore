@@ -1,0 +1,49 @@
+# Secrets - never include in Docker builds
+credentials.json
+service-account*.json
+*.pem
+*.key
+.env
+.env.*
+
+# Git
+.git/
+.gitignore
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.coverage
+
+# Node
+node_modules/
+.next/
+.turbo/
+
+# IDE
+.idea/
+.vscode/
+
+# Terraform
+.terraform/
+*.tfstate*
+
+# Project management
+.project/
+.serena/
+.claude/
+
+# Documentation
+docs/
+*.md
+!README.md
+
+# Examples (build separately if needed)
+examples/
+
+# Archive
+archive/
