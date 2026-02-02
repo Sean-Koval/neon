@@ -98,6 +98,14 @@ export {
   type RuleBasedConfig,
   type ContainsConfig,
   type ExactMatchConfig,
+  // Causal analysis
+  causalAnalysisScorer,
+  causalAnalysisDetailedScorer,
+  rootCauseScorer,
+  analyzeCausality,
+  type CausalAnalysisConfig,
+  type CausalAnalysisResult,
+  type CausalNode,
 } from "./scorers/index.js";
 
 // Tracing (local context management)
