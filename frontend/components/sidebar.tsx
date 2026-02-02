@@ -3,6 +3,7 @@
 import { clsx } from 'clsx'
 import {
   Activity,
+  BarChart3,
   GitCompare,
   LayoutDashboard,
   Settings,
@@ -17,6 +18,7 @@ const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
   { name: 'Eval Runs', href: '/eval-runs', icon: Workflow },
   { name: 'Traces', href: '/traces', icon: Activity },
+  { name: 'Analysis', href: '/analysis', icon: BarChart3 },
   { name: 'Compare', href: '/compare', icon: GitCompare },
   { name: 'Settings', href: '/settings', icon: Settings },
 ]

@@ -5,6 +5,19 @@
 // Compare hooks
 export { useCompare } from './use-compare'
 
+// Component correlation hooks
+export {
+  type ComponentHealth,
+  type ComponentMetrics,
+  type CorrelationMatrix,
+  type CorrelationPair,
+  type DependencyEdge,
+  type DependencyGraph,
+  type UseComponentCorrelationOptions,
+  type UseComponentCorrelationResult,
+  useComponentCorrelation,
+} from './use-component-correlation'
+
 // Dashboard hooks
 export { useDashboard } from './use-dashboard'
 // Lazy span loading hooks
