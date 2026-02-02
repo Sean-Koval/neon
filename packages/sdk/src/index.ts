@@ -204,3 +204,21 @@ export {
   defineTextPrompt,
   defineChatPrompt,
 } from "./prompts/index.js";
+
+// Export utilities (Agent Lightning, etc.)
+export {
+  // Agent Lightning format
+  exportToAgentLightning,
+  exportBatchToAgentLightning,
+  streamExportToAgentLightning,
+  validateAgentLightningBatch,
+  mergeAgentLightningBatches,
+  type AgentLightningTransition,
+  type AgentLightningEpisode,
+  type AgentLightningBatch,
+  type AgentLightningFilter,
+  type AgentLightningExportConfig,
+  type ExportContext,
+  type ScoreData,
+  type StreamExportConfig,
+} from "./export/index.js";
