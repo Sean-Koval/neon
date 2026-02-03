@@ -1,200 +1,319 @@
 # API Reference
 
-AgentEval provides a REST API for programmatic access.
-
-## Authentication
-
-All API requests require an API key in the `X-API-Key` header:
-
-```bash
-curl -H "X-API-Key: ae_live_xxxxx" https://api.agent-eval.example.com/api/v1/suites
-```
+Neon provides a REST API for trace ingestion, querying, and evaluation management.
 
 ## Base URL
 
-- Cloud: `https://api.agent-eval.example.com/api/v1`
-- Self-hosted: `http://localhost:8000/api/v1`
+- **Local:** `http://localhost:3000/api`
+- **Self-hosted:** `https://your-domain.com/api`
+
+## Authentication
+
+Include the project ID in requests:
+
+```bash
+curl -H "x-project-id: your-project-id" \
+     http://localhost:3000/api/traces
+```
+
+For protected endpoints, include an API key:
+
+```bash
+curl -H "x-api-key: your-api-key" \
+     -H "x-project-id: your-project-id" \
+     http://localhost:3000/api/traces
+```
 
 ---
 
-## Suites
+## Traces
 
-### List Suites
+### Ingest Trace
 
 ```
-GET /suites
+POST /api/traces/ingest
 ```
 
-**Response:**
+**Headers:**
+```
+Content-Type: application/json
+x-project-id: your-project-id
+```
+
+**Request Body:**
 ```json
 {
-  "items": [
+  "trace_id": "trace-123",
+  "name": "agent-run",
+  "status": "ok",
+  "duration_ms": 1500,
+  "start_time": "2024-01-18T12:00:00.000Z",
+  "attributes": {
+    "agent_version": "v1.2.3",
+    "user_id": "user-456"
+  },
+  "spans": [
     {
-      "id": "uuid",
-      "name": "core-tests",
-      "description": "Core functionality tests",
-      "agent_id": "research-agent",
-      "default_scorers": ["tool_selection", "reasoning"],
-      "cases": [...],
-      "created_at": "2024-01-18T12:00:00Z"
-    }
-  ],
-  "total": 1
-}
-```
-
-### Get Suite
-
-```
-GET /suites/{suite_id}
-```
-
-### Create Suite
-
-```
-POST /suites
-```
-
-**Request:**
-```json
-{
-  "name": "my-suite",
-  "agent_id": "my-agent",
-  "description": "Test suite description",
-  "default_scorers": ["tool_selection", "reasoning"],
-  "default_min_score": 0.7,
-  "cases": [
-    {
-      "name": "test_case_1",
-      "input": {"query": "Test query"},
-      "expected_tools": ["search"],
-      "min_score": 0.8
+      "span_id": "span-1",
+      "name": "llm-call",
+      "type": "generation",
+      "start_time": "2024-01-18T12:00:00.000Z",
+      "end_time": "2024-01-18T12:00:01.500Z",
+      "attributes": {
+        "model": "claude-3-5-sonnet",
+        "input_tokens": 150,
+        "output_tokens": 200
+      }
     }
   ]
 }
 ```
 
-### Delete Suite
+**Response:** `201 Created`
+```json
+{
+  "trace_id": "trace-123",
+  "ingested": true
+}
+```
+
+### List Traces
 
 ```
-DELETE /suites/{suite_id}
-```
-
----
-
-## Runs
-
-### List Runs
-
-```
-GET /runs?suite_id={suite_id}&status={status}&limit={limit}
+GET /api/traces?project_id={id}&limit={n}&offset={n}
 ```
 
 **Query Parameters:**
-- `suite_id`: Filter by suite
-- `status`: Filter by status (`pending`, `running`, `completed`, `failed`)
-- `limit`: Maximum results (default: 50)
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `project_id` | string | required | Project identifier |
+| `limit` | number | 50 | Max results |
+| `offset` | number | 0 | Pagination offset |
+| `status` | string | - | Filter by status (`ok`, `error`) |
+| `name` | string | - | Filter by trace name |
+| `start_time` | ISO8601 | - | Filter traces after this time |
+| `end_time` | ISO8601 | - | Filter traces before this time |
 
-### Get Run
+**Response:**
+```json
+{
+  "traces": [
+    {
+      "trace_id": "trace-123",
+      "name": "agent-run",
+      "status": "ok",
+      "duration_ms": 1500,
+      "start_time": "2024-01-18T12:00:00.000Z",
+      "span_count": 5,
+      "attributes": {}
+    }
+  ],
+  "total": 100,
+  "limit": 50,
+  "offset": 0
+}
+```
+
+### Get Trace
 
 ```
-GET /runs/{run_id}
+GET /api/traces/{trace_id}
 ```
 
 **Response:**
 ```json
 {
-  "id": "uuid",
-  "suite_id": "uuid",
+  "trace_id": "trace-123",
+  "name": "agent-run",
+  "status": "ok",
+  "duration_ms": 1500,
+  "start_time": "2024-01-18T12:00:00.000Z",
+  "attributes": {},
+  "spans": [
+    {
+      "span_id": "span-1",
+      "parent_span_id": null,
+      "name": "llm-call",
+      "type": "generation",
+      "start_time": "2024-01-18T12:00:00.000Z",
+      "end_time": "2024-01-18T12:00:01.500Z",
+      "attributes": {}
+    }
+  ]
+}
+```
+
+---
+
+## Scores
+
+### Create Score
+
+```
+POST /api/scores
+```
+
+**Request Body:**
+```json
+{
+  "trace_id": "trace-123",
+  "name": "accuracy",
+  "value": 0.95,
+  "source": "eval",
+  "scorer_name": "llm_judge",
+  "reason": "Response was accurate and helpful",
+  "evidence": ["Correctly identified the capital", "Provided context"]
+}
+```
+
+**Response:** `201 Created`
+```json
+{
+  "id": "score-456",
+  "trace_id": "trace-123",
+  "name": "accuracy",
+  "value": 0.95,
+  "created_at": "2024-01-18T12:00:00.000Z"
+}
+```
+
+### List Scores
+
+```
+GET /api/scores?trace_id={id}
+```
+
+**Response:**
+```json
+{
+  "scores": [
+    {
+      "id": "score-456",
+      "trace_id": "trace-123",
+      "name": "accuracy",
+      "value": 0.95,
+      "source": "eval",
+      "scorer_name": "llm_judge",
+      "reason": "Response was accurate and helpful",
+      "created_at": "2024-01-18T12:00:00.000Z"
+    }
+  ]
+}
+```
+
+---
+
+## Eval Runs
+
+### Start Eval Run
+
+```
+POST /api/evals/runs
+```
+
+**Request Body:**
+```json
+{
   "suite_name": "core-tests",
-  "agent_version": "abc123",
+  "agent_version": "v1.2.3",
+  "config": {
+    "parallel": true,
+    "timeout_ms": 300000
+  }
+}
+```
+
+**Response:** `202 Accepted`
+```json
+{
+  "run_id": "run-789",
+  "status": "pending",
+  "suite_name": "core-tests",
+  "created_at": "2024-01-18T12:00:00.000Z"
+}
+```
+
+### Get Eval Run
+
+```
+GET /api/evals/runs/{run_id}
+```
+
+**Response:**
+```json
+{
+  "run_id": "run-789",
+  "suite_name": "core-tests",
+  "agent_version": "v1.2.3",
   "status": "completed",
   "summary": {
     "total_cases": 10,
     "passed": 8,
     "failed": 2,
     "avg_score": 0.82,
-    "scores_by_type": {
+    "scores_by_scorer": {
       "tool_selection": 0.85,
-      "reasoning": 0.79
+      "llm_judge": 0.79
     },
-    "execution_time_ms": 45000
+    "duration_ms": 45000
   },
-  "created_at": "2024-01-18T12:00:00Z",
-  "completed_at": "2024-01-18T12:00:45Z"
+  "created_at": "2024-01-18T12:00:00.000Z",
+  "completed_at": "2024-01-18T12:00:45.000Z"
 }
 ```
 
-### Start Run
+### List Eval Run Results
 
 ```
-POST /runs/suites/{suite_id}/run
+GET /api/evals/runs/{run_id}/results
 ```
 
-**Request:**
-```json
-{
-  "agent_version": "abc123",
-  "trigger": "ci",
-  "trigger_ref": "PR-456",
-  "config": {
-    "parallel": true,
-    "timeout_override": 600
-  }
-}
-```
-
-### Get Run Results
-
-```
-GET /runs/{run_id}/results?failed_only={bool}
-```
+**Query Parameters:**
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `failed_only` | boolean | false | Only return failed cases |
 
 **Response:**
 ```json
-[
-  {
-    "id": "uuid",
-    "case_name": "test_case_1",
-    "status": "success",
-    "scores": {
-      "tool_selection": 0.9,
-      "reasoning": 0.85
-    },
-    "score_details": {
-      "tool_selection": {
-        "score": 0.9,
-        "reason": "All expected tools called",
-        "evidence": ["Called: search", "Expected: search"]
+{
+  "results": [
+    {
+      "case_name": "weather-query",
+      "status": "passed",
+      "scores": {
+        "tool_selection": 0.9,
+        "llm_judge": 0.85
+      },
+      "avg_score": 0.875,
+      "passed": true,
+      "duration_ms": 1200,
+      "details": {
+        "tool_selection": {
+          "score": 0.9,
+          "reason": "Correct tool selected",
+          "evidence": ["Used web_search as expected"]
+        }
       }
-    },
-    "passed": true,
-    "execution_time_ms": 1200
-  }
-]
-```
-
-### Cancel Run
-
-```
-POST /runs/{run_id}/cancel
+    }
+  ]
+}
 ```
 
 ---
 
-## Compare
+## Compare Runs
 
-### Compare Runs
+### Compare Two Runs
 
 ```
-POST /compare
+POST /api/evals/compare
 ```
 
-**Request:**
+**Request Body:**
 ```json
 {
-  "baseline_run_id": "uuid",
-  "candidate_run_id": "uuid",
+  "baseline_run_id": "run-100",
+  "candidate_run_id": "run-101",
   "threshold": 0.05
 }
 ```
@@ -203,18 +322,18 @@ POST /compare
 ```json
 {
   "baseline": {
-    "id": "uuid",
-    "agent_version": "main"
+    "run_id": "run-100",
+    "agent_version": "v1.2.2"
   },
   "candidate": {
-    "id": "uuid",
-    "agent_version": "feature-branch"
+    "run_id": "run-101",
+    "agent_version": "v1.2.3"
   },
   "passed": false,
   "overall_delta": -0.08,
   "regressions": [
     {
-      "case_name": "test_case_1",
+      "case_name": "complex-query",
       "scorer": "tool_selection",
       "baseline_score": 0.9,
       "candidate_score": 0.6,
@@ -223,60 +342,37 @@ POST /compare
   ],
   "improvements": [
     {
-      "case_name": "test_case_2",
-      "scorer": "reasoning",
+      "case_name": "simple-query",
+      "scorer": "llm_judge",
       "baseline_score": 0.7,
       "candidate_score": 0.85,
       "delta": 0.15
     }
   ],
-  "unchanged": 8,
+  "unchanged_count": 8,
   "threshold": 0.05
 }
 ```
 
 ---
 
-## API Keys
-
-### List API Keys
+## Health Check
 
 ```
-GET /api-keys
-```
-
-Returns masked keys (prefix only).
-
-### Create API Key
-
-```
-POST /api-keys
-```
-
-**Request:**
-```json
-{
-  "name": "CI/CD Key",
-  "scopes": ["read", "execute"]
-}
+GET /api/health
 ```
 
 **Response:**
 ```json
 {
-  "id": "uuid",
-  "key": "ae_live_xxxxx...",  // Full key, shown only once
-  "name": "CI/CD Key",
-  "key_prefix": "xxxxx...",
-  "scopes": ["read", "execute"],
-  "created_at": "2024-01-18T12:00:00Z"
+  "status": "ok",
+  "version": "1.0.0",
+  "services": {
+    "clickhouse": "ok",
+    "postgres": "ok",
+    "temporal": "ok"
+  }
 }
-```
-
-### Revoke API Key
-
-```
-DELETE /api-keys/{key_id}
 ```
 
 ---
@@ -287,25 +383,32 @@ All errors return JSON:
 
 ```json
 {
-  "detail": "Error message"
+  "error": "Not found",
+  "message": "Trace with ID 'trace-999' not found",
+  "code": "TRACE_NOT_FOUND"
 }
 ```
 
 **Status Codes:**
-- `400`: Bad request (validation error)
-- `401`: Unauthorized (missing/invalid API key)
-- `403`: Forbidden (missing required scope)
-- `404`: Not found
-- `500`: Internal server error
+| Code | Description |
+|------|-------------|
+| `400` | Bad request (validation error) |
+| `401` | Unauthorized (missing/invalid API key) |
+| `404` | Resource not found |
+| `429` | Rate limit exceeded |
+| `500` | Internal server error |
 
 ---
 
 ## Rate Limits
 
-- 1000 requests per minute per API key
-- 100 concurrent evaluations per project
+| Endpoint | Limit |
+|----------|-------|
+| Trace ingestion | 1000/minute |
+| Query endpoints | 100/minute |
+| Eval runs | 10/minute |
 
-Rate limit headers:
+Rate limit headers are included in responses:
 ```
 X-RateLimit-Limit: 1000
 X-RateLimit-Remaining: 999

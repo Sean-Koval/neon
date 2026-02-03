@@ -1,129 +1,157 @@
 # Test Suites
 
-Test suites define the expected behaviors of your agent. They consist of test cases that specify inputs, expected outputs, and scoring criteria.
+Test suites define the expected behaviors of your agent. They organize test cases with inputs, expected outputs, and scoring criteria.
 
-## Suite Structure
+## Defining Suites
 
-```yaml
-# eval-suites/my-suite.yaml
+**TypeScript:**
+```typescript
+import { defineSuite, defineTest, defineDataset } from '@neon/sdk'
 
-name: my-suite                    # Unique name
-description: Test core features   # Optional description
-agent_id: my-agent                # Agent identifier
-
-# Suite-level defaults
-default_scorers:
-  - tool_selection
-  - reasoning
-  - grounding
-
-default_min_score: 0.7
-default_timeout_seconds: 300
-parallel: true                    # Run cases in parallel
-stop_on_failure: false            # Continue on failures
-
-# Test cases
-cases:
-  - name: case_1
-    # ... case definition
+const suite = defineSuite({
+  name: 'core-tests',
+  description: 'Core agent functionality tests',
+  defaultScorers: [contains, toolSelection, llmJudge({ criteria: '...' })],
+  defaultMinScore: 0.7,
+  parallel: true,
+})
 ```
 
-## Test Case Definition
+**Python:**
+```python
+from neon_sdk import define_suite
 
-### Basic Case
+suite = define_suite(
+    name="core-tests",
+    description="Core agent functionality tests",
+    default_scorers=[contains, tool_selection],
+    default_min_score=0.7,
+    parallel=True,
+)
+```
 
-```yaml
-cases:
-  - name: simple_query
-    description: Test basic question answering
-    input:
-      query: "What is 2 + 2?"
-    expected_output_contains:
-      - "4"
-    min_score: 0.8
+## Test Cases
+
+### Basic Test
+
+```typescript
+defineTest(suite, {
+  name: 'simple-query',
+  description: 'Test basic question answering',
+  input: {
+    query: 'What is 2 + 2?',
+  },
+  expected: {
+    contains: ['4'],
+  },
+  minScore: 0.8,
+})
 ```
 
 ### Tool Expectations
 
-```yaml
-cases:
-  # Expect specific tools (order-independent)
-  - name: search_task
-    input:
-      query: "Find the latest news about AI"
-    expected_tools:
-      - web_search
+```typescript
+// Expect specific tools (order-independent)
+defineTest(suite, {
+  name: 'search-task',
+  input: { query: 'Find the latest news about AI' },
+  expectedTools: ['web_search'],
+})
 
-  # Expect tools in order
-  - name: multi_step_task
-    input:
-      query: "Research and summarize topic X"
-    expected_tool_sequence:
-      - web_search
-      - web_search
-      - summarize
+// Expect tools in specific order
+defineTest(suite, {
+  name: 'multi-step-task',
+  input: { query: 'Research and summarize topic X' },
+  expectedToolSequence: ['web_search', 'web_search', 'summarize'],
+})
 
-  # Expect NO tools
-  - name: simple_math
-    input:
-      query: "What is 5 * 5?"
-    expected_tools: []  # Empty = no tools should be called
+// Expect NO tools
+defineTest(suite, {
+  name: 'simple-math',
+  input: { query: 'What is 5 * 5?' },
+  expectedTools: [],  // Empty = no tools should be called
+})
 ```
 
 ### Output Validation
 
-```yaml
-cases:
-  # Check for specific strings
-  - name: factual_check
-    input:
-      query: "What is the capital of Japan?"
-    expected_output_contains:
-      - "Tokyo"
-      - "Japan"
+```typescript
+// Check for specific strings
+defineTest(suite, {
+  name: 'factual-check',
+  input: { query: 'What is the capital of Japan?' },
+  expected: {
+    contains: ['Tokyo', 'Japan'],
+  },
+})
 
-  # Use regex pattern
-  - name: format_check
-    input:
-      query: "List three items"
-    expected_output_pattern: "1\\..+2\\..+3\\."
+// Use regex pattern
+defineTest(suite, {
+  name: 'format-check',
+  input: { query: 'List three items' },
+  expected: {
+    pattern: /1\..+2\..+3\./,
+  },
+})
 ```
 
-### Context and Configuration
+### With Context
 
-```yaml
-cases:
-  - name: with_context
-    input:
-      query: "Summarize this document"
-      context:
-        document: "Long document text here..."
-        format: "bullet_points"
-    config:
-      max_tokens: 500
+```typescript
+defineTest(suite, {
+  name: 'with-context',
+  input: {
+    query: 'Summarize this document',
+    context: {
+      document: 'Long document text here...',
+      format: 'bullet_points',
+    },
+  },
+  config: {
+    maxTokens: 500,
+  },
+})
 ```
 
-### Tags and Organization
+### Tags for Organization
 
-```yaml
-cases:
-  - name: edge_case_1
-    tags:
-      - edge-case
-      - search
-      - regression-v1.2
-    # ...
+```typescript
+defineTest(suite, {
+  name: 'edge-case-1',
+  tags: ['edge-case', 'search', 'regression-v1.2'],
+  // ...
+})
 
-  - name: critical_feature
-    tags:
-      - critical
-      - p0
-    # ...
+defineTest(suite, {
+  name: 'critical-feature',
+  tags: ['critical', 'p0'],
+  // ...
+})
+
+// Run only specific tags
+// neon eval run core-tests --tags critical
 ```
 
-Filter by tags:
-```bash
-agent-eval run start my-suite --tags critical
+## Datasets
+
+Define reusable datasets for data-driven testing:
+
+```typescript
+const dataset = defineDataset({
+  name: 'weather-queries',
+  cases: [
+    { input: { query: 'Weather in Tokyo?' }, expected: { contains: ['Tokyo'] } },
+    { input: { query: 'Weather in Paris?' }, expected: { contains: ['Paris'] } },
+    { input: { query: 'Weather in NYC?' }, expected: { contains: ['New York'] } },
+  ],
+})
+
+// Use dataset in suite
+defineSuite({
+  name: 'weather-tests',
+  dataset: dataset,
+  defaultScorers: [contains, toolSelection({ expected: ['weather_api'] })],
+})
 ```
 
 ## Best Practices
@@ -132,116 +160,149 @@ agent-eval run start my-suite --tags critical
 
 Test common agent failure modes:
 
-```yaml
-cases:
-  # Tool selection errors
-  - name: wrong_tool
-    description: Shouldn't use search for simple math
-    input:
-      query: "What is 10 / 2?"
-    expected_tools: []  # Should NOT call search
+```typescript
+// Tool selection errors
+defineTest(suite, {
+  name: 'wrong-tool',
+  description: "Shouldn't use search for simple math",
+  input: { query: 'What is 10 / 2?' },
+  expectedTools: [],  // Should NOT call search
+})
 
-  # Hallucination check
-  - name: grounded_response
-    input:
-      query: "What did the document say about X?"
-      context:
-        document: "The document mentions Y and Z"
-    expected_output_contains:
-      - "Y"
-      - "Z"
-    # Should NOT contain X if not in document
+// Hallucination check
+defineTest(suite, {
+  name: 'grounded-response',
+  input: {
+    query: 'What did the document say about X?',
+    context: { document: 'The document mentions Y and Z' },
+  },
+  expected: {
+    contains: ['Y', 'Z'],
+    // Should NOT contain X if not in document
+  },
+  scorers: [grounding()],
+})
 ```
 
 ### 2. Use Meaningful Names
 
-```yaml
-# Good
-- name: search_factual_current_events
-- name: no_tool_simple_arithmetic
-- name: multi_step_research_comparison
+```typescript
+// Good
+defineTest(suite, { name: 'search-factual-current-events' })
+defineTest(suite, { name: 'no-tool-simple-arithmetic' })
+defineTest(suite, { name: 'multi-step-research-comparison' })
 
-# Bad
-- name: test1
-- name: case_a
+// Bad
+defineTest(suite, { name: 'test1' })
+defineTest(suite, { name: 'case_a' })
 ```
 
 ### 3. Set Appropriate Thresholds
 
-```yaml
-cases:
-  # Critical functionality - high threshold
-  - name: critical_feature
-    min_score: 0.9
+```typescript
+// Critical functionality - high threshold
+defineTest(suite, {
+  name: 'critical-feature',
+  minScore: 0.9,
+})
 
-  # Experimental feature - lower threshold
-  - name: experimental_feature
-    min_score: 0.6
+// Experimental feature - lower threshold
+defineTest(suite, {
+  name: 'experimental-feature',
+  minScore: 0.6,
+})
 
-  # Default threshold
-  - name: standard_feature
-    # Uses suite default (0.7)
+// Uses suite default (0.7)
+defineTest(suite, {
+  name: 'standard-feature',
+})
 ```
 
 ### 4. Include Regression Tests
 
 When you fix a bug, add a test case:
 
-```yaml
-cases:
-  - name: regression_issue_123
-    description: Fixed in v1.2 - agent was calling wrong tool
-    input:
-      query: "The specific query that caused the bug"
-    expected_tools:
-      - correct_tool
-    tags:
-      - regression
-      - issue-123
+```typescript
+defineTest(suite, {
+  name: 'regression-issue-123',
+  description: 'Fixed in v1.2 - agent was calling wrong tool',
+  input: { query: 'The specific query that caused the bug' },
+  expectedTools: ['correct_tool'],
+  tags: ['regression', 'issue-123'],
+})
 ```
 
 ## Suite Organization
 
-### Multiple Suites
-
 Organize suites by concern:
 
 ```
-eval-suites/
-├── core-tests.yaml        # Core functionality
-├── regression.yaml        # Regression tests
-├── edge-cases.yaml        # Edge cases
-├── performance.yaml       # Performance-sensitive tests
-└── integration.yaml       # Integration tests
+evals/
+├── core.eval.ts          # Core functionality
+├── regression.eval.ts    # Regression tests
+├── edge-cases.eval.ts    # Edge cases
+├── performance.eval.ts   # Performance-sensitive tests
+└── integration.eval.ts   # Integration tests
 ```
 
-### Suite Inheritance (Coming Soon)
+Each file exports a suite:
 
-```yaml
-# eval-suites/base.yaml
-name: base
-default_scorers:
-  - tool_selection
-  - reasoning
+```typescript
+// evals/core.eval.ts
+import { defineSuite, defineTest } from '@neon/sdk'
 
-# eval-suites/extended.yaml
-extends: base
-name: extended
-cases:
-  - name: additional_test
-    # ...
+export const coreSuite = defineSuite({
+  name: 'core-tests',
+  // ...
+})
+
+defineTest(coreSuite, { /* ... */ })
+defineTest(coreSuite, { /* ... */ })
 ```
 
-## Validation
-
-Validate suite syntax before running:
+## Running Tests
 
 ```bash
-agent-eval suite validate eval-suites/my-suite.yaml
+# Run all tests in a suite
+bun run eval --suite core-tests
+
+# Run specific tags
+bun run eval --suite core-tests --tags critical
+
+# Run with verbose output
+bun run eval --suite core-tests --verbose
+
+# Compare against baseline
+bun run eval --suite core-tests --compare baseline-run-id
 ```
 
-Common validation errors:
-- Missing required fields (`name`, `agent_id`, `input`)
-- Invalid scorer names
-- Invalid regex patterns
-- YAML syntax errors
+## Python Equivalent
+
+```python
+from neon_sdk import define_suite, define_test, define_dataset
+from neon_sdk.scorers import contains, tool_selection, grounding
+
+suite = define_suite(
+    name="core-tests",
+    description="Core agent functionality tests",
+    default_min_score=0.7,
+)
+
+define_test(
+    suite,
+    name="search-task",
+    input={"query": "Find the latest news about AI"},
+    expected_tools=["web_search"],
+)
+
+define_test(
+    suite,
+    name="grounded-response",
+    input={
+        "query": "What did the document say?",
+        "context": {"document": "The document mentions Y and Z"},
+    },
+    expected={"contains": ["Y", "Z"]},
+    scorers=[grounding()],
+)
+```

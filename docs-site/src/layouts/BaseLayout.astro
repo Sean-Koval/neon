@@ -22,13 +22,12 @@ const nav = [
     <title>{title}</title>
     <link rel="icon" type="image/svg+xml" href={`${base}favicon.svg`} />
     <link rel="icon" href={`${base}favicon.ico`} />
-    <!-- Prevent flash of wrong theme -->
+    <!-- Prevent flash of wrong theme - default to dark -->
     <script is:inline>
       (function() {
         const stored = localStorage.getItem('theme');
-        const theme = stored === 'light' || stored === 'dark'
-          ? stored
-          : (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+        // Default to dark theme if no preference stored
+        const theme = stored === 'light' || stored === 'dark' ? stored : 'dark';
         document.documentElement.setAttribute('data-theme', theme);
       })();
     </script>

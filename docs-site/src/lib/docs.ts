@@ -27,7 +27,12 @@ function categoryForSlug(slug: string): string {
 }
 
 export async function getDocEntries(): Promise<DocEntry[]> {
-  const docs = import.meta.glob('../../../docs/**/*.md');
+  // Exclude research folder (internal docs) and other non-user-facing content
+  const docs = import.meta.glob([
+    '../../../docs/**/*.md',
+    '!../../../docs/research/**',
+    '!../../../docs/ROADMAP.md',
+  ]);
   const entries: DocEntry[] = [];
 
   for (const path of Object.keys(docs)) {
@@ -62,7 +67,11 @@ export async function getDocEntries(): Promise<DocEntry[]> {
 }
 
 export async function getDocModule(path: string) {
-  const docs = import.meta.glob('../../../docs/**/*.md');
+  const docs = import.meta.glob([
+    '../../../docs/**/*.md',
+    '!../../../docs/research/**',
+    '!../../../docs/ROADMAP.md',
+  ]);
   const loader = docs[path];
   if (!loader) return null;
   return loader();

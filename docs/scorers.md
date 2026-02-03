@@ -1,183 +1,317 @@
 # Scorers
 
-AgentEval includes specialized scorers designed for tool-using AI agents. Unlike generic LLM evaluation, these scorers understand agent-specific failure modes.
+Neon provides specialized scorers designed for evaluating AI agents. Unlike generic LLM evaluation, these scorers understand agent-specific patterns like tool selection, reasoning chains, and grounded responses.
 
 ## Built-in Scorers
 
-### Tool Selection Scorer
+### Rule-Based Scorers
 
-Evaluates whether the agent chose appropriate tools for the task.
+Fast, deterministic scorers that don't require LLM calls.
 
-**Checks:**
-- Were expected tools called?
-- Were unnecessary tools avoided?
-- Was the tool calling sequence correct (if order matters)?
+#### `exactMatch`
 
-```yaml
-cases:
-  - name: search_task
-    input:
-      query: "What is the weather in Tokyo?"
-    expected_tools:
-      - web_search
-    # or for ordered sequence:
-    expected_tool_sequence:
-      - web_search
-      - format_response
-    scorers:
-      - tool_selection
+Checks for exact string or value match.
+
+```typescript
+import { exactMatch } from '@neon/sdk'
+
+const scorer = exactMatch('expected output')
+// or match any of several values
+const scorer = exactMatch(['option1', 'option2'])
+```
+
+#### `contains`
+
+Checks if output contains expected strings.
+
+```typescript
+import { contains } from '@neon/sdk'
+
+const scorer = contains(['Paris', 'France'])
+// Case-insensitive
+const scorer = contains(['paris'], { caseSensitive: false })
+```
+
+#### `regex`
+
+Pattern matching with regular expressions.
+
+```typescript
+import { regex } from '@neon/sdk'
+
+const scorer = regex(/\d{3}-\d{4}/)  // Phone number pattern
+```
+
+#### `toolSelection`
+
+Evaluates whether the agent selected appropriate tools.
+
+```typescript
+import { toolSelection } from '@neon/sdk'
+
+const scorer = toolSelection({
+  expected: ['web_search', 'calculator'],
+  // Optional: require specific order
+  strictOrder: false,
+  // Optional: penalize extra tools
+  penalizeExtra: true,
+})
 ```
 
 **Score Calculation:**
 - Jaccard similarity between expected and actual tools
-- Sequence similarity (LCS) if `expected_tool_sequence` is specified
-- Penalizes extra tools called
+- Sequence similarity (LCS) if `strictOrder: true`
+- Penalty for unexpected tools if `penalizeExtra: true`
 
-### Reasoning Scorer
+#### `latency`
 
-Evaluates the quality of the agent's reasoning process using an LLM judge.
+Measures execution time against thresholds.
 
-**Evaluates:**
-- Logical coherence (0-3 points)
-- Information usage (0-3 points)
-- Problem decomposition (0-2 points)
-- Completeness (0-2 points)
+```typescript
+import { latency } from '@neon/sdk'
 
-```yaml
-cases:
-  - name: complex_analysis
-    input:
-      query: "Compare the economic policies of countries A and B"
-    scorers:
-      - reasoning
-    scorer_config:
-      reasoning:
-        model: claude-3-5-sonnet  # Override default model
+const scorer = latency({
+  maxMs: 5000,      // Score 1.0 under this
+  targetMs: 2000,   // Score 0.8 under this
+})
 ```
 
-### Grounding Scorer
+#### `tokenEfficiency`
 
-Evaluates whether the agent's response is grounded in available evidence.
+Evaluates token usage relative to output quality.
 
-**Evaluates:**
-- Factual accuracy (0-4 points)
-- Evidence support (0-4 points)
-- Expected content match (0-2 points)
+```typescript
+import { tokenEfficiency } from '@neon/sdk'
 
-```yaml
-cases:
-  - name: factual_response
-    input:
-      query: "What is the population of France?"
-      context:
-        source: "France has a population of approximately 67 million"
-    expected_output_contains:
-      - "67 million"
-      - "France"
-    scorers:
-      - grounding
+const scorer = tokenEfficiency({
+  maxTokens: 1000,
+  minTokens: 50,
+})
 ```
 
-## Scorer Configuration
+### LLM Judge Scorers
 
-### Global Defaults
+Use language models to evaluate subjective criteria.
 
-Set defaults for all cases in a suite:
+#### `llmJudge`
 
-```yaml
-name: my-suite
-default_scorers:
-  - tool_selection
-  - reasoning
-  - grounding
-default_min_score: 0.7
+General-purpose LLM evaluation with custom criteria.
+
+```typescript
+import { llmJudge } from '@neon/sdk'
+
+const scorer = llmJudge({
+  criteria: 'Response should be helpful, accurate, and well-structured',
+  model: 'claude-3-5-sonnet',  // or 'gpt-4o', 'gemini-1.5-pro'
+  // Optional: scoring rubric
+  rubric: `
+    1 - Completely wrong or unhelpful
+    2 - Partially correct but missing key information
+    3 - Correct but could be clearer
+    4 - Good response with minor issues
+    5 - Excellent, complete response
+  `,
+})
 ```
 
-### Per-Case Configuration
+#### `reasoning`
 
-Override for specific cases:
+Evaluates the quality of agent reasoning.
 
-```yaml
-cases:
-  - name: critical_case
-    scorers:
-      - tool_selection
-      - reasoning
-    scorer_config:
-      tool_selection:
-        strict_order: true
-      reasoning:
-        model: claude-3-opus  # Use more capable model
-    min_score: 0.9  # Higher threshold for critical cases
+```typescript
+import { reasoning } from '@neon/sdk'
+
+const scorer = reasoning({
+  model: 'claude-3-5-sonnet',
+  // Evaluates:
+  // - Logical coherence (0-3 points)
+  // - Information usage (0-3 points)
+  // - Problem decomposition (0-2 points)
+  // - Completeness (0-2 points)
+})
+```
+
+#### `grounding`
+
+Evaluates whether responses are grounded in provided context.
+
+```typescript
+import { grounding } from '@neon/sdk'
+
+const scorer = grounding({
+  model: 'claude-3-5-sonnet',
+  // Evaluates:
+  // - Factual accuracy (0-4 points)
+  // - Evidence support (0-4 points)
+  // - Expected content presence (0-2 points)
+})
+```
+
+#### Domain-Specific Judges
+
+Pre-configured judges for common domains.
+
+```typescript
+import { codeReviewJudge, safetyJudge, helpfulnessJudge } from '@neon/sdk'
+
+// Code quality evaluation
+const codeScorer = codeReviewJudge({
+  language: 'typescript',
+  checkSecurity: true,
+})
+
+// Safety evaluation
+const safetyScorer = safetyJudge({
+  strictness: 'high',
+})
+
+// General helpfulness
+const helpfulScorer = helpfulnessJudge()
+```
+
+## Python SDK
+
+All scorers are available in Python with identical functionality:
+
+```python
+from neon_sdk.scorers import (
+    exact_match,
+    contains,
+    regex,
+    tool_selection,
+    latency,
+    llm_judge,
+    reasoning,
+    grounding,
+)
+
+# Rule-based
+scorer = contains(["Paris", "France"], case_sensitive=False)
+
+# LLM Judge
+scorer = llm_judge(
+    criteria="Response should be accurate and helpful",
+    model="claude-3-5-sonnet",
+)
+
+# Tool selection
+scorer = tool_selection(
+    expected=["web_search"],
+    strict_order=False,
+)
+```
+
+## Custom Scorers
+
+Create custom scorers by extending the base class.
+
+**TypeScript:**
+```typescript
+import { BaseScorer, ScorerResult, ScorerContext } from '@neon/sdk'
+
+class MyCustomScorer extends BaseScorer {
+  name = 'my-custom-scorer'
+  description = 'Evaluates custom criteria'
+
+  async evaluate(context: ScorerContext): Promise<ScorerResult> {
+    const { output, expected, trace } = context
+
+    // Your scoring logic
+    const score = calculateScore(output)
+
+    return {
+      score,
+      reason: 'Custom evaluation passed',
+      evidence: ['Detail 1', 'Detail 2'],
+    }
+  }
+}
+
+// Use in tests
+defineTest(suite, {
+  name: 'my-test',
+  scorers: [new MyCustomScorer()],
+})
+```
+
+**Python:**
+```python
+from neon_sdk.scorers.base import BaseScorer, ScorerResult
+
+class MyCustomScorer(BaseScorer):
+    name = "my-custom-scorer"
+    description = "Evaluates custom criteria"
+
+    async def evaluate(self, context) -> ScorerResult:
+        output = context.output
+
+        # Your scoring logic
+        score = calculate_score(output)
+
+        return ScorerResult(
+            score=score,
+            reason="Custom evaluation passed",
+            evidence=["Detail 1", "Detail 2"],
+        )
+```
+
+## Combining Scorers
+
+Use multiple scorers for comprehensive evaluation:
+
+```typescript
+defineTest(suite, {
+  name: 'comprehensive-test',
+  scorers: [
+    // Fast rule-based checks
+    contains(['expected', 'keywords']),
+    toolSelection({ expected: ['search'] }),
+    latency({ maxMs: 5000 }),
+
+    // Deeper LLM evaluation
+    llmJudge({ criteria: 'Response quality' }),
+    reasoning(),
+  ],
+  // Minimum average score across all scorers
+  minScore: 0.8,
+})
+```
+
+## Score Aggregation
+
+When multiple scorers are used, scores are aggregated:
+
+| Strategy | Description |
+|----------|-------------|
+| `mean` (default) | Average of all scores |
+| `min` | Lowest score (strictest) |
+| `max` | Highest score (most lenient) |
+| `weighted` | Custom weights per scorer |
+
+```typescript
+defineTest(suite, {
+  name: 'weighted-test',
+  scorers: [
+    { scorer: contains(['key']), weight: 0.3 },
+    { scorer: llmJudge({ criteria: '...' }), weight: 0.7 },
+  ],
+  aggregation: 'weighted',
+})
 ```
 
 ## Score Interpretation
 
-| Score Range | Interpretation |
-|-------------|---------------|
-| 0.9 - 1.0 | Excellent - Agent performed optimally |
-| 0.7 - 0.9 | Good - Minor issues that may be acceptable |
-| 0.5 - 0.7 | Fair - Significant issues that need attention |
-| 0.0 - 0.5 | Poor - Major failures requiring investigation |
+| Score | Interpretation |
+|-------|----------------|
+| 0.9 - 1.0 | Excellent — Agent performed optimally |
+| 0.7 - 0.9 | Good — Minor issues, generally acceptable |
+| 0.5 - 0.7 | Fair — Significant issues needing attention |
+| 0.0 - 0.5 | Poor — Major failures requiring investigation |
 
-## Custom Scorers
+## Best Practices
 
-You can extend the base `Scorer` class to create custom scorers:
-
-```python
-from agent_eval.scorers.base import Scorer, ScorerResult
-
-class MyCustomScorer(Scorer):
-    name = "my_custom_scorer"
-    description = "Evaluates custom criteria"
-
-    async def score(self, case, output, config=None):
-        # Your scoring logic here
-        score = 0.8
-        reason = "Custom evaluation passed"
-        evidence = ["Detail 1", "Detail 2"]
-
-        return ScorerResult(
-            score=score,
-            reason=reason,
-            evidence=evidence,
-        )
-```
-
-Register your scorer:
-
-```python
-# In your agent code
-from agent_eval import register_scorer
-register_scorer(MyCustomScorer())
-```
-
-Use in test cases:
-
-```yaml
-scorers:
-  - my_custom_scorer
-```
-
-## LLM Judge Configuration
-
-Scorers that use LLM judges (Reasoning, Grounding) support model configuration:
-
-```yaml
-scorer_config:
-  reasoning:
-    model: claude-3-5-sonnet  # Default
-    # Available: claude-3-5-sonnet, gemini-1.5-pro, gemini-1.5-flash
-
-  grounding:
-    model: gemini-1.5-pro  # Cheaper for grounding checks
-```
-
-Model selection affects:
-- **Cost**: Flash < Pro < Sonnet
-- **Quality**: Sonnet > Pro > Flash
-- **Speed**: Flash > Pro > Sonnet
-
-Recommended:
-- Use `claude-3-5-sonnet` for critical evaluations
-- Use `gemini-1.5-flash` for quick iteration during development
+1. **Start with rule-based scorers** — They're fast and deterministic
+2. **Use LLM judges for subjective criteria** — Reasoning quality, helpfulness
+3. **Combine multiple scorers** — Cover different failure modes
+4. **Set appropriate thresholds** — Higher for critical paths, lower for experiments
+5. **Cache LLM judge results** — Avoid redundant API calls in CI
