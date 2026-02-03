@@ -1,0 +1,77 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: neon-staging
+
+namePrefix: staging-
+
+commonLabels:
+  environment: staging
+
+resources:
+  - ../../base
+
+patches:
+  # Staging replicas (similar to prod but smaller)
+  - target:
+      kind: Deployment
+      name: neon-workers
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 2
+  - target:
+      kind: Deployment
+      name: neon-frontend
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 2
+
+  # Moderate HPA for staging
+  - target:
+      kind: HorizontalPodAutoscaler
+      name: neon-workers-hpa
+    patch: |-
+      - op: replace
+        path: /spec/minReplicas
+        value: 2
+      - op: replace
+        path: /spec/maxReplicas
+        value: 5
+
+  # Update ingress host
+  - target:
+      kind: Ingress
+      name: neon-ingress
+    patch: |-
+      - op: replace
+        path: /spec/rules/0/host
+        value: neon-staging.example.com
+      - op: replace
+        path: /metadata/annotations/kubernetes.io~1ingress.global-static-ip-name
+        value: neon-staging-ip
+
+  # Update managed certificate
+  - target:
+      kind: ManagedCertificate
+      name: neon-cert
+    patch: |-
+      - op: replace
+        path: /spec/domains/0
+        value: neon-staging.example.com
+
+images:
+  - name: gcr.io/PROJECT_ID/neon-workers
+    newName: gcr.io/your-staging-project/neon-workers
+    newTag: staging
+  - name: gcr.io/PROJECT_ID/neon-frontend
+    newName: gcr.io/your-staging-project/neon-frontend
+    newTag: staging
+
+configMapGenerator:
+  - name: neon-config
+    behavior: merge
+    literals:
+      - LOG_LEVEL=info
+      - PIP_INDEX_URL=https://us-central1-python.pkg.dev/your-staging-project/python-packages/simple/

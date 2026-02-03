@@ -1,0 +1,38 @@
+# Ingress for external access
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: neon-ingress
+  namespace: neon
+  labels:
+    app.kubernetes.io/name: neon
+    app.kubernetes.io/component: ingress
+  annotations:
+    # GKE-specific annotations
+    kubernetes.io/ingress.class: "gce"
+    kubernetes.io/ingress.global-static-ip-name: "neon-ip"
+    networking.gke.io/managed-certificates: "neon-cert"
+    # Redirect HTTP to HTTPS
+    kubernetes.io/ingress.allow-http: "false"
+spec:
+  rules:
+    - host: neon.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: neon-frontend
+                port:
+                  number: 80
+---
+# Managed Certificate for HTTPS
+apiVersion: networking.gke.io/v1
+kind: ManagedCertificate
+metadata:
+  name: neon-cert
+  namespace: neon
+spec:
+  domains:
+    - neon.example.com

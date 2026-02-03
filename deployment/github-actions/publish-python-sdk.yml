@@ -1,0 +1,162 @@
+# Publish Python SDK to Google Artifact Registry
+#
+# Triggers on:
+# - Tags matching 'python-sdk-v*'
+# - Manual workflow dispatch
+#
+# Copy to: .github/workflows/publish-python-sdk.yml
+
+name: Publish Python SDK
+
+on:
+  push:
+    tags:
+      - 'python-sdk-v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to publish (e.g., 0.1.0)'
+        required: false
+        type: string
+
+env:
+  GAR_LOCATION: us-central1
+  GAR_REPOSITORY: python-packages
+  PYTHON_VERSION: '3.11'
+
+jobs:
+  # Run tests before publishing
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Run tests
+        working-directory: packages/neon-sdk-python
+        run: |
+          uv sync
+          uv run pytest -v
+
+      - name: Run type check
+        working-directory: packages/neon-sdk-python
+        run: |
+          uv pip install mypy
+          uv run mypy neon_sdk --ignore-missing-imports || true
+
+      - name: Run linter
+        working-directory: packages/neon-sdk-python
+        run: |
+          uv pip install ruff
+          uv run ruff check neon_sdk || true
+
+  # Build and publish
+  publish:
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write  # Required for Workload Identity Federation
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Extract version from tag
+        id: version
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" && -n "${{ inputs.version }}" ]]; then
+            echo "version=${{ inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            # Extract version from tag (python-sdk-v0.1.0 -> 0.1.0)
+            VERSION=${GITHUB_REF#refs/tags/python-sdk-v}
+            echo "version=$VERSION" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Verify version matches pyproject.toml
+        working-directory: packages/neon-sdk-python
+        run: |
+          PYPROJECT_VERSION=$(grep '^version = ' pyproject.toml | cut -d'"' -f2)
+          if [[ "$PYPROJECT_VERSION" != "${{ steps.version.outputs.version }}" ]]; then
+            echo "::error::Version mismatch! Tag: ${{ steps.version.outputs.version }}, pyproject.toml: $PYPROJECT_VERSION"
+            exit 1
+          fi
+          echo "Version verified: $PYPROJECT_VERSION"
+
+      - name: Authenticate to Google Cloud
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Build package
+        working-directory: packages/neon-sdk-python
+        run: |
+          uv build
+          echo "Built packages:"
+          ls -la dist/
+
+      - name: Publish to Artifact Registry
+        working-directory: packages/neon-sdk-python
+        run: |
+          # Install twine for upload
+          pip install twine
+
+          # Get credentials for Artifact Registry
+          gcloud auth print-access-token | twine upload \
+            --repository-url https://${{ env.GAR_LOCATION }}-python.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.GAR_REPOSITORY }}/ \
+            --username oauth2accesstoken \
+            --password-stdin \
+            dist/*
+
+      - name: Verify package is available
+        run: |
+          # Wait for package to be indexed
+          sleep 10
+
+          # Configure pip to use Artifact Registry
+          pip install keyring keyrings.google-artifactregistry-auth
+
+          pip index versions neon-sdk \
+            --index-url https://${{ env.GAR_LOCATION }}-python.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.GAR_REPOSITORY }}/simple/ \
+            || echo "Package published (index may take a moment to update)"
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            packages/neon-sdk-python/dist/*.whl
+            packages/neon-sdk-python/dist/*.tar.gz
+          generate_release_notes: true
+          body: |
+            ## Python SDK v${{ steps.version.outputs.version }}
+
+            ### Installation
+
+            ```bash
+            # From internal Artifact Registry
+            pip install neon-sdk==${{ steps.version.outputs.version }}
+            ```
+
+            ### Changelog
+
+            See [CHANGELOG.md](packages/neon-sdk-python/CHANGELOG.md)

@@ -1,0 +1,106 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: neon-dev
+
+namePrefix: dev-
+
+commonLabels:
+  environment: dev
+
+resources:
+  - ../../base
+
+# Replace PROJECT_ID placeholder
+replacements:
+  - source:
+      kind: ConfigMap
+      name: neon-config
+      fieldPath: metadata.annotations.project-id
+    targets:
+      - select:
+          kind: ServiceAccount
+        fieldPaths:
+          - metadata.annotations.[iam.gke.io/gcp-service-account]
+        options:
+          delimiter: '@'
+          index: 1
+
+patches:
+  # Reduce replicas for dev
+  - target:
+      kind: Deployment
+      name: neon-workers
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 1
+  - target:
+      kind: Deployment
+      name: neon-frontend
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 1
+
+  # Reduce resources for dev
+  - target:
+      kind: Deployment
+      name: neon-workers
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/resources
+        value:
+          requests:
+            cpu: "100m"
+            memory: "256Mi"
+          limits:
+            cpu: "500m"
+            memory: "1Gi"
+
+  # Disable HPA for dev
+  - target:
+      kind: HorizontalPodAutoscaler
+    patch: |-
+      - op: replace
+        path: /spec/minReplicas
+        value: 1
+      - op: replace
+        path: /spec/maxReplicas
+        value: 2
+
+  # Update ingress host
+  - target:
+      kind: Ingress
+      name: neon-ingress
+    patch: |-
+      - op: replace
+        path: /spec/rules/0/host
+        value: neon-dev.example.com
+      - op: replace
+        path: /metadata/annotations/kubernetes.io~1ingress.global-static-ip-name
+        value: neon-dev-ip
+
+  # Update managed certificate
+  - target:
+      kind: ManagedCertificate
+      name: neon-cert
+    patch: |-
+      - op: replace
+        path: /spec/domains/0
+        value: neon-dev.example.com
+
+images:
+  - name: gcr.io/PROJECT_ID/neon-workers
+    newName: gcr.io/your-dev-project/neon-workers
+    newTag: dev
+  - name: gcr.io/PROJECT_ID/neon-frontend
+    newName: gcr.io/your-dev-project/neon-frontend
+    newTag: dev
+
+configMapGenerator:
+  - name: neon-config
+    behavior: merge
+    literals:
+      - LOG_LEVEL=debug
+      - PIP_INDEX_URL=https://us-central1-python.pkg.dev/your-dev-project/python-packages/simple/

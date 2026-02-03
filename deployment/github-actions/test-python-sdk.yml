@@ -1,0 +1,124 @@
+# Test Python SDK on PRs and pushes
+#
+# Copy to: .github/workflows/test-python-sdk.yml
+
+name: Test Python SDK
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'packages/neon-sdk-python/**'
+      - '.github/workflows/test-python-sdk.yml'
+  pull_request:
+    paths:
+      - 'packages/neon-sdk-python/**'
+      - '.github/workflows/test-python-sdk.yml'
+
+env:
+  PYTHON_VERSION: '3.11'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.11', '3.12', '3.13']
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Install dependencies
+        working-directory: packages/neon-sdk-python
+        run: uv sync
+
+      - name: Run tests
+        working-directory: packages/neon-sdk-python
+        run: uv run pytest -v --tb=short
+
+      - name: Run tests with coverage
+        if: matrix.python-version == '3.11'
+        working-directory: packages/neon-sdk-python
+        run: |
+          uv pip install pytest-cov
+          uv run pytest --cov=neon_sdk --cov-report=xml
+
+      - name: Upload coverage
+        if: matrix.python-version == '3.11'
+        uses: codecov/codecov-action@v4
+        with:
+          files: packages/neon-sdk-python/coverage.xml
+          flags: python-sdk
+        continue-on-error: true
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Install dependencies
+        working-directory: packages/neon-sdk-python
+        run: |
+          uv sync
+          uv pip install ruff mypy
+
+      - name: Run ruff
+        working-directory: packages/neon-sdk-python
+        run: uv run ruff check neon_sdk
+        continue-on-error: true
+
+      - name: Run mypy
+        working-directory: packages/neon-sdk-python
+        run: uv run mypy neon_sdk --ignore-missing-imports
+        continue-on-error: true
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Build package
+        working-directory: packages/neon-sdk-python
+        run: |
+          uv build
+          echo "Built packages:"
+          ls -la dist/
+
+      - name: Verify wheel
+        working-directory: packages/neon-sdk-python
+        run: |
+          pip install dist/*.whl
+          python -c "from neon_sdk import Neon, NeonConfig; print('Import successful')"
+          python -c "from neon_sdk.tracing import trace, span; print('Tracing import successful')"
+          python -c "from neon_sdk.scorers import contains; print('Scorers import successful')"
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-sdk-dist
+          path: packages/neon-sdk-python/dist/
+          retention-days: 7

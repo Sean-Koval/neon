@@ -1,0 +1,30 @@
+# Copy this file to terraform.tfvars and fill in your values
+# cp terraform.tfvars.example terraform.tfvars
+
+project_id = "your-prod-project-id"
+region     = "us-central1"
+
+github_repositories = [
+  "your-org/neon",
+]
+
+# Required: External services
+clickhouse_host  = "clickhouse.your-domain.com"
+temporal_address = "temporal.your-domain.com:7233"
+
+# Optional: Custom domain
+# frontend_domain = "neon.your-domain.com"
+
+# Optional: Version pinning (recommended for prod)
+# frontend_version = "v0.1.0"
+# workers_version  = "v0.1.0"
+
+# Optional: Additional Artifact Registry readers
+# artifact_registry_readers = [
+#   "serviceAccount:other-service@project.iam.gserviceaccount.com",
+# ]
+
+# Optional: Alert notification channels
+# alert_notification_channels = [
+#   "projects/your-project/notificationChannels/12345",
+# ]
