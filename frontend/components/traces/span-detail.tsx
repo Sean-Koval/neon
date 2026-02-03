@@ -11,15 +11,29 @@
 import { clsx } from 'clsx'
 import {
   AlertCircle,
+  AlertTriangle,
   Check,
   CheckCircle,
   ChevronDown,
   ChevronRight,
+  Code,
   Copy,
   DollarSign,
+  FileCode,
+  Globe,
   Hash,
   Loader2,
+  MessageSquare,
+  RefreshCw,
+  Search,
+  Server,
+  Settings,
+  Shield,
+  Sparkles,
+  Terminal,
   Timer,
+  User,
+  Wrench,
   X,
   XCircle,
 } from 'lucide-react'
@@ -61,6 +75,61 @@ export interface SpanSummary {
 }
 
 /**
+ * Skill category type
+ */
+export type SkillCategory =
+  | 'code'
+  | 'search'
+  | 'file'
+  | 'data'
+  | 'communication'
+  | 'browser'
+  | 'system'
+  | 'custom'
+
+/**
+ * MCP transport type
+ */
+export type MCPTransport = 'stdio' | 'http' | 'websocket'
+
+/**
+ * Skill selection context
+ */
+export interface SkillSelectionContext {
+  selectedSkill: string
+  skillCategory?: SkillCategory
+  selectionConfidence?: number
+  selectionReason?: string
+  alternativesConsidered?: string[]
+  alternativeScores?: number[]
+}
+
+/**
+ * MCP execution context
+ */
+export interface MCPContext {
+  serverId: string
+  serverUrl?: string
+  toolId: string
+  protocolVersion?: string
+  transport?: MCPTransport
+  capabilities?: string[]
+  errorCode?: string
+}
+
+/**
+ * Decision metadata
+ */
+export interface DecisionMetadata {
+  wasUserInitiated?: boolean
+  isFallback?: boolean
+  retryCount?: number
+  originalSpanId?: string
+  requiredApproval?: boolean
+  approvalGranted?: boolean
+}
+
+/**
  * Full span data structure (with lazy-loaded fields)
  */
 export interface Span extends SpanSummary {
@@ -69,6 +138,9 @@ export interface Span extends SpanSummary {
   tool_input?: string
   tool_output?: string
   attributes?: Record<string, string>
+  skillSelection?: SkillSelectionContext
+  mcpContext?: MCPContext
+  decisionMetadata?: DecisionMetadata
 }
 
 interface SpanDetailProps {
@@ -304,6 +376,459 @@ function KVRow({
   )
 }
 
+// =============================================================================
+// Skill Category Helpers
+// =============================================================================
+
+/**
+ * Get icon and color for a skill category
+ */
+function getSkillCategoryConfig(category?: SkillCategory) {
+  const configs: Record<
+    SkillCategory,
+    { icon: typeof Code; label: string; color: string; bgColor: string }
+  > = {
+    code: {
+      icon: Code,
+      label: 'Code',
+      color: 'text-purple-600',
+      bgColor: 'bg-purple-50',
+    },
+    search: {
+      icon: Search,
+      label: 'Search',
+      color: 'text-blue-600',
+      bgColor: 'bg-blue-50',
+    },
+    file: {
+      icon: FileCode,
+      label: 'File',
+      color: 'text-orange-600',
+      bgColor: 'bg-orange-50',
+    },
+    data: {
+      icon: Settings,
+      label: 'Data',
+      color: 'text-cyan-600',
+      bgColor: 'bg-cyan-50',
+    },
+    communication: {
+      icon: MessageSquare,
+      label: 'Communication',
+      color: 'text-green-600',
+      bgColor: 'bg-green-50',
+    },
+    browser: {
+      icon: Globe,
+      label: 'Browser',
+      color: 'text-indigo-600',
+      bgColor: 'bg-indigo-50',
+    },
+    system: {
+      icon: Terminal,
+      label: 'System',
+      color: 'text-gray-600',
+      bgColor: 'bg-gray-100',
+    },
+    custom: {
+      icon: Sparkles,
+      label: 'Custom',
+      color: 'text-pink-600',
+      bgColor: 'bg-pink-50',
+    },
+  }
+
+  return (
+    configs[category || 'custom'] || {
+      icon: Wrench,
+      label: 'Unknown',
+      color: 'text-gray-500',
+      bgColor: 'bg-gray-50',
+    }
+  )
+}
+
+/**
+ * Get color class based on confidence level
+ */
+function getConfidenceColor(confidence: number): {
+  text: string
+  bg: string
+  bar: string
+} {
+  if (confidence >= 0.8) {
+    return {
+      text: 'text-emerald-700',
+      bg: 'bg-emerald-50',
+      bar: 'bg-emerald-500',
+    }
+  }
+  if (confidence >= 0.5) {
+    return {
+      text: 'text-amber-700',
+      bg: 'bg-amber-50',
+      bar: 'bg-amber-500',
+    }
+  }
+  return {
+    text: 'text-rose-700',
+    bg: 'bg-rose-50',
+    bar: 'bg-rose-500',
+  }
+}
+
+/**
+ * Confidence bar indicator
+ */
+function ConfidenceBar({ confidence }: { confidence: number }) {
+  const colors = getConfidenceColor(confidence)
+  const percentage = Math.round(confidence * 100)
+
+  return (
+    <div className="flex items-center gap-2">
+      <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+        <div
+          className={clsx('h-full rounded-full transition-all', colors.bar)}
+          style={{ width: `${percentage}%` }}
+        />
+      </div>
+      <span
+        className={clsx('text-sm font-medium w-12 text-right', colors.text)}
+      >
+        {percentage}%
+      </span>
+    </div>
+  )
+}
+
+// =============================================================================
+// Skill Selection Section
+// =============================================================================
+
+/**
+ * Skill selection context section
+ */
+function SkillSelectionSection({
+  context,
+  defaultOpen = true,
+}: {
+  context: SkillSelectionContext
+  defaultOpen?: boolean
+}) {
+  const categoryConfig = getSkillCategoryConfig(context.skillCategory)
+  const CategoryIcon = categoryConfig.icon
+
+  return (
+    <Section
+      title="Skill Selection"
+      defaultOpen={defaultOpen}
+      badge={
+        <div
+          className={clsx(
+            'flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium',
+            categoryConfig.bgColor,
+            categoryConfig.color,
+          )}
+        >
+          <CategoryIcon className="w-3 h-3" />
+          <span>{context.selectedSkill}</span>
+        </div>
+      }
+    >
+      <div className="space-y-4">
+        {/* Selected skill info */}
+        <div className="space-y-1">
+          <KVRow label="Selected" value={context.selectedSkill} mono />
+          {context.skillCategory && (
+            <KVRow label="Category" value={categoryConfig.label} />
+          )}
+        </div>
+
+        {/* Confidence */}
+        {context.selectionConfidence !== undefined && (
+          <div>
+            <div className="text-sm text-gray-500 mb-2">Confidence</div>
+            <ConfidenceBar confidence={context.selectionConfidence} />
+          </div>
+        )}
+
+        {/* Reason */}
+        {context.selectionReason && (
+          <div>
+            <div className="text-sm text-gray-500 mb-1">Selection Reason</div>
+            <div className="text-sm text-gray-700 bg-gray-50 rounded-lg p-3">
+              {context.selectionReason}
+            </div>
+          </div>
+        )}
+
+        {/* Alternatives considered */}
+        {context.alternativesConsidered &&
+          context.alternativesConsidered.length > 0 && (
+            <div>
+              <div className="text-sm text-gray-500 mb-2">
+                Alternatives Considered ({context.alternativesConsidered.length}
+                )
+              </div>
+              <div className="space-y-1.5">
+                {context.alternativesConsidered.map((alt, idx) => {
+                  const score = context.alternativeScores?.[idx]
+                  return (
+                    <div
+                      key={alt}
+                      className="flex items-center justify-between text-sm bg-gray-50 rounded px-3 py-1.5"
+                    >
+                      <span className="font-mono text-gray-700">{alt}</span>
+                      {score !== undefined && (
+                        <span
+                          className={clsx(
+                            'text-xs font-medium px-1.5 py-0.5 rounded',
+                            getConfidenceColor(score).bg,
+                            getConfidenceColor(score).text,
+                          )}
+                        >
+                          {Math.round(score * 100)}%
+                        </span>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+      </div>
+    </Section>
+  )
+}
+
+// =============================================================================
+// MCP Context Section
+// =============================================================================
+
+/**
+ * MCP transport badge
+ */
+function MCPTransportBadge({ transport }: { transport?: MCPTransport }) {
+  const config: Record<
+    MCPTransport,
+    { label: string; color: string; bgColor: string }
+  > = {
+    stdio: { label: 'stdio', color: 'text-gray-700', bgColor: 'bg-gray-100' },
+    http: { label: 'HTTP', color: 'text-blue-700', bgColor: 'bg-blue-50' },
+    websocket: {
+      label: 'WebSocket',
+      color: 'text-purple-700',
+      bgColor: 'bg-purple-50',
+    },
+  }
+
+  const cfg = config[transport || 'stdio']
+
+  return (
+    <span
+      className={clsx(
+        'text-xs font-medium px-2 py-0.5 rounded',
+        cfg.bgColor,
+        cfg.color,
+      )}
+    >
+      {cfg.label}
+    </span>
+  )
+}
+
+/**
+ * MCP context section
+ */
+function MCPContextSection({
+  context,
+  defaultOpen = true,
+}: {
+  context: MCPContext
+  defaultOpen?: boolean
+}) {
+  return (
+    <Section
+      title="MCP Context"
+      defaultOpen={defaultOpen}
+      badge={
+        <div className="flex items-center gap-1.5">
+          <Server className="w-3.5 h-3.5 text-indigo-500" />
+          <span className="text-xs font-medium text-indigo-700">
+            {context.serverId}
+          </span>
+        </div>
+      }
+    >
+      <div className="space-y-3">
+        {/* Server info */}
+        <div className="space-y-1">
+          <KVRow label="Server ID" value={context.serverId} mono copyable />
+          {context.serverUrl && (
+            <KVRow label="Server URL" value={context.serverUrl} mono />
+          )}
+          <KVRow label="Tool ID" value={context.toolId} mono />
+        </div>
+
+        {/* Protocol details */}
+        <div className="flex flex-wrap gap-2">
+          {context.transport && (
+            <MCPTransportBadge transport={context.transport} />
+          )}
+          {context.protocolVersion && (
+            <span className="text-xs font-medium px-2 py-0.5 rounded bg-gray-100 text-gray-700">
+              v{context.protocolVersion}
+            </span>
+          )}
+        </div>
+
+        {/* Capabilities */}
+        {context.capabilities && context.capabilities.length > 0 && (
+          <div>
+            <div className="text-sm text-gray-500 mb-1.5">Capabilities</div>
+            <div className="flex flex-wrap gap-1">
+              {context.capabilities.map((cap) => (
+                <span
+                  key={cap}
+                  className="text-xs px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded"
+                >
+                  {cap}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Error */}
+        {context.errorCode && (
+          <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">
+            <AlertCircle className="w-4 h-4" />
+            <span>Error: {context.errorCode}</span>
+          </div>
+        )}
+      </div>
+    </Section>
+  )
+}
+
+// =============================================================================
+// Decision Metadata Section
+// =============================================================================
+
+/**
+ * Decision metadata section
+ */
+function DecisionMetadataSection({
+  metadata,
+  defaultOpen = false,
+}: {
+  metadata: DecisionMetadata
+  defaultOpen?: boolean
+}) {
+  const flags: Array<{
+    key: string
+    label: string
+    icon: typeof User
+    active: boolean
+    color: string
+    bgColor: string
+  }> = [
+    {
+      key: 'user',
+      label: 'User Initiated',
+      icon: User,
+      active: !!metadata.wasUserInitiated,
+      color: 'text-blue-700',
+      bgColor: 'bg-blue-50',
+    },
+    {
+      key: 'fallback',
+      label: 'Fallback',
+      icon: AlertTriangle,
+      active: !!metadata.isFallback,
+      color: 'text-amber-700',
+      bgColor: 'bg-amber-50',
+    },
+    {
+      key: 'approval',
+      label: metadata.approvalGranted ? 'Approved' : 'Approval Required',
+      icon: Shield,
+      active: !!metadata.requiredApproval,
+      color: metadata.approvalGranted ? 'text-green-700' : 'text-orange-700',
+      bgColor: metadata.approvalGranted ? 'bg-green-50' : 'bg-orange-50',
+    },
+  ]
+
+  const activeFlags = flags.filter((f) => f.active)
+
+  return (
+    <Section
+      title="Decision Context"
+      defaultOpen={defaultOpen}
+      badge={
+        activeFlags.length > 0 ? (
+          <span className="text-xs text-gray-500">
+            {activeFlags.length} flag{activeFlags.length !== 1 ? 's' : ''}
+          </span>
+        ) : undefined
+      }
+    >
+      <div className="space-y-3">
+        {/* Flags */}
+        {activeFlags.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {activeFlags.map((flag) => {
+              const Icon = flag.icon
+              return (
+                <div
+                  key={flag.key}
+                  className={clsx(
+                    'flex items-center gap-1.5 px-2 py-1 rounded text-xs font-medium',
+                    flag.bgColor,
+                    flag.color,
+                  )}
+                >
+                  <Icon className="w-3 h-3" />
+                  <span>{flag.label}</span>
+                </div>
+              )
+            })}
+          </div>
+        )}
+
+        {/* Retry info */}
+        {metadata.retryCount !== undefined && metadata.retryCount > 0 && (
+          <div className="flex items-center gap-2 text-sm">
+            <RefreshCw className="w-4 h-4 text-gray-500" />
+            <span className="text-gray-700">
+              Retry attempt #{metadata.retryCount}
+            </span>
+          </div>
+        )}
+
+        {/* Original span reference */}
+        {metadata.originalSpanId && (
+          <KVRow
+            label="Original Span"
+            value={metadata.originalSpanId}
+            mono
+            copyable
+          />
+        )}
+
+        {/* Empty state */}
+        {activeFlags.length === 0 &&
+          !metadata.retryCount &&
+          !metadata.originalSpanId && (
+            <div className="text-sm text-gray-500 italic">
+              No special decision context
+            </div>
+          )}
+      </div>
+    </Section>
+  )
+}
+
 /**
  * Token usage display
  */
@@ -402,6 +927,13 @@ export function SpanDetail({
   const attributes = hasInlineDetails
     ? fullSpan.attributes
     : details?.attributes
+
+  // Get skill/MCP/decision context (only available inline, not lazy-loaded yet)
+  const skillSelection = hasInlineDetails ? fullSpan.skillSelection : undefined
+  const mcpContext = hasInlineDetails ? fullSpan.mcpContext : undefined
+  const decisionMetadata = hasInlineDetails
+    ? fullSpan.decisionMetadata
+    : undefined
 
   // Prefetch nearby spans for smoother UX
   const prefetchSpan = usePrefetchSpanDetails()
@@ -609,6 +1141,27 @@ export function SpanDetail({
               defaultOpen={false}
             />
           </>
+        )}
+
+        {/* Skill Selection Context */}
+        {skillSelection && (
+          <SkillSelectionSection
+            context={skillSelection}
+            defaultOpen={span.span_type === 'tool'}
+          />
+        )}
+
+        {/* MCP Context */}
+        {mcpContext && (
+          <MCPContextSection context={mcpContext} defaultOpen={true} />
+        )}
+
+        {/* Decision Metadata */}
+        {decisionMetadata && (
+          <DecisionMetadataSection
+            metadata={decisionMetadata}
+            defaultOpen={false}
+          />
         )}
 
         {/* Attributes */}
