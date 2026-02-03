@@ -56,3 +56,18 @@ export {
   type CausalAnalysisResult,
   type CausalNode,
 } from "./causal.js";
+
+// Skill selection scorers
+export {
+  skillSelectionScorer,
+  skillChainScorer,
+  skillSetScorer,
+  firstSkillScorer,
+  skillCategoryScorer,
+  skillConfidenceScorer,
+  // Types
+  type SkillSelectionConfig,
+  type SkillSubstitutes,
+  type SkillCategoryMap,
+  type SkillSelectionDetails,
+} from "./skill-selection.js";

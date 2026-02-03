@@ -13,6 +13,12 @@ import {
   responseQualityJudge,
   safetyJudge,
   helpfulnessJudge,
+  skillSelectionScorer,
+  skillChainScorer,
+  skillSetScorer,
+  firstSkillScorer,
+  skillCategoryScorer,
+  skillConfidenceScorer,
   type EvalContext,
 } from "../index";
 
@@ -44,6 +50,51 @@ function createMockContext(output: string, expected?: Record<string, unknown>): 
           output,
         },
       ],
+    },
+    expected,
+  };
+}
+
+// Mock trace data with tool spans for skill selection testing
+function createMockContextWithTools(
+  toolNames: string[],
+  expected?: Record<string, unknown>,
+  options?: {
+    skillSelections?: Array<{
+      selectedSkill: string;
+      selectionConfidence?: number;
+      skillCategory?: string;
+    }>;
+  }
+): EvalContext {
+  const toolSpans = toolNames.map((toolName, i) => ({
+    id: `tool-${i}`,
+    traceId: "test-trace-id",
+    name: toolName,
+    spanType: "tool" as const,
+    status: "ok" as const,
+    startTime: new Date().toISOString(),
+    endTime: new Date().toISOString(),
+    durationMs: 50,
+    toolName,
+    ...(options?.skillSelections?.[i] && {
+      skillSelection: options.skillSelections[i],
+    }),
+  }));
+
+  return {
+    trace: {
+      trace: {
+        id: "test-trace-id",
+        projectId: "test-project",
+        name: "test-trace",
+        status: "ok",
+        startTime: new Date().toISOString(),
+        endTime: new Date().toISOString(),
+        durationMs: 100,
+        metadata: {},
+      },
+      spans: toolSpans,
     },
     expected,
   };
@@ -537,5 +588,330 @@ describe("ScoreResult format consistency", () => {
 
     const noMatch = scorer.evaluate(createMockContext("c"));
     expect(noMatch).toHaveProperty("reason");
+  });
+});
+
+// ==================== Skill Selection Scorer Tests ====================
+
+describe("skillSelectionScorer", () => {
+  describe("basic matching", () => {
+    it("returns 1 when all expected skills are called", () => {
+      const scorer = skillSelectionScorer({
+        expectedSkills: ["search", "summarize"],
+      });
+      const result = scorer.evaluate(
+        createMockContextWithTools(["search", "summarize"])
+      );
+
+      expect(result.value).toBe(1);
+      expect(result.reason).toContain("matched");
+    });
+
+    it("returns 0 when no skills are called", () => {
+      const scorer = skillSelectionScorer({
+        expectedSkills: ["search", "summarize"],
+      });
+      const result = scorer.evaluate(createMockContextWithTools([]));
+
+      expect(result.value).toBe(0);
+      expect(result.reason).toContain("No skills were called");
+    });
+
+    it("returns partial score when some skills are missing", () => {
+      const scorer = skillSelectionScorer({
+        expectedSkills: ["search", "analyze", "summarize"],
+      });
+      const result = scorer.evaluate(
+        createMockContextWithTools(["search", "summarize"])
+      );
+
+      expect(result.value).toBeCloseTo(2 / 3);
+      expect(result.reason).toContain("missing");
+      expect(result.reason).toContain("analyze");
+    });
+
+    it("returns 1 when no expected skills specified", () => {
+      const scorer = skillSelectionScorer();
+      const result = scorer.evaluate(createMockContextWithTools(["anything"]));
+
+      expect(result.value).toBe(1);
+      expect(result.reason).toBe("No expected skills specified");
+    });
+  });
+
+  describe("order matching", () => {
+    it("respects orderMatters: true", () => {
+      const scorer = skillSelectionScorer({
+        expectedSkills: ["search", "analyze", "summarize"],
+        orderMatters: true,
+      });
+
+      // Correct order
+      const correctOrder = scorer.evaluate(
+        createMockContextWithTools(["search", "analyze", "summarize"])
+      );
+      expect(correctOrder.value).toBe(1);
+      expect(correctOrder.reason).toContain("order: correct");
+
+      // Wrong order
+      const wrongOrder = scorer.evaluate(
+        createMockContextWithTools(["summarize", "analyze", "search"])
+      );
+      expect(wrongOrder.value).toBeLessThan(1);
+      expect(wrongOrder.reason).toContain("order: incorrect");
+    });
+
+    it("allows non-consecutive matching with orderMatters: true", () => {
+      const scorer = skillSelectionScorer({
+        expectedSkills: ["search", "summarize"],
+        orderMatters: true,
+      });
+
+      // Extra skills in between should be ok
+      const result = scorer.evaluate(
+        createMockContextWithTools(["search", "analyze", "summarize"])
+      );
+      expect(result.value).toBe(1);
+    });
+  });
+
+  describe("skill substitutes", () => {
+    it("accepts substitute skills", () => {
+      const scorer = skillSelectionScorer({
+        expectedSkills: ["web_search", "code_edit"],
+        substitutes: {
+          web_search: ["google_search", "bing_search"],
+          code_edit: ["file_edit", "sed_edit"],
+        },
+      });
+
+      const result = scorer.evaluate(
+        createMockContextWithTools(["google_search", "file_edit"])
+      );
+      expect(result.value).toBe(1);
+    });
+  });
+
+  describe("category partial credit", () => {
+    it("gives partial credit for correct category", () => {
+      const scorer = skillSelectionScorer({
+        expectedSkills: ["web_search"],
+        categoryMap: {
+          web_search: "search",
+          file_search: "search",
+          grep_search: "search",
+        },
+        categoryPartialCredit: 0.5,
+      });
+
+      // Different skill but same category
+      const result = scorer.evaluate(
+        createMockContextWithTools(["file_search"])
+      );
+      expect(result.value).toBe(0.5);
+      expect(result.reason).toContain("category matches");
+    });
+  });
+
+  describe("extra skill penalty", () => {
+    it("penalizes extra skills when configured", () => {
+      const scorer = skillSelectionScorer({
+        expectedSkills: ["search"],
+        penalizeExtraSkills: true,
+        extraSkillPenalty: 0.2,
+      });
+
+      // One expected, two extra
+      const result = scorer.evaluate(
+        createMockContextWithTools(["search", "extra1", "extra2"])
+      );
+      expect(result.value).toBe(0.6); // 1 - 0.2 - 0.2
+      expect(result.reason).toContain("extra (penalized)");
+    });
+
+    it("does not penalize extra skills by default", () => {
+      const scorer = skillSelectionScorer({
+        expectedSkills: ["search"],
+      });
+
+      const result = scorer.evaluate(
+        createMockContextWithTools(["search", "extra1", "extra2"])
+      );
+      expect(result.value).toBe(1);
+    });
+  });
+
+  describe("uses context.expected", () => {
+    it("reads expectedSkills from context.expected", () => {
+      const scorer = skillSelectionScorer();
+      const result = scorer.evaluate(
+        createMockContextWithTools(["search", "summarize"], {
+          expectedSkills: ["search", "summarize"],
+        })
+      );
+
+      expect(result.value).toBe(1);
+    });
+
+    it("reads toolCalls from context.expected as fallback", () => {
+      const scorer = skillSelectionScorer();
+      const result = scorer.evaluate(
+        createMockContextWithTools(["search"], {
+          toolCalls: ["search"],
+        })
+      );
+
+      expect(result.value).toBe(1);
+    });
+  });
+});
+
+describe("skillChainScorer", () => {
+  it("is a shorthand for skillSelectionScorer with orderMatters: true", () => {
+    const scorer = skillChainScorer(["a", "b", "c"]);
+
+    const correctOrder = scorer.evaluate(
+      createMockContextWithTools(["a", "b", "c"])
+    );
+    expect(correctOrder.value).toBe(1);
+
+    const wrongOrder = scorer.evaluate(
+      createMockContextWithTools(["c", "b", "a"])
+    );
+    expect(wrongOrder.value).toBeLessThan(1);
+  });
+});
+
+describe("skillSetScorer", () => {
+  it("is a shorthand for skillSelectionScorer with orderMatters: false", () => {
+    const scorer = skillSetScorer(["a", "b", "c"]);
+
+    // Any order should work
+    const result1 = scorer.evaluate(createMockContextWithTools(["a", "b", "c"]));
+    expect(result1.value).toBe(1);
+
+    const result2 = scorer.evaluate(createMockContextWithTools(["c", "a", "b"]));
+    expect(result2.value).toBe(1);
+  });
+});
+
+describe("firstSkillScorer", () => {
+  it("returns 1 when first skill is acceptable", () => {
+    const scorer = firstSkillScorer(["search", "retrieve"]);
+
+    const result = scorer.evaluate(
+      createMockContextWithTools(["search", "analyze", "summarize"])
+    );
+    expect(result.value).toBe(1);
+    expect(result.reason).toContain("Correct first skill");
+  });
+
+  it("returns 0 when first skill is not acceptable", () => {
+    const scorer = firstSkillScorer(["search", "retrieve"]);
+
+    const result = scorer.evaluate(
+      createMockContextWithTools(["analyze", "search", "summarize"])
+    );
+    expect(result.value).toBe(0);
+    expect(result.reason).toContain("not in expected");
+  });
+
+  it("returns 0 when no skills are called", () => {
+    const scorer = firstSkillScorer(["search"]);
+    const result = scorer.evaluate(createMockContextWithTools([]));
+
+    expect(result.value).toBe(0);
+    expect(result.reason).toBe("No skills were called");
+  });
+});
+
+describe("skillCategoryScorer", () => {
+  const categoryMap = {
+    web_search: "search" as const,
+    file_search: "search" as const,
+    code_edit: "code" as const,
+    file_write: "file" as const,
+  };
+
+  it("scores based on category matches", () => {
+    const scorer = skillCategoryScorer({
+      expectedCategories: ["search", "code"],
+      categoryMap,
+    });
+
+    const result = scorer.evaluate(
+      createMockContextWithTools(["web_search", "code_edit"])
+    );
+    expect(result.value).toBe(1);
+  });
+
+  it("returns partial score for partial category matches", () => {
+    const scorer = skillCategoryScorer({
+      expectedCategories: ["search", "code", "file"],
+      categoryMap,
+    });
+
+    const result = scorer.evaluate(
+      createMockContextWithTools(["web_search", "code_edit"])
+    );
+    expect(result.value).toBeCloseTo(2 / 3);
+  });
+
+  it("respects orderMatters for categories", () => {
+    const scorer = skillCategoryScorer({
+      expectedCategories: ["search", "code"],
+      categoryMap,
+      orderMatters: true,
+    });
+
+    // Correct order
+    const correctOrder = scorer.evaluate(
+      createMockContextWithTools(["web_search", "code_edit"])
+    );
+    expect(correctOrder.value).toBe(1);
+
+    // Wrong order
+    const wrongOrder = scorer.evaluate(
+      createMockContextWithTools(["code_edit", "web_search"])
+    );
+    expect(wrongOrder.value).toBeLessThan(1);
+  });
+});
+
+describe("skillConfidenceScorer", () => {
+  it("returns average confidence from span context", () => {
+    const scorer = skillConfidenceScorer();
+
+    const result = scorer.evaluate(
+      createMockContextWithTools(["search", "analyze"], undefined, {
+        skillSelections: [
+          { selectedSkill: "search", selectionConfidence: 0.9 },
+          { selectedSkill: "analyze", selectionConfidence: 0.7 },
+        ],
+      })
+    );
+
+    expect(result.value).toBeCloseTo(0.8);
+  });
+
+  it("returns 0.5 when no confidence data available", () => {
+    const scorer = skillConfidenceScorer();
+    const result = scorer.evaluate(createMockContextWithTools(["search"]));
+
+    expect(result.value).toBe(0.5);
+    expect(result.reason).toContain("No skill confidence data");
+  });
+
+  it("reports when confidence is below threshold", () => {
+    const scorer = skillConfidenceScorer({ minConfidence: 0.8 });
+
+    const result = scorer.evaluate(
+      createMockContextWithTools(["search"], undefined, {
+        skillSelections: [{ selectedSkill: "search", selectionConfidence: 0.6 }],
+      })
+    );
+
+    expect(result.value).toBe(0.6);
+    expect(result.reason).toContain("some below");
   });
 });
