@@ -869,6 +869,227 @@ export async function getLatestPromptVersion(
   return rows[0]?.max_version ?? 0
 }
 
+// =============================================================================
+// Cross-Workspace Analytics (Organization-level)
+// =============================================================================
+
+/**
+ * Organization-level analytics summary across multiple workspaces/projects.
+ */
+export interface OrgAnalyticsSummary {
+  total_workspaces: number
+  total_runs: number
+  passed_runs: number
+  failed_runs: number
+  pass_rate: number
+  total_tokens: number
+  total_cost: number
+  avg_duration_ms: number
+}
+
+/**
+ * Per-workspace analytics breakdown.
+ */
+export interface WorkspaceAnalytics {
+  project_id: string
+  total_runs: number
+  passed_runs: number
+  failed_runs: number
+  pass_rate: number
+  total_tokens: number
+  total_cost: number
+  avg_duration_ms: number
+}
+
+/**
+ * Get aggregated analytics across multiple workspaces.
+ */
+export async function getOrgAnalyticsSummary(
+  projectIds: string[],
+  startDate: string,
+  endDate: string,
+): Promise<OrgAnalyticsSummary> {
+  const ch = getClickHouseClient()
+
+  if (projectIds.length === 0) {
+    return {
+      total_workspaces: 0,
+      total_runs: 0,
+      passed_runs: 0,
+      failed_runs: 0,
+      pass_rate: 0,
+      total_tokens: 0,
+      total_cost: 0,
+      avg_duration_ms: 0,
+    }
+  }
+
+  const result = await ch.query({
+    query: `
+      SELECT
+        uniqExact(project_id) as total_workspaces,
+        count() as total_runs,
+        countIf(status = 'ok') as passed_runs,
+        countIf(status = 'error') as failed_runs,
+        if(count() > 0, countIf(status = 'ok') / count(), 0) as pass_rate,
+        sum(total_tokens) as total_tokens,
+        sum(total_cost) as total_cost,
+        if(count() > 0, avg(duration_ms), 0) as avg_duration_ms
+      FROM traces
+      WHERE project_id IN {projectIds:Array(String)}
+        AND timestamp >= {startDate:Date}
+        AND timestamp <= {endDate:Date} + INTERVAL 1 DAY
+    `,
+    query_params: { projectIds, startDate, endDate },
+    format: 'JSONEachRow',
+  })
+
+  const rows = await result.json<OrgAnalyticsSummary>()
+  return (
+    rows[0] || {
+      total_workspaces: 0,
+      total_runs: 0,
+      passed_runs: 0,
+      failed_runs: 0,
+      pass_rate: 0,
+      total_tokens: 0,
+      total_cost: 0,
+      avg_duration_ms: 0,
+    }
+  )
+}
+
+/**
+ * Get per-workspace analytics breakdown.
+ */
+export async function getWorkspaceAnalyticsBreakdown(
+  projectIds: string[],
+  startDate: string,
+  endDate: string,
+): Promise<WorkspaceAnalytics[]> {
+  const ch = getClickHouseClient()
+
+  if (projectIds.length === 0) {
+    return []
+  }
+
+  const result = await ch.query({
+    query: `
+      SELECT
+        project_id,
+        count() as total_runs,
+        countIf(status = 'ok') as passed_runs,
+        countIf(status = 'error') as failed_runs,
+        if(count() > 0, countIf(status = 'ok') / count(), 0) as pass_rate,
+        sum(total_tokens) as total_tokens,
+        sum(total_cost) as total_cost,
+        if(count() > 0, avg(duration_ms), 0) as avg_duration_ms
+      FROM traces
+      WHERE project_id IN {projectIds:Array(String)}
+        AND timestamp >= {startDate:Date}
+        AND timestamp <= {endDate:Date} + INTERVAL 1 DAY
+      GROUP BY project_id
+      ORDER BY total_runs DESC
+    `,
+    query_params: { projectIds, startDate, endDate },
+    format: 'JSONEachRow',
+  })
+
+  return result.json<WorkspaceAnalytics>()
+}
+
+/**
+ * Get cross-workspace score comparison.
+ */
+export async function getCrossWorkspaceScoreComparison(
+  projectIds: string[],
+  scorerName: string,
+  startDate: string,
+  endDate: string,
+): Promise<
+  {
+    project_id: string
+    avg_score: number
+    min_score: number
+    max_score: number
+    score_count: number
+  }[]
+> {
+  const ch = getClickHouseClient()
+
+  if (projectIds.length === 0) {
+    return []
+  }
+
+  const result = await ch.query({
+    query: `
+      SELECT
+        project_id,
+        avg(value) as avg_score,
+        min(value) as min_score,
+        max(value) as max_score,
+        count() as score_count
+      FROM scores
+      WHERE project_id IN {projectIds:Array(String)}
+        AND name = {scorerName:String}
+        AND timestamp >= {startDate:Date}
+        AND timestamp <= {endDate:Date} + INTERVAL 1 DAY
+      GROUP BY project_id
+      ORDER BY avg_score DESC
+    `,
+    query_params: { projectIds, scorerName, startDate, endDate },
+    format: 'JSONEachRow',
+  })
+
+  return result.json()
+}
+
+/**
+ * Get cross-workspace daily trends.
+ */
+export async function getCrossWorkspaceDailyTrends(
+  projectIds: string[],
+  startDate: string,
+  endDate: string,
+): Promise<
+  {
+    date: string
+    total_runs: number
+    passed_runs: number
+    failed_runs: number
+    total_tokens: number
+    total_cost: number
+  }[]
+> {
+  const ch = getClickHouseClient()
+
+  if (projectIds.length === 0) {
+    return []
+  }
+
+  const result = await ch.query({
+    query: `
+      SELECT
+        toDate(timestamp) as date,
+        count() as total_runs,
+        countIf(status = 'ok') as passed_runs,
+        countIf(status = 'error') as failed_runs,
+        sum(total_tokens) as total_tokens,
+        sum(total_cost) as total_cost
+      FROM traces
+      WHERE project_id IN {projectIds:Array(String)}
+        AND timestamp >= {startDate:Date}
+        AND timestamp <= {endDate:Date} + INTERVAL 1 DAY
+      GROUP BY date
+      ORDER BY date ASC
+    `,
+    query_params: { projectIds, startDate, endDate },
+    format: 'JSONEachRow',
+  })
+
+  return result.json()
+}
+
 export async function backfillMaterializedViews(
   projectId?: string,
 ): Promise<{ view: string; rows: number }[]> {

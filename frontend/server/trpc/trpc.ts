@@ -1,19 +1,51 @@
 /**
  * tRPC Server Configuration
  *
- * Sets up the tRPC router and procedures.
+ * Sets up the tRPC router and procedures with multi-tenant context.
  */
 
 import { initTRPC, TRPCError } from "@trpc/server";
 import type { FetchCreateContextFnOptions } from "@trpc/server/adapters/fetch";
+import {
+  hasOrgPermission,
+  hasWorkspacePermission,
+  type OrgPermission,
+  type WorkspacePermission,
+} from "@/lib/db/permissions";
 
 /**
  * Context passed to every tRPC procedure
  */
 export interface Context {
+  // Legacy project ID (for backward compatibility with existing routes)
   projectId: string;
+  // Multi-tenant context
+  organizationId?: string;
+  workspaceId?: string;
   userId?: string;
   headers: Headers;
+}
+
+/**
+ * Context with required userId (for protected procedures)
+ */
+export interface AuthenticatedContext extends Context {
+  userId: string;
+}
+
+/**
+ * Context with required org context
+ */
+export interface OrgContext extends AuthenticatedContext {
+  organizationId: string;
+}
+
+/**
+ * Context with required workspace context
+ */
+export interface WorkspaceContext extends AuthenticatedContext {
+  workspaceId: string;
+  organizationId: string;
 }
 
 /**
@@ -22,11 +54,25 @@ export interface Context {
 export async function createContext(
   opts: FetchCreateContextFnOptions
 ): Promise<Context> {
-  // Get project ID from header or query
+  const url = new URL(opts.req.url);
+
+  // Get project ID from header or query (legacy support)
   const projectId =
     opts.req.headers.get("x-project-id") ||
-    new URL(opts.req.url).searchParams.get("projectId") ||
+    url.searchParams.get("projectId") ||
     "default";
+
+  // Get organization ID from header or query
+  const organizationId =
+    opts.req.headers.get("x-organization-id") ||
+    url.searchParams.get("organizationId") ||
+    undefined;
+
+  // Get workspace ID from header or query
+  const workspaceId =
+    opts.req.headers.get("x-workspace-id") ||
+    url.searchParams.get("workspaceId") ||
+    undefined;
 
   // Get user ID from auth header (simplified for now)
   const authHeader = opts.req.headers.get("authorization");
@@ -34,6 +80,8 @@ export async function createContext(
 
   return {
     projectId,
+    organizationId,
+    workspaceId,
     userId,
     headers: opts.req.headers,
   };
@@ -41,6 +89,7 @@ export async function createContext(
 
 /**
  * Extract user ID from auth header (placeholder)
+ * TODO: Replace with real JWT validation in neon-19
  */
 function extractUserId(authHeader: string): string | undefined {
   // In a real implementation, this would validate the token
@@ -79,6 +128,90 @@ export const protectedProcedure = t.procedure.use(async ({ ctx, next }) => {
     ctx: {
       ...ctx,
       userId: ctx.userId,
-    },
+    } as AuthenticatedContext,
   });
 });
+
+/**
+ * Organization procedure (requires auth + org context)
+ */
+export const orgProcedure = protectedProcedure.use(async ({ ctx, next }) => {
+  if (!ctx.organizationId) {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: "Organization context required (x-organization-id header)",
+    });
+  }
+  return next({
+    ctx: {
+      ...ctx,
+      organizationId: ctx.organizationId,
+    } as OrgContext,
+  });
+});
+
+/**
+ * Workspace procedure (requires auth + workspace context)
+ */
+export const workspaceProcedure = protectedProcedure.use(
+  async ({ ctx, next }) => {
+    if (!ctx.workspaceId || !ctx.organizationId) {
+      throw new TRPCError({
+        code: "BAD_REQUEST",
+        message:
+          "Workspace context required (x-workspace-id and x-organization-id headers)",
+      });
+    }
+    return next({
+      ctx: {
+        ...ctx,
+        workspaceId: ctx.workspaceId,
+        organizationId: ctx.organizationId,
+      } as WorkspaceContext,
+    });
+  }
+);
+
+/**
+ * Create a procedure that requires a specific organization permission
+ */
+export function withOrgPermission(permission: OrgPermission) {
+  return orgProcedure.use(async ({ ctx, next }) => {
+    const hasPermission = await hasOrgPermission(
+      ctx.userId,
+      ctx.organizationId,
+      permission
+    );
+
+    if (!hasPermission) {
+      throw new TRPCError({
+        code: "FORBIDDEN",
+        message: `Missing permission: ${permission}`,
+      });
+    }
+
+    return next({ ctx });
+  });
+}
+
+/**
+ * Create a procedure that requires a specific workspace permission
+ */
+export function withWorkspacePermission(permission: WorkspacePermission) {
+  return workspaceProcedure.use(async ({ ctx, next }) => {
+    const hasPermission = await hasWorkspacePermission(
+      ctx.userId,
+      ctx.workspaceId,
+      permission
+    );
+
+    if (!hasPermission) {
+      throw new TRPCError({
+        code: "FORBIDDEN",
+        message: `Missing permission: ${permission}`,
+      });
+    }
+
+    return next({ ctx });
+  });
+}
