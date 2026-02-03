@@ -1,26 +1,14 @@
 <p align="center">
-  <br>
+  <img src="docs/banner.png" alt="Neon - Agent Evaluation Platform" width="100%">
+</p>
+
+<p align="center">
   <img src="https://img.shields.io/badge/TypeScript-5.0+-3178C6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript">
   <img src="https://img.shields.io/badge/Python-3.11+-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python">
   <img src="https://img.shields.io/badge/Next.js-15-black?style=for-the-badge&logo=next.js&logoColor=white" alt="Next.js">
   <img src="https://img.shields.io/badge/ClickHouse-24.3-FFCC01?style=for-the-badge&logo=clickhouse&logoColor=black" alt="ClickHouse">
   <img src="https://img.shields.io/badge/Temporal-1.24-000000?style=for-the-badge&logo=temporal&logoColor=white" alt="Temporal">
 </p>
-
-```
-    ╔═══════════════════════════════════════════════════════════════════════════╗
-    ║                                                                           ║
-    ║     ███╗   ██╗███████╗ ██████╗ ███╗   ██╗                                 ║
-    ║     ████╗  ██║██╔════╝██╔═══██╗████╗  ██║                                 ║
-    ║     ██╔██╗ ██║█████╗  ██║   ██║██╔██╗ ██║                                 ║
-    ║     ██║╚██╗██║██╔══╝  ██║   ██║██║╚██╗██║                                 ║
-    ║     ██║ ╚████║███████╗╚██████╔╝██║ ╚████║                                 ║
-    ║     ╚═╝  ╚═══╝╚══════╝ ╚═════╝ ╚═╝  ╚═══╝                                 ║
-    ║                                                                           ║
-    ║     ⚡ Agent Ops Platform │ Durable Evaluation Infrastructure             ║
-    ║                                                                           ║
-    ╚═══════════════════════════════════════════════════════════════════════════╝
-```
 
 <p align="center">
   <strong>Build, execute, observe, and evaluate AI agents with confidence.</strong>
