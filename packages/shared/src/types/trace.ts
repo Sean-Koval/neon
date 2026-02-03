@@ -41,7 +41,83 @@ export type ComponentType =
   | "planning"    // High-level task decomposition and planning
   | "memory"      // Memory access and management
   | "routing"     // Agent routing and orchestration
+  | "skill"       // Skill/capability selection and execution
+  | "mcp"         // MCP server/tool operations
   | "other";      // Unclassified or custom components
+
+/**
+ * Skill category for grouping related skills/tools
+ */
+export type SkillCategory =
+  | "code"        // Code generation, editing, analysis
+  | "search"      // Web search, file search, knowledge retrieval
+  | "file"        // File operations (read, write, edit)
+  | "data"        // Data processing and transformation
+  | "communication" // Messaging, notifications, API calls
+  | "browser"     // Web browsing and interaction
+  | "system"      // System operations, shell commands
+  | "custom";     // User-defined skill category
+
+/**
+ * MCP transport type
+ */
+export type MCPTransport = "stdio" | "http" | "websocket";
+
+/**
+ * Skill selection context - captures why a skill was chosen
+ */
+export interface SkillSelectionContext {
+  /** The skill/tool that was selected */
+  selectedSkill: string;
+  /** Category of the selected skill */
+  skillCategory?: SkillCategory;
+  /** Confidence score (0-1) in the selection */
+  selectionConfidence?: number;
+  /** Reasoning for why this skill was selected */
+  selectionReason?: string;
+  /** Other skills that were considered but not selected */
+  alternativesConsidered?: string[];
+  /** Scores for alternatives (parallel array with alternativesConsidered) */
+  alternativeScores?: number[];
+}
+
+/**
+ * MCP (Model Context Protocol) execution context
+ */
+export interface MCPContext {
+  /** MCP server identifier */
+  serverId: string;
+  /** MCP server URL or path */
+  serverUrl?: string;
+  /** Tool identifier within the MCP server */
+  toolId: string;
+  /** MCP protocol version */
+  protocolVersion?: string;
+  /** Transport mechanism used */
+  transport?: MCPTransport;
+  /** Capabilities exposed by the server */
+  capabilities?: string[];
+  /** MCP-specific error code if failed */
+  errorCode?: string;
+}
+
+/**
+ * Decision metadata for span execution
+ */
+export interface DecisionMetadata {
+  /** Whether this action was explicitly requested by the user */
+  wasUserInitiated?: boolean;
+  /** Whether this is a fallback action after a failure */
+  isFallback?: boolean;
+  /** Number of retry attempts for this operation */
+  retryCount?: number;
+  /** ID of the original span this is retrying (if isFallback) */
+  originalSpanId?: string;
+  /** Whether approval was required for this action */
+  requiredApproval?: boolean;
+  /** Whether approval was granted (if requiredApproval) */
+  approvalGranted?: boolean;
+}
 
 /**
  * Span status
@@ -103,6 +179,12 @@ export interface Span {
   toolName?: string;
   toolInput?: string;
   toolOutput?: string;
+  // Skill selection context (for debugging "did we pick the right skill?")
+  skillSelection?: SkillSelectionContext;
+  // MCP execution context (for MCP tool calls)
+  mcpContext?: MCPContext;
+  // Decision metadata (for understanding execution decisions)
+  decisionMetadata?: DecisionMetadata;
   // Attributes
   attributes: Record<string, string>;
 }

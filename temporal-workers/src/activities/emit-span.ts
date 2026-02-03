@@ -28,6 +28,7 @@ export async function emitSpan(params: EmitSpanParams): Promise<void> {
     name: params.name,
     kind: "internal",
     span_type: params.spanType,
+    component_type: params.componentType || null,
     timestamp,
     end_time: params.durationMs
       ? new Date(Date.now()).toISOString()
@@ -49,6 +50,34 @@ export async function emitSpan(params: EmitSpanParams): Promise<void> {
     tool_name: params.toolName || null,
     tool_input: params.toolInput || "",
     tool_output: params.toolOutput || "",
+    // Skill selection context
+    skill_selection: params.skillSelection ? {
+      selected_skill: params.skillSelection.selectedSkill,
+      skill_category: params.skillSelection.skillCategory || null,
+      selection_confidence: params.skillSelection.selectionConfidence || null,
+      selection_reason: params.skillSelection.selectionReason || null,
+      alternatives_considered: params.skillSelection.alternativesConsidered || [],
+      alternative_scores: params.skillSelection.alternativeScores || [],
+    } : null,
+    // MCP execution context
+    mcp_context: params.mcpContext ? {
+      server_id: params.mcpContext.serverId,
+      server_url: params.mcpContext.serverUrl || null,
+      tool_id: params.mcpContext.toolId,
+      protocol_version: params.mcpContext.protocolVersion || null,
+      transport: params.mcpContext.transport || null,
+      capabilities: params.mcpContext.capabilities || [],
+      error_code: params.mcpContext.errorCode || null,
+    } : null,
+    // Decision metadata
+    decision_metadata: params.decisionMetadata ? {
+      was_user_initiated: params.decisionMetadata.wasUserInitiated || false,
+      is_fallback: params.decisionMetadata.isFallback || false,
+      retry_count: params.decisionMetadata.retryCount || 0,
+      original_span_id: params.decisionMetadata.originalSpanId || null,
+      required_approval: params.decisionMetadata.requiredApproval || false,
+      approval_granted: params.decisionMetadata.approvalGranted || null,
+    } : null,
     attributes: params.attributes || {},
   };
 
@@ -95,6 +124,7 @@ export async function emitSpansBatch(spans: EmitSpanParams[]): Promise<void> {
     name: params.name,
     kind: "internal",
     span_type: params.spanType,
+    component_type: params.componentType || null,
     timestamp: new Date().toISOString(),
     end_time: params.durationMs ? new Date().toISOString() : null,
     duration_ms: params.durationMs || 0,
@@ -114,6 +144,34 @@ export async function emitSpansBatch(spans: EmitSpanParams[]): Promise<void> {
     tool_name: params.toolName || null,
     tool_input: params.toolInput || "",
     tool_output: params.toolOutput || "",
+    // Skill selection context
+    skill_selection: params.skillSelection ? {
+      selected_skill: params.skillSelection.selectedSkill,
+      skill_category: params.skillSelection.skillCategory || null,
+      selection_confidence: params.skillSelection.selectionConfidence || null,
+      selection_reason: params.skillSelection.selectionReason || null,
+      alternatives_considered: params.skillSelection.alternativesConsidered || [],
+      alternative_scores: params.skillSelection.alternativeScores || [],
+    } : null,
+    // MCP execution context
+    mcp_context: params.mcpContext ? {
+      server_id: params.mcpContext.serverId,
+      server_url: params.mcpContext.serverUrl || null,
+      tool_id: params.mcpContext.toolId,
+      protocol_version: params.mcpContext.protocolVersion || null,
+      transport: params.mcpContext.transport || null,
+      capabilities: params.mcpContext.capabilities || [],
+      error_code: params.mcpContext.errorCode || null,
+    } : null,
+    // Decision metadata
+    decision_metadata: params.decisionMetadata ? {
+      was_user_initiated: params.decisionMetadata.wasUserInitiated || false,
+      is_fallback: params.decisionMetadata.isFallback || false,
+      retry_count: params.decisionMetadata.retryCount || 0,
+      original_span_id: params.decisionMetadata.originalSpanId || null,
+      required_approval: params.decisionMetadata.requiredApproval || false,
+      approval_granted: params.decisionMetadata.approvalGranted || null,
+    } : null,
     attributes: params.attributes || {},
   }));
 
