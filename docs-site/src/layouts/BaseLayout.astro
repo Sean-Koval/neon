@@ -1,0 +1,51 @@
+---
+const {
+  title = 'Neon Docs',
+  description = 'Docs for the Neon agent evaluation platform.',
+} = Astro.props;
+import '../styles/global.css';
+const base = import.meta.env.BASE_URL;
+const nav = [
+  { label: 'Docs', href: `${base}docs` },
+  { label: 'GitHub', href: 'https://github.com/Sean-Koval/neon' },
+];
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width" />
+    <meta name="description" content={description} />
+    <meta name="generator" content={Astro.generator} />
+    <title>{title}</title>
+    <link rel="icon" type="image/svg+xml" href={`${base}favicon.svg`} />
+    <link rel="icon" href={`${base}favicon.ico`} />
+  </head>
+  <body>
+    <div class="container">
+      <header class="nav">
+        <a class="logo" href={`${base}`}>Neon</a>
+        <nav class="nav-links">
+          {nav.map((item) => (
+            <a
+              href={item.href}
+              target={item.href.startsWith('http') ? '_blank' : undefined}
+              rel={item.href.startsWith('http') ? 'noopener' : undefined}
+            >
+              {item.label}
+            </a>
+          ))}
+        </nav>
+      </header>
+    </div>
+    <main>
+      <slot />
+    </main>
+    <footer class="footer">
+      <div class="container">
+        <div>Neon Docs — durable eval workflows, trace analytics, and scoring pipelines.</div>
+      </div>
+    </footer>
+  </body>
+</html>

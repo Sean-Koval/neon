@@ -1,0 +1,102 @@
+---
+import { getDocEntries } from '../lib/docs';
+
+const docs = await getDocEntries();
+const base = import.meta.env.BASE_URL;
+const categories = [...new Set(docs.map((doc) => doc.category))];
+---
+
+<section class="container doc-layout" style="padding-top: 40px;">
+  <aside class="doc-sidebar fade-in">
+    <a class="pill" href={`${base}docs`} style="margin-bottom: 10px;">Documentation</a>
+    {categories.map((category) => (
+      <div class="doc-group">
+        <div class="doc-group-title">{category}</div>
+        <div class="doc-tree">
+          {docs
+            .filter((doc) => doc.category === category)
+            .map((doc) => (
+              <a href={`${base}docs/${doc.slug}`}>{doc.title}</a>
+            ))}
+        </div>
+      </div>
+    ))}
+  </aside>
+  <article class="doc-content fade-in">
+    <p class="kicker">Neon Docs</p>
+    <h1>Agent ops: build, observe, evaluate, and improve.</h1>
+    <p>
+      Neon is an agent operations platform with durable execution, OpenTelemetry-native
+      tracing, and evals-as-code SDKs. It helps teams ship reliable agents with clear,
+      production-grade observability.
+    </p>
+    <div class="hero-actions" style="margin: 18px 0 28px;">
+      <a class="button" href={`${base}docs/getting-started`}>Start with Getting Started</a>
+      <a class="button secondary" href="https://github.com/Sean-Koval/neon" target="_blank">View repo</a>
+    </div>
+
+    <div class="callout" style="margin-bottom: 24px;">
+      <strong>Quickstart path:</strong> Instrument an agent with OpenTelemetry, send traces to Neon,
+      then layer in evals-as-code and regression checks as you scale.
+    </div>
+
+    <h2>What Neon Does</h2>
+    <div class="grid">
+      <div class="card">
+        <h3>Observe any agent</h3>
+        <p>Send OpenTelemetry traces from any runtime and query them fast in ClickHouse.</p>
+      </div>
+      <div class="card">
+        <h3>Durable execution</h3>
+        <p>Temporal-backed workflows survive retries, timeouts, and approvals.</p>
+      </div>
+      <div class="card">
+        <h3>Evals as code</h3>
+        <p>Use SDKs to define traces, scorers, and regression checks in code.</p>
+      </div>
+    </div>
+
+    <h2>Two Integration Modes</h2>
+    <div class="grid">
+      <div class="card">
+        <h3>Observe-only</h3>
+        <p>Instrument your existing agents with OpenTelemetry and stream traces.</p>
+      </div>
+      <div class="card">
+        <h3>Managed execution</h3>
+        <p>Run agents inside Temporal for durable, resumable workflows.</p>
+      </div>
+    </div>
+
+    <h2>Quick Start</h2>
+    <pre><code># 1) Add tracing (Python)
+from opentelemetry import trace
+tracer = trace.get_tracer("my-agent")
+
+@tracer.start_as_current_span("agent-run")
+async def run_agent(query: str):
+    return await llm.generate(query)
+
+# 2) Send traces to Neon
+curl -X POST http://localhost:3000/api/v1/traces \\
+  -H "Content-Type: application/json" \\
+  -H "x-project-id: my-project" \\
+  -d '&#123; \"resourceSpans\": [] &#125;'</code></pre>
+
+    <h2>When to Use Neon</h2>
+    <div class="grid">
+      <div class="card">
+        <h3>Online monitoring</h3>
+        <p>Track live agent behavior and spot drift with traces.</p>
+      </div>
+      <div class="card">
+        <h3>Durable workflows</h3>
+        <p>Keep long-running agent jobs resilient to failures.</p>
+      </div>
+      <div class="card">
+        <h3>Regression checks</h3>
+        <p>Compare agent versions and catch quality drops before release.</p>
+      </div>
+    </div>
+  </article>
+</section>
