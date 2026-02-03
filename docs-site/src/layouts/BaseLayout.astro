@@ -25,7 +25,10 @@ const nav = [
   <body>
     <div class="container">
       <header class="nav">
-        <a class="logo" href={`${base}`}>Neon</a>
+        <a class="logo" href={`${base}`}>
+          <img src={`${base}logo-icon.png`} alt="" class="logo-icon" />
+          Neon
+        </a>
         <nav class="nav-links">
           {nav.map((item) => (
             <a
