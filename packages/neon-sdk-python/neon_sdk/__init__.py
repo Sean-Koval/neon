@@ -22,6 +22,22 @@ Example:
     result = scorer.evaluate(context)
     ```
 
+ML Framework Integrations:
+    ```python
+    from neon_sdk.integrations import (
+        # Optimization signals for RLHF
+        generate_signals, generate_reward_signals,
+        # Agent Lightning export
+        export_to_agent_lightning, export_batch_to_agent_lightning,
+        # DSPy integration
+        create_dspy_dataset, neon_dspy_callback,
+        # OpenAI fine-tuning
+        export_to_openai_finetune, write_finetune_jsonl,
+        # HuggingFace TRL
+        export_to_dpo_pairs, export_to_ppo_trajectories,
+    )
+    ```
+
 Optional Dependencies:
     - temporal: pip install neon-sdk[temporal]
       ```python
