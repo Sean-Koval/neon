@@ -100,6 +100,62 @@ export interface ToolExecuteParams {
 }
 
 /**
+ * Skill selection context for span emission
+ */
+export interface EmitSkillSelectionContext {
+  /** The skill/tool that was selected */
+  selectedSkill: string;
+  /** Category of the selected skill */
+  skillCategory?: "code" | "search" | "file" | "data" | "communication" | "browser" | "system" | "custom";
+  /** Confidence score (0-1) in the selection */
+  selectionConfidence?: number;
+  /** Reasoning for why this skill was selected */
+  selectionReason?: string;
+  /** Other skills that were considered but not selected */
+  alternativesConsidered?: string[];
+  /** Scores for alternatives */
+  alternativeScores?: number[];
+}
+
+/**
+ * MCP execution context for span emission
+ */
+export interface EmitMCPContext {
+  /** MCP server identifier */
+  serverId: string;
+  /** MCP server URL or path */
+  serverUrl?: string;
+  /** Tool identifier within the MCP server */
+  toolId: string;
+  /** MCP protocol version */
+  protocolVersion?: string;
+  /** Transport mechanism used */
+  transport?: "stdio" | "http" | "websocket";
+  /** Capabilities exposed by the server */
+  capabilities?: string[];
+  /** MCP-specific error code if failed */
+  errorCode?: string;
+}
+
+/**
+ * Decision metadata for span emission
+ */
+export interface EmitDecisionMetadata {
+  /** Whether this action was explicitly requested by the user */
+  wasUserInitiated?: boolean;
+  /** Whether this is a fallback action after a failure */
+  isFallback?: boolean;
+  /** Number of retry attempts for this operation */
+  retryCount?: number;
+  /** ID of the original span this is retrying */
+  originalSpanId?: string;
+  /** Whether approval was required for this action */
+  requiredApproval?: boolean;
+  /** Whether approval was granted */
+  approvalGranted?: boolean;
+}
+
+/**
  * Input for span emission activity
  */
 export interface EmitSpanParams {
@@ -107,6 +163,7 @@ export interface EmitSpanParams {
   spanId?: string;
   parentSpanId?: string;
   spanType: "span" | "generation" | "tool" | "retrieval" | "event";
+  componentType?: "prompt" | "retrieval" | "tool" | "reasoning" | "planning" | "memory" | "routing" | "skill" | "mcp" | "other";
   name: string;
   input?: string;
   output?: string;
@@ -119,6 +176,12 @@ export interface EmitSpanParams {
   toolName?: string;
   toolInput?: string;
   toolOutput?: string;
+  // Skill selection context (for debugging skill/tool selection)
+  skillSelection?: EmitSkillSelectionContext;
+  // MCP execution context (for MCP tool calls)
+  mcpContext?: EmitMCPContext;
+  // Decision metadata (for understanding execution decisions)
+  decisionMetadata?: EmitDecisionMetadata;
   attributes?: Record<string, string>;
 }
 
