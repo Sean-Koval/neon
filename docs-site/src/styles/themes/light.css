@@ -1,0 +1,51 @@
+/**
+ * Light Theme - Soft Blues & Pinks
+ *
+ * Clean, professional look with subtle gradient backgrounds
+ * and vibrant accent colors.
+ */
+
+[data-theme="light"] {
+  /* Backgrounds */
+  --bg-primary: #f5f7ff;
+  --bg-secondary: #eef2ff;
+  --bg-panel: #ffffff;
+  --bg-panel-alt: #f7f8ff;
+  --bg-code: #1a1d2e;
+
+  /* Text */
+  --text-primary: #0f111a;
+  --text-secondary: #5d667d;
+  --text-muted: #8890a5;
+  --text-inverse: #ffffff;
+
+  /* Accent Colors */
+  --accent-cyan: #00d7ff;
+  --accent-magenta: #ff3fd2;
+  --accent-lime: #c7ff47;
+  --accent-primary: var(--accent-cyan);
+
+  /* Borders & Shadows */
+  --border-color: rgba(15, 17, 26, 0.12);
+  --border-accent: rgba(0, 215, 255, 0.3);
+  --shadow-soft: 0 24px 60px rgba(9, 12, 22, 0.12);
+  --shadow-glow: 0 0 50px rgba(0, 215, 255, 0.25);
+
+  /* Interactive States */
+  --hover-bg: rgba(0, 215, 255, 0.08);
+  --active-bg: rgba(0, 215, 255, 0.15);
+
+  /* Gradients */
+  --gradient-accent: linear-gradient(135deg, var(--accent-cyan), var(--accent-magenta));
+  --gradient-panel: linear-gradient(160deg, rgba(0, 215, 255, 0.08), rgba(255, 63, 210, 0.05));
+
+  /* Component-specific */
+  --button-bg: linear-gradient(120deg, #0f111a, #1c2234 60%);
+  --button-text: #ffffff;
+  --card-border: var(--border-color);
+  --card-shadow: var(--shadow-soft);
+
+  /* Syntax highlighting (code blocks stay dark) */
+  --code-bg: #0f1422;
+  --code-text: #e6ecff;
+}

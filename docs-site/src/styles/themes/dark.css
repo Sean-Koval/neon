@@ -1,0 +1,75 @@
+/**
+ * Dark Theme - Neon Nights
+ *
+ * Deep charcoal backgrounds with vibrant neon accents.
+ * Inspired by neon signs and cyberpunk aesthetics.
+ */
+
+[data-theme="dark"] {
+  /* Backgrounds - Deep charcoal/grey */
+  --bg-primary: #0a0c10;
+  --bg-secondary: #12151c;
+  --bg-panel: #161a24;
+  --bg-panel-alt: #1a1f2c;
+  --bg-code: #0d1017;
+
+  /* Text */
+  --text-primary: #e8ecf4;
+  --text-secondary: #a1aac2;
+  --text-muted: #6b7280;
+  --text-inverse: #0a0c10;
+
+  /* Neon Accent Colors - Vibrant & Glowing */
+  --accent-cyan: #00ffff;
+  --accent-magenta: #ff00aa;
+  --accent-lime: #39ff14;
+  --accent-purple: #bf00ff;
+  --accent-orange: #ff6b00;
+  --accent-primary: var(--accent-cyan);
+
+  /* Borders & Shadows - Glowing effects */
+  --border-color: rgba(255, 255, 255, 0.08);
+  --border-accent: rgba(0, 255, 255, 0.4);
+  --shadow-soft: 0 30px 80px rgba(0, 0, 0, 0.6);
+  --shadow-glow: 0 0 30px rgba(0, 255, 255, 0.3),
+                 0 0 60px rgba(0, 255, 255, 0.15);
+  --shadow-glow-magenta: 0 0 30px rgba(255, 0, 170, 0.3),
+                         0 0 60px rgba(255, 0, 170, 0.15);
+
+  /* Interactive States */
+  --hover-bg: rgba(0, 255, 255, 0.1);
+  --active-bg: rgba(0, 255, 255, 0.2);
+
+  /* Gradients */
+  --gradient-accent: linear-gradient(135deg, var(--accent-cyan), var(--accent-magenta));
+  --gradient-panel: linear-gradient(160deg, rgba(0, 255, 255, 0.06), rgba(255, 0, 170, 0.04));
+  --gradient-glow: radial-gradient(600px circle at var(--mouse-x, 50%) var(--mouse-y, 50%),
+                                   rgba(0, 255, 255, 0.06), transparent 40%);
+
+  /* Component-specific */
+  --button-bg: linear-gradient(120deg, var(--accent-cyan), var(--accent-magenta));
+  --button-text: #0a0c10;
+  --card-border: rgba(0, 255, 255, 0.15);
+  --card-shadow: var(--shadow-soft), 0 0 1px rgba(0, 255, 255, 0.3);
+
+  /* Syntax highlighting */
+  --code-bg: #0d1017;
+  --code-text: #e6ecff;
+
+  /* Neon text glow effect */
+  --text-glow: 0 0 10px currentColor, 0 0 20px currentColor, 0 0 40px currentColor;
+}
+
+/* Special neon glow classes for dark mode */
+[data-theme="dark"] .neon-text {
+  text-shadow: var(--text-glow);
+}
+
+[data-theme="dark"] .neon-border {
+  box-shadow: var(--shadow-glow);
+}
+
+[data-theme="dark"] .neon-border-magenta {
+  border-color: var(--accent-magenta);
+  box-shadow: var(--shadow-glow-magenta);
+}

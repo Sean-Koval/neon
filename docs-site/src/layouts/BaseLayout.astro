@@ -4,6 +4,7 @@ const {
   description = 'Docs for the Neon agent evaluation platform.',
 } = Astro.props;
 import '../styles/global.css';
+import ThemeToggle from '../components/ThemeToggle.astro';
 const base = import.meta.env.BASE_URL;
 const nav = [
   { label: 'Docs', href: `${base}docs` },
@@ -21,6 +22,16 @@ const nav = [
     <title>{title}</title>
     <link rel="icon" type="image/svg+xml" href={`${base}favicon.svg`} />
     <link rel="icon" href={`${base}favicon.ico`} />
+    <!-- Prevent flash of wrong theme -->
+    <script is:inline>
+      (function() {
+        const stored = localStorage.getItem('theme');
+        const theme = stored === 'light' || stored === 'dark'
+          ? stored
+          : (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+        document.documentElement.setAttribute('data-theme', theme);
+      })();
+    </script>
   </head>
   <body>
     <div class="container">
@@ -39,6 +50,7 @@ const nav = [
               {item.label}
             </a>
           ))}
+          <ThemeToggle />
         </nav>
       </header>
     </div>
