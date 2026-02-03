@@ -6,9 +6,12 @@
 
 import { initTRPC, TRPCError } from "@trpc/server";
 import type { FetchCreateContextFnOptions } from "@trpc/server/adapters/fetch";
+import { eq, and } from "drizzle-orm";
+import { db, orgMembers, workspaceMembers, workspaces } from "@/lib/db";
 import {
   hasOrgPermission,
   hasWorkspacePermission,
+  canAccessWorkspace,
   type OrgPermission,
   type WorkspacePermission,
 } from "@/lib/db/permissions";
@@ -133,7 +136,7 @@ export const protectedProcedure = t.procedure.use(async ({ ctx, next }) => {
 });
 
 /**
- * Organization procedure (requires auth + org context)
+ * Organization procedure (requires auth + org context + membership verification)
  */
 export const orgProcedure = protectedProcedure.use(async ({ ctx, next }) => {
   if (!ctx.organizationId) {
@@ -142,6 +145,22 @@ export const orgProcedure = protectedProcedure.use(async ({ ctx, next }) => {
       message: "Organization context required (x-organization-id header)",
     });
   }
+
+  // Verify user is a member of this organization
+  const membership = await db.query.orgMembers.findFirst({
+    where: and(
+      eq(orgMembers.userId, ctx.userId),
+      eq(orgMembers.organizationId, ctx.organizationId)
+    ),
+  });
+
+  if (!membership) {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: "Not a member of this organization",
+    });
+  }
+
   return next({
     ctx: {
       ...ctx,
@@ -151,7 +170,7 @@ export const orgProcedure = protectedProcedure.use(async ({ ctx, next }) => {
 });
 
 /**
- * Workspace procedure (requires auth + workspace context)
+ * Workspace procedure (requires auth + workspace context + access verification)
  */
 export const workspaceProcedure = protectedProcedure.use(
   async ({ ctx, next }) => {
@@ -162,6 +181,17 @@ export const workspaceProcedure = protectedProcedure.use(
           "Workspace context required (x-workspace-id and x-organization-id headers)",
       });
     }
+
+    // Verify user can access this workspace (direct member or org admin)
+    const hasAccess = await canAccessWorkspace(ctx.userId, ctx.workspaceId);
+
+    if (!hasAccess) {
+      throw new TRPCError({
+        code: "FORBIDDEN",
+        message: "Not authorized to access this workspace",
+      });
+    }
+
     return next({
       ctx: {
         ...ctx,
