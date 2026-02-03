@@ -18,6 +18,7 @@ import {
 import {
   LazyDashboardStatCards,
   LazyScoreTrends,
+  LazyToolMetricsCard,
 } from '@/components/dashboard/lazy-components'
 import { useDashboard } from '@/hooks/use-dashboard'
 import type { EvalRun, EvalRunStatus } from '@/lib/types'
@@ -84,6 +85,20 @@ export default function Dashboard() {
         showSuiteFilter={true}
         threshold={0.7}
       />
+
+      {/* Tool Metrics */}
+      <div className="space-y-2">
+        <h2 className="text-lg font-semibold text-gray-900">Tool Execution</h2>
+        <LazyToolMetricsCard
+          days={
+            filters.dateRange === '7d'
+              ? 7
+              : filters.dateRange === '30d'
+                ? 30
+                : 90
+          }
+        />
+      </div>
 
       {/* Recent Runs */}
       <RecentRunsCard

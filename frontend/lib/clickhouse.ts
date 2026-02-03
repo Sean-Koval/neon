@@ -989,3 +989,108 @@ export async function backfillMaterializedViews(
 
   return results
 }
+
+// =============================================================================
+// Tool Metrics Types and Functions
+// =============================================================================
+
+/**
+ * Tool execution metric
+ */
+export interface ToolMetric {
+  toolName: string
+  callCount: number
+  successCount: number
+  failureCount: number
+  avgLatencyMs: number
+  p50LatencyMs: number
+  p95LatencyMs: number
+}
+
+/**
+ * Tool metrics summary
+ */
+export interface ToolMetricsSummary {
+  totalCalls: number
+  totalTools: number
+  overallSuccessRate: number
+  avgLatencyMs: number
+}
+
+/**
+ * Get tool execution metrics from spans table.
+ * Aggregates tool calls by name with success/failure rates and latency stats.
+ */
+export async function getToolMetrics(
+  projectId: string,
+  startDate: string,
+  endDate: string,
+): Promise<{ tools: ToolMetric[]; summary: ToolMetricsSummary }> {
+  const ch = getClickHouseClient()
+
+  // Query tool spans for metrics
+  const result = await ch.query({
+    query: `
+      SELECT
+        tool_name,
+        count() as call_count,
+        countIf(status = 'ok' OR status = 'unset') as success_count,
+        countIf(status = 'error') as failure_count,
+        avg(duration_ms) as avg_latency_ms,
+        quantile(0.5)(duration_ms) as p50_latency_ms,
+        quantile(0.95)(duration_ms) as p95_latency_ms
+      FROM spans
+      WHERE project_id = {projectId:String}
+        AND span_type = 'tool'
+        AND tool_name IS NOT NULL
+        AND tool_name != ''
+        AND timestamp >= {startDate:Date}
+        AND timestamp <= {endDate:Date} + INTERVAL 1 DAY
+      GROUP BY tool_name
+      ORDER BY call_count DESC
+      LIMIT 100
+    `,
+    query_params: { projectId, startDate, endDate },
+    format: 'JSONEachRow',
+  })
+
+  interface RawToolMetric {
+    tool_name: string
+    call_count: number
+    success_count: number
+    failure_count: number
+    avg_latency_ms: number
+    p50_latency_ms: number
+    p95_latency_ms: number
+  }
+
+  const rows = await result.json<RawToolMetric>()
+
+  // Transform to camelCase
+  const tools: ToolMetric[] = rows.map((row) => ({
+    toolName: row.tool_name,
+    callCount: Number(row.call_count),
+    successCount: Number(row.success_count),
+    failureCount: Number(row.failure_count),
+    avgLatencyMs: Number(row.avg_latency_ms),
+    p50LatencyMs: Number(row.p50_latency_ms),
+    p95LatencyMs: Number(row.p95_latency_ms),
+  }))
+
+  // Calculate summary
+  const totalCalls = tools.reduce((sum, t) => sum + t.callCount, 0)
+  const totalSuccess = tools.reduce((sum, t) => sum + t.successCount, 0)
+  const weightedLatency = tools.reduce(
+    (sum, t) => sum + t.avgLatencyMs * t.callCount,
+    0,
+  )
+
+  const summary: ToolMetricsSummary = {
+    totalCalls,
+    totalTools: tools.length,
+    overallSuccessRate: totalCalls > 0 ? (totalSuccess / totalCalls) * 100 : 0,
+    avgLatencyMs: totalCalls > 0 ? weightedLatency / totalCalls : 0,
+  }
+
+  return { tools, summary }
+}
