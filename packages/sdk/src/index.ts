@@ -106,6 +106,17 @@ export {
   type CausalAnalysisConfig,
   type CausalAnalysisResult,
   type CausalNode,
+  // Skill selection
+  skillSelectionScorer,
+  skillChainScorer,
+  skillSetScorer,
+  firstSkillScorer,
+  skillCategoryScorer,
+  skillConfidenceScorer,
+  type SkillSelectionConfig,
+  type SkillSubstitutes,
+  type SkillCategoryMap,
+  type SkillSelectionDetails,
 } from "./scorers/index.js";
 
 // Tracing (local context management)
