@@ -87,10 +87,10 @@ Or visit the web dashboard at `http://localhost:3000`.
 
 ## Next Steps
 
-- [Configure your scorers](./scorers.md)
-- [Define comprehensive test suites](./test-suites.md)
-- [Set up CI/CD integration](./cicd.md)
-- [Deploy to production](./deployment.md)
+- [Configure your scorers](./scorers)
+- [Define comprehensive test suites](./test-suites)
+- [Set up CI/CD integration](./cicd)
+- [Self-host Neon](./self-hosting)
 
 ## Self-Hosted vs Cloud
 
@@ -99,4 +99,4 @@ AgentEval can run:
 1. **Self-hosted**: Run the entire stack on your infrastructure
 2. **Cloud**: Use our managed service (coming soon)
 
-For self-hosted setup, see [Local Development](./development.md).
+For self-hosted setup, see [Self-Hosting Guide](./self-hosting).
