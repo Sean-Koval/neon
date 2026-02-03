@@ -1,0 +1,40 @@
+# Frontend Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: neon-frontend
+  namespace: neon
+  labels:
+    app.kubernetes.io/name: neon
+    app.kubernetes.io/component: frontend
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 80
+      targetPort: 3000
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: neon
+    app.kubernetes.io/component: frontend
+---
+# Workers headless service (for Temporal)
+apiVersion: v1
+kind: Service
+metadata:
+  name: neon-workers
+  namespace: neon
+  labels:
+    app.kubernetes.io/name: neon
+    app.kubernetes.io/component: workers
+spec:
+  type: ClusterIP
+  clusterIP: None  # Headless
+  ports:
+    - name: health
+      port: 8080
+      targetPort: 8080
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: neon
+    app.kubernetes.io/component: workers

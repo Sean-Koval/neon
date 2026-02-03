@@ -1,0 +1,13 @@
+# Copy this file to terraform.tfvars and fill in your values
+# cp terraform.tfvars.example terraform.tfvars
+
+project_id = "your-dev-project-id"
+region     = "us-central1"
+
+github_repositories = [
+  "your-org/neon",
+]
+
+# Optional: External services
+# clickhouse_host  = "clickhouse.example.com"
+# temporal_address = "temporal.example.com:7233"

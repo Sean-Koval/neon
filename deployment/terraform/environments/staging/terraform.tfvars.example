@@ -1,0 +1,12 @@
+# Copy this file to terraform.tfvars and fill in your values
+
+project_id = "your-staging-project-id"
+region     = "us-central1"
+
+github_repositories = [
+  "your-org/neon",
+]
+
+# Optional: External services
+# clickhouse_host  = "clickhouse-staging.example.com"
+# temporal_address = "temporal-staging.example.com:7233"

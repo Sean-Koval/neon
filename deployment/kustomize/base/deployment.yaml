@@ -1,0 +1,173 @@
+# Neon Temporal Workers Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: neon-workers
+  namespace: neon
+  labels:
+    app.kubernetes.io/name: neon
+    app.kubernetes.io/component: workers
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: neon
+      app.kubernetes.io/component: workers
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: neon
+        app.kubernetes.io/component: workers
+    spec:
+      serviceAccountName: neon-app
+
+      # Init container to configure pip for Artifact Registry
+      initContainers:
+        - name: configure-pip
+          image: python:3.11-slim
+          command:
+            - sh
+            - -c
+            - |
+              pip config set global.index-url $PIP_INDEX_URL
+              pip config set global.extra-index-url $PIP_EXTRA_INDEX_URL
+          envFrom:
+            - configMapRef:
+                name: neon-config
+          volumeMounts:
+            - name: pip-config
+              mountPath: /root/.config/pip
+
+      containers:
+        - name: worker
+          image: neon-workers:latest
+          imagePullPolicy: Always
+
+          envFrom:
+            - configMapRef:
+                name: neon-config
+            - secretRef:
+                name: neon-secrets
+                optional: true
+
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "512Mi"
+            limits:
+              cpu: "1000m"
+              memory: "2Gi"
+
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+
+          volumeMounts:
+            - name: pip-config
+              mountPath: /root/.config/pip
+              readOnly: true
+
+      volumes:
+        - name: pip-config
+          emptyDir: {}
+
+      # Pod disruption budget friendly
+      terminationGracePeriodSeconds: 60
+
+      # Spread across nodes
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: neon
+              app.kubernetes.io/component: workers
+---
+# Neon Frontend Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: neon-frontend
+  namespace: neon
+  labels:
+    app.kubernetes.io/name: neon
+    app.kubernetes.io/component: frontend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: neon
+      app.kubernetes.io/component: frontend
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: neon
+        app.kubernetes.io/component: frontend
+    spec:
+      serviceAccountName: neon-app
+
+      containers:
+        - name: frontend
+          image: neon-frontend:latest
+          imagePullPolicy: Always
+
+          ports:
+            - name: http
+              containerPort: 3000
+              protocol: TCP
+
+          envFrom:
+            - configMapRef:
+                name: neon-config
+            - secretRef:
+                name: neon-secrets
+                optional: true
+
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+            initialDelaySeconds: 15
+            periodSeconds: 10
+
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+
+      terminationGracePeriodSeconds: 30

@@ -1,0 +1,27 @@
+# Configuration for Neon application
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: neon-config
+  namespace: neon
+  labels:
+    app.kubernetes.io/name: neon
+    app.kubernetes.io/component: config
+data:
+  # Artifact Registry configuration for neon-sdk
+  PIP_INDEX_URL: "https://us-central1-python.pkg.dev/PROJECT_ID/python-packages/simple/"
+  PIP_EXTRA_INDEX_URL: "https://pypi.org/simple/"
+
+  # ClickHouse configuration
+  CLICKHOUSE_HOST: "clickhouse.neon.svc.cluster.local"
+  CLICKHOUSE_PORT: "8123"
+  CLICKHOUSE_DATABASE: "neon"
+
+  # Temporal configuration
+  TEMPORAL_ADDRESS: "temporal.neon.svc.cluster.local:7233"
+  TEMPORAL_NAMESPACE: "default"
+  TEMPORAL_TASK_QUEUE: "agent-workers"
+
+  # Application settings
+  LOG_LEVEL: "info"
+  LOG_FORMAT: "json"

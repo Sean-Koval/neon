@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: neon
+  labels:
+    app.kubernetes.io/name: neon
+    app.kubernetes.io/part-of: neon-platform
