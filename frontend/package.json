@@ -12,7 +12,11 @@
     "format": "biome format --write .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:push": "drizzle-kit push",
+    "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
     "@clickhouse/client": "^1.16.0",
@@ -26,8 +30,10 @@
     "@trpc/server": "^11.8.1",
     "clsx": "^2.1.0",
     "date-fns": "^4.1.0",
+    "drizzle-orm": "^0.45.1",
     "lucide-react": "^0.468.0",
     "next": "^16.1.0",
+    "pg": "^8.18.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "recharts": "^2.15.0",
@@ -38,11 +44,13 @@
   "devDependencies": {
     "@biomejs/biome": "^2.3.12",
     "@types/node": "^22.10.0",
+    "@types/pg": "^8.16.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@types/uuid": "^11.0.0",
     "autoprefixer": "^10.4.20",
     "babel-plugin-react-compiler": "^1.0.0",
+    "drizzle-kit": "^0.31.8",
     "postcss": "^8.4.49",
     "tailwindcss": "^3.4.16",
     "typescript": "^5.7.0",
