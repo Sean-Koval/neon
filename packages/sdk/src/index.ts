@@ -483,3 +483,45 @@ export {
   type SkillEvalOptions,
   type SkillEvalSuite,
 } from "./evals/index.js";
+
+// Debugging (breakpoints for trace inspection)
+export {
+  // Types
+  type BreakpointTrigger,
+  type HitCondition,
+  type SpanMatcher,
+  type BreakpointContext,
+  type BreakpointAction,
+  type BreakpointConfig,
+  type Breakpoint,
+  // Core functions
+  defineBreakpoint,
+  resetBreakpointIdCounter,
+  // Matcher factories
+  onSpanType,
+  onComponentType,
+  onSpanName,
+  onSpanNameGlob,
+  onTool,
+  onModel,
+  onError,
+  onSuccess,
+  onAttribute,
+  onCondition,
+  // Matcher combinators
+  and,
+  or,
+  not,
+  // Matching logic
+  matchesSpan,
+  shouldFire,
+  // Manager
+  BreakpointManager,
+  getBreakpointManager,
+  resetBreakpointManager,
+  // Convenience functions
+  registerBreakpoint,
+  addBreakpoint,
+  removeBreakpoint,
+  evaluateBreakpoints,
+} from "./debugging/index.js";
