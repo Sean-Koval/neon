@@ -13,7 +13,6 @@
 
 import { relations } from 'drizzle-orm'
 import {
-  decimal,
   index,
   jsonb,
   pgEnum,

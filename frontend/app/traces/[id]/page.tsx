@@ -4,8 +4,8 @@
  * Trace Detail Page
  *
  * Shows full trace details with hierarchical span tree, timeline visualization,
- * and detailed span information. Supports agent-native concepts like tool calls,
- * LLM reasoning steps, and execution flow.
+ * decision tree view, and detailed span information. Supports agent-native
+ * concepts like tool calls, LLM reasoning steps, and execution flow.
  */
 
 import { clsx } from 'clsx'
@@ -15,15 +15,23 @@ import {
   Bot,
   CheckCircle,
   Clock,
+  GitBranch,
   Hash,
+  ListTree,
   MessageSquare,
   RefreshCw,
+  Users,
   Wrench,
   XCircle,
 } from 'lucide-react'
 import Link from 'next/link'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
-import { useCallback } from 'react'
+import { useCallback, useMemo, useState } from 'react'
+import {
+  FailureCascade,
+  MultiAgentExecutionFlow,
+} from '@/components/multi-agent'
+import { DecisionTree, traceToDecisionTree } from '@/components/traces'
 import { CopyButton } from '@/components/traces/copy-button'
 import {
   LazySpanDetail,
@@ -32,9 +40,16 @@ import {
 } from '@/components/traces/lazy-components'
 import type { SpanSummary } from '@/components/traces/span-detail'
 import { useTrace } from '@/hooks/use-traces'
+import {
+  analyzeMultiAgentTrace,
+  type MultiAgentAnalysis,
+} from '@/lib/multi-agent-analysis'
+import type { DecisionNode } from '@/lib/trace-to-decision-tree'
 
 // Type alias for backward compatibility
 type Span = SpanSummary
+
+type ViewMode = 'timeline' | 'decisions' | 'multi-agent'
 
 /**
  * Format duration for display
@@ -106,6 +121,43 @@ function findSpan(spans: Span[], spanId: string): Span | null {
 }
 
 /**
+ * Transform spans to decision tree format
+ * Maps SpanSummary to the format expected by traceToDecisionTree.
+ * Uses type coercion since SpanSummary has string timestamps while
+ * SpanWithChildren expects Date objects, but the decision tree only
+ * uses the subset of fields we're providing.
+ */
+function transformSpansForDecisionTree(
+  spans: Span[],
+): Parameters<typeof traceToDecisionTree>[0] {
+  function transform(spanList: Span[]): unknown[] {
+    return spanList.map((span) => ({
+      spanId: span.span_id,
+      traceId: span.trace_id || '',
+      projectId: '',
+      name: span.name,
+      spanType: span.span_type,
+      // Infer componentType from span_type for decision tree
+      componentType:
+        span.span_type === 'tool'
+          ? 'tool'
+          : span.span_type === 'generation'
+            ? 'prompt'
+            : undefined,
+      status: span.status,
+      timestamp: new Date(span.timestamp),
+      endTime: span.end_time ? new Date(span.end_time) : null,
+      durationMs: span.duration_ms,
+      toolName: span.tool_name,
+      kind: 'internal',
+      attributes: {},
+      children: span.children ? transform(span.children) : [],
+    }))
+  }
+  return transform(spans) as Parameters<typeof traceToDecisionTree>[0]
+}
+
+/**
  * Stat card component for consistent display
  */
 function StatCard({
@@ -127,6 +179,61 @@ function StatCard({
         <span className="text-sm font-medium text-gray-900">{value}</span>
         <span className="hidden sm:inline text-xs text-gray-500">{label}</span>
       </div>
+    </div>
+  )
+}
+
+/**
+ * View toggle component
+ */
+function ViewToggle({
+  view,
+  onViewChange,
+}: {
+  view: ViewMode
+  onViewChange: (view: ViewMode) => void
+}) {
+  return (
+    <div className="flex bg-gray-100 rounded-lg p-1">
+      <button
+        type="button"
+        onClick={() => onViewChange('timeline')}
+        className={clsx(
+          'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors',
+          view === 'timeline'
+            ? 'bg-white text-gray-900 shadow-sm'
+            : 'text-gray-600 hover:text-gray-900',
+        )}
+      >
+        <ListTree className="w-4 h-4" />
+        Timeline
+      </button>
+      <button
+        type="button"
+        onClick={() => onViewChange('decisions')}
+        className={clsx(
+          'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors',
+          view === 'decisions'
+            ? 'bg-white text-gray-900 shadow-sm'
+            : 'text-gray-600 hover:text-gray-900',
+        )}
+      >
+        <GitBranch className="w-4 h-4" />
+        Decisions
+      </button>
+      <button
+        type="button"
+        onClick={() => onViewChange('multi-agent')}
+        className={clsx(
+          'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors',
+          view === 'multi-agent'
+            ? 'bg-white text-gray-900 shadow-sm'
+            : 'text-gray-600 hover:text-gray-900',
+        )}
+      >
+        <Users className="w-4 h-4" />
+        Multi-Agent
+      </button>
     </div>
   )
 }
@@ -236,6 +343,9 @@ export default function TraceDetailPage() {
 
   const { data, isLoading, error, refetch } = useTrace(traceId)
 
+  // View mode state
+  const [viewMode, setViewMode] = useState<ViewMode>('timeline')
+
   // Get selected span from URL for shareable links
   const selectedSpanId = searchParams.get('span')
 
@@ -251,6 +361,14 @@ export default function TraceDetailPage() {
       router.replace(`?${params.toString()}`, { scroll: false })
     },
     [router, searchParams],
+  )
+
+  // Handle decision node click - select the corresponding span
+  const handleDecisionNodeClick = useCallback(
+    (node: DecisionNode) => {
+      setSelectedSpanId(node.spanId)
+    },
+    [setSelectedSpanId],
   )
 
   // Loading state
@@ -366,16 +484,24 @@ export default function TraceDetailPage() {
             />
           )}
 
-          {/* Timestamp - pushed to right on larger screens */}
-          <div className="hidden lg:block ml-auto text-sm text-gray-500">
-            {new Date(trace.timestamp).toLocaleString()}
+          {/* View toggle - pushed to right on larger screens */}
+          <div className="hidden lg:flex ml-auto items-center gap-4">
+            <ViewToggle view={viewMode} onViewChange={setViewMode} />
+            <span className="text-sm text-gray-500">
+              {new Date(trace.timestamp).toLocaleString()}
+            </span>
           </div>
+        </div>
+
+        {/* Mobile view toggle */}
+        <div className="lg:hidden mt-3">
+          <ViewToggle view={viewMode} onViewChange={setViewMode} />
         </div>
       </header>
 
       {/* Main content */}
       <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
-        {/* Timeline section */}
+        {/* Main view section */}
         <div
           className={clsx(
             'flex-1 overflow-auto p-4 sm:p-6',
@@ -400,20 +526,40 @@ export default function TraceDetailPage() {
             </div>
           )}
 
-          {/* Span timeline */}
-          <div>
-            <h3 className="text-sm font-semibold text-gray-700 mb-3">
-              Execution Timeline
-              <span className="ml-2 font-normal text-gray-500">
-                ({spanCounts.total} spans)
-              </span>
-            </h3>
-            <LazyTraceTimeline
-              spans={spans}
-              selectedSpanId={selectedSpanId || undefined}
-              onSpanSelect={(span) => setSelectedSpanId(span.span_id)}
-            />
-          </div>
+          {/* Timeline, Decision Tree, or Multi-Agent view */}
+          {viewMode === 'timeline' && (
+            <div>
+              <h3 className="text-sm font-semibold text-gray-700 mb-3">
+                Execution Timeline
+                <span className="ml-2 font-normal text-gray-500">
+                  ({spanCounts.total} spans)
+                </span>
+              </h3>
+              <LazyTraceTimeline
+                spans={spans}
+                selectedSpanId={selectedSpanId || undefined}
+                onSpanSelect={(span) => setSelectedSpanId(span.span_id)}
+              />
+            </div>
+          )}
+          {viewMode === 'decisions' && (
+            <div>
+              <h3 className="text-sm font-semibold text-gray-700 mb-3">
+                Decision Tree
+                <span className="ml-2 font-normal text-gray-500">
+                  Agent decision points and outcomes
+                </span>
+              </h3>
+              <DecisionTreeView
+                spans={spans}
+                selectedSpanId={selectedSpanId}
+                onNodeClick={handleDecisionNodeClick}
+              />
+            </div>
+          )}
+          {viewMode === 'multi-agent' && (
+            <MultiAgentView spans={spans} onSpanClick={setSelectedSpanId} />
+          )}
 
           {/* Mobile timestamp */}
           <div className="lg:hidden mt-6 text-center text-sm text-gray-500">
@@ -452,6 +598,152 @@ export default function TraceDetailPage() {
           </>
         )}
       </div>
+    </div>
+  )
+}
+
+/**
+ * Decision Tree View Component
+ * Memoized to prevent unnecessary re-renders during transformation
+ */
+function DecisionTreeView({
+  spans,
+  selectedSpanId,
+  onNodeClick,
+}: {
+  spans: Span[]
+  selectedSpanId: string | null
+  onNodeClick: (node: DecisionNode) => void
+}) {
+  // Transform spans to decision tree format and build tree
+  const decisionTree = useMemo(() => {
+    const transformedSpans = transformSpansForDecisionTree(spans)
+    return traceToDecisionTree(transformedSpans)
+  }, [spans])
+
+  return (
+    <DecisionTree
+      tree={decisionTree}
+      onNodeClick={onNodeClick}
+      selectedNodeId={selectedSpanId ? `decision-${selectedSpanId}` : undefined}
+    />
+  )
+}
+
+/**
+ * Transform SpanSummary to SpanWithChildren format for multi-agent analysis
+ */
+function transformSpansForMultiAgent(
+  spans: Span[],
+): Parameters<typeof analyzeMultiAgentTrace>[0] {
+  function transform(spanList: Span[]): unknown[] {
+    return spanList.map((span) => ({
+      spanId: span.span_id,
+      traceId: span.trace_id || '',
+      projectId: '',
+      name: span.name,
+      spanType: span.span_type,
+      componentType:
+        span.span_type === 'tool'
+          ? 'tool'
+          : span.span_type === 'generation'
+            ? 'prompt'
+            : undefined,
+      status: span.status,
+      timestamp: new Date(span.timestamp),
+      endTime: span.end_time ? new Date(span.end_time) : null,
+      durationMs: span.duration_ms,
+      toolName: span.tool_name,
+      kind: 'internal',
+      attributes: {},
+      statusMessage: span.status_message,
+      children: span.children ? transform(span.children) : [],
+    }))
+  }
+  return transform(spans) as Parameters<typeof analyzeMultiAgentTrace>[0]
+}
+
+/**
+ * Multi-Agent View Component
+ * Shows execution flow and failure cascades for multi-agent traces
+ */
+function MultiAgentView({
+  spans,
+  onSpanClick,
+}: {
+  spans: Span[]
+  onSpanClick: (spanId: string | null) => void
+}) {
+  // Transform and analyze spans
+  const analysis = useMemo<MultiAgentAnalysis>(() => {
+    const transformedSpans = transformSpansForMultiAgent(spans)
+    return analyzeMultiAgentTrace(transformedSpans)
+  }, [spans])
+
+  // Handle agent click - select first span
+  const handleAgentClick = useCallback(
+    (agent: { spans: Array<{ spanId: string }> }) => {
+      if (agent.spans.length > 0) {
+        onSpanClick(agent.spans[0].spanId)
+      }
+    },
+    [onSpanClick],
+  )
+
+  // Handle cascade span click
+  const handleCascadeSpanClick = useCallback(
+    (spanId: string) => {
+      onSpanClick(spanId)
+    },
+    [onSpanClick],
+  )
+
+  return (
+    <div className="space-y-8">
+      {/* Agent Execution Flow */}
+      <div>
+        <h3 className="text-sm font-semibold text-gray-700 mb-3">
+          Agent Execution Flow
+          <span className="ml-2 font-normal text-gray-500">
+            {analysis.summary.totalAgents} agent
+            {analysis.summary.totalAgents !== 1 ? 's' : ''},{' '}
+            {analysis.summary.totalHandoffs} handoff
+            {analysis.summary.totalHandoffs !== 1 ? 's' : ''}
+          </span>
+        </h3>
+        <MultiAgentExecutionFlow
+          analysis={analysis}
+          onAgentClick={handleAgentClick}
+        />
+      </div>
+
+      {/* Failure Cascades */}
+      {analysis.cascadeChains.length > 0 && (
+        <div>
+          <h3 className="text-sm font-semibold text-gray-700 mb-3">
+            Failure Cascades
+            <span className="ml-2 font-normal text-rose-500">
+              {analysis.cascadeChains.length} cascade chain
+              {analysis.cascadeChains.length !== 1 ? 's' : ''} detected
+            </span>
+          </h3>
+          <FailureCascade
+            chains={analysis.cascadeChains}
+            onSpanClick={handleCascadeSpanClick}
+          />
+        </div>
+      )}
+
+      {/* No failures - show positive message */}
+      {analysis.cascadeChains.length === 0 &&
+        analysis.summary.failedAgents === 0 && (
+          <div className="flex items-center gap-2 text-sm text-emerald-600 bg-emerald-50 px-4 py-3 rounded-lg">
+            <CheckCircle className="w-5 h-5" />
+            <span>
+              No cascading failures detected. All agents completed successfully.
+            </span>
+          </div>
+        )}
     </div>
   )
 }

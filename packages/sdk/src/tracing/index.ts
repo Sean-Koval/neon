@@ -57,6 +57,8 @@ export type ComponentType =
   | "planning"
   | "memory"
   | "routing"
+  | "skill"
+  | "mcp"
   | "other";
 
 /**
@@ -253,3 +255,40 @@ export async function memory<T>(
     attributes: _options?.attributes,
   });
 }
+
+/**
+ * Create an MCP span (for MCP server operations)
+ */
+export async function mcp<T>(
+  name: string,
+  fn: () => Promise<T>,
+  _options?: {
+    serverId?: string;
+    toolId?: string;
+    transport?: "stdio" | "http" | "websocket";
+    attributes?: Record<string, string>;
+  }
+): Promise<T> {
+  return span(name, fn, {
+    type: "tool",
+    componentType: "mcp",
+    attributes: {
+      ...(_options?.attributes || {}),
+      ...(_options?.serverId ? { "mcp.server_id": _options.serverId } : {}),
+      ...(_options?.toolId ? { "mcp.tool_id": _options.toolId } : {}),
+      ...(_options?.transport ? { "mcp.transport": _options.transport } : {}),
+    },
+  });
+}
+
+// Re-export MCP tracing utilities
+export {
+  withMCPTracing,
+  mcpToolCall,
+  MCPHealthTracker,
+  type MCPClient,
+  type MCPTracingConfig,
+  type MCPToolCallResult,
+  type MCPServerHealth,
+  type MCPConnectionEvent,
+} from "./mcp.js";
