@@ -27,3 +27,5 @@ export {
 } from './span-type-badge'
 export { TraceLoadingSkeleton } from './trace-loading-skeleton'
 export { type TimelineSpan, TraceTimeline } from './trace-timeline'
+// Live debugger
+export { LiveDebugger } from './live-debugger'
