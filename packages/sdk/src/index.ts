@@ -117,6 +117,28 @@ export {
   type SkillSubstitutes,
   type SkillCategoryMap,
   type SkillSelectionDetails,
+  // Parameter accuracy
+  parameterAccuracyScorer,
+  parameterTypeScorer,
+  parameterCompletenessScorer,
+  parameterValueMatchScorer,
+  parameterConstraintScorer,
+  type ParameterType,
+  type ParameterSchemaItem,
+  type ParameterAccuracyConfig,
+  type ParameterAccuracyDetails,
+  // Result quality
+  resultQualityScorer,
+  outputTypeScorer,
+  outputPatternScorer,
+  outputCompletenessScorer,
+  outputLengthScorer,
+  noForbiddenPatternsScorer,
+  resultSuccessScorer,
+  resultLatencyScorer,
+  type OutputType,
+  type ResultQualityConfig,
+  type ResultQualityDetails,
 } from "./scorers/index.js";
 
 // Tracing (local context management)
@@ -131,12 +153,22 @@ export {
   prompt,
   routing,
   memory,
+  mcp,
   withContext,
   getCurrentContext,
   setCurrentContext,
+  // MCP tracing
+  withMCPTracing,
+  mcpToolCall,
+  MCPHealthTracker,
   type TraceContext,
   type SpanOptions,
   type ComponentType,
+  type MCPClient,
+  type MCPTracingConfig,
+  type MCPToolCallResult,
+  type MCPServerHealth,
+  type MCPConnectionEvent,
   // Offline buffer
   OfflineBuffer,
   createOfflineBuffer,
@@ -359,3 +391,26 @@ export {
   type ExperimentProgress,
   type RandomState,
 } from "./comparison/index.js";
+
+// Skill Evaluation Framework
+export {
+  // Define functions
+  defineSkillEval,
+  defineSkillEvalSuite,
+  // Run functions
+  runSkillEval,
+  runSkillEvalSuite,
+  // Utility functions
+  skillTestFromSpan,
+  generateSkillTestCases,
+  // Types
+  type ParameterSchema,
+  type SkillBehavior,
+  type SkillTestCase,
+  type SkillResult,
+  type SkillEval,
+  type SkillTestResult,
+  type SkillEvalResult,
+  type SkillEvalOptions,
+  type SkillEvalSuite,
+} from "./evals/index.js";

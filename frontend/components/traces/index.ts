@@ -4,7 +4,19 @@
  * Exports all trace-related components for the trace viewer.
  */
 
+export {
+  type DecisionAlternative,
+  type DecisionNode,
+  type DecisionOutcome,
+  type DecisionTree as DecisionTreeType,
+  type DecisionType,
+  findCausalDecisions,
+  getLowConfidenceDecisions,
+  traceToDecisionTree,
+} from '@/lib/trace-to-decision-tree'
 export { CopyButton } from './copy-button'
+// Decision tree components
+export { DecisionTree, DecisionTreeSkeleton } from './decision-tree'
 // Diff components
 export * from './diff'
 export { type Span, SpanDetail, type SpanSummary } from './span-detail'

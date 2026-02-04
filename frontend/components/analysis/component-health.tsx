@@ -224,7 +224,7 @@ function IssueList({ issues }: IssueListProps) {
             <p className="text-xs text-gray-500 mt-1">
               {issue.metric}:{' '}
               {typeof issue.value === 'number'
-                ? (issue.value * 100).toFixed(1) + '%'
+                ? `${(issue.value * 100).toFixed(1)}%`
                 : issue.value}{' '}
               (threshold: {(issue.threshold * 100).toFixed(0)}%)
             </p>

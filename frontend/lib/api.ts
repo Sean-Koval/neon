@@ -569,3 +569,268 @@ export const dashboardApi = {
     return response.json()
   },
 }
+
+// =============================================================================
+// MCP API Types
+// =============================================================================
+
+export interface MCPQueryParams {
+  startDate?: string
+  endDate?: string
+  projectId?: string
+}
+
+export interface MCPServerHealthResponse {
+  servers: MCPServerInfo[]
+}
+
+export interface MCPServerInfo {
+  serverId: string
+  serverUrl?: string
+  transport: 'stdio' | 'http' | 'websocket'
+  protocolVersion?: string
+  capabilities?: string[]
+  status: 'healthy' | 'degraded' | 'unhealthy' | 'unknown'
+  callCount: number
+  errorCount: number
+  errorRate: number
+  avgLatencyMs: number
+  p50LatencyMs: number
+  p95LatencyMs: number
+  p99LatencyMs: number
+  lastSeen: string
+  tools: MCPToolInfo[]
+}
+
+export interface MCPToolInfo {
+  toolId: string
+  name: string
+  description?: string
+  callCount: number
+  errorCount: number
+  avgLatencyMs: number
+  successRate: number
+}
+
+export interface MCPTopologyResponse {
+  nodes: MCPTopologyNode[]
+  edges: MCPTopologyEdge[]
+}
+
+export interface MCPTopologyNode {
+  id: string
+  type: 'agent' | 'server' | 'tool'
+  label: string
+  status: 'healthy' | 'degraded' | 'unhealthy' | 'unknown'
+  metrics: {
+    callCount: number
+    errorRate: number
+    avgLatencyMs: number
+  }
+}
+
+export interface MCPTopologyEdge {
+  source: string
+  target: string
+  label?: string
+  callCount: number
+  avgLatencyMs: number
+}
+
+// =============================================================================
+// Skill Evaluation API Types
+// =============================================================================
+
+export interface SkillQueryParams {
+  projectId?: string
+  startDate?: string
+  endDate?: string
+  skillId?: string
+  limit?: number
+}
+
+export interface SkillEvalSummaryResponse {
+  skillId: string
+  skillName: string
+  totalEvals: number
+  passRate: number
+  avgScore: number
+  avgLatencyMs: number
+  lastEvalDate: string
+  trend: 'improving' | 'stable' | 'regressing'
+  regressionCount: number
+}
+
+export interface SkillEvalHistoryResponse {
+  skillId: string
+  evaluations: Array<{
+    id: string
+    version: string
+    timestamp: string
+    passRate: number
+    avgScore: number
+    avgLatencyMs: number
+    isRegression: boolean
+  }>
+}
+
+export interface SkillEvalDetailResponse {
+  skillId: string
+  skillName: string
+  version: string
+  timestamp: string
+  passRate: number
+  avgScore: number
+  avgLatencyMs: number
+  testResults: Array<{
+    id: string
+    name: string
+    passed: boolean
+    scores: Array<{
+      name: string
+      value: number
+      reason?: string
+    }>
+    latencyMs: number
+    error?: string
+  }>
+  isRegression: boolean
+  baselineScore?: number
+}
+
+export interface SkillRegressionResponse {
+  skillId: string
+  skillName: string
+  severity: 'high' | 'medium' | 'low'
+  delta: number
+  baselineScore: number
+  currentScore: number
+  detectedAt: string
+  affectedTests: number
+}
+
+// =============================================================================
+// Skill Evaluation API
+// =============================================================================
+
+/**
+ * Client for skill evaluation API endpoints.
+ */
+export const skillApi = {
+  /**
+   * Get skill evaluation summaries.
+   */
+  async getSummaries(
+    params?: SkillQueryParams,
+  ): Promise<SkillEvalSummaryResponse[]> {
+    const query = buildQueryString({
+      projectId: params?.projectId,
+      startDate: params?.startDate,
+      endDate: params?.endDate,
+    })
+    const response = await fetch(`/api/skills/summaries${query}`)
+    if (!response.ok) {
+      console.warn('Skill summaries endpoint not available, using mock data')
+      return []
+    }
+    const data = await response.json()
+    return data.summaries || []
+  },
+
+  /**
+   * Get evaluation history for a specific skill.
+   */
+  async getHistory(
+    skillId: string,
+    params?: SkillQueryParams,
+  ): Promise<SkillEvalHistoryResponse | null> {
+    const query = buildQueryString({
+      projectId: params?.projectId,
+      limit: params?.limit,
+    })
+    const response = await fetch(`/api/skills/${skillId}/history${query}`)
+    if (!response.ok) {
+      console.warn(`Skill history endpoint not available for ${skillId}`)
+      return null
+    }
+    return response.json()
+  },
+
+  /**
+   * Get detailed evaluation results for a specific eval.
+   */
+  async getDetail(evalId: string): Promise<SkillEvalDetailResponse | null> {
+    const response = await fetch(`/api/skills/evals/${evalId}`)
+    if (!response.ok) {
+      console.warn(`Skill eval detail endpoint not available for ${evalId}`)
+      return null
+    }
+    return response.json()
+  },
+
+  /**
+   * Get active skill regressions.
+   */
+  async getRegressions(
+    params?: SkillQueryParams,
+  ): Promise<SkillRegressionResponse[]> {
+    const query = buildQueryString({
+      projectId: params?.projectId,
+    })
+    const response = await fetch(`/api/skills/regressions${query}`)
+    if (!response.ok) {
+      console.warn('Skill regressions endpoint not available, using mock data')
+      return []
+    }
+    const data = await response.json()
+    return data.regressions || []
+  },
+}
+
+// =============================================================================
+// MCP API
+// =============================================================================
+
+/**
+ * Client for MCP observability API endpoints.
+ */
+export const mcpApi = {
+  /**
+   * Get MCP server health data.
+   */
+  async getServerHealth(
+    params?: MCPQueryParams,
+  ): Promise<MCPServerHealthResponse> {
+    const query = buildQueryString({
+      projectId: params?.projectId,
+      startDate: params?.startDate,
+      endDate: params?.endDate,
+    })
+    const response = await fetch(`/api/trpc/analytics.mcpServerHealth${query}`)
+    if (!response.ok) {
+      // Return empty data if endpoint not available
+      console.warn('MCP server health endpoint not available')
+      return { servers: [] }
+    }
+    const data = await response.json()
+    return data.result?.data || { servers: [] }
+  },
+
+  /**
+   * Get MCP server topology data.
+   */
+  async getTopology(params?: MCPQueryParams): Promise<MCPTopologyResponse> {
+    const query = buildQueryString({
+      projectId: params?.projectId,
+      startDate: params?.startDate,
+      endDate: params?.endDate,
+    })
+    const response = await fetch(`/api/trpc/analytics.mcpTopology${query}`)
+    if (!response.ok) {
+      console.warn('MCP topology endpoint not available')
+      return { nodes: [], edges: [] }
+    }
+    const data = await response.json()
+    return data.result?.data || { nodes: [], edges: [] }
+  },
+}
