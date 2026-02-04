@@ -8,7 +8,6 @@
  */
 
 import { useMemo } from 'react'
-import type { EvalRun } from '@/lib/types'
 import { useRuns } from './use-runs'
 import { useSuites } from './use-suites'
 
@@ -451,7 +450,7 @@ export function useComponentCorrelation(
           if (!scoreVectors.has(scorerKey)) {
             scoreVectors.set(scorerKey, new Map())
           }
-          scoreVectors.get(scorerKey)!.set(dateKey, score)
+          scoreVectors.get(scorerKey)?.set(dateKey, score)
         }
       }
     }
@@ -627,14 +626,7 @@ export function useComponentCorrelation(
       dependencyGraph,
       health,
     }
-  }, [
-    runs,
-    suites,
-    days,
-    minSampleSize,
-    significanceThreshold,
-    healthThresholds,
-  ])
+  }, [runs, days, minSampleSize, significanceThreshold, healthThresholds])
 
   return {
     ...result,
