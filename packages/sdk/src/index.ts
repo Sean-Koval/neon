@@ -117,6 +117,28 @@ export {
   type SkillSubstitutes,
   type SkillCategoryMap,
   type SkillSelectionDetails,
+  // Parameter accuracy
+  parameterAccuracyScorer,
+  parameterTypeScorer,
+  parameterCompletenessScorer,
+  parameterValueMatchScorer,
+  parameterConstraintScorer,
+  type ParameterType,
+  type ParameterSchemaItem,
+  type ParameterAccuracyConfig,
+  type ParameterAccuracyDetails,
+  // Result quality
+  resultQualityScorer,
+  outputTypeScorer,
+  outputPatternScorer,
+  outputCompletenessScorer,
+  outputLengthScorer,
+  noForbiddenPatternsScorer,
+  resultSuccessScorer,
+  resultLatencyScorer,
+  type OutputType,
+  type ResultQualityConfig,
+  type ResultQualityDetails,
 } from "./scorers/index.js";
 
 // Tracing (local context management)
@@ -131,12 +153,35 @@ export {
   prompt,
   routing,
   memory,
+  mcp,
   withContext,
   getCurrentContext,
   setCurrentContext,
+  // MCP tracing
+  withMCPTracing,
+  mcpToolCall,
+  MCPHealthTracker,
   type TraceContext,
   type SpanOptions,
   type ComponentType,
+  type MCPClient,
+  type MCPTracingConfig,
+  type MCPToolCallResult,
+  type MCPServerHealth,
+  type MCPConnectionEvent,
+  // Offline buffer
+  OfflineBuffer,
+  createOfflineBuffer,
+  createAndInitializeOfflineBuffer,
+  createBufferableSpan,
+  getGlobalBuffer,
+  resetGlobalBuffer,
+  isBufferHealthy,
+  type BufferedSpan,
+  type FlushStrategy,
+  type OfflineBufferConfig,
+  type FlushResult,
+  type BufferStats,
 } from "./tracing/index.js";
 
 // Runner
@@ -259,7 +304,7 @@ export {
   type ComprehensiveSignalConfig,
 } from "./optimization/index.js";
 
-// Export utilities - Training data export for fine-tuning
+// Export utilities - Training data export for fine-tuning (Agent Lightning, OpenAI, TRL, DSPy)
 export {
   // Generic export system
   exportRegistry,
@@ -326,4 +371,115 @@ export {
   type ExportContext,
   type ScoreData,
   type StreamExportConfig,
+  // DSPy format
+  exportToDSPy,
+  exportBatchToDSPy,
+  streamExportToDSPy,
+  validateDSPyDataset,
+  mergeDSPyDatasets,
+  datasetToJSONL,
+  generateDSPyLoaderCode,
+  type DSPyExample,
+  type DSPyExampleMetadata,
+  type DSPyPreset,
+  type DSPyFieldMapping,
+  type DSPyFilter,
+  type DSPyExportConfig,
+  type DSPyScoreData,
+  type DSPyExportContext,
+  type DSPyDataset,
+  type DSPyStreamExportConfig,
 } from "./export/index.js";
+
+// A/B Testing Framework (comparison module)
+export {
+  // Variant API
+  defineVariant,
+  defineControl,
+  defineTreatment,
+  validateVariants,
+  getControlVariant,
+  getTreatmentVariants,
+  resetVariantIdCounter,
+  // Experiment API
+  defineExperiment,
+  runExperiment,
+  validateExperiment,
+  // Seeded RNG (for reproducibility)
+  createRng,
+  getDefaultRng,
+  setDefaultSeed,
+  resetDefaultRng,
+  // Statistical utilities
+  mean,
+  variance,
+  stdDev,
+  median,
+  medianFromSorted,
+  percentile,
+  percentileFromSorted,
+  calculatePercentiles,
+  calculateMetricSummary,
+  tTest,
+  welchTest,
+  mannWhitneyU,
+  bootstrapConfidenceInterval,
+  cohensD,
+  cliffsDelta,
+  calculateEffectSize,
+  interpretEffectSize,
+  compareMetric,
+  bonferroniCorrection,
+  holmCorrection,
+  normalCDF,
+  normalQuantile,
+  tCDF,
+  tQuantile,
+  // Types
+  type VariantType,
+  type Variant,
+  type VariantConfig,
+  type DefineVariantOptions,
+  type Experiment,
+  type Hypothesis,
+  type StatisticalConfig,
+  type StatisticalTestType,
+  type DefineExperimentOptions,
+  type ExperimentResult,
+  type VariantResult,
+  type ComparisonResult,
+  type MetricComparison,
+  type MetricSummary,
+  type ConfidenceInterval,
+  type StatisticalSignificance,
+  type EffectSize,
+  type HypothesisResult,
+  type ExperimentConclusion,
+  type ExperimentExecutionMetadata,
+  type ExperimentRunOptions,
+  type ExperimentProgress,
+  type RandomState,
+} from "./comparison/index.js";
+
+// Skill Evaluation Framework
+export {
+  // Define functions
+  defineSkillEval,
+  defineSkillEvalSuite,
+  // Run functions
+  runSkillEval,
+  runSkillEvalSuite,
+  // Utility functions
+  skillTestFromSpan,
+  generateSkillTestCases,
+  // Types
+  type ParameterSchema,
+  type SkillBehavior,
+  type SkillTestCase,
+  type SkillResult,
+  type SkillEval,
+  type SkillTestResult,
+  type SkillEvalResult,
+  type SkillEvalOptions,
+  type SkillEvalSuite,
+} from "./evals/index.js";

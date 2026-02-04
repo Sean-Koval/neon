@@ -124,6 +124,30 @@ export {
   type StreamExportConfig,
 } from "./agent-lightning.js";
 
+// DSPy format for prompt optimization
+export {
+  // Main export functions
+  exportToDSPy,
+  exportBatchToDSPy,
+  streamExportToDSPy,
+  // Utility functions
+  validateDSPyDataset,
+  mergeDSPyDatasets,
+  datasetToJSONL,
+  generateDSPyLoaderCode,
+  // Types
+  type DSPyExample,
+  type DSPyExampleMetadata,
+  type DSPyPreset,
+  type DSPyFieldMapping,
+  type DSPyFilter,
+  type DSPyExportConfig,
+  type DSPyScoreData,
+  type DSPyExportContext,
+  type DSPyDataset,
+  type DSPyStreamExportConfig,
+} from "./dspy.js";
+
 // ============================================================================
 // Format Registration
 // ============================================================================
