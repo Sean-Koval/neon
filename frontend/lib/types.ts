@@ -328,6 +328,46 @@ export interface RunReference {
 }
 
 /**
+ * Confidence interval for a metric.
+ */
+export interface ConfidenceInterval {
+  /** Lower bound */
+  lower: number
+  /** Upper bound */
+  upper: number
+  /** Confidence level (e.g., 0.95 for 95%) */
+  level: number
+}
+
+/**
+ * Statistical significance information for a comparison.
+ */
+export interface StatisticalSignificance {
+  /** P-value from the statistical test */
+  pValue: number
+  /** Whether the result is statistically significant */
+  isSignificant: boolean
+  /** Alpha level used (e.g., 0.05) */
+  alpha: number
+  /** Statistical test used */
+  testUsed?: 'ttest' | 'welch' | 'mannwhitney' | 'bootstrap'
+  /** Test statistic value */
+  testStatistic?: number
+}
+
+/**
+ * Effect size information.
+ */
+export interface EffectSize {
+  /** Cohen's d value */
+  cohensD: number
+  /** Effect magnitude interpretation */
+  magnitude: 'negligible' | 'small' | 'medium' | 'large'
+  /** Cliff's delta (non-parametric effect size) */
+  cliffsDelta?: number
+}
+
+/**
  * Details about a regression or improvement between two runs.
  */
 export interface RegressionItem {
@@ -341,6 +381,16 @@ export interface RegressionItem {
   candidate_score: number
   /** Change in score */
   delta: number
+  /** Statistical significance (optional) */
+  significance?: StatisticalSignificance
+  /** Effect size (optional) */
+  effectSize?: EffectSize
+  /** Confidence interval for the difference (optional) */
+  diffConfidenceInterval?: ConfidenceInterval
+  /** Baseline confidence interval (optional) */
+  baselineConfidenceInterval?: ConfidenceInterval
+  /** Candidate confidence interval (optional) */
+  candidateConfidenceInterval?: ConfidenceInterval
 }
 
 /**

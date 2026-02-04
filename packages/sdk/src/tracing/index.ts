@@ -253,3 +253,19 @@ export async function memory<T>(
     attributes: _options?.attributes,
   });
 }
+
+// Offline buffer exports
+export {
+  OfflineBuffer,
+  createOfflineBuffer,
+  createAndInitializeOfflineBuffer,
+  createBufferableSpan,
+  getGlobalBuffer,
+  resetGlobalBuffer,
+  isBufferHealthy,
+  type BufferedSpan,
+  type FlushStrategy,
+  type OfflineBufferConfig,
+  type FlushResult,
+  type BufferStats,
+} from "./offline-buffer.js";
