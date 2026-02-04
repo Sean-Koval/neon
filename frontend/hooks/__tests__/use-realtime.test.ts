@@ -98,12 +98,12 @@ class MockWebSocket {
 }
 
 // Store created WebSocket instances for test access
-let mockWebSocketInstance: MockWebSocket | null = null
+let _mockWebSocketInstance: MockWebSocket | null = null
 
 // Mock global WebSocket as a constructor class
 const MockWebSocketConstructor = function (this: MockWebSocket, url: string) {
   const instance = new MockWebSocket(url)
-  mockWebSocketInstance = instance
+  _mockWebSocketInstance = instance
   return instance
 } as unknown as typeof WebSocket
 
@@ -184,7 +184,7 @@ const mockErrorPayload: WebSocketErrorPayload = {
 describe('WebSocket Message Handling', () => {
   beforeEach(() => {
     vi.useFakeTimers()
-    mockWebSocketInstance = null
+    _mockWebSocketInstance = null
     mockGetWorkflowRunStatus.mockReset()
     mockSetQueryData.mockReset()
   })
