@@ -524,4 +524,16 @@ export {
   addBreakpoint,
   removeBreakpoint,
   evaluateBreakpoints,
+  // Debug client (real-time debugging)
+  type DebugConnectionState,
+  type DebugSessionState,
+  type DebugCommand,
+  type DebugEventType,
+  type DebugCommandMessage,
+  type DebugEvent,
+  type DebugClientConfig,
+  type DebugEventHandlers,
+  DebugClient,
+  createDebugClient,
+  createDebugClientFromEnv,
 } from "./debugging/index.js";

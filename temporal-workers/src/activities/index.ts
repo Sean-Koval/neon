@@ -23,3 +23,30 @@ export {
   type NotifyConfig,
   type EvalRunResult,
 } from "./notify";
+
+// Debug handler
+export {
+  // Types
+  type DebugState,
+  type StepMode,
+  type DebugBreakpoint,
+  type DebugSession,
+  type InitDebugSessionParams,
+  type EvaluateBreakpointParams,
+  type BreakpointEvalResult,
+  type DebugControlParams,
+  type DebugEvent,
+  // Activities
+  initDebugSession,
+  getDebugSession,
+  updateDebugSession,
+  endDebugSession,
+  evaluateBreakpoints,
+  handleDebugControl,
+  checkStepPause,
+  addBreakpoint,
+  removeBreakpoint,
+  setBreakpointEnabled,
+  waitForResume,
+  debugActivities,
+} from "./debug-handler";

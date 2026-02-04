@@ -83,3 +83,21 @@ export {
   removeBreakpoint,
   evaluateBreakpoints,
 } from "./breakpoints.js";
+
+// Debug client (WebSocket-based real-time debugging)
+export {
+  // Types
+  type DebugConnectionState,
+  type DebugSessionState,
+  type DebugCommand,
+  type DebugEventType,
+  type DebugCommandMessage,
+  type DebugEvent,
+  type DebugClientConfig,
+  type DebugEventHandlers,
+  // Client class
+  DebugClient,
+  // Factory functions
+  createDebugClient,
+  createDebugClientFromEnv,
+} from "./debug-client.js";
