@@ -292,3 +292,19 @@ export {
   type MCPServerHealth,
   type MCPConnectionEvent,
 } from "./mcp.js";
+
+// Offline buffer exports
+export {
+  OfflineBuffer,
+  createOfflineBuffer,
+  createAndInitializeOfflineBuffer,
+  createBufferableSpan,
+  getGlobalBuffer,
+  resetGlobalBuffer,
+  isBufferHealthy,
+  type BufferedSpan,
+  type FlushStrategy,
+  type OfflineBufferConfig,
+  type FlushResult,
+  type BufferStats,
+} from "./offline-buffer.js";

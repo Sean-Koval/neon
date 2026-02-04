@@ -169,6 +169,19 @@ export {
   type MCPToolCallResult,
   type MCPServerHealth,
   type MCPConnectionEvent,
+  // Offline buffer
+  OfflineBuffer,
+  createOfflineBuffer,
+  createAndInitializeOfflineBuffer,
+  createBufferableSpan,
+  getGlobalBuffer,
+  resetGlobalBuffer,
+  isBufferHealthy,
+  type BufferedSpan,
+  type FlushStrategy,
+  type OfflineBufferConfig,
+  type FlushResult,
+  type BufferStats,
 } from "./tracing/index.js";
 
 // Runner
@@ -308,6 +321,76 @@ export {
   type ScoreData,
   type StreamExportConfig,
 } from "./export/index.js";
+
+// A/B Testing Framework (comparison module)
+export {
+  // Variant API
+  defineVariant,
+  defineControl,
+  defineTreatment,
+  validateVariants,
+  getControlVariant,
+  getTreatmentVariants,
+  resetVariantIdCounter,
+  // Experiment API
+  defineExperiment,
+  runExperiment,
+  validateExperiment,
+  // Seeded RNG (for reproducibility)
+  createRng,
+  getDefaultRng,
+  setDefaultSeed,
+  resetDefaultRng,
+  // Statistical utilities
+  mean,
+  variance,
+  stdDev,
+  median,
+  medianFromSorted,
+  percentile,
+  percentileFromSorted,
+  calculatePercentiles,
+  calculateMetricSummary,
+  tTest,
+  welchTest,
+  mannWhitneyU,
+  bootstrapConfidenceInterval,
+  cohensD,
+  cliffsDelta,
+  calculateEffectSize,
+  interpretEffectSize,
+  compareMetric,
+  bonferroniCorrection,
+  holmCorrection,
+  normalCDF,
+  normalQuantile,
+  tCDF,
+  tQuantile,
+  // Types
+  type VariantType,
+  type Variant,
+  type VariantConfig,
+  type DefineVariantOptions,
+  type Experiment,
+  type Hypothesis,
+  type StatisticalConfig,
+  type StatisticalTestType,
+  type DefineExperimentOptions,
+  type ExperimentResult,
+  type VariantResult,
+  type ComparisonResult,
+  type MetricComparison,
+  type MetricSummary,
+  type ConfidenceInterval,
+  type StatisticalSignificance,
+  type EffectSize,
+  type HypothesisResult,
+  type ExperimentConclusion,
+  type ExperimentExecutionMetadata,
+  type ExperimentRunOptions,
+  type ExperimentProgress,
+  type RandomState,
+} from "./comparison/index.js";
 
 // Skill Evaluation Framework
 export {

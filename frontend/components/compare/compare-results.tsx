@@ -3,6 +3,7 @@
 import { clsx } from 'clsx'
 import {
   ArrowRight,
+  BarChart3,
   CheckCircle,
   ChevronDown,
   ChevronUp,
@@ -12,6 +13,11 @@ import {
 } from 'lucide-react'
 import { useState } from 'react'
 import type { CompareResponse, RegressionItem } from '@/lib/types'
+import {
+  ConfidenceIntervalBar,
+  SignificanceIndicator,
+  formatConfidenceInterval,
+} from './confidence-interval'
 
 interface CompareResultsProps {
   comparison: CompareResponse
@@ -82,6 +88,16 @@ function ResultSection({
   showDeltaSign,
 }: ResultSectionProps) {
   const [isExpanded, setIsExpanded] = useState(true)
+  const [showStatistics, setShowStatistics] = useState(false)
+
+  // Check if any items have statistical data
+  const hasStatisticalData = items.some(
+    (item) =>
+      item.significance ||
+      item.effectSize ||
+      item.baselineConfidenceInterval ||
+      item.candidateConfidenceInterval,
+  )
 
   const variantStyles = {
     success: {
@@ -126,11 +142,33 @@ function ResultSection({
             {count}
           </span>
         </div>
-        {isExpanded ? (
-          <ChevronUp className={clsx('w-5 h-5', styles.headerText)} />
-        ) : (
-          <ChevronDown className={clsx('w-5 h-5', styles.headerText)} />
-        )}
+        <div className="flex items-center gap-2">
+          {/* Statistics Toggle */}
+          {hasStatisticalData && isExpanded && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                setShowStatistics(!showStatistics)
+              }}
+              className={clsx(
+                'px-2 py-1 text-xs font-medium rounded flex items-center gap-1 transition-colors',
+                showStatistics
+                  ? 'bg-blue-100 text-blue-700'
+                  : 'bg-white/50 text-gray-600 hover:bg-white/80',
+              )}
+              title={showStatistics ? 'Hide statistics' : 'Show statistics'}
+            >
+              <BarChart3 className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Stats</span>
+            </button>
+          )}
+          {isExpanded ? (
+            <ChevronUp className={clsx('w-5 h-5', styles.headerText)} />
+          ) : (
+            <ChevronDown className={clsx('w-5 h-5', styles.headerText)} />
+          )}
+        </div>
       </button>
 
       {/* Section Content */}
@@ -142,6 +180,8 @@ function ResultSection({
               item={item}
               deltaColor={styles.delta}
               showDeltaSign={showDeltaSign}
+              showStatistics={showStatistics}
+              isImprovement={variant === 'success'}
             />
           ))}
         </div>
@@ -154,19 +194,44 @@ interface ResultRowProps {
   item: RegressionItem
   deltaColor: string
   showDeltaSign: boolean
+  showStatistics?: boolean
+  isImprovement?: boolean
 }
 
-function ResultRow({ item, deltaColor, showDeltaSign }: ResultRowProps) {
+function ResultRow({
+  item,
+  deltaColor,
+  showDeltaSign,
+  showStatistics = false,
+  isImprovement = false,
+}: ResultRowProps) {
   const baselinePercent = (item.baseline_score * 100).toFixed(1)
   const candidatePercent = (item.candidate_score * 100).toFixed(1)
   const deltaPercent = (Math.abs(item.delta) * 100).toFixed(1)
+
+  const hasConfidenceIntervals =
+    item.baselineConfidenceInterval || item.candidateConfidenceInterval
+  const hasSignificance = item.significance || item.effectSize
 
   return (
     <div className="p-4 hover:bg-gray-50 transition-colors">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         {/* Case Info */}
-        <div className="min-w-0">
-          <p className="font-medium text-gray-900 truncate">{item.case_name}</p>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <p className="font-medium text-gray-900 truncate">
+              {item.case_name}
+            </p>
+            {/* Compact significance indicator */}
+            {!showStatistics && hasSignificance && (
+              <SignificanceIndicator
+                significance={item.significance}
+                effectSize={item.effectSize}
+                isImprovement={isImprovement}
+                compact
+              />
+            )}
+          </div>
           <p className="text-sm text-gray-500">{item.scorer}</p>
         </div>
 
@@ -176,6 +241,11 @@ function ResultRow({ item, deltaColor, showDeltaSign }: ResultRowProps) {
           <div className="text-center min-w-[60px]">
             <div className="text-xs text-gray-500 mb-0.5">Baseline</div>
             <div className="font-medium text-gray-600">{baselinePercent}%</div>
+            {showStatistics && item.baselineConfidenceInterval && (
+              <div className="text-[10px] text-gray-400">
+                {formatConfidenceInterval(item.baselineConfidenceInterval)}
+              </div>
+            )}
           </div>
 
           <ArrowRight className="w-4 h-4 text-gray-300" />
@@ -184,6 +254,11 @@ function ResultRow({ item, deltaColor, showDeltaSign }: ResultRowProps) {
           <div className="text-center min-w-[60px]">
             <div className="text-xs text-gray-500 mb-0.5">Candidate</div>
             <div className="font-medium text-gray-900">{candidatePercent}%</div>
+            {showStatistics && item.candidateConfidenceInterval && (
+              <div className="text-[10px] text-gray-400">
+                {formatConfidenceInterval(item.candidateConfidenceInterval)}
+              </div>
+            )}
           </div>
 
           {/* Delta */}
@@ -195,9 +270,42 @@ function ResultRow({ item, deltaColor, showDeltaSign }: ResultRowProps) {
           >
             {showDeltaSign ? '+' : '-'}
             {deltaPercent}%
+            {showStatistics && item.diffConfidenceInterval && (
+              <div className="text-[10px] text-gray-400 font-normal">
+                {formatConfidenceInterval(item.diffConfidenceInterval)}
+              </div>
+            )}
           </div>
         </div>
       </div>
+
+      {/* Extended Statistics Row */}
+      {showStatistics && (hasConfidenceIntervals || hasSignificance) && (
+        <div className="mt-3 pt-3 border-t border-gray-100 flex flex-wrap items-center gap-4">
+          {/* Confidence Interval Visualization */}
+          {hasConfidenceIntervals && (
+            <ConfidenceIntervalBar
+              baselineMean={item.baseline_score}
+              candidateMean={item.candidate_score}
+              baselineCI={item.baselineConfidenceInterval}
+              candidateCI={item.candidateConfidenceInterval}
+              isImprovement={isImprovement}
+              label="Score Distribution"
+              asPercentage
+              width={180}
+            />
+          )}
+
+          {/* Significance Badges */}
+          {hasSignificance && (
+            <SignificanceIndicator
+              significance={item.significance}
+              effectSize={item.effectSize}
+              isImprovement={isImprovement}
+            />
+          )}
+        </div>
+      )}
     </div>
   )
 }
