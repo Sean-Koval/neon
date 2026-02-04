@@ -304,6 +304,41 @@ export {
   type ComprehensiveSignalConfig,
 } from "./optimization/index.js";
 
+// Analysis module
+export {
+  // Core functions (sync, token-based)
+  detectPatterns,
+  extractFailureFeatures,
+  normalizeErrorMessage,
+  categorizeError,
+  computeSignature,
+  measureSimilarity,
+  matchesPattern,
+  findMatchingPatterns,
+  // Async functions (embedding-based)
+  detectPatternsAsync,
+  measureSimilarityWithEmbeddings,
+  // Embedding utilities
+  EmbeddingIndex,
+  cosineSimilarity,
+  clearEmbeddingCache,
+  getEmbeddingCacheSize,
+  // Scorers
+  patternDiversityScorer,
+  patternConcentrationScorer,
+  novelPatternScorer,
+  patternAnalysisDetailedScorer,
+  // Types
+  type ErrorCategory,
+  type FailureFeatures,
+  type FailurePattern,
+  type PatternDetectorConfig,
+  type PatternAnalysisResult,
+  type PatternScorerConfig,
+  type SimilarityMethod,
+  type EmbeddingFunction,
+} from "./analysis/index.js";
+
 // Export utilities - Training data export for fine-tuning (Agent Lightning, OpenAI, TRL, DSPy)
 export {
   // Generic export system
