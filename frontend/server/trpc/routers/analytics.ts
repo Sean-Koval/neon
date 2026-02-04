@@ -201,4 +201,117 @@ export const analyticsRouter = router({
 
       return response.json();
     }),
+
+  // =============================================================================
+  // MCP Analytics
+  // =============================================================================
+
+  /**
+   * Get MCP server health overview
+   */
+  mcpServerHealth: publicProcedure
+    .input(timeRangeInput)
+    .query(async ({ ctx, input }) => {
+      const params = new URLSearchParams({
+        project_id: ctx.projectId,
+        start_date: input.startDate,
+        end_date: input.endDate,
+      });
+
+      const response = await fetch(
+        `${MOOSE_API_URL}/api/analytics/mcp/servers?${params}`
+      );
+
+      if (!response.ok) {
+        // Return empty data if endpoint not available yet
+        console.warn("MCP server health endpoint not available");
+        return { servers: [] };
+      }
+
+      return response.json();
+    }),
+
+  /**
+   * Get MCP tool usage statistics
+   */
+  mcpToolUsage: publicProcedure
+    .input(
+      timeRangeInput.extend({
+        serverId: z.string().optional(),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      const params = new URLSearchParams({
+        project_id: ctx.projectId,
+        start_date: input.startDate,
+        end_date: input.endDate,
+      });
+
+      if (input.serverId) params.set("server_id", input.serverId);
+
+      const response = await fetch(
+        `${MOOSE_API_URL}/api/analytics/mcp/tools?${params}`
+      );
+
+      if (!response.ok) {
+        console.warn("MCP tool usage endpoint not available");
+        return { tools: [] };
+      }
+
+      return response.json();
+    }),
+
+  /**
+   * Get MCP server latency percentiles
+   */
+  mcpLatency: publicProcedure
+    .input(
+      timeRangeInput.extend({
+        serverId: z.string().optional(),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      const params = new URLSearchParams({
+        project_id: ctx.projectId,
+        start_date: input.startDate,
+        end_date: input.endDate,
+      });
+
+      if (input.serverId) params.set("server_id", input.serverId);
+
+      const response = await fetch(
+        `${MOOSE_API_URL}/api/analytics/mcp/latency?${params}`
+      );
+
+      if (!response.ok) {
+        console.warn("MCP latency endpoint not available");
+        return { latency: [] };
+      }
+
+      return response.json();
+    }),
+
+  /**
+   * Get MCP topology (server relationships)
+   */
+  mcpTopology: publicProcedure
+    .input(timeRangeInput)
+    .query(async ({ ctx, input }) => {
+      const params = new URLSearchParams({
+        project_id: ctx.projectId,
+        start_date: input.startDate,
+        end_date: input.endDate,
+      });
+
+      const response = await fetch(
+        `${MOOSE_API_URL}/api/analytics/mcp/topology?${params}`
+      );
+
+      if (!response.ok) {
+        console.warn("MCP topology endpoint not available");
+        return { nodes: [], edges: [] };
+      }
+
+      return response.json();
+    }),
 });

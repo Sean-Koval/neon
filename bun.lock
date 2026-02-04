@@ -13,6 +13,7 @@
       "version": "0.1.0",
       "dependencies": {
         "@clickhouse/client": "^1.16.0",
+        "@neon/shared": "workspace:*",
         "@next/bundle-analyzer": "^16.1.6",
         "@tanstack/react-query": "^5.62.0",
         "@tanstack/react-query-devtools": "^5.91.2",
