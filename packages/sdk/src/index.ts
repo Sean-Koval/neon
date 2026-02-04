@@ -304,7 +304,7 @@ export {
   type ComprehensiveSignalConfig,
 } from "./optimization/index.js";
 
-// Export utilities (Agent Lightning, etc.)
+// Export utilities (Agent Lightning, DSPy, etc.)
 export {
   // Agent Lightning format
   exportToAgentLightning,
@@ -320,6 +320,24 @@ export {
   type ExportContext,
   type ScoreData,
   type StreamExportConfig,
+  // DSPy format
+  exportToDSPy,
+  exportBatchToDSPy,
+  streamExportToDSPy,
+  validateDSPyDataset,
+  mergeDSPyDatasets,
+  datasetToJSONL,
+  generateDSPyLoaderCode,
+  type DSPyExample,
+  type DSPyExampleMetadata,
+  type DSPyPreset,
+  type DSPyFieldMapping,
+  type DSPyFilter,
+  type DSPyExportConfig,
+  type DSPyScoreData,
+  type DSPyExportContext,
+  type DSPyDataset,
+  type DSPyStreamExportConfig,
 } from "./export/index.js";
 
 // A/B Testing Framework (comparison module)
