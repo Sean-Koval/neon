@@ -794,11 +794,11 @@ export class BreakpointManager {
   private interpolateMessage(template: string, context: BreakpointContext): string {
     return template
       .replace(/\{\{span\.(\w+)\}\}/g, (_, key) => {
-        const value = (context.span as Record<string, unknown>)[key];
+        const value = (context.span as unknown as Record<string, unknown>)[key];
         return value !== undefined ? String(value) : "";
       })
       .replace(/\{\{trace\.(\w+)\}\}/g, (_, key) => {
-        const value = (context.trace as Record<string, unknown>)[key];
+        const value = (context.trace as unknown as Record<string, unknown>)[key];
         return value !== undefined ? String(value) : "";
       })
       .replace(/\{\{hitCount\}\}/g, String(context.hitCount))

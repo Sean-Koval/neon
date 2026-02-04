@@ -39,3 +39,29 @@ export {
   type SimilarityMethod,
   type EmbeddingFunction,
 } from "./pattern-detector.js";
+
+// Failure Correlation Analysis
+export {
+  // Analyzer class
+  CorrelationAnalyzer,
+  createCorrelationAnalyzer,
+  // Standalone query functions
+  querySimilarFailures,
+  // Error handling
+  CorrelationAnalysisError,
+  type CorrelationErrorCode,
+  // Types
+  type ClickHouseConfig,
+  type ClickHouseClientInterface,
+  type ClickHouseClientFactory,
+  type TimeWindow,
+  type FailureRecord,
+  type CorrelatedPattern,
+  type SystemicIssue,
+  type PatternCorrelation,
+  type ComponentHealth,
+  type TimeWindowAnalysis,
+  type FindCorrelatedFailuresOptions,
+  type IdentifySystemicIssuesOptions,
+  type ComponentHealthOptions,
+} from "./correlation.js";

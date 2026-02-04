@@ -337,6 +337,25 @@ export {
   type PatternScorerConfig,
   type SimilarityMethod,
   type EmbeddingFunction,
+  // Correlation Analysis (ClickHouse-based cross-trace analysis)
+  CorrelationAnalyzer,
+  createCorrelationAnalyzer,
+  querySimilarFailures,
+  CorrelationAnalysisError,
+  type CorrelationErrorCode,
+  type ClickHouseConfig,
+  type ClickHouseClientInterface,
+  type ClickHouseClientFactory,
+  type TimeWindow,
+  type FailureRecord,
+  type CorrelatedPattern,
+  type SystemicIssue,
+  type PatternCorrelation,
+  type ComponentHealth,
+  type TimeWindowAnalysis,
+  type FindCorrelatedFailuresOptions,
+  type IdentifySystemicIssuesOptions,
+  type ComponentHealthOptions,
 } from "./analysis/index.js";
 
 // Export utilities - Training data export for fine-tuning (Agent Lightning, OpenAI, TRL, DSPy)
