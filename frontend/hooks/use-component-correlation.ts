@@ -9,7 +9,6 @@
 
 import { useMemo } from 'react'
 import { useRuns } from './use-runs'
-import { useSuites } from './use-suites'
 
 // =============================================================================
 // Types
@@ -265,21 +264,14 @@ export function useComponentCorrelation(
     healthThresholds = { warning: 0.7, critical: 0.5 },
   } = options
 
-  // Fetch runs and suites
+  // Fetch runs data
   const {
     data: runs = [],
-    isLoading: runsLoading,
-    isError: runsError,
-    error: runsErrorObj,
-    refetch: refetchRuns,
+    isLoading,
+    isError,
+    error,
+    refetch,
   } = useRuns({ limit: 500 })
-
-  const {
-    data: suites = [],
-    isLoading: suitesLoading,
-    isError: suitesError,
-    error: suitesErrorObj,
-  } = useSuites()
 
   // Process data
   const result = useMemo(() => {
@@ -630,9 +622,9 @@ export function useComponentCorrelation(
 
   return {
     ...result,
-    isLoading: runsLoading || suitesLoading,
-    isError: runsError || suitesError,
-    error: (runsErrorObj ?? suitesErrorObj) as Error | null,
-    refetch: refetchRuns,
+    isLoading,
+    isError,
+    error: error as Error | null,
+    refetch,
   }
 }
