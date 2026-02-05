@@ -27,7 +27,7 @@ const config = {
 export async function getTemporalClient(): Promise<Client> {
   if (!client) {
     // Create a promise that rejects after timeout
-    const timeoutMs = 3000 // 3 second timeout
+    const timeoutMs = 2000 // 2 second timeout - fail fast when unavailable
     const timeoutPromise = new Promise<never>((_, reject) => {
       setTimeout(
         () =>
@@ -290,7 +290,7 @@ export async function resumeEvalRun(workflowId: string): Promise<void> {
 }
 
 /**
- * List recent eval runs
+ * List recent eval runs with timeout protection
  */
 export async function listEvalRuns(options?: {
   limit?: number
@@ -304,27 +304,39 @@ export async function listEvalRuns(options?: {
     query += ` AND ExecutionStatus = "${options.status}"`
   }
 
-  const workflows: WorkflowStatus[] = []
-  const iterator = client.workflow.list({
-    query,
-  })
-
-  let count = 0
   const limit = options?.limit || 50
+  const timeoutMs = 3000 // 3 second timeout for listing - fail fast when slow
 
-  for await (const workflow of iterator) {
-    if (count >= limit) break
+  // Create a promise that collects workflows with timeout
+  const listPromise = async (): Promise<WorkflowStatus[]> => {
+    const workflows: WorkflowStatus[] = []
+    const iterator = client.workflow.list({ query })
 
-    workflows.push({
-      workflowId: workflow.workflowId,
-      runId: workflow.workflowId.replace('eval-run-', ''),
-      status: workflow.status.name as WorkflowStatus['status'],
-      startTime: workflow.startTime.toISOString(),
-      closeTime: workflow.closeTime?.toISOString(),
-    })
+    let count = 0
+    for await (const workflow of iterator) {
+      if (count >= limit) break
 
-    count++
+      workflows.push({
+        workflowId: workflow.workflowId,
+        runId: workflow.workflowId.replace('eval-run-', ''),
+        status: workflow.status.name as WorkflowStatus['status'],
+        startTime: workflow.startTime.toISOString(),
+        closeTime: workflow.closeTime?.toISOString(),
+      })
+
+      count++
+    }
+
+    return workflows
   }
 
-  return workflows
+  // Race between listing and timeout
+  const timeoutPromise = new Promise<WorkflowStatus[]>((_, reject) => {
+    setTimeout(
+      () => reject(new Error('Temporal list timeout - service may be unavailable')),
+      timeoutMs,
+    )
+  })
+
+  return Promise.race([listPromise(), timeoutPromise])
 }

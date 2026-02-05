@@ -66,6 +66,23 @@ export async function GET(request: NextRequest) {
     )
   } catch (error) {
     console.error('Duration stats API error:', error)
+
+    // Graceful degradation when ClickHouse is unavailable
+    const isClickHouseError =
+      error instanceof Error &&
+      (error.message.includes('ECONNREFUSED') ||
+        error.message.includes('connect') ||
+        error.message.includes('timeout') ||
+        error.message.includes('ETIMEDOUT'))
+
+    if (isClickHouseError) {
+      return NextResponse.json({
+        stats: [],
+        queryTimeMs: 0,
+        warning: 'ClickHouse not available. Start it to see duration stats.',
+      })
+    }
+
     return NextResponse.json(
       { error: 'Failed to fetch duration stats' },
       { status: 500 },

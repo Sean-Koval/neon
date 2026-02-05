@@ -201,10 +201,66 @@ ORDER BY (project_id, trace_id, timestamp, score_id)
 TTL _date + INTERVAL 90 DAY;
 
 -- =============================================================================
+-- PROMPTS TABLE
+-- =============================================================================
+-- Versioned prompt templates for prompt management.
+-- Supports text and chat prompt types with variable interpolation.
+--
+-- Query patterns:
+--   - Get prompt by ID: project_id + prompt_id
+--   - Get prompt by name: project_id + name + version
+--   - List production prompts: project_id + is_production
+--   - Filter by tags: tags array contains
+--
+CREATE TABLE IF NOT EXISTS neon.prompts
+(
+    project_id String,
+    prompt_id String,
+    name String,
+    description String DEFAULT '',
+    type Enum8('text' = 0, 'chat' = 1),
+    template String DEFAULT '',
+    messages String DEFAULT '[]',      -- JSON array for chat prompts
+    variables String DEFAULT '{}',     -- JSON object of variable definitions
+    config String DEFAULT '{}',        -- JSON object for model config
+    tags Array(String) DEFAULT [],
+    is_production UInt8 DEFAULT 0,
+    version UInt32 DEFAULT 1,
+    commit_message String DEFAULT '',
+    created_by String DEFAULT '',
+    created_at DateTime64(3) DEFAULT now64(3),
+    updated_at DateTime64(3) DEFAULT now64(3),
+    parent_version_id String DEFAULT '',
+    variant String DEFAULT 'default',
+
+    _date Date MATERIALIZED toDate(created_at),
+
+    INDEX idx_name name TYPE bloom_filter(0.01) GRANULARITY 4,
+    INDEX idx_is_production is_production TYPE set(2) GRANULARITY 8,
+    INDEX idx_tags tags TYPE bloom_filter(0.01) GRANULARITY 4
+)
+ENGINE = MergeTree()
+PARTITION BY toYYYYMM(_date)
+ORDER BY (project_id, name, version)
+TTL _date + INTERVAL 365 DAY;
+
+-- =============================================================================
 -- MATERIALIZED VIEWS
 -- =============================================================================
+-- Materialized views auto-update on INSERT to base tables.
+-- We use two engine types:
+-- - SummingMergeTree: For simple additive aggregations (counts, sums)
+-- - AggregatingMergeTree: For complex aggregations (avg, percentiles, min/max)
+--
+-- IMPORTANT: When querying AggregatingMergeTree views, use the *Merge() functions:
+--   avgMerge(avg_state), minMerge(min_state), quantileMerge(0.5)(p50_state), etc.
+-- =============================================================================
 
--- Daily statistics per project (for dashboard overview)
+-- -----------------------------------------------------------------------------
+-- Basic Analytics Views
+-- -----------------------------------------------------------------------------
+
+-- Daily statistics per project (for basic dashboard overview)
 CREATE MATERIALIZED VIEW IF NOT EXISTS neon.daily_stats_mv
 ENGINE = SummingMergeTree()
 ORDER BY (project_id, date)
@@ -234,15 +290,100 @@ FROM neon.spans
 WHERE span_type = 'generation' AND model IS NOT NULL
 GROUP BY project_id, model_name, date;
 
--- Score trends (for quality monitoring)
-CREATE MATERIALIZED VIEW IF NOT EXISTS neon.score_trends_mv
-ENGINE = SummingMergeTree()
+-- -----------------------------------------------------------------------------
+-- Dashboard Views (required by /api/dashboard/* endpoints)
+-- -----------------------------------------------------------------------------
+
+-- Enhanced Score Trends with min/max (for score trend charts)
+-- Used by: /api/dashboard/score-trends
+CREATE MATERIALIZED VIEW IF NOT EXISTS neon.score_trends_full_mv
+ENGINE = AggregatingMergeTree()
+PARTITION BY toYYYYMM(date)
 ORDER BY (project_id, name, date)
 AS SELECT
     project_id,
     name,
     toDate(timestamp) as date,
-    avg(value) as avg_score,
-    count() as score_count
+    avgState(value) as avg_score_state,
+    minState(value) as min_score_state,
+    maxState(value) as max_score_state,
+    countState() as score_count_state
 FROM neon.scores
 GROUP BY project_id, name, date;
+
+-- Duration Statistics with percentiles (for performance monitoring)
+-- Used by: /api/dashboard/duration-stats
+CREATE MATERIALIZED VIEW IF NOT EXISTS neon.duration_stats_mv
+ENGINE = AggregatingMergeTree()
+PARTITION BY toYYYYMM(date)
+ORDER BY (project_id, date)
+AS SELECT
+    project_id,
+    toDate(timestamp) as date,
+    avgState(duration_ms) as avg_duration_state,
+    quantileState(0.5)(duration_ms) as p50_state,
+    quantileState(0.95)(duration_ms) as p95_state,
+    quantileState(0.99)(duration_ms) as p99_state,
+    minState(duration_ms) as min_duration_state,
+    maxState(duration_ms) as max_duration_state,
+    countState() as trace_count_state
+FROM neon.traces
+GROUP BY project_id, date;
+
+-- Run-level Score Aggregations (for pass/fail calculations)
+-- Used by: backfill operations
+CREATE MATERIALIZED VIEW IF NOT EXISTS neon.run_scores_mv
+ENGINE = AggregatingMergeTree()
+PARTITION BY toYYYYMM(date)
+ORDER BY (project_id, run_id, date)
+AS SELECT
+    project_id,
+    run_id,
+    toDate(timestamp) as date,
+    avgState(value) as avg_score_state,
+    minState(value) as min_score_state,
+    countState() as score_count_state,
+    countIfState(value >= 0.7) as passed_scores_state,
+    countIfState(value < 0.7) as failed_scores_state
+FROM neon.scores
+WHERE run_id IS NOT NULL
+GROUP BY project_id, run_id, date;
+
+-- Daily Run Summary (for dashboard summary cards)
+-- Used by: /api/dashboard/summary, useDashboard hook
+CREATE MATERIALIZED VIEW IF NOT EXISTS neon.daily_run_summary_mv
+ENGINE = SummingMergeTree()
+PARTITION BY toYYYYMM(date)
+ORDER BY (project_id, date)
+AS SELECT
+    project_id,
+    toDate(timestamp) as date,
+    count() as total_runs,
+    countIf(status = 'ok') as passed_runs,
+    countIf(status = 'error') as failed_runs,
+    sum(duration_ms) as total_duration_ms,
+    sum(total_tokens) as total_tokens,
+    sum(total_cost) as total_cost
+FROM neon.traces
+WHERE run_id IS NOT NULL
+GROUP BY project_id, date;
+
+-- Scorer Performance Stats (for scorer analysis)
+-- Used by: /api/dashboard endpoints, analysis page
+CREATE MATERIALIZED VIEW IF NOT EXISTS neon.scorer_stats_mv
+ENGINE = AggregatingMergeTree()
+PARTITION BY toYYYYMM(date)
+ORDER BY (project_id, name, date)
+AS SELECT
+    project_id,
+    name,
+    source,
+    toDate(timestamp) as date,
+    avgState(value) as avg_score_state,
+    minState(value) as min_score_state,
+    maxState(value) as max_score_state,
+    countState() as score_count_state,
+    countIfState(value >= 0.7) as passed_count_state,
+    countIfState(value < 0.7) as failed_count_state
+FROM neon.scores
+GROUP BY project_id, name, source, date;

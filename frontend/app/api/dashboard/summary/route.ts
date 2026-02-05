@@ -51,6 +51,28 @@ export async function GET(request: NextRequest) {
     )
   } catch (error) {
     console.error('Summary API error:', error)
+
+    // Graceful degradation when ClickHouse is unavailable
+    const isClickHouseError =
+      error instanceof Error &&
+      (error.message.includes('ECONNREFUSED') ||
+        error.message.includes('connect') ||
+        error.message.includes('timeout') ||
+        error.message.includes('ETIMEDOUT'))
+
+    if (isClickHouseError) {
+      return NextResponse.json({
+        total_runs: 0,
+        passed_runs: 0,
+        failed_runs: 0,
+        pass_rate: 0,
+        avg_duration_ms: 0,
+        total_tokens: 0,
+        total_cost: 0,
+        warning: 'ClickHouse not available. Start it to see dashboard stats.',
+      })
+    }
+
     return NextResponse.json(
       { error: 'Failed to fetch summary' },
       { status: 500 },

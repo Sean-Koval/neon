@@ -60,6 +60,29 @@ export async function GET(request: NextRequest) {
     )
   } catch (error) {
     console.error('Tool metrics API error:', error)
+
+    // Graceful degradation when ClickHouse is unavailable
+    const isClickHouseError =
+      error instanceof Error &&
+      (error.message.includes('ECONNREFUSED') ||
+        error.message.includes('connect') ||
+        error.message.includes('timeout') ||
+        error.message.includes('ETIMEDOUT'))
+
+    if (isClickHouseError) {
+      return NextResponse.json({
+        tools: [],
+        summary: {
+          totalCalls: 0,
+          totalTools: 0,
+          overallSuccessRate: 0,
+          avgLatencyMs: 0,
+        },
+        queryTimeMs: 0,
+        warning: 'ClickHouse not available. Start it to see tool metrics.',
+      })
+    }
+
     return NextResponse.json(
       { error: 'Failed to fetch tool metrics' },
       { status: 500 },

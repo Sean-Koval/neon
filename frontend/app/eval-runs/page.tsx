@@ -8,6 +8,7 @@
 
 import { formatDistanceToNow } from 'date-fns'
 import {
+  AlertCircle,
   CheckCircle,
   ChevronRight,
   Clock,
@@ -180,9 +181,12 @@ export default function EvalRunsPage() {
   const {
     data: runs,
     isLoading,
+    isError,
+    error,
     refetch,
   } = useWorkflowRuns(
     statusFilter ? { status: statusFilter as WorkflowStatus } : undefined,
+    { retry: 1 }, // Limit retries to avoid long waits when Temporal is unavailable
   )
 
   const startMutation = useStartWorkflowRun({
@@ -258,8 +262,26 @@ export default function EvalRunsPage() {
           </div>
         )}
 
+        {/* Error state */}
+        {!isLoading && isError && (
+          <div className="flex flex-col items-center justify-center py-12">
+            <AlertCircle className="w-12 h-12 text-red-400 mb-3" />
+            <p className="text-gray-700 font-medium">Failed to load eval runs</p>
+            <p className="text-sm text-gray-500 mt-1 max-w-md text-center">
+              {error?.message || 'Temporal service may be unavailable. Please ensure the workflow engine is running.'}
+            </p>
+            <button
+              onClick={() => refetch()}
+              className="mt-4 flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
+            >
+              <RefreshCw className="w-4 h-4" />
+              Retry
+            </button>
+          </div>
+        )}
+
         {/* Empty state */}
-        {!isLoading && (!runs || runs.length === 0) && (
+        {!isLoading && !isError && (!runs || runs.length === 0) && (
           <div className="flex flex-col items-center justify-center py-12">
             <Clock className="w-12 h-12 text-gray-300 mb-3" />
             <p className="text-gray-500 font-medium">No eval runs found</p>

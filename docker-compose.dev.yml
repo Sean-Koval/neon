@@ -65,7 +65,7 @@ services:
 
   # ===== Temporal Server (Optional for Managed Execution) =====
   temporal:
-    image: temporalio/auto-setup:1.24
+    image: temporalio/auto-setup:1.25.2
     container_name: neon-dev-temporal
     environment:
       - DB=postgres12
@@ -73,8 +73,6 @@ services:
       - POSTGRES_USER=neon
       - POSTGRES_PWD=neon
       - POSTGRES_SEEDS=postgres
-      - DYNAMIC_CONFIG_FILE_PATH=config/dynamicconfig/development-sql.yaml
-      # Development settings
       - LOG_LEVEL=debug
     depends_on:
       postgres:
@@ -82,11 +80,11 @@ services:
     ports:
       - "7233:7233"
     healthcheck:
-      test: ["CMD", "tctl", "--address", "temporal:7233", "cluster", "health"]
+      test: ["CMD", "temporal", "operator", "cluster", "health", "--address", "temporal:7233"]
       interval: 10s
       timeout: 5s
       retries: 10
-      start_period: 30s
+      start_period: 40s
     profiles:
       - temporal
       - full
@@ -97,7 +95,7 @@ services:
 
   # ===== Temporal Web UI =====
   temporal-ui:
-    image: temporalio/ui:2.26
+    image: temporalio/ui:2.35.0
     container_name: neon-dev-temporal-ui
     environment:
       - TEMPORAL_ADDRESS=temporal:7233
@@ -120,8 +118,8 @@ services:
   #   cd temporal-workers && bun dev
   temporal-worker:
     build:
-      context: ./temporal-workers
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: temporal-workers/Dockerfile
     container_name: neon-dev-temporal-worker
     environment:
       - TEMPORAL_ADDRESS=temporal:7233

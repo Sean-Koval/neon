@@ -99,6 +99,7 @@ export function useDashboardData(
     queryKey: dashboardKeys.dashboard(params),
     queryFn: () => dashboardApi.getDashboard(params),
     staleTime: 10 * 1000, // 10 seconds - dashboard data refreshes often
+    retry: 1, // Limit retries for faster error feedback
     ...options,
   })
 }
@@ -121,6 +122,7 @@ export function useDashboardSummary(
       return transformSummary(data)
     },
     staleTime: 10 * 1000,
+    retry: 1, // Limit retries for faster fallback to client-side
     ...options,
   })
 }
@@ -142,6 +144,7 @@ export function useScoreTrendsApi(
       return trends
     },
     staleTime: 10 * 1000,
+    retry: 1, // Limit retries for faster fallback to client-side
     ...options,
   })
 }
@@ -163,6 +166,7 @@ export function useDurationStats(
       return stats
     },
     staleTime: 10 * 1000,
+    retry: 1, // Limit retries for faster error feedback
     ...options,
   })
 }
