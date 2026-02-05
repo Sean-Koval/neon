@@ -17,9 +17,23 @@ WORKDIR /app
 
 # Copy package files
 COPY temporal-workers/package.json ./
+COPY temporal-workers/bun.lock* ./
 
-# Install dependencies with bun (faster than npm)
+# Install all dependencies with bun
 RUN bun install --frozen-lockfile || bun install
+
+# =============================================================================
+# Production Dependencies Stage
+# =============================================================================
+FROM base AS prod-deps
+WORKDIR /app
+
+# Copy package files
+COPY temporal-workers/package.json ./
+COPY temporal-workers/bun.lock* ./
+
+# Install only production dependencies
+RUN bun install --frozen-lockfile --production || bun install --production
 
 # =============================================================================
 # Build Stage
@@ -27,7 +41,7 @@ RUN bun install --frozen-lockfile || bun install
 FROM base AS builder
 WORKDIR /app
 
-# Copy dependencies
+# Copy all dependencies (needed for build)
 COPY --from=deps /app/node_modules ./node_modules
 
 # Copy source code
@@ -45,12 +59,12 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 
-# Install production dependencies only (Temporal requires node runtime)
-COPY temporal-workers/package.json ./
-RUN npm install --omit=dev
+# Copy production dependencies from bun install
+COPY --from=prod-deps /app/node_modules ./node_modules
 
 # Copy built application
 COPY --from=builder /app/dist ./dist
+COPY temporal-workers/package.json ./
 
 # Create non-root user for security
 RUN addgroup --system --gid 1001 nodejs && \

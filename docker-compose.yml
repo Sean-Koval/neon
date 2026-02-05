@@ -104,7 +104,7 @@ services:
 
   # Temporal Web UI - Workflow visibility
   temporal-ui:
-    image: temporalio/ui:2.34.0
+    image: temporalio/ui:2.31.2
     container_name: neon-temporal-ui
     environment:
       - TEMPORAL_ADDRESS=temporal:7233

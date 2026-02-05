@@ -97,7 +97,7 @@ services:
 
   # ===== Temporal Web UI =====
   temporal-ui:
-    image: temporalio/ui:2.34.0
+    image: temporalio/ui:2.31.2
     container_name: neon-dev-temporal-ui
     environment:
       - TEMPORAL_ADDRESS=temporal:7233
