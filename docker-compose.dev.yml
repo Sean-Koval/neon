@@ -73,8 +73,6 @@ services:
       - POSTGRES_USER=neon
       - POSTGRES_PWD=neon
       - POSTGRES_SEEDS=postgres
-      - DYNAMIC_CONFIG_FILE_PATH=config/dynamicconfig/development-sql.yaml
-      # Development settings
       - LOG_LEVEL=debug
     depends_on:
       postgres:
