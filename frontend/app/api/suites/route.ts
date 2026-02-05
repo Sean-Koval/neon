@@ -1,0 +1,242 @@
+/**
+ * Eval Suites API
+ *
+ * GET /api/suites - List all evaluation suites
+ * POST /api/suites - Create a new evaluation suite
+ *
+ * Suites are stored in PostgreSQL (created by postgres-init.sql).
+ * This route provides CRUD operations with graceful degradation
+ * when the database isn't available.
+ */
+
+import { type NextRequest, NextResponse } from 'next/server'
+import { Pool } from 'pg'
+import type { EvalSuite, EvalSuiteList, ScorerType } from '@/lib/types'
+
+// Create a connection pool for raw queries
+// (suites table is in postgres-init.sql, not Drizzle schema)
+let pool: Pool | null = null
+
+function getPool(): Pool {
+  if (!pool) {
+    const connectionString =
+      process.env.DATABASE_URL || 'postgresql://neon:neon@localhost:5432/neon'
+
+    pool = new Pool({
+      connectionString,
+      max: 5,
+      idleTimeoutMillis: 30000,
+      connectionTimeoutMillis: 2000,
+    })
+
+    pool.on('error', (err: Error) => {
+      console.error('PostgreSQL pool error in suites route:', err)
+    })
+  }
+  return pool
+}
+
+/**
+ * Map database row to EvalSuite type
+ */
+function mapRowToSuite(row: Record<string, unknown>): EvalSuite {
+  const config = (row.config as Record<string, unknown>) || {}
+
+  return {
+    id: row.id as string,
+    project_id: row.project_id as string,
+    name: row.name as string,
+    description: (row.description as string) || null,
+    agent_id: (row.agent_module_path as string) || '',
+    default_scorers: ((config.default_scorers as string[]) || []) as ScorerType[],
+    default_min_score: (config.default_min_score as number) ?? 0.7,
+    default_timeout_seconds: (config.default_timeout_seconds as number) ?? 300,
+    parallel: (config.parallel as boolean) ?? false,
+    stop_on_failure: (config.stop_on_failure as boolean) ?? false,
+    cases: [], // Cases are loaded separately via /api/suites/:id/cases
+    created_at: row.created_at
+      ? new Date(row.created_at as string).toISOString()
+      : new Date().toISOString(),
+    updated_at: row.updated_at
+      ? new Date(row.updated_at as string).toISOString()
+      : new Date().toISOString(),
+  }
+}
+
+/**
+ * GET /api/suites
+ *
+ * List all evaluation suites.
+ *
+ * Query params:
+ * - project_id: Filter by project (optional)
+ * - limit: Maximum results (default 100)
+ * - offset: Pagination offset (default 0)
+ */
+export async function GET(request: NextRequest) {
+  const searchParams = request.nextUrl.searchParams
+  const projectId = searchParams.get('project_id')
+  const limit = Math.min(parseInt(searchParams.get('limit') || '100', 10), 1000)
+  const offset = parseInt(searchParams.get('offset') || '0', 10)
+
+  try {
+    const pool = getPool()
+
+    // Build query with optional project filter
+    let query = 'SELECT * FROM suites'
+    const params: (string | number)[] = []
+
+    if (projectId) {
+      query += ' WHERE project_id = $1'
+      params.push(projectId)
+    }
+
+    query += ` ORDER BY created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`
+    params.push(limit, offset)
+
+    const result = await pool.query(query, params)
+
+    // Get total count for pagination
+    let countQuery = 'SELECT COUNT(*) FROM suites'
+    const countParams: string[] = []
+    if (projectId) {
+      countQuery += ' WHERE project_id = $1'
+      countParams.push(projectId)
+    }
+
+    const countResult = await pool.query(countQuery, countParams)
+    const total = parseInt(countResult.rows[0]?.count || '0', 10)
+
+    const suites: EvalSuite[] = result.rows.map(mapRowToSuite)
+
+    const response: EvalSuiteList = {
+      items: suites,
+      total,
+    }
+
+    return NextResponse.json(response)
+  } catch (error) {
+    console.error('Error fetching suites:', error)
+
+    // Graceful degradation - return empty list if database isn't available
+    const isConnectionError =
+      error instanceof Error &&
+      (error.message.includes('ECONNREFUSED') ||
+        error.message.includes('connect') ||
+        error.message.includes('timeout') ||
+        error.message.includes('ETIMEDOUT') ||
+        error.message.includes('does not exist'))
+
+    if (isConnectionError) {
+      return NextResponse.json({
+        items: [],
+        total: 0,
+        warning:
+          'Database not available or suites table not created. Run postgres-init.sql to set up.',
+      } satisfies EvalSuiteList & { warning: string })
+    }
+
+    return NextResponse.json(
+      { error: 'Failed to fetch suites', details: String(error) },
+      { status: 500 },
+    )
+  }
+}
+
+/**
+ * POST /api/suites
+ *
+ * Create a new evaluation suite.
+ *
+ * Request body:
+ * {
+ *   name: string;
+ *   description?: string;
+ *   project_id: string;
+ *   agent_id?: string;
+ *   default_scorers?: string[];
+ *   default_min_score?: number;
+ *   default_timeout_seconds?: number;
+ *   default_config?: object;
+ * }
+ */
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json()
+
+    // Validate required fields
+    if (!body.name) {
+      return NextResponse.json({ error: 'name is required' }, { status: 400 })
+    }
+    if (!body.project_id) {
+      return NextResponse.json(
+        { error: 'project_id is required' },
+        { status: 400 },
+      )
+    }
+
+    const pool = getPool()
+
+    // Build config object from optional fields
+    const config: Record<string, unknown> = {}
+    if (body.default_scorers) config.default_scorers = body.default_scorers
+    if (body.default_min_score !== undefined)
+      config.default_min_score = body.default_min_score
+    if (body.default_timeout_seconds !== undefined)
+      config.default_timeout_seconds = body.default_timeout_seconds
+    if (body.default_config) config.default_config = body.default_config
+
+    const result = await pool.query(
+      `INSERT INTO suites (project_id, name, description, agent_module_path, config)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING *`,
+      [
+        body.project_id,
+        body.name,
+        body.description || null,
+        body.agent_id || null,
+        JSON.stringify(config),
+      ],
+    )
+
+    const suite = mapRowToSuite(result.rows[0])
+
+    return NextResponse.json(suite, { status: 201 })
+  } catch (error) {
+    console.error('Error creating suite:', error)
+
+    // Check for foreign key violation (invalid project_id)
+    if (
+      error instanceof Error &&
+      error.message.includes('violates foreign key constraint')
+    ) {
+      return NextResponse.json(
+        { error: 'Invalid project_id - project does not exist' },
+        { status: 400 },
+      )
+    }
+
+    // Graceful degradation for connection errors
+    const isConnectionError =
+      error instanceof Error &&
+      (error.message.includes('ECONNREFUSED') ||
+        error.message.includes('connect') ||
+        error.message.includes('timeout'))
+
+    if (isConnectionError) {
+      return NextResponse.json(
+        {
+          error: 'Database not available',
+          details:
+            'PostgreSQL is not reachable. Please ensure the database is running.',
+        },
+        { status: 503 },
+      )
+    }
+
+    return NextResponse.json(
+      { error: 'Failed to create suite', details: String(error) },
+      { status: 500 },
+    )
+  }
+}
