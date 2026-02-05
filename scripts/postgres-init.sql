@@ -2,12 +2,25 @@
 -- Creates databases and base tables for metadata storage
 
 -- Create databases for Temporal (required by temporalio/auto-setup)
-CREATE DATABASE temporal;
-CREATE DATABASE temporal_visibility;
+-- Owner is set to 'neon' so Temporal can create its schema tables
+CREATE DATABASE temporal OWNER neon;
+CREATE DATABASE temporal_visibility OWNER neon;
 
--- Grant permissions to neon user
+-- Grant ALL privileges to neon user (belt and suspenders)
 GRANT ALL PRIVILEGES ON DATABASE temporal TO neon;
 GRANT ALL PRIVILEGES ON DATABASE temporal_visibility TO neon;
+
+-- Connect to temporal database and grant schema permissions
+\c temporal;
+GRANT ALL ON SCHEMA public TO neon;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO neon;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO neon;
+
+-- Connect to temporal_visibility database and grant schema permissions
+\c temporal_visibility;
+GRANT ALL ON SCHEMA public TO neon;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO neon;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO neon;
 
 -- Switch to neon database for metadata tables
 \c neon;
