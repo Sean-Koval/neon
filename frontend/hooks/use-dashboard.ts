@@ -22,7 +22,6 @@ import {
   useScoreTrend as useClientScoreTrend,
   useRuns,
 } from './use-runs'
-import { useSuites } from './use-suites'
 
 export interface UseDashboardReturn {
   // Filters
@@ -124,13 +123,24 @@ export function useDashboard(
     refetch: refetchRuns,
   } = useRuns({ limit: 500 })
 
-  // Fetch suites for filter dropdown
-  const {
-    data: suites = [],
-    isLoading: isLoadingSuites,
-    error: suitesError,
-    refetch: refetchSuites,
-  } = useSuites()
+  // Derive suites from runs data (avoids separate API call to non-existent endpoint)
+  const suites = useMemo(() => {
+    const suiteMap = new Map<string, EvalSuite>()
+    for (const run of allRuns) {
+      if (!suiteMap.has(run.suite_id)) {
+        suiteMap.set(run.suite_id, {
+          id: run.suite_id,
+          name: run.suite_name,
+          project_id: run.project_id,
+          created_at: run.created_at,
+          updated_at: run.created_at,
+        })
+      }
+    }
+    return Array.from(suiteMap.values())
+  }, [allRuns])
+  const isLoadingSuites = isLoadingRuns
+  const suitesError = null // Derived from runs, no separate error
 
   // Server-side stats from materialized views
   const {
@@ -162,22 +172,27 @@ export function useDashboard(
     error: clientTrendError,
   } = useClientScoreTrend({ days: trendDays, maxRuns: 100 })
 
-  // Select stats based on mode
-  const isLoadingStats = useServerSide
+  // Select stats based on mode - fall back to client-side if server-side fails
+  const useServerStats = useServerSide && !serverStatsError && serverStats
+  const isLoadingStats = useServerStats
     ? isLoadingServerStats
     : isLoadingClientStats
-  const statsError = useServerSide ? serverStatsError : clientStatsError
+  // Only show error if both server and client fail
+  const statsError = useServerStats ? null : clientStatsError
   const refetchStats = useServerSide ? refetchServerStats : refetchClientStats
 
-  // Select trend data based on mode
-  const isLoadingTrend = useServerSide
+  // Select trend data based on mode - fall back to client-side if server-side fails
+  const useServerTrend = useServerSide && !serverTrendError && serverTrendData.length > 0
+  const isLoadingTrend = useServerTrend
     ? isLoadingServerTrend
     : isLoadingClientTrend
-  const trendError = useServerSide ? serverTrendError : clientTrendError
+  // Only show error if both server and client fail
+  const trendError = useServerTrend ? null : clientTrendError
 
-  // Transform server stats to match expected format
+  // Transform server stats to match expected format, fall back to client stats
   const stats = useMemo(() => {
-    if (useServerSide && serverStats) {
+    // Use server stats if available and no error
+    if (useServerSide && serverStats && !serverStatsError) {
       return {
         totalRuns: serverStats.totalRuns,
         passedRuns: serverStats.passedRuns,
@@ -190,11 +205,14 @@ export function useDashboard(
         avgDurationMs: serverStats.avgDurationMs,
       }
     }
+    // Fall back to client stats
     return clientStats
-  }, [useServerSide, serverStats, clientStats])
+  }, [useServerSide, serverStats, serverStatsError, clientStats])
 
-  // Select trend data
-  const rawTrendData = useServerSide ? serverTrendData : clientTrendData
+  // Select trend data - fall back to client if server fails
+  const rawTrendData = (useServerSide && !serverTrendError && serverTrendData.length > 0)
+    ? serverTrendData
+    : clientTrendData
 
   // Transform server trend data to expected format if needed
   const trendData: ScoreTrendPoint[] = useMemo(() => {
@@ -245,7 +263,6 @@ export function useDashboard(
   // Combined refresh function
   const refresh = () => {
     refetchRuns()
-    refetchSuites()
     refetchStats()
   }
 
