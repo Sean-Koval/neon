@@ -27,7 +27,7 @@ const config = {
 export async function getTemporalClient(): Promise<Client> {
   if (!client) {
     // Create a promise that rejects after timeout
-    const timeoutMs = 3000 // 3 second timeout
+    const timeoutMs = 2000 // 2 second timeout - fail fast when unavailable
     const timeoutPromise = new Promise<never>((_, reject) => {
       setTimeout(
         () =>
@@ -305,7 +305,7 @@ export async function listEvalRuns(options?: {
   }
 
   const limit = options?.limit || 50
-  const timeoutMs = 5000 // 5 second timeout for listing
+  const timeoutMs = 3000 // 3 second timeout for listing - fail fast when slow
 
   // Create a promise that collects workflows with timeout
   const listPromise = async (): Promise<WorkflowStatus[]> => {
@@ -333,7 +333,7 @@ export async function listEvalRuns(options?: {
   // Race between listing and timeout
   const timeoutPromise = new Promise<WorkflowStatus[]>((_, reject) => {
     setTimeout(
-      () => reject(new Error('Temporal workflow list timeout - service may be slow or unavailable')),
+      () => reject(new Error('Temporal list timeout - service may be unavailable')),
       timeoutMs,
     )
   })
