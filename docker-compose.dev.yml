@@ -120,8 +120,8 @@ services:
   #   cd temporal-workers && bun dev
   temporal-worker:
     build:
-      context: ./temporal-workers
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: temporal-workers/Dockerfile
     container_name: neon-dev-temporal-worker
     environment:
       - TEMPORAL_ADDRESS=temporal:7233

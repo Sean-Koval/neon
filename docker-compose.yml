@@ -1,17 +1,34 @@
-# Neon Agent Ops Platform
+# Neon - Agent Evaluation Platform
 #
-# Usage:
-#   docker compose up -d                    # Start core infrastructure
-#   docker compose --profile temporal up -d # Include Temporal
-#   docker compose --profile full up -d     # Everything including app
+# One-command startup for the complete platform, similar to Langfuse.
 #
-# Services:
-#   Core: clickhouse, postgres, redpanda
-#   Temporal: temporal, temporal-ui
-#   App: api, web, temporal-worker
+# Quick Start:
+#   docker compose up -d              # Start everything
+#   docker compose up -d --build      # Rebuild and start everything
+#
+# Access:
+#   - Dashboard:     http://localhost:3000
+#   - Temporal UI:   http://localhost:8080
+#   - ClickHouse:    http://localhost:8123
+#
+# Profiles (for partial deployments):
+#   docker compose --profile infra-only up -d  # Just databases (no app)
+#   docker compose --profile debug up -d       # Add admin UIs
+#
+# Environment Variables (create .env file):
+#   ANTHROPIC_API_KEY=sk-ant-...     # Required for AI agent evals
+#   OPENAI_API_KEY=sk-...            # Optional
+#
+# Stop:
+#   docker compose down               # Stop all services
+#   docker compose down -v            # Stop and remove volumes
 
 services:
-  # ===== ClickHouse (Trace Storage) =====
+  # ===========================================================================
+  # DATABASES
+  # ===========================================================================
+
+  # ClickHouse - High-performance analytics for trace storage
   clickhouse:
     image: clickhouse/clickhouse-server:24.3
     container_name: neon-clickhouse
@@ -35,8 +52,9 @@ services:
       nofile:
         soft: 262144
         hard: 262144
+    restart: unless-stopped
 
-  # ===== PostgreSQL (Metadata + Temporal) =====
+  # PostgreSQL - Metadata storage and Temporal backend
   postgres:
     image: postgres:16-alpine
     container_name: neon-postgres
@@ -54,27 +72,13 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    restart: unless-stopped
 
-  # ===== Redpanda (Streaming - Optional for now) =====
-  redpanda:
-    image: redpandadata/redpanda:v24.1.1
-    container_name: neon-redpanda
-    command:
-      - redpanda start
-      - --smp 1
-      - --memory 512M
-      - --overprovisioned
-      - --kafka-addr PLAINTEXT://0.0.0.0:9092
-      - --advertise-kafka-addr PLAINTEXT://redpanda:9092
-    ports:
-      - "9092:9092"
-    volumes:
-      - redpanda_data:/var/lib/redpanda/data
-    profiles:
-      - streaming
-      - full
+  # ===========================================================================
+  # TEMPORAL (Durable Execution)
+  # ===========================================================================
 
-  # ===== Temporal Server =====
+  # Temporal Server - Workflow orchestration
   temporal:
     image: temporalio/auto-setup:1.24
     container_name: neon-temporal
@@ -96,11 +100,9 @@ services:
       timeout: 5s
       retries: 10
       start_period: 30s
-    profiles:
-      - temporal
-      - full
+    restart: unless-stopped
 
-  # ===== Temporal Web UI =====
+  # Temporal Web UI - Workflow visibility
   temporal-ui:
     image: temporalio/ui:2.26
     container_name: neon-temporal-ui
@@ -112,11 +114,79 @@ services:
         condition: service_healthy
     ports:
       - "8080:8080"
-    profiles:
-      - temporal
-      - full
+    restart: unless-stopped
 
-  # ===== Redpanda Console (Debug) =====
+  # ===========================================================================
+  # APPLICATION
+  # ===========================================================================
+
+  # Temporal Worker - Executes evaluation workflows
+  temporal-worker:
+    build:
+      context: .
+      dockerfile: temporal-workers/Dockerfile
+    container_name: neon-temporal-worker
+    environment:
+      - TEMPORAL_ADDRESS=temporal:7233
+      - TEMPORAL_NAMESPACE=default
+      - TEMPORAL_TASK_QUEUE=agent-workers
+      - NEON_API_URL=http://web:3000
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - DEFAULT_PROJECT_ID=00000000-0000-0000-0000-000000000001
+    depends_on:
+      temporal:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # Next.js Frontend + API
+  web:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    container_name: neon-web
+    environment:
+      - CLICKHOUSE_URL=http://clickhouse:8123
+      - CLICKHOUSE_DATABASE=neon
+      - DATABASE_URL=postgresql://neon:neon@postgres:5432/neon
+      - TEMPORAL_ADDRESS=temporal:7233
+      - TEMPORAL_NAMESPACE=default
+      - TEMPORAL_TASK_QUEUE=agent-workers
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      temporal:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+
+  # ===========================================================================
+  # OPTIONAL SERVICES (use profiles)
+  # ===========================================================================
+
+  # Redpanda - Event streaming (optional)
+  redpanda:
+    image: redpandadata/redpanda:v24.1.1
+    container_name: neon-redpanda
+    command:
+      - redpanda start
+      - --smp 1
+      - --memory 512M
+      - --overprovisioned
+      - --kafka-addr PLAINTEXT://0.0.0.0:9092
+      - --advertise-kafka-addr PLAINTEXT://redpanda:9092
+    ports:
+      - "9092:9092"
+    volumes:
+      - redpanda_data:/var/lib/redpanda/data
+    profiles:
+      - streaming
+      - debug
+
+  # Redpanda Console
   redpanda-console:
     image: redpandadata/console:v2.4.5
     container_name: neon-redpanda-console
@@ -129,48 +199,47 @@ services:
     profiles:
       - debug
 
-  # ===== Temporal Worker =====
-  temporal-worker:
-    build:
-      context: ./temporal-workers
-      dockerfile: Dockerfile
-    container_name: neon-temporal-worker
-    environment:
-      - TEMPORAL_ADDRESS=temporal:7233
-      - TEMPORAL_NAMESPACE=default
-      - TEMPORAL_TASK_QUEUE=agent-workers
-      - NEON_API_URL=http://web:3000
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
-      - DEFAULT_PROJECT_ID=00000000-0000-0000-0000-000000000001
-    depends_on:
-      temporal:
-        condition: service_healthy
-    profiles:
-      - full
-
-  # ===== Next.js Frontend/API =====
-  web:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    container_name: neon-web
-    environment:
-      - CLICKHOUSE_URL=http://clickhouse:8123
-      - CLICKHOUSE_DATABASE=neon
-      - DATABASE_URL=postgresql://neon:neon@postgres:5432/neon
-      - TEMPORAL_ADDRESS=temporal:7233
-    depends_on:
-      clickhouse:
-        condition: service_healthy
-      postgres:
-        condition: service_healthy
+  # Adminer - PostgreSQL web UI
+  adminer:
+    image: adminer:4
+    container_name: neon-adminer
     ports:
-      - "3000:3000"
+      - "8082:8080"
+    environment:
+      - ADMINER_DEFAULT_SERVER=postgres
+    depends_on:
+      - postgres
     profiles:
-      - full
+      - debug
+
+  # Tabix - ClickHouse web UI
+  tabix:
+    image: spoonest/clickhouse-tabix-web-client
+    container_name: neon-tabix
+    ports:
+      - "8083:80"
+    environment:
+      - CH_HOST=clickhouse
+      - CH_PORT=8123
+    depends_on:
+      - clickhouse
+    profiles:
+      - debug
+
+# ===========================================================================
+# VOLUMES
+# ===========================================================================
 
 volumes:
   clickhouse_data:
   clickhouse_logs:
-  redpanda_data:
   postgres_data:
+  redpanda_data:
+
+# ===========================================================================
+# NETWORKS
+# ===========================================================================
+
+networks:
+  default:
+    name: neon-network
