@@ -73,6 +73,23 @@ export async function GET(request: NextRequest) {
     )
   } catch (error) {
     console.error('Score trends API error:', error)
+
+    // Graceful degradation when ClickHouse is unavailable
+    const isClickHouseError =
+      error instanceof Error &&
+      (error.message.includes('ECONNREFUSED') ||
+        error.message.includes('connect') ||
+        error.message.includes('timeout') ||
+        error.message.includes('ETIMEDOUT'))
+
+    if (isClickHouseError) {
+      return NextResponse.json({
+        trends: [],
+        queryTimeMs: 0,
+        warning: 'ClickHouse not available. Start it to see score trends.',
+      })
+    }
+
     return NextResponse.json(
       { error: 'Failed to fetch score trends' },
       { status: 500 },
