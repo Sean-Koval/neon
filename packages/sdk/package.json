@@ -20,6 +20,42 @@
     "./tracing": {
       "import": "./dist/tracing/index.js",
       "types": "./dist/tracing/index.d.ts"
+    },
+    "./analysis": {
+      "import": "./dist/analysis/index.js",
+      "types": "./dist/analysis/index.d.ts"
+    },
+    "./export": {
+      "import": "./dist/export/index.js",
+      "types": "./dist/export/index.d.ts"
+    },
+    "./comparison": {
+      "import": "./dist/comparison/index.js",
+      "types": "./dist/comparison/index.d.ts"
+    },
+    "./runner": {
+      "import": "./dist/runner/index.js",
+      "types": "./dist/runner/index.d.ts"
+    },
+    "./cloud": {
+      "import": "./dist/cloud/index.js",
+      "types": "./dist/cloud/index.d.ts"
+    },
+    "./prompts": {
+      "import": "./dist/prompts/index.js",
+      "types": "./dist/prompts/index.d.ts"
+    },
+    "./optimization": {
+      "import": "./dist/optimization/index.js",
+      "types": "./dist/optimization/index.d.ts"
+    },
+    "./evals": {
+      "import": "./dist/evals/index.js",
+      "types": "./dist/evals/index.d.ts"
+    },
+    "./debugging": {
+      "import": "./dist/debugging/index.js",
+      "types": "./dist/debugging/index.d.ts"
     }
   },
   "scripts": {

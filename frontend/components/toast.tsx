@@ -7,6 +7,7 @@ import {
   useContext,
   useState,
 } from 'react'
+import { CONFIG } from '@/lib/config'
 
 export type ToastType = 'success' | 'error' | 'warning' | 'info'
 
@@ -43,10 +44,10 @@ export function ToastProvider({ children }: ToastProviderProps) {
     const id = Math.random().toString(36).substring(2, 9)
     setToasts((prev) => [...prev, { id, message, type }])
 
-    // Auto-remove after 5 seconds
+    // Auto-remove after configured timeout
     setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id))
-    }, 5000)
+    }, CONFIG.TOAST_AUTO_DISMISS_MS)
   }, [])
 
   const removeToast = useCallback((id: string) => {

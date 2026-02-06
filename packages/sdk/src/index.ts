@@ -3,6 +3,22 @@
  *
  * Neon Agent Ops SDK - Evals as code
  *
+ * This is the main barrel export. For smaller bundle sizes, import from submodules:
+ *
+ * ```typescript
+ * import { exactMatch, llmJudge } from '@neon/sdk/scorers';
+ * import { exportToAgentLightning } from '@neon/sdk/export';
+ * import { detectPatterns } from '@neon/sdk/analysis';
+ * import { defineExperiment } from '@neon/sdk/comparison';
+ * import { trace, span } from '@neon/sdk/tracing';
+ * import { TestRunner } from '@neon/sdk/runner';
+ * import { NeonCloudClient } from '@neon/sdk/cloud';
+ * import { definePrompt } from '@neon/sdk/prompts';
+ * import { generateSignals } from '@neon/sdk/optimization';
+ * import { defineSkillEval } from '@neon/sdk/evals';
+ * import { defineBreakpoint } from '@neon/sdk/debugging';
+ * ```
+ *
  * @example
  * ```typescript
  * import {

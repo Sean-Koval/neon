@@ -1,6 +1,7 @@
 'use client'
 
-import { formatDistanceToNow } from 'date-fns'
+import { CONFIG } from '@/lib/config'
+import { safeFormatDistance } from '@/lib/format-date'
 import {
   AlertCircle,
   CheckCircle,
@@ -91,7 +92,7 @@ export default function Dashboard() {
               : '90d'
         }
         showSuiteFilter={true}
-        threshold={0.7}
+        threshold={CONFIG.DASHBOARD_SCORE_THRESHOLD}
       />
 
       {/* Tool Metrics */}
@@ -322,7 +323,7 @@ const RunRow = memo(function RunRow({ run }: RunRowProps) {
   }, [run.summary])
 
   const timeAgo = useMemo(
-    () => formatDistanceToNow(new Date(run.created_at), { addSuffix: true }),
+    () => safeFormatDistance(run.created_at),
     [run.created_at],
   )
 
