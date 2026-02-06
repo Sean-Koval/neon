@@ -97,3 +97,15 @@ logs/
 
 # Serena cache
 .serena/cache/
+# bd worktree
+neon-pi8/
+# bd worktree
+neon-14/
+# bd worktree
+neon-l23.1.1/
+# bd worktree
+neon-l23.2.1/
+# bd worktree
+neon-l23.1/
+# bd worktree
+neon-l23.2.2/
