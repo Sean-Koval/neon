@@ -158,6 +158,12 @@ export interface PatternDetectorConfig {
    * Only applies when similarityMethod is "embedding"
    */
   cacheEmbeddings?: boolean;
+  /**
+   * Project ID for embedding cache isolation in multi-tenant scenarios.
+   * Each project gets its own cache to prevent cross-tenant data leakage.
+   * Default: "__default__"
+   */
+  projectId?: string;
 }
 
 /**
@@ -173,6 +179,7 @@ interface ResolvedPatternDetectorConfig {
   similarityMethod: SimilarityMethod;
   embeddingFn?: EmbeddingFunction;
   cacheEmbeddings: boolean;
+  projectId: string;
 }
 
 /**
@@ -704,11 +711,21 @@ export function clearEmbeddingCache(): void {
 }
 
 /**
- * Get the current size of the default embedding cache
+ * Get the current size of the embedding cache.
+ * If projectId is specified, returns the size for that project's cache.
+ * If no projectId is specified, returns the total size across all project caches.
  */
-export function getEmbeddingCacheSize(): number {
-  const cache = projectEmbeddingCaches.get(DEFAULT_PROJECT_ID);
-  return cache ? cache.size : 0;
+export function getEmbeddingCacheSize(projectId?: string): number {
+  if (projectId !== undefined) {
+    const cache = projectEmbeddingCaches.get(projectId);
+    return cache ? cache.size : 0;
+  }
+  // Return total across all project caches
+  let total = 0;
+  for (const cache of projectEmbeddingCaches.values()) {
+    total += cache.size;
+  }
+  return total;
 }
 
 /**
@@ -795,7 +812,8 @@ export async function measureSimilarityWithEmbeddings(
   features1: FailureFeatures,
   features2: FailureFeatures,
   embeddingFn: EmbeddingFunction,
-  useCache = true
+  useCache = true,
+  projectId: string = DEFAULT_PROJECT_ID
 ): Promise<number> {
   // Collect texts to embed
   const texts: string[] = [];
@@ -803,7 +821,7 @@ export async function measureSimilarityWithEmbeddings(
   if (features2.normalizedMessage) texts.push(features2.normalizedMessage);
 
   // Build a mini embedding index for this comparison
-  const embeddingIndex = await EmbeddingIndex.build(texts, embeddingFn, useCache);
+  const embeddingIndex = await EmbeddingIndex.build(texts, embeddingFn, useCache, projectId);
 
   // Use the index-based measurement
   return measureSimilarityWithIndex(features1, features2, embeddingIndex);
@@ -1011,7 +1029,7 @@ async function clusterFailuresWithEmbeddings(
     .filter((m): m is string => m !== undefined && m.length > 0);
 
   // Build embedding index in a single batch call
-  const embeddingIndex = await EmbeddingIndex.build(allMessages, embeddingFn, config.cacheEmbeddings);
+  const embeddingIndex = await EmbeddingIndex.build(allMessages, embeddingFn, config.cacheEmbeddings, config.projectId);
 
   // Now cluster using the pre-computed index (no more async calls!)
   const clusters: FailureCluster[] = [];
@@ -1200,6 +1218,7 @@ function resolveConfig(config?: PatternDetectorConfig): ResolvedPatternDetectorC
     similarityMethod: config?.similarityMethod ?? "token",
     embeddingFn: config?.embeddingFn,
     cacheEmbeddings: config?.cacheEmbeddings ?? true,
+    projectId: config?.projectId ?? DEFAULT_PROJECT_ID,
   };
 }
 
