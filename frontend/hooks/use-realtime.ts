@@ -125,9 +125,10 @@ export function useRealtime(
   const reconnectAttemptsRef = useRef(0)
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const pingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
-  const pollingIntervalsRef = useRef<
-    Map<string, ReturnType<typeof setInterval>>
-  >(new Map())
+  const batchPollingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(
+    null,
+  )
+  const pollingRunIdsRef = useRef<Set<string>>(new Set())
   const mountedRef = useRef(true)
 
   // Refs to store latest callback versions without causing re-renders
@@ -222,58 +223,121 @@ export function useRealtime(
   }, [])
 
   /**
-   * Start polling for a specific run ID.
+   * Execute a single batch poll for all active polling run IDs.
+   * Fetches status for all runs concurrently and removes completed runs.
+   */
+  const executeBatchPoll = useCallback(async () => {
+    if (!mountedRef.current) return
+    const runIds = Array.from(pollingRunIdsRef.current) as string[]
+    if (runIds.length === 0) return
+
+    const activeRunIds = runIds.filter((id) => subscriptionsRef.current.has(id))
+    if (activeRunIds.length === 0) return
+
+    const results = await Promise.allSettled(
+      activeRunIds.map(async (runId) => {
+        const status = await api.getWorkflowRunStatus(runId)
+        return { runId, status }
+      }),
+    )
+
+    if (!mountedRef.current) return
+
+    const completedRunIds: string[] = []
+    const updates = new Map<string, RunStatusUpdate>()
+
+    for (const result of results) {
+      if (result.status === 'fulfilled') {
+        const { runId, status } = result.value
+        updates.set(runId, pollToUpdate(runId, status))
+
+        // Update React Query cache for consistency
+        queryClient.setQueryData<WorkflowStatusPoll>(
+          workflowQueryKeys.status(runId),
+          {
+            id: runId,
+            status: status.status,
+            isRunning: status.isRunning,
+            isComplete: status.isComplete,
+            isFailed: status.isFailed,
+            progress: status.progress,
+            summary: status.summary,
+            error: status.error,
+          },
+        )
+
+        if (!status.isRunning) {
+          completedRunIds.push(runId)
+        }
+      } else {
+        console.warn('Batch poll failed for a run:', result.reason)
+      }
+    }
+
+    // Batch state update
+    if (updates.size > 0) {
+      setRunStatuses((prev) => {
+        const next = new Map(prev)
+        for (const [runId, update] of updates) {
+          next.set(runId, update)
+        }
+        return next
+      })
+    }
+
+    // Remove completed runs from polling set
+    for (const runId of completedRunIds) {
+      pollingRunIdsRef.current.delete(runId)
+    }
+
+    // Stop the interval if no more runs to poll
+    if (
+      pollingRunIdsRef.current.size === 0 &&
+      batchPollingIntervalRef.current
+    ) {
+      clearInterval(batchPollingIntervalRef.current)
+      batchPollingIntervalRef.current = null
+    }
+  }, [queryClient])
+
+  /**
+   * Ensure the batch polling interval is running.
+   */
+  const ensureBatchPollingStarted = useCallback(() => {
+    if (batchPollingIntervalRef.current) return
+    if (pollingRunIdsRef.current.size === 0) return
+
+    batchPollingIntervalRef.current = setInterval(
+      executeBatchPoll,
+      pollingInterval,
+    )
+  }, [executeBatchPoll, pollingInterval])
+
+  /**
+   * Start polling for a specific run ID (adds to the batch).
    */
   const startPolling = useCallback(
     (runId: string) => {
-      // Don't start if already polling
-      if (pollingIntervalsRef.current.has(runId)) return
-
-      const poll = async () => {
-        if (!mountedRef.current) return
-        if (!subscriptionsRef.current.has(runId)) return
-
-        try {
-          const status = await api.getWorkflowRunStatus(runId)
-          if (!mountedRef.current) return
-
-          const update = pollToUpdate(runId, status)
-          setRunStatuses((prev) => {
-            const next = new Map(prev)
-            next.set(runId, update)
-            return next
-          })
-
-          // Stop polling if run is complete
-          if (!status.isRunning) {
-            const interval = pollingIntervalsRef.current.get(runId)
-            if (interval) {
-              clearInterval(interval)
-              pollingIntervalsRef.current.delete(runId)
-            }
-          }
-        } catch (error) {
-          // Silently fail polling - will retry on next interval
-          console.warn(`Polling failed for run ${runId}:`, error)
-        }
-      }
-
-      // Poll immediately, then on interval
-      poll()
-      const interval = setInterval(poll, pollingInterval)
-      pollingIntervalsRef.current.set(runId, interval)
+      pollingRunIdsRef.current.add(runId)
+      // Fire an immediate poll, then the interval takes over
+      executeBatchPoll()
+      ensureBatchPollingStarted()
     },
-    [pollingInterval],
+    [executeBatchPoll, ensureBatchPollingStarted],
   )
 
   /**
    * Stop polling for a specific run ID.
    */
   const stopPolling = useCallback((runId: string) => {
-    const interval = pollingIntervalsRef.current.get(runId)
-    if (interval) {
-      clearInterval(interval)
-      pollingIntervalsRef.current.delete(runId)
+    pollingRunIdsRef.current.delete(runId)
+
+    if (
+      pollingRunIdsRef.current.size === 0 &&
+      batchPollingIntervalRef.current
+    ) {
+      clearInterval(batchPollingIntervalRef.current)
+      batchPollingIntervalRef.current = null
     }
   }, [])
 
@@ -281,10 +345,11 @@ export function useRealtime(
    * Stop all polling.
    */
   const stopAllPolling = useCallback(() => {
-    for (const interval of pollingIntervalsRef.current.values()) {
-      clearInterval(interval)
+    pollingRunIdsRef.current.clear()
+    if (batchPollingIntervalRef.current) {
+      clearInterval(batchPollingIntervalRef.current)
+      batchPollingIntervalRef.current = null
     }
-    pollingIntervalsRef.current.clear()
   }, [])
 
   /**

@@ -492,7 +492,7 @@ describe('ApiClient', () => {
 
   describe('Runs', () => {
     it('getRuns fetches all runs', async () => {
-      const list: EvalRunList = { items: [mockRun], total: 1 }
+      const list: EvalRunList = { items: [mockRun], count: 1 }
       mockFetch.mockResolvedValueOnce(mockResponse(list))
 
       const result = await client.getRuns()
@@ -505,7 +505,7 @@ describe('ApiClient', () => {
     })
 
     it('getRuns applies filters', async () => {
-      const list: EvalRunList = { items: [mockRun], total: 1 }
+      const list: EvalRunList = { items: [mockRun], count: 1 }
       mockFetch.mockResolvedValueOnce(mockResponse(list))
 
       await client.getRuns({

@@ -294,8 +294,9 @@ export async function resumeEvalRun(workflowId: string): Promise<void> {
  */
 export async function listEvalRuns(options?: {
   limit?: number
+  offset?: number
   status?: 'RUNNING' | 'COMPLETED' | 'FAILED'
-}): Promise<WorkflowStatus[]> {
+}): Promise<{ items: WorkflowStatus[]; hasMore: boolean }> {
   const client = await getTemporalClient()
 
   let query =
@@ -305,16 +306,34 @@ export async function listEvalRuns(options?: {
   }
 
   const limit = options?.limit || 50
+  const offset = options?.offset || 0
   const timeoutMs = 3000 // 3 second timeout for listing - fail fast when slow
 
   // Create a promise that collects workflows with timeout
-  const listPromise = async (): Promise<WorkflowStatus[]> => {
+  const listPromise = async (): Promise<{
+    items: WorkflowStatus[]
+    hasMore: boolean
+  }> => {
     const workflows: WorkflowStatus[] = []
     const iterator = client.workflow.list({ query })
 
-    let count = 0
+    let index = 0
+    let hasMore = false
+    // TODO: O(n) offset pagination - iterates through all skipped items sequentially.
+    // For deep pages (e.g., page 50 with pageSize=20 = 1000 items iterated).
+    // Consider cursor-based pagination or server-side offset support for better scaling.
     for await (const workflow of iterator) {
-      if (count >= limit) break
+      // Skip items before offset
+      if (index < offset) {
+        index++
+        continue
+      }
+
+      // Check if there are more items beyond this page
+      if (workflows.length >= limit) {
+        hasMore = true
+        break
+      }
 
       workflows.push({
         workflowId: workflow.workflowId,
@@ -324,16 +343,19 @@ export async function listEvalRuns(options?: {
         closeTime: workflow.closeTime?.toISOString(),
       })
 
-      count++
+      index++
     }
 
-    return workflows
+    return { items: workflows, hasMore }
   }
 
   // Race between listing and timeout
-  const timeoutPromise = new Promise<WorkflowStatus[]>((_, reject) => {
+  const timeoutPromise = new Promise<never>((_, reject) => {
     setTimeout(
-      () => reject(new Error('Temporal list timeout - service may be unavailable')),
+      () =>
+        reject(
+          new Error('Temporal list timeout - service may be unavailable'),
+        ),
       timeoutMs,
     )
   })

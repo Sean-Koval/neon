@@ -4,12 +4,15 @@ import { formatDistanceToNow } from 'date-fns'
 import {
   AlertCircle,
   CheckCircle,
+  ChevronLeft,
+  ChevronRight,
   Clock,
   FileText,
   RefreshCw,
   XCircle,
 } from 'lucide-react'
 import Link from 'next/link'
+import { memo, useMemo } from 'react'
 import { CostAnalyticsCards } from '@/components/dashboard/cost-analytics'
 import {
   type DashboardFilters,
@@ -34,6 +37,11 @@ export default function Dashboard() {
     isLoadingSuites,
     isLoadingStats,
     runsError,
+    page,
+    hasNextPage,
+    hasPrevPage,
+    loadNextPage,
+    loadPrevPage,
     refresh,
   } = useDashboard()
 
@@ -106,6 +114,11 @@ export default function Dashboard() {
         isLoading={isLoadingRuns}
         error={runsError}
         filters={filters}
+        page={page}
+        hasNextPage={hasNextPage}
+        hasPrevPage={hasPrevPage}
+        onNextPage={loadNextPage}
+        onPrevPage={loadPrevPage}
       />
     </div>
   )
@@ -116,6 +129,11 @@ interface RecentRunsCardProps {
   isLoading: boolean
   error: Error | null
   filters: DashboardFilters
+  page: number
+  hasNextPage: boolean
+  hasPrevPage: boolean
+  onNextPage: () => void
+  onPrevPage: () => void
 }
 
 function RecentRunsCard({
@@ -123,6 +141,11 @@ function RecentRunsCard({
   isLoading,
   error,
   filters,
+  page,
+  hasNextPage,
+  hasPrevPage,
+  onNextPage,
+  onPrevPage,
 }: RecentRunsCardProps) {
   const hasFilters =
     filters.status !== 'all' ||
@@ -161,7 +184,32 @@ function RecentRunsCard({
         <RecentRunsEmpty hasFilters={hasFilters} />
       )}
 
-      <div className="p-4 text-center border-t border-gray-100 bg-gray-50/50">
+      <div className="flex items-center justify-between p-4 border-t border-gray-100 bg-gray-50/50">
+        <div className="flex items-center gap-2">
+          {(hasPrevPage || hasNextPage) && (
+            <>
+              <button
+                type="button"
+                onClick={onPrevPage}
+                disabled={!hasPrevPage || isLoading}
+                className="inline-flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                <ChevronLeft className="w-4 h-4" />
+                Prev
+              </button>
+              <span className="text-sm text-gray-500">Page {page + 1}</span>
+              <button
+                type="button"
+                onClick={onNextPage}
+                disabled={!hasNextPage || isLoading}
+                className="inline-flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                Next
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </>
+          )}
+        </div>
         <Link
           href="/eval-runs"
           className="text-primary-600 hover:text-accent-600 text-sm font-medium transition-colors"
@@ -254,10 +302,29 @@ interface RunRowProps {
   run: EvalRun
 }
 
-function RunRow({ run }: RunRowProps) {
-  const passedCount = run.summary?.passed ?? 0
-  const totalCount = run.summary?.total_cases ?? 0
-  const score = run.summary?.avg_score
+const RunRow = memo(function RunRow({ run }: RunRowProps) {
+  const { passedCount, totalCount, score, passedColor } = useMemo(() => {
+    const passed = run.summary?.passed ?? 0
+    const total = run.summary?.total_cases ?? 0
+    const avgScore = run.summary?.avg_score
+    const color =
+      passed === total
+        ? 'text-green-600'
+        : passed > 0
+          ? 'text-yellow-600'
+          : 'text-red-600'
+    return {
+      passedCount: passed,
+      totalCount: total,
+      score: avgScore,
+      passedColor: color,
+    }
+  }, [run.summary])
+
+  const timeAgo = useMemo(
+    () => formatDistanceToNow(new Date(run.created_at), { addSuffix: true }),
+    [run.created_at],
+  )
 
   return (
     <Link
@@ -268,16 +335,17 @@ function RunRow({ run }: RunRowProps) {
         <div className="flex items-center space-x-4 min-w-0 flex-1">
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
-              <span
+              <button
+                type="button"
                 onClick={(e) => {
                   e.preventDefault()
                   e.stopPropagation()
                   window.location.href = `/eval-runs`
                 }}
-                className="font-medium text-gray-900 hover:text-primary-600 truncate cursor-pointer"
+                className="font-medium text-gray-900 hover:text-primary-600 truncate cursor-pointer text-left"
               >
                 {run.suite_name}
-              </span>
+              </button>
             </div>
             <p className="text-sm text-gray-500 truncate">
               {run.agent_version ? `${run.agent_version}` : 'No version'}
@@ -290,17 +358,7 @@ function RunRow({ run }: RunRowProps) {
             {run.summary ? (
               <>
                 <p className="font-medium text-gray-900">
-                  <span
-                    className={
-                      passedCount === totalCount
-                        ? 'text-green-600'
-                        : passedCount > 0
-                          ? 'text-yellow-600'
-                          : 'text-red-600'
-                    }
-                  >
-                    {passedCount}
-                  </span>
+                  <span className={passedColor}>{passedCount}</span>
                   <span className="text-gray-400">/</span>
                   <span className="text-gray-600">{totalCount}</span>
                 </p>
@@ -313,52 +371,56 @@ function RunRow({ run }: RunRowProps) {
             )}
           </div>
           <span className="text-sm text-gray-500 w-24 text-right hidden lg:block">
-            {formatDistanceToNow(new Date(run.created_at), { addSuffix: true })}
+            {timeAgo}
           </span>
         </div>
       </div>
     </Link>
   )
+})
+
+const STATUS_CONFIG: Record<
+  EvalRunStatus,
+  { icon: typeof CheckCircle; color: string; bg: string; border: string }
+> = {
+  completed: {
+    icon: CheckCircle,
+    color: 'text-emerald-700',
+    bg: 'bg-emerald-50',
+    border: 'border-emerald-200',
+  },
+  running: {
+    icon: Clock,
+    color: 'text-amber-700',
+    bg: 'bg-amber-50',
+    border: 'border-amber-200',
+  },
+  failed: {
+    icon: XCircle,
+    color: 'text-rose-700',
+    bg: 'bg-rose-50',
+    border: 'border-rose-200',
+  },
+  pending: {
+    icon: Clock,
+    color: 'text-gray-600',
+    bg: 'bg-gray-50',
+    border: 'border-gray-200',
+  },
+  cancelled: {
+    icon: AlertCircle,
+    color: 'text-gray-600',
+    bg: 'bg-gray-50',
+    border: 'border-gray-200',
+  },
 }
 
-function StatusBadge({ status }: { status: EvalRunStatus }) {
-  const statusConfig: Record<
-    EvalRunStatus,
-    { icon: typeof CheckCircle; color: string; bg: string; border: string }
-  > = {
-    completed: {
-      icon: CheckCircle,
-      color: 'text-emerald-700',
-      bg: 'bg-emerald-50',
-      border: 'border-emerald-200',
-    },
-    running: {
-      icon: Clock,
-      color: 'text-amber-700',
-      bg: 'bg-amber-50',
-      border: 'border-amber-200',
-    },
-    failed: {
-      icon: XCircle,
-      color: 'text-rose-700',
-      bg: 'bg-rose-50',
-      border: 'border-rose-200',
-    },
-    pending: {
-      icon: Clock,
-      color: 'text-gray-600',
-      bg: 'bg-gray-50',
-      border: 'border-gray-200',
-    },
-    cancelled: {
-      icon: AlertCircle,
-      color: 'text-gray-600',
-      bg: 'bg-gray-50',
-      border: 'border-gray-200',
-    },
-  }
-
-  const config = statusConfig[status] || statusConfig.pending
+const StatusBadge = memo(function StatusBadge({
+  status,
+}: {
+  status: EvalRunStatus
+}) {
+  const config = STATUS_CONFIG[status] || STATUS_CONFIG.pending
   const Icon = config.icon
 
   return (
@@ -369,9 +431,9 @@ function StatusBadge({ status }: { status: EvalRunStatus }) {
       <span className="capitalize">{status}</span>
     </span>
   )
-}
+})
 
-function ScoreValue({ score }: { score: number }) {
+const ScoreValue = memo(function ScoreValue({ score }: { score: number }) {
   const color =
     score >= 0.8
       ? 'text-emerald-600'
@@ -380,4 +442,4 @@ function ScoreValue({ score }: { score: number }) {
         : 'text-rose-600'
 
   return <span className={`font-medium ${color}`}>{score.toFixed(2)}</span>
-}
+})

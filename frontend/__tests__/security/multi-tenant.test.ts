@@ -487,7 +487,7 @@ describe('Workspace Isolation - Traces', () => {
 describe('Workspace Isolation - Runs', () => {
   it('GET /api/runs requires workspace context', async () => {
     mockAuthenticate.mockResolvedValue(AUTH_RESULT_A)
-    mockListEvalRuns.mockResolvedValue([])
+    mockListEvalRuns.mockResolvedValue({ items: [], hasMore: false })
 
     const { GET } = await getRunsHandlers()
     const req = createMockRequest('/api/runs')

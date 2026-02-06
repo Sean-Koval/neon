@@ -231,12 +231,13 @@ export function useScoreTrends(
 
   // Fetch runs from API
   const {
-    data: allRuns = [],
+    data: runsData,
     isLoading,
     isError,
     error,
     refetch,
   } = useRuns({ limit: maxRuns, suite_id: suiteId })
+  const allRuns = runsData?.items ?? []
 
   // Process data into trend points
   const { data, regressions, statistics, bySuite, byScorer, runs } =

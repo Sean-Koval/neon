@@ -5,7 +5,9 @@ import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
 import { type ReactNode, useCallback, useState } from 'react'
 import { ErrorBoundary } from '@/components/error-boundary'
 import { ToastProvider, useToast } from '@/components/toast'
+import { workflowQueryKeys } from '@/hooks/use-workflow-runs'
 import { AuthProvider } from '@/lib/auth'
+import { queryKeys } from '@/lib/query-keys'
 
 // Query error handler that can be used with toast
 function useQueryErrorHandler() {
@@ -39,13 +41,13 @@ function useMutationErrorHandler() {
 // Export hooks for use in components
 export { useQueryErrorHandler, useMutationErrorHandler }
 
-// Create query client with default options
+// Create query client with default options and per-query-type cache settings
 function createQueryClient() {
-  return new QueryClient({
+  const client = new QueryClient({
     defaultOptions: {
       queries: {
-        // Data is fresh for 1 minute
-        staleTime: 60 * 1000,
+        // Default: data is fresh for 30 seconds
+        staleTime: 30 * 1000,
         // Cache data for 5 minutes
         gcTime: 5 * 60 * 1000,
         // Smart retry: don't retry on auth errors, otherwise retry up to 3 times
@@ -68,6 +70,30 @@ function createQueryClient() {
       },
     },
   })
+
+  // Runs change frequently (active evals) - keep stale time short
+  client.setQueryDefaults(queryKeys.runs.all, {
+    staleTime: 15 * 1000, // 15 seconds
+  })
+
+  // Workflow run statuses are polled in real-time - very short stale time
+  client.setQueryDefaults(workflowQueryKeys.all, {
+    staleTime: 10 * 1000, // 10 seconds
+  })
+
+  // Suites and config are mostly static - cache longer
+  client.setQueryDefaults(queryKeys.suites.all, {
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
+  })
+
+  // Comparisons are computed and don't change - cache aggressively
+  client.setQueryDefaults(queryKeys.compare.all, {
+    staleTime: 10 * 60 * 1000, // 10 minutes
+    gcTime: 15 * 60 * 1000, // 15 minutes
+  })
+
+  return client
 }
 
 interface QueryProviderProps {
