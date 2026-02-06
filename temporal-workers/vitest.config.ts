@@ -8,7 +8,7 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       reporter: ["text", "json", "html"],
-      include: ["src/activities/**/*.ts"],
+      include: ["src/activities/**/*.ts", "src/workflows/**/*.ts"],
       exclude: ["src/__tests__/**", "src/activities/index.ts"],
     },
   },
