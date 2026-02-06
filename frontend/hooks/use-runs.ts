@@ -58,15 +58,23 @@ export interface DashboardStats {
  *
  * Uses limited retries to avoid long waits when Temporal is unavailable.
  */
+interface UseRunsResult {
+  items: EvalRun[]
+  hasMore: boolean
+}
+
 export function useRuns(
   filters?: RunsFilter,
-  options?: Omit<UseQueryOptions<EvalRun[], Error>, 'queryKey' | 'queryFn'>,
+  options?: Omit<UseQueryOptions<UseRunsResult, Error>, 'queryKey' | 'queryFn'>,
 ) {
   return useQuery({
     queryKey: queryKeys.runs.list(filters),
     queryFn: async () => {
       const response = await api.getRuns(filters)
-      return response.items
+      return {
+        items: response.items,
+        hasMore: response.hasMore ?? false,
+      }
     },
     staleTime: 30 * 1000, // 30 seconds - runs change more frequently
     retry: 1, // Limit retries - Temporal timeouts are already 3-5 seconds
@@ -182,7 +190,8 @@ function computeStats(runs: EvalRun[]): DashboardStats {
  * Fetches all runs and computes aggregate statistics.
  */
 export function useDashboardStats() {
-  const { data: runs, isLoading, error, refetch } = useRuns({ limit: 1000 }, { retry: 1 })
+  const { data, isLoading, error, refetch } = useRuns({ limit: 1000 }, { retry: 1 })
+  const runs = data?.items
 
   const stats = useMemo(() => {
     if (!runs) return null
@@ -390,7 +399,8 @@ interface UseScoreTrendOptions {
 export function useScoreTrend(options: UseScoreTrendOptions = {}) {
   const { days = 7, maxRuns = 50 } = options
 
-  const { data: runs, isLoading, isError, error } = useRuns({ limit: maxRuns }, { retry: 1 })
+  const { data, isLoading, isError, error } = useRuns({ limit: maxRuns }, { retry: 1 })
+  const runs = data?.items
 
   const trendData = useMemo(() => {
     if (!runs || runs.length === 0) return []

@@ -251,6 +251,7 @@ export interface EvalRun {
 export interface EvalRunList {
   items: EvalRun[]
   total: number
+  hasMore?: boolean
 }
 
 // =============================================================================

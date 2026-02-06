@@ -3,9 +3,10 @@
  *
  * Combines runs, suites, and stats with server-side or client-side filtering.
  * Uses server-side materialized views for fast aggregations (<100ms).
+ * Runs are fetched with pagination (20 per page) to avoid slow initial loads.
  */
 
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import type {
   DashboardFilters,
   DateRangeOption,
@@ -22,6 +23,8 @@ import {
   useScoreTrend as useClientScoreTrend,
   useRuns,
 } from './use-runs'
+
+const PAGE_SIZE = 20
 
 export interface UseDashboardReturn {
   // Filters
@@ -63,6 +66,13 @@ export interface UseDashboardReturn {
   suitesError: Error | null
   statsError: Error | null
   trendError: Error | null
+
+  // Pagination
+  page: number
+  hasNextPage: boolean
+  hasPrevPage: boolean
+  loadNextPage: () => void
+  loadPrevPage: () => void
 
   // Performance metrics
   queryTimeMs?: number
@@ -106,22 +116,35 @@ function dateRangeToDays(range: DateRangeOption): number {
  *
  * Uses server-side materialized views by default for <100ms query latency.
  * Falls back to client-side computation if server-side is disabled.
+ * Fetches runs with pagination (20 per page) instead of 500 upfront.
  */
 export function useDashboard(
   options: UseDashboardOptions = {},
 ): UseDashboardReturn {
   const { useServerSide = true } = options
   const [filters, setFilters] = useState<DashboardFilters>(DEFAULT_FILTERS)
+  const [page, setPage] = useState(0)
 
   const trendDays = dateRangeToDays(filters.dateRange)
+  const offset = page * PAGE_SIZE
 
-  // Fetch all runs (with high limit to get enough for filtering)
+  // Reset page when filters change
+  const handleSetFilters = useCallback((newFilters: DashboardFilters) => {
+    setFilters(newFilters)
+    setPage(0)
+  }, [])
+
+  // Fetch runs with pagination (20 per page instead of 500)
   const {
-    data: allRuns = [],
+    data: runsData,
     isLoading: isLoadingRuns,
     error: runsError,
     refetch: refetchRuns,
-  } = useRuns({ limit: 500 })
+  } = useRuns({ limit: PAGE_SIZE, offset })
+
+  const allRuns = runsData?.items ?? []
+  const hasNextPage = runsData?.hasMore ?? false
+  const hasPrevPage = page > 0
 
   // Derive suites from runs data (avoids separate API call to non-existent endpoint)
   const suites = useMemo(() => {
@@ -226,7 +249,7 @@ export function useDashboard(
     }))
   }, [rawTrendData])
 
-  // Filter runs based on current filters
+  // Filter runs based on current filters (applied to the current page)
   const filteredRuns = useMemo(() => {
     let result = [...allRuns]
 
@@ -255,10 +278,21 @@ export function useDashboard(
     return result
   }, [allRuns, filters])
 
-  // Get recent runs (top 10 from filtered)
-  const recentRuns = useMemo(() => {
-    return filteredRuns.slice(0, 10)
-  }, [filteredRuns])
+  // Recent runs is the filtered set from the current page
+  const recentRuns = filteredRuns
+
+  // Pagination controls
+  const loadNextPage = useCallback(() => {
+    if (hasNextPage) {
+      setPage((p) => p + 1)
+    }
+  }, [hasNextPage])
+
+  const loadPrevPage = useCallback(() => {
+    if (hasPrevPage) {
+      setPage((p) => p - 1)
+    }
+  }, [hasPrevPage])
 
   // Combined refresh function
   const refresh = () => {
@@ -271,7 +305,7 @@ export function useDashboard(
 
   return {
     filters,
-    setFilters,
+    setFilters: handleSetFilters,
     filteredRuns,
     recentRuns,
     allRuns,
@@ -286,6 +320,11 @@ export function useDashboard(
     suitesError: suitesError as Error | null,
     statsError: statsError as Error | null,
     trendError: trendError as Error | null,
+    page,
+    hasNextPage,
+    hasPrevPage,
+    loadNextPage,
+    loadPrevPage,
     queryTimeMs,
     refresh,
   }

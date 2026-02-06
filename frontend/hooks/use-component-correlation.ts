@@ -266,12 +266,13 @@ export function useComponentCorrelation(
 
   // Fetch runs data
   const {
-    data: runs = [],
+    data: runsData,
     isLoading,
     isError,
     error,
     refetch,
   } = useRuns({ limit: 500 })
+  const runs = runsData?.items ?? []
 
   // Process data
   const result = useMemo(() => {

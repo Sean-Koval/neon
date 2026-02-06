@@ -128,6 +128,7 @@ export const GET = withAuth(async (request: NextRequest, auth: AuthResult) => {
 
   const searchParams = request.nextUrl.searchParams
   const limit = parseInt(searchParams.get('limit') || '50', 10)
+  const offset = parseInt(searchParams.get('offset') || '0', 10)
   const status = searchParams.get('status') as
     | 'RUNNING'
     | 'COMPLETED'
@@ -135,15 +136,18 @@ export const GET = withAuth(async (request: NextRequest, auth: AuthResult) => {
     | null
 
   try {
-    const runs = await listEvalRuns({
+    const result = await listEvalRuns({
       limit,
+      offset,
       status: status || undefined,
     })
 
     return NextResponse.json({
-      items: runs,
-      count: runs.length,
+      items: result.items,
+      total: result.items.length,
+      hasMore: result.hasMore,
       limit,
+      offset,
     })
   } catch (error) {
     console.error('Error listing eval runs:', error)
