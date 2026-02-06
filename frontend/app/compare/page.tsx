@@ -12,6 +12,7 @@ import {
   ComparisonHeaderError,
   ComparisonHeaderSkeleton,
 } from '@/components/compare/comparison-header'
+import { StatisticalGuidance } from '@/components/compare/statistical-guidance'
 import {
   RunSelector,
   RunSummaryCard,
@@ -209,6 +210,7 @@ function ComparePageContent() {
       {comparison && !comparisonLoading && (
         <div className="space-y-6">
           <ComparisonHeader comparison={comparison} />
+          <StatisticalGuidance />
           <CompareResults comparison={comparison} />
         </div>
       )}

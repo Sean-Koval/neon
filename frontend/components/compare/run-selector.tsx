@@ -13,6 +13,7 @@ import {
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { groupRunsBySuite } from '@/hooks/use-runs'
 import type { EvalRun } from '@/lib/types'
+import { HelpTooltip } from '@/components/ui/help-tooltip'
 
 interface RunSelectorProps {
   label: string
@@ -374,6 +375,7 @@ export function ThresholdSelector({
     <fieldset>
       <legend className="block text-sm font-medium text-gray-700 mb-2">
         Regression Threshold
+        <HelpTooltip content="Minimum score drop to flag as a regression. Lower values catch smaller changes but may increase noise." />
       </legend>
       <div className="flex flex-wrap gap-2" role="radiogroup">
         {options.map((option) => (

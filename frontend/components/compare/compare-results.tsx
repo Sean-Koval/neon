@@ -13,6 +13,7 @@ import {
 } from 'lucide-react'
 import { useState } from 'react'
 import type { CompareResponse, RegressionItem } from '@/lib/types'
+import { HelpTooltip } from '@/components/ui/help-tooltip'
 import {
   ConfidenceIntervalBar,
   SignificanceIndicator,
@@ -239,7 +240,10 @@ function ResultRow({
         <div className="flex items-center gap-3 sm:gap-4 flex-shrink-0">
           {/* Baseline Score */}
           <div className="text-center min-w-[60px]">
-            <div className="text-xs text-gray-500 mb-0.5">Baseline</div>
+            <div className="text-xs text-gray-500 mb-0.5">
+              Baseline
+              <HelpTooltip content="The reference run to compare against. Scores from this run serve as the benchmark." />
+            </div>
             <div className="font-medium text-gray-600">{baselinePercent}%</div>
             {showStatistics && item.baselineConfidenceInterval && (
               <div className="text-[10px] text-gray-400">
@@ -252,7 +256,10 @@ function ResultRow({
 
           {/* Candidate Score */}
           <div className="text-center min-w-[60px]">
-            <div className="text-xs text-gray-500 mb-0.5">Candidate</div>
+            <div className="text-xs text-gray-500 mb-0.5">
+              Candidate
+              <HelpTooltip content="The new run being evaluated. Score changes are measured relative to the baseline." />
+            </div>
             <div className="font-medium text-gray-900">{candidatePercent}%</div>
             {showStatistics && item.candidateConfidenceInterval && (
               <div className="text-[10px] text-gray-400">

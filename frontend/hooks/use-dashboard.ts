@@ -6,7 +6,7 @@
  * Runs are fetched with pagination (20 per page) to avoid slow initial loads.
  */
 
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import type {
   DashboardFilters,
   DateRangeOption,
@@ -95,6 +95,25 @@ const DEFAULT_FILTERS: DashboardFilters = {
   dateRange: '7d',
 }
 
+const FILTERS_STORAGE_KEY = 'neon-dashboard-filters'
+
+function loadSavedFilters(): DashboardFilters {
+  if (typeof window === 'undefined') return DEFAULT_FILTERS
+  try {
+    const raw = localStorage.getItem(FILTERS_STORAGE_KEY)
+    if (!raw) return DEFAULT_FILTERS
+    const parsed = JSON.parse(raw) as Partial<DashboardFilters>
+    // Validate shape before returning
+    return {
+      status: parsed.status ?? DEFAULT_FILTERS.status,
+      suiteId: parsed.suiteId ?? DEFAULT_FILTERS.suiteId,
+      dateRange: parsed.dateRange ?? DEFAULT_FILTERS.dateRange,
+    }
+  } catch {
+    return DEFAULT_FILTERS
+  }
+}
+
 /**
  * Convert date range option to number of days.
  */
@@ -122,8 +141,17 @@ export function useDashboard(
   options: UseDashboardOptions = {},
 ): UseDashboardReturn {
   const { useServerSide = true } = options
-  const [filters, setFilters] = useState<DashboardFilters>(DEFAULT_FILTERS)
+  const [filters, setFilters] = useState<DashboardFilters>(loadSavedFilters)
   const [page, setPage] = useState(0)
+
+  // Persist filters to localStorage on change
+  useEffect(() => {
+    try {
+      localStorage.setItem(FILTERS_STORAGE_KEY, JSON.stringify(filters))
+    } catch {
+      // Ignore storage errors (quota exceeded, etc.)
+    }
+  }, [filters])
 
   const trendDays = dateRangeToDays(filters.dateRange)
   const offset = page * PAGE_SIZE

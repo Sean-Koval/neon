@@ -30,6 +30,7 @@ import type {
   ComponentMetrics,
   CorrelationPair,
 } from '@/hooks/use-component-correlation'
+import { HelpTooltip } from '@/components/ui/help-tooltip'
 
 // =============================================================================
 // Types
@@ -334,12 +335,14 @@ export function CrossComponentAnalysis({
                 onClick={() => handleSort('avgScore')}
               >
                 Score
+                <HelpTooltip content="Average score (0-1). 0.8+ excellent (green), 0.6-0.8 good (amber), below 0.6 needs work (red)." />
               </th>
               <th
                 className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                 onClick={() => handleSort('passRate')}
               >
                 Pass Rate
+                <HelpTooltip content="Percentage of test cases that passed their scoring threshold." />
               </th>
               <th
                 className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
@@ -349,9 +352,11 @@ export function CrossComponentAnalysis({
               </th>
               <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Trend
+                <HelpTooltip content="Direction of score change over recent evaluations: up, down, or stable." />
               </th>
               <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Health
+                <HelpTooltip content="Overall status based on score, pass rate, and trend. Healthy (green), warning (amber), or critical (red)." />
               </th>
             </tr>
           </thead>
