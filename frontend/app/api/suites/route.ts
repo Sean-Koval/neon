@@ -12,6 +12,7 @@
 import { type NextRequest, NextResponse } from 'next/server'
 import { Pool } from 'pg'
 import type { EvalSuite, EvalSuiteList, ScorerType } from '@/lib/types'
+import { withAuth, type AuthResult } from '@/lib/middleware/auth'
 
 // Create a connection pool for raw queries
 // (suites table is in postgres-init.sql, not Drizzle schema)
@@ -66,45 +67,40 @@ function mapRowToSuite(row: Record<string, unknown>): EvalSuite {
 /**
  * GET /api/suites
  *
- * List all evaluation suites.
+ * List all evaluation suites for the authenticated workspace.
  *
  * Query params:
- * - project_id: Filter by project (optional)
  * - limit: Maximum results (default 100)
  * - offset: Pagination offset (default 0)
  */
-export async function GET(request: NextRequest) {
+export const GET = withAuth(async (request: NextRequest, auth: AuthResult) => {
+  const projectId = auth.workspaceId
+  if (!projectId) {
+    return NextResponse.json(
+      { error: 'Workspace context required' },
+      { status: 400 },
+    )
+  }
+
   const searchParams = request.nextUrl.searchParams
-  const projectId = searchParams.get('project_id')
   const limit = Math.min(parseInt(searchParams.get('limit') || '100', 10), 1000)
   const offset = parseInt(searchParams.get('offset') || '0', 10)
 
   try {
     const pool = getPool()
 
-    // Build query with optional project filter
-    let query = 'SELECT * FROM suites'
-    const params: (string | number)[] = []
-
-    if (projectId) {
-      query += ' WHERE project_id = $1'
-      params.push(projectId)
-    }
-
-    query += ` ORDER BY created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`
-    params.push(limit, offset)
+    // Always filter by authenticated workspace
+    const query =
+      'SELECT * FROM suites WHERE project_id = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3'
+    const params = [projectId, limit, offset]
 
     const result = await pool.query(query, params)
 
     // Get total count for pagination
-    let countQuery = 'SELECT COUNT(*) FROM suites'
-    const countParams: string[] = []
-    if (projectId) {
-      countQuery += ' WHERE project_id = $1'
-      countParams.push(projectId)
-    }
-
-    const countResult = await pool.query(countQuery, countParams)
+    const countResult = await pool.query(
+      'SELECT COUNT(*) FROM suites WHERE project_id = $1',
+      [projectId],
+    )
     const total = parseInt(countResult.rows[0]?.count || '0', 10)
 
     const suites: EvalSuite[] = result.rows.map(mapRowToSuite)
@@ -141,7 +137,7 @@ export async function GET(request: NextRequest) {
       { status: 500 },
     )
   }
-}
+})
 
 /**
  * POST /api/suites
@@ -152,7 +148,6 @@ export async function GET(request: NextRequest) {
  * {
  *   name: string;
  *   description?: string;
- *   project_id: string;
  *   agent_id?: string;
  *   default_scorers?: string[];
  *   default_min_score?: number;
@@ -160,18 +155,28 @@ export async function GET(request: NextRequest) {
  *   default_config?: object;
  * }
  */
-export async function POST(request: NextRequest) {
+export const POST = withAuth(async (request: NextRequest, auth: AuthResult) => {
   try {
+    const projectId = auth.workspaceId
+    if (!projectId) {
+      return NextResponse.json(
+        { error: 'Workspace context required' },
+        { status: 400 },
+      )
+    }
+
     const body = await request.json()
 
     // Validate required fields
     if (!body.name) {
       return NextResponse.json({ error: 'name is required' }, { status: 400 })
     }
-    if (!body.project_id) {
+
+    // Validate that body.project_id matches auth workspace if provided
+    if (body.project_id && body.project_id !== projectId) {
       return NextResponse.json(
-        { error: 'project_id is required' },
-        { status: 400 },
+        { error: 'project_id does not match authenticated workspace' },
+        { status: 403 },
       )
     }
 
@@ -186,12 +191,13 @@ export async function POST(request: NextRequest) {
       config.default_timeout_seconds = body.default_timeout_seconds
     if (body.default_config) config.default_config = body.default_config
 
+    // Always use auth workspace as project_id
     const result = await pool.query(
       `INSERT INTO suites (project_id, name, description, agent_module_path, config)
        VALUES ($1, $2, $3, $4, $5)
        RETURNING *`,
       [
-        body.project_id,
+        projectId,
         body.name,
         body.description || null,
         body.agent_id || null,
@@ -239,4 +245,4 @@ export async function POST(request: NextRequest) {
       { status: 500 },
     )
   }
-}
+})

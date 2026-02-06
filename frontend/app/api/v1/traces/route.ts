@@ -10,6 +10,7 @@
 import { type NextRequest, NextResponse } from 'next/server'
 import type { SpanRecord, TraceRecord } from '@/lib/clickhouse'
 import { insertSpans, insertTraces } from '@/lib/clickhouse'
+import { withAuth, type AuthResult } from '@/lib/middleware/auth'
 
 /**
  * OTel OTLP Span format (simplified)
@@ -233,61 +234,69 @@ function aggregateTrace(spans: SpanRecord[], projectId: string): TraceRecord {
  *
  * Ingest OTel traces
  */
-export async function POST(request: NextRequest) {
-  try {
-    // Get project ID from header or default
-    const projectId =
-      request.headers.get('x-project-id') ||
-      '00000000-0000-0000-0000-000000000001'
+export const POST = withAuth(
+  async (request: NextRequest, auth: AuthResult) => {
+    try {
+      const projectId = auth.workspaceId
+      if (!projectId) {
+        return NextResponse.json(
+          { error: 'Workspace context required' },
+          { status: 400 },
+        )
+      }
 
-    // Parse OTLP request
-    const body: OTLPRequest = await request.json()
+      // Parse OTLP request
+      const body: OTLPRequest = await request.json()
 
-    if (!body.resourceSpans || body.resourceSpans.length === 0) {
-      return NextResponse.json(
-        { error: 'No resourceSpans provided' },
-        { status: 400 },
-      )
-    }
+      if (!body.resourceSpans || body.resourceSpans.length === 0) {
+        return NextResponse.json(
+          { error: 'No resourceSpans provided' },
+          { status: 400 },
+        )
+      }
 
-    // Transform all spans
-    const allSpans: SpanRecord[] = []
-    const traceIds = new Set<string>()
+      // Transform all spans
+      const allSpans: SpanRecord[] = []
+      const traceIds = new Set<string>()
 
-    for (const resourceSpan of body.resourceSpans) {
-      for (const scopeSpan of resourceSpan.scopeSpans) {
-        for (const span of scopeSpan.spans) {
-          const transformed = transformSpan(span, projectId)
-          allSpans.push(transformed)
-          traceIds.add(span.traceId)
+      for (const resourceSpan of body.resourceSpans) {
+        for (const scopeSpan of resourceSpan.scopeSpans) {
+          for (const span of scopeSpan.spans) {
+            const transformed = transformSpan(span, projectId)
+            allSpans.push(transformed)
+            traceIds.add(span.traceId)
+          }
         }
       }
+
+      if (allSpans.length === 0) {
+        return NextResponse.json(
+          { error: 'No spans to ingest' },
+          { status: 400 },
+        )
+      }
+
+      // Group spans by trace and create trace records
+      const traces: TraceRecord[] = []
+      for (const traceId of traceIds) {
+        const traceSpans = allSpans.filter((s) => s.trace_id === traceId)
+        traces.push(aggregateTrace(traceSpans, projectId))
+      }
+
+      // Insert into ClickHouse (direct insert, no batching)
+      await Promise.all([insertTraces(traces), insertSpans(allSpans)])
+
+      return NextResponse.json({
+        message: 'Traces ingested successfully',
+        traces: traces.length,
+        spans: allSpans.length,
+      })
+    } catch (error) {
+      console.error('Error ingesting traces:', error)
+      return NextResponse.json(
+        { error: 'Failed to ingest traces', details: String(error) },
+        { status: 500 },
+      )
     }
-
-    if (allSpans.length === 0) {
-      return NextResponse.json({ error: 'No spans to ingest' }, { status: 400 })
-    }
-
-    // Group spans by trace and create trace records
-    const traces: TraceRecord[] = []
-    for (const traceId of traceIds) {
-      const traceSpans = allSpans.filter((s) => s.trace_id === traceId)
-      traces.push(aggregateTrace(traceSpans, projectId))
-    }
-
-    // Insert into ClickHouse (direct insert, no batching)
-    await Promise.all([insertTraces(traces), insertSpans(allSpans)])
-
-    return NextResponse.json({
-      message: 'Traces ingested successfully',
-      traces: traces.length,
-      spans: allSpans.length,
-    })
-  } catch (error) {
-    console.error('Error ingesting traces:', error)
-    return NextResponse.json(
-      { error: 'Failed to ingest traces', details: String(error) },
-      { status: 500 },
-    )
-  }
-}
+  },
+)

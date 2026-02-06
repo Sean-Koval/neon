@@ -12,35 +12,33 @@ import {
   type StartEvalRunParams,
   startEvalRunWorkflow,
 } from '@/lib/temporal'
+import { withAuth, type AuthResult } from '@/lib/middleware/auth'
 
 /**
  * POST /api/runs
  *
  * Start a new evaluation run via Temporal workflow.
- *
- * Request body:
- * {
- *   projectId: string;
- *   agentId: string;
- *   agentVersion?: string;
- *   dataset: { items: Array<{ input, expected? }> };
- *   tools?: ToolDefinition[];
- *   scorers: string[];
- *   parallel?: boolean;
- *   parallelism?: number;
- * }
  */
-export async function POST(request: NextRequest) {
+export const POST = withAuth(async (request: NextRequest, auth: AuthResult) => {
   try {
-    const body = await request.json()
-
-    // Validate required fields
-    if (!body.projectId) {
+    const projectId = auth.workspaceId
+    if (!projectId) {
       return NextResponse.json(
-        { error: 'projectId is required' },
+        { error: 'Workspace context required' },
         { status: 400 },
       )
     }
+
+    const body = await request.json()
+
+    // Validate that body.projectId matches auth workspace if provided
+    if (body.projectId && body.projectId !== projectId) {
+      return NextResponse.json(
+        { error: 'projectId does not match authenticated workspace' },
+        { status: 403 },
+      )
+    }
+
     if (!body.agentId) {
       return NextResponse.json(
         { error: 'agentId is required' },
@@ -63,10 +61,10 @@ export async function POST(request: NextRequest) {
     // Generate run ID
     const runId = body.runId || uuidv4()
 
-    // Build workflow params
+    // Build workflow params - always use auth workspace as projectId
     const params: StartEvalRunParams = {
       runId,
-      projectId: body.projectId,
+      projectId,
       agentId: body.agentId,
       agentVersion: body.agentVersion || 'latest',
       dataset: body.dataset,
@@ -108,7 +106,7 @@ export async function POST(request: NextRequest) {
       { status: 500 },
     )
   }
-}
+})
 
 /**
  * GET /api/runs
@@ -119,7 +117,15 @@ export async function POST(request: NextRequest) {
  * - limit: number (default 50)
  * - status: "RUNNING" | "COMPLETED" | "FAILED"
  */
-export async function GET(request: NextRequest) {
+export const GET = withAuth(async (request: NextRequest, auth: AuthResult) => {
+  const projectId = auth.workspaceId
+  if (!projectId) {
+    return NextResponse.json(
+      { error: 'Workspace context required' },
+      { status: 400 },
+    )
+  }
+
   const searchParams = request.nextUrl.searchParams
   const limit = parseInt(searchParams.get('limit') || '50', 10)
   const status = searchParams.get('status') as
@@ -164,4 +170,4 @@ export async function GET(request: NextRequest) {
       { status: 500 },
     )
   }
-}
+})
