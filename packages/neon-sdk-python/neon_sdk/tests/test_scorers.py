@@ -1,6 +1,4 @@
-"""
-Tests for scorers.
-"""
+"""Tests for scorers."""
 
 from datetime import UTC, datetime
 

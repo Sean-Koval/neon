@@ -1,5 +1,4 @@
-"""
-OpenAI Fine-Tuning Export
+"""OpenAI Fine-Tuning Export.
 
 Export traces to OpenAI fine-tuning API format.
 Converts agent traces to JSONL format suitable for fine-tuning chat models.
@@ -273,8 +272,7 @@ def export_to_openai_finetune(
     config: FineTuneExportConfig | None = None,
     scores_map: dict[str, dict[str, float]] | None = None,
 ) -> OpenAIFineTuneBatch:
-    """
-    Export traces to OpenAI fine-tuning format.
+    """Export traces to OpenAI fine-tuning format.
 
     Args:
         traces: List of traces to convert
@@ -350,8 +348,7 @@ def write_finetune_jsonl(
     batch: OpenAIFineTuneBatch,
     filepath: str | Path,
 ) -> int:
-    """
-    Write fine-tuning batch to JSONL file.
+    """Write fine-tuning batch to JSONL file.
 
     Args:
         batch: The batch to write
@@ -378,8 +375,7 @@ def write_finetune_jsonl(
 def validate_finetune_batch(
     batch: OpenAIFineTuneBatch,
 ) -> tuple[bool, list[str]]:
-    """
-    Validate a fine-tuning batch against OpenAI requirements.
+    """Validate a fine-tuning batch against OpenAI requirements.
 
     Returns:
         Tuple of (is_valid, list of error messages)
@@ -429,8 +425,7 @@ def estimate_finetune_cost(
     model: str = "gpt-3.5-turbo",
     epochs: int = 3,
 ) -> dict[str, Any]:
-    """
-    Estimate fine-tuning cost for a batch.
+    """Estimate fine-tuning cost for a batch.
 
     Args:
         batch: The batch to estimate
@@ -477,8 +472,7 @@ def split_finetune_batch(
     batch: OpenAIFineTuneBatch,
     train_ratio: float = 0.8,
 ) -> tuple[OpenAIFineTuneBatch, OpenAIFineTuneBatch]:
-    """
-    Split a fine-tuning batch into training and validation sets.
+    """Split a fine-tuning batch into training and validation sets.
 
     Args:
         batch: The batch to split

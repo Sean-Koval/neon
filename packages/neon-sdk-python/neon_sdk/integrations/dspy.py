@@ -1,5 +1,4 @@
-"""
-DSPy Integration
+"""DSPy Integration.
 
 Native Python integration for DSPy framework.
 Provides callbacks, metrics extraction, and export for DSPy optimization.
@@ -38,8 +37,7 @@ class DSPyModuleProtocol(Protocol):
 
 @dataclass
 class DSPyExample:
-    """
-    A DSPy-compatible example derived from a trace.
+    """A DSPy-compatible example derived from a trace.
 
     Maps to dspy.Example format with input/output fields.
     """
@@ -49,8 +47,7 @@ class DSPyExample:
     metadata: dict[str, Any] = field(default_factory=dict)
 
     def to_dspy_example(self) -> Any:
-        """
-        Convert to a dspy.Example if DSPy is available.
+        """Convert to a dspy.Example if DSPy is available.
 
         Returns:
             dspy.Example instance or dict if DSPy not installed
@@ -103,8 +100,7 @@ class DSPyMetrics:
     def to_metric_fn(
         self, weights: dict[str, float] | None = None
     ) -> Callable[..., float]:
-        """
-        Create a DSPy metric function from these metrics.
+        """Create a DSPy metric function from these metrics.
 
         Args:
             weights: Optional weights for combining metrics
@@ -160,8 +156,7 @@ def trace_to_dspy_example(
     output_fields: list[str] | None = None,
     extract_from_metadata: bool = True,
 ) -> DSPyExample | None:
-    """
-    Convert a trace to a DSPy example.
+    """Convert a trace to a DSPy example.
 
     Args:
         trace_data: The trace to convert
@@ -267,8 +262,7 @@ def create_dspy_dataset(
     output_fields: list[str] | None = None,
     success_only: bool = True,
 ) -> DSPyDataset:
-    """
-    Create a DSPy dataset from multiple traces.
+    """Create a DSPy dataset from multiple traces.
 
     Args:
         traces: List of traces to convert
@@ -331,8 +325,7 @@ def extract_dspy_metrics(
     traces: list[TraceWithSpans],
     custom_extractors: dict[str, Callable[[TraceWithSpans], float]] | None = None,
 ) -> DSPyMetrics:
-    """
-    Extract metrics from traces for DSPy optimization.
+    """Extract metrics from traces for DSPy optimization.
 
     Args:
         traces: List of traces to analyze
@@ -435,8 +428,7 @@ T = TypeVar("T")
 
 
 class NeonDSPyCallback:
-    """
-    Callback for integrating Neon tracing with DSPy modules.
+    """Callback for integrating Neon tracing with DSPy modules.
 
     Wraps DSPy module execution with Neon traces and spans.
 
@@ -476,8 +468,7 @@ class NeonDSPyCallback:
         self.metadata = metadata or {}
 
     def wrap(self, module: T) -> T:
-        """
-        Wrap a DSPy module with Neon tracing.
+        """Wrap a DSPy module with Neon tracing.
 
         Args:
             module: DSPy module to wrap
@@ -513,8 +504,7 @@ def neon_dspy_callback(
     capture_outputs: bool = True,
     metadata: dict[str, Any] | None = None,
 ) -> NeonDSPyCallback:
-    """
-    Create a Neon callback for DSPy module tracing.
+    """Create a Neon callback for DSPy module tracing.
 
     Args:
         trace_name: Name for the trace
@@ -548,8 +538,7 @@ def create_dspy_teleprompter_metric(
     token_weight: float = 0.1,
     reference_traces: list[TraceWithSpans] | None = None,
 ) -> Callable[..., float]:
-    """
-    Create a metric function for DSPy teleprompters (optimizers).
+    """Create a metric function for DSPy teleprompters (optimizers).
 
     This metric combines multiple factors for holistic evaluation.
 

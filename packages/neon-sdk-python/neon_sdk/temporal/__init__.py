@@ -1,5 +1,4 @@
-"""
-Neon Temporal Client
+"""Neon Temporal Client.
 
 Provides type-safe access to Neon's Temporal workflows for durable execution.
 
@@ -119,8 +118,7 @@ class EvalProgress:
 
 
 class NeonTemporalClient:
-    """
-    Neon Temporal Client.
+    """Neon Temporal Client.
 
     Provides a type-safe interface for interacting with Neon's Temporal workflows.
 
@@ -177,8 +175,7 @@ class NeonTemporalClient:
     async def start_agent_run(
         self, input_data: StartAgentRunInput
     ) -> dict[str, str]:
-        """
-        Start an agent run workflow.
+        """Start an agent run workflow.
 
         Returns:
             Dict with workflow_id and run_id
@@ -246,13 +243,12 @@ class NeonTemporalClient:
     async def wait_for_agent_result(self, workflow_id: str) -> dict[str, Any]:
         """Wait for agent run to complete and return result."""
         handle = self.get_agent_handle(workflow_id)
-        return await handle.result()
+        return await handle.result()  # type: ignore[no-any-return]
 
     # ==================== Evaluation Workflows ====================
 
     async def start_eval_run(self, input_data: StartEvalRunInput) -> dict[str, str]:
-        """
-        Start an evaluation run workflow.
+        """Start an evaluation run workflow.
 
         Returns:
             Dict with workflow_id and run_id
@@ -296,7 +292,7 @@ class NeonTemporalClient:
     async def wait_for_eval_result(self, workflow_id: str) -> dict[str, Any]:
         """Wait for evaluation run to complete and return result."""
         handle = self.get_eval_handle(workflow_id)
-        return await handle.result()
+        return await handle.result()  # type: ignore[no-any-return]
 
     # ==================== Generic Workflow Methods ====================
 

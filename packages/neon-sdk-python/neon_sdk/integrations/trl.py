@@ -1,5 +1,4 @@
-"""
-HuggingFace TRL Export
+"""HuggingFace TRL Export.
 
 Export traces to HuggingFace TRL library format.
 Supports DPO pairs, reward model training, and PPO trajectories.
@@ -24,8 +23,7 @@ from neon_sdk.types import SpanWithChildren, TraceWithSpans
 
 @dataclass
 class DPOExample:
-    """
-    A single example for Direct Preference Optimization (DPO).
+    """A single example for Direct Preference Optimization (DPO).
 
     Format matches TRL DPOTrainer requirements.
     """
@@ -46,8 +44,7 @@ class DPOExample:
 
 @dataclass
 class RewardModelExample:
-    """
-    A single example for reward model training.
+    """A single example for reward model training.
 
     Format matches TRL RewardTrainer requirements.
     """
@@ -90,8 +87,7 @@ class PPOStep:
 
 @dataclass
 class PPOTrajectory:
-    """
-    A trajectory for PPO training.
+    """A trajectory for PPO training.
 
     Format matches TRL PPOTrainer requirements.
     """
@@ -213,8 +209,7 @@ def export_to_dpo_pairs(
     config: TRLExportConfig | None = None,
     scores_map: dict[str, dict[str, float]] | None = None,
 ) -> list[DPOExample]:
-    """
-    Export traces to DPO (Direct Preference Optimization) pairs.
+    """Export traces to DPO (Direct Preference Optimization) pairs.
 
     Creates preference pairs by comparing traces with different scores.
 
@@ -327,8 +322,7 @@ def export_to_reward_model(
     config: TRLExportConfig | None = None,
     scores_map: dict[str, dict[str, float]] | None = None,
 ) -> list[RewardModelExample]:
-    """
-    Export traces to reward model training format.
+    """Export traces to reward model training format.
 
     Creates paired examples with scores for reward model training.
 
@@ -402,8 +396,7 @@ def export_to_ppo_trajectories(
     config: TRLExportConfig | None = None,
     scores_map: dict[str, dict[str, float]] | None = None,
 ) -> list[PPOTrajectory]:
-    """
-    Export traces to PPO trajectory format.
+    """Export traces to PPO trajectory format.
 
     Creates trajectories with per-step rewards for PPO training.
 
@@ -508,8 +501,7 @@ def to_huggingface_dataset(
     data: list[DPOExample] | list[RewardModelExample] | list[PPOTrajectory],
     dataset_type: Literal["dpo", "reward", "ppo"] | None = None,
 ) -> Any:
-    """
-    Convert TRL examples to HuggingFace Dataset.
+    """Convert TRL examples to HuggingFace Dataset.
 
     Args:
         data: List of examples or trajectories
@@ -600,8 +592,7 @@ def create_trl_dataset(
     include_reward: bool = False,
     include_ppo: bool = False,
 ) -> TRLDataset:
-    """
-    Create a comprehensive TRL dataset from traces.
+    """Create a comprehensive TRL dataset from traces.
 
     Args:
         traces: List of traces to convert
