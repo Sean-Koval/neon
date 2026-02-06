@@ -1,5 +1,4 @@
-"""
-LLM Judge Scorer
+"""LLM Judge Scorer.
 
 Uses an LLM to evaluate agent performance.
 """
@@ -40,8 +39,8 @@ class LLMJudgeConfig:
 
 
 def default_parser(response: str) -> float:
-    """
-    Default response parser.
+    """Default response parser.
+
     Expects JSON with "score" field.
     """
     try:
@@ -115,8 +114,7 @@ def _build_prompt(template: str, context: EvalContext) -> str:
 
 
 def llm_judge(config: LLMJudgeConfig) -> ScorerImpl:
-    """
-    Create an LLM judge scorer.
+    """Create an LLM judge scorer.
 
     Example:
         ```python

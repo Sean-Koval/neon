@@ -1,5 +1,4 @@
-"""
-Neon SDK
+"""Neon SDK.
 
 Python SDK for agent evaluation with tracing and scoring.
 

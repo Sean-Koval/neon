@@ -1,5 +1,4 @@
-"""
-Tests for ML Framework Integrations
+"""Tests for ML Framework Integrations.
 
 Tests for optimization signals, Agent Lightning, DSPy, OpenAI fine-tuning, and TRL exports.
 """

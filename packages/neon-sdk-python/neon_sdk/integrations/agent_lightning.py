@@ -1,5 +1,4 @@
-"""
-Agent Lightning Export
+"""Agent Lightning Export.
 
 Export traces in Agent Lightning format for RL training.
 Agent Lightning is a framework for adding reinforcement learning
@@ -25,8 +24,8 @@ from neon_sdk.types import ComponentType, SpanWithChildren, TraceWithSpans
 
 @dataclass
 class AgentLightningTransition:
-    """
-    A single transition in the Agent Lightning format.
+    """A single transition in the Agent Lightning format.
+
     Represents one LLM call with its input, output, and assigned reward.
     """
 
@@ -45,8 +44,8 @@ class AgentLightningTransition:
 
 @dataclass
 class AgentLightningEpisode:
-    """
-    An episode in Agent Lightning format.
+    """An episode in Agent Lightning format.
+
     Represents a complete agent execution (trace).
     """
 
@@ -371,8 +370,7 @@ def export_to_agent_lightning(
     context: ExportContext,
     config: AgentLightningExportConfig | None = None,
 ) -> AgentLightningEpisode | None:
-    """
-    Export a single trace to Agent Lightning episode format.
+    """Export a single trace to Agent Lightning episode format.
 
     Example:
         ```python
@@ -495,8 +493,7 @@ def export_batch_to_agent_lightning(
     contexts: list[ExportContext],
     config: AgentLightningExportConfig | None = None,
 ) -> AgentLightningBatch:
-    """
-    Export multiple traces to Agent Lightning batch format.
+    """Export multiple traces to Agent Lightning batch format.
 
     Example:
         ```python
@@ -554,8 +551,7 @@ def export_batch_to_agent_lightning(
 def validate_agent_lightning_batch(
     batch: AgentLightningBatch,
 ) -> tuple[bool, list[str]]:
-    """
-    Validate an Agent Lightning batch for completeness.
+    """Validate an Agent Lightning batch for completeness.
 
     Returns:
         Tuple of (is_valid, list of error messages)
@@ -638,8 +634,7 @@ async def stream_export_to_agent_lightning(
     on_episode: Callable[[AgentLightningEpisode], None] | None = None,
     on_progress: Callable[[int, int], None] | None = None,
 ) -> AgentLightningBatch:
-    """
-    Export traces with streaming support for large datasets.
+    """Export traces with streaming support for large datasets.
 
     Example:
         ```python

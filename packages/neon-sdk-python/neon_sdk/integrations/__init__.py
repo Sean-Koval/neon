@@ -1,5 +1,4 @@
-"""
-ML Framework Integrations
+"""ML Framework Integrations.
 
 Native Python integrations for ML frameworks including:
 - Optimization signals for RLHF training

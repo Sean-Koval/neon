@@ -1,3 +1,1 @@
-"""
-Neon SDK Tests
-"""
+"""Neon SDK Tests."""

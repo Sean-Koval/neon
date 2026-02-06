@@ -1,5 +1,4 @@
-"""
-Rule-Based Scorers
+"""Rule-Based Scorers.
 
 Deterministic scorers that don't require LLM calls.
 """
@@ -32,8 +31,7 @@ class RuleBasedConfig:
 
 
 def rule_based_scorer(config: RuleBasedConfig) -> ScorerImpl:
-    """
-    Create a rule-based scorer.
+    """Create a rule-based scorer.
 
     Example:
         ```python
@@ -127,8 +125,7 @@ def _deep_match(actual: Any, expected: Any) -> bool:
 
 
 def tool_selection_scorer(expected_tools: list[str] | None = None) -> ScorerImpl:
-    """
-    Check if expected tools were called.
+    """Check if expected tools were called.
 
     Example:
         ```python
@@ -173,8 +170,7 @@ class ContainsConfig:
 
 
 def contains(config: str | list[str] | ContainsConfig | None = None) -> ScorerImpl:
-    """
-    Check if output contains expected string(s).
+    """Check if output contains expected string(s).
 
     Example:
         ```python
@@ -254,9 +250,7 @@ def contains(config: str | list[str] | ContainsConfig | None = None) -> ScorerIm
 
 # Legacy alias
 def contains_scorer(expected: list[str] | None = None) -> ScorerImpl:
-    """
-    Deprecated: Use `contains()` instead.
-    """
+    """Deprecated: Use `contains()` instead."""
     return contains(expected)
 
 
@@ -276,8 +270,7 @@ class ExactMatchConfig:
 
 
 def exact_match(config: str | ExactMatchConfig | None = None) -> ScorerImpl:
-    """
-    Check for exact output match.
+    """Check for exact output match.
 
     Example:
         ```python
@@ -353,9 +346,7 @@ def exact_match(config: str | ExactMatchConfig | None = None) -> ScorerImpl:
 
 # Legacy alias
 def exact_match_scorer(expected: str | None = None) -> ScorerImpl:
-    """
-    Deprecated: Use `exact_match()` instead.
-    """
+    """Deprecated: Use `exact_match()` instead."""
     return exact_match(expected)
 
 
@@ -365,8 +356,7 @@ def exact_match_scorer(expected: str | None = None) -> ScorerImpl:
 
 
 def json_match_scorer(expected: dict[str, Any] | None = None) -> ScorerImpl:
-    """
-    Check if output matches JSON structure.
+    """Check if output matches JSON structure.
 
     Example:
         ```python
@@ -408,8 +398,7 @@ class LatencyThresholds:
 
 
 def latency_scorer(thresholds: LatencyThresholds | None = None) -> ScorerImpl:
-    """
-    Score based on latency.
+    """Score based on latency.
 
     Example:
         ```python
@@ -444,8 +433,7 @@ def latency_scorer(thresholds: LatencyThresholds | None = None) -> ScorerImpl:
 
 
 def error_rate_scorer() -> ScorerImpl:
-    """
-    Score based on span error rate.
+    """Score based on span error rate.
 
     Example:
         ```python
@@ -485,8 +473,7 @@ class TokenThresholds:
 
 
 def token_efficiency_scorer(thresholds: TokenThresholds | None = None) -> ScorerImpl:
-    """
-    Score based on token efficiency.
+    """Score based on token efficiency.
 
     Example:
         ```python
@@ -523,8 +510,7 @@ def token_efficiency_scorer(thresholds: TokenThresholds | None = None) -> Scorer
 
 
 def success_scorer() -> ScorerImpl:
-    """
-    Check if trace completed successfully.
+    """Check if trace completed successfully.
 
     Example:
         ```python
@@ -550,8 +536,7 @@ def success_scorer() -> ScorerImpl:
 
 
 def iteration_scorer(max_iterations: int = 10) -> ScorerImpl:
-    """
-    Score based on iteration count.
+    """Score based on iteration count.
 
     Example:
         ```python

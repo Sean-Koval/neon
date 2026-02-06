@@ -1,5 +1,4 @@
-"""
-Neon SDK Types
+"""Neon SDK Types.
 
 Core types for trace, span, score, and evaluation data.
 """
@@ -46,8 +45,8 @@ class SpanType(str, Enum):
 
 
 class ComponentType(str, Enum):
-    """
-    Component type for attribution in compound AI systems.
+    """Component type for attribution in compound AI systems.
+
     Used to identify which component of the agent system a span belongs to.
     """
 

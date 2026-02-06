@@ -1,5 +1,4 @@
-"""
-Optimization Signal Generation
+"""Optimization Signal Generation.
 
 Generate reward signals from traces for agent optimization and RLHF.
 Supports multiple signal types and aggregation from multiple sources.
@@ -94,6 +93,7 @@ class RewardSignal(Signal):
     discount: float | None = None
 
     def __post_init__(self) -> None:
+        """Initialize signal type."""  # noqa: D105
         self.signal_type = SignalType.REWARD
 
 
@@ -108,6 +108,7 @@ class PreferenceSignal(Signal):
     criteria: list[str] = field(default_factory=list)
 
     def __post_init__(self) -> None:
+        """Initialize signal type."""  # noqa: D105
         self.signal_type = SignalType.PREFERENCE
 
 
@@ -133,6 +134,7 @@ class DemonstrationSignal(Signal):
     quality: float | None = None
 
     def __post_init__(self) -> None:
+        """Initialize signal type."""  # noqa: D105
         self.signal_type = SignalType.DEMONSTRATION
 
 
@@ -148,6 +150,7 @@ class FeedbackSignal(Signal):
     author_id: str | None = None
 
     def __post_init__(self) -> None:
+        """Initialize signal type."""  # noqa: D105
         self.signal_type = SignalType.FEEDBACK
 
 
@@ -162,6 +165,7 @@ class MetricSignal(Signal):
     threshold: float | None = None
 
     def __post_init__(self) -> None:
+        """Initialize signal type."""  # noqa: D105
         self.signal_type = SignalType.METRIC
 
 
@@ -175,6 +179,7 @@ class EventSignal(Signal):
     count: int | None = None
 
     def __post_init__(self) -> None:
+        """Initialize signal type."""  # noqa: D105
         self.signal_type = SignalType.EVENT
 
 
@@ -332,8 +337,7 @@ def generate_reward_signals(
     context: SignalContext,
     config: RewardSignalConfig | None = None,
 ) -> list[RewardSignal]:
-    """
-    Generate reward signals from a trace.
+    """Generate reward signals from a trace.
 
     Creates reward signals at the configured granularity:
     - trace: Single reward for the entire trace
@@ -511,8 +515,7 @@ def generate_demonstration_signals(
     context: SignalContext,
     config: DemonstrationSignalConfig | None = None,
 ) -> list[DemonstrationSignal]:
-    """
-    Generate demonstration signals from trace spans.
+    """Generate demonstration signals from trace spans.
 
     Creates demonstration signals for tool calls and generations,
     suitable for imitation learning.
@@ -621,8 +624,7 @@ def generate_metric_signals(
     context: SignalContext,
     config: MetricSignalConfig | None = None,
 ) -> list[MetricSignal]:
-    """
-    Generate metric signals from trace data.
+    """Generate metric signals from trace data.
 
     Extracts common performance metrics from traces.
 
@@ -753,8 +755,7 @@ def generate_event_signals(
     context: SignalContext,
     config: EventSignalConfig | None = None,
 ) -> list[EventSignal]:
-    """
-    Generate event signals from trace spans.
+    """Generate event signals from trace spans.
 
     Detects and reports discrete events of interest.
 
@@ -887,8 +888,7 @@ def generate_preference_signal(
     context_b: SignalContext,
     config: PreferenceSignalConfig | None = None,
 ) -> PreferenceSignal:
-    """
-    Generate a preference signal from two traces.
+    """Generate a preference signal from two traces.
 
     Compares two traces and generates a preference signal indicating
     which one is better based on the configured criteria.
@@ -1010,8 +1010,7 @@ def generate_signals(
     context: SignalContext,
     config: ComprehensiveSignalConfig | None = None,
 ) -> SignalGenerationResult:
-    """
-    Generate comprehensive signals from a trace.
+    """Generate comprehensive signals from a trace.
 
     Generates multiple signal types in a single call for convenience.
 
@@ -1242,8 +1241,7 @@ def create_signal_batch(
 
 
 def to_rlhf_format(signals: list[AnySignal]) -> list[dict[str, Any]]:
-    """
-    Convert signals to training format for RLHF.
+    """Convert signals to training format for RLHF.
 
     Formats signals into a structure suitable for reinforcement learning
     from human feedback (RLHF) training.
