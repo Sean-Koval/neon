@@ -1,5 +1,4 @@
-"""
-Tracing Utilities
+"""Tracing Utilities.
 
 Local context management for structuring async evaluation code.
 Provides decorators, context managers, and async-local style context.
@@ -171,8 +170,7 @@ def span(
     component_type: ComponentType | None = None,
     attributes: dict[str, str] | None = None,
 ) -> SpanContextManager:
-    """
-    Create a span context manager.
+    """Create a span context manager.
 
     Can be used as a context manager or async context manager.
 
@@ -200,8 +198,7 @@ def traced(
     component_type: ComponentType | None = None,
     attributes: dict[str, str] | None = None,
 ) -> Callable[[Callable[P, T]], Callable[P, T]]:
-    """
-    Decorator to wrap a function in a span.
+    """Decorator to wrap a function in a span.
 
     Example:
         ```python
@@ -226,7 +223,7 @@ def traced(
         @wraps(fn)
         async def async_wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
             async with span(span_name, span_type=span_type, component_type=component_type, attributes=attributes):
-                return await fn(*args, **kwargs)  # type: ignore[misc]
+                return await fn(*args, **kwargs)  # type: ignore[misc, no-any-return]
 
         import asyncio
 
@@ -261,8 +258,7 @@ class TraceManager:
 
 
 def trace(name: str, metadata: dict[str, str] | None = None) -> TraceManager:
-    """
-    Create a trace context manager.
+    """Create a trace context manager.
 
     Example:
         ```python
@@ -289,8 +285,7 @@ def generation(
     component_type: ComponentType | None = None,
     attributes: dict[str, str] | None = None,
 ) -> SpanContextManager:
-    """
-    Create a generation span (for LLM calls).
+    """Create a generation span (for LLM calls).
 
     Example:
         ```python
@@ -319,8 +314,7 @@ def tool(
     component_type: ComponentType | None = None,
     attributes: dict[str, str] | None = None,
 ) -> SpanContextManager:
-    """
-    Create a tool span.
+    """Create a tool span.
 
     Example:
         ```python
@@ -348,8 +342,7 @@ def retrieval(
     top_k: int | None = None,
     attributes: dict[str, str] | None = None,
 ) -> SpanContextManager:
-    """
-    Create a retrieval span (for RAG operations).
+    """Create a retrieval span (for RAG operations).
 
     Example:
         ```python
@@ -375,8 +368,7 @@ def reasoning(
     *,
     attributes: dict[str, str] | None = None,
 ) -> SpanContextManager:
-    """
-    Create a reasoning span (for chain-of-thought, planning steps).
+    """Create a reasoning span (for chain-of-thought, planning steps).
 
     Example:
         ```python
@@ -397,8 +389,7 @@ def planning(
     *,
     attributes: dict[str, str] | None = None,
 ) -> SpanContextManager:
-    """
-    Create a planning span (for high-level task decomposition).
+    """Create a planning span (for high-level task decomposition).
 
     Example:
         ```python
@@ -420,8 +411,7 @@ def prompt(
     template: str | None = None,
     attributes: dict[str, str] | None = None,
 ) -> SpanContextManager:
-    """
-    Create a prompt span (for prompt construction).
+    """Create a prompt span (for prompt construction).
 
     Example:
         ```python
@@ -445,8 +435,7 @@ def routing(
     *,
     attributes: dict[str, str] | None = None,
 ) -> SpanContextManager:
-    """
-    Create a routing span (for agent orchestration).
+    """Create a routing span (for agent orchestration).
 
     Example:
         ```python
@@ -467,8 +456,7 @@ def memory(
     *,
     attributes: dict[str, str] | None = None,
 ) -> SpanContextManager:
-    """
-    Create a memory span (for memory access and management).
+    """Create a memory span (for memory access and management).
 
     Example:
         ```python

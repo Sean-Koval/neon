@@ -1,5 +1,4 @@
-"""
-Base Scorer Types
+"""Base Scorer Types.
 
 Foundation for defining custom scorers.
 """
@@ -71,8 +70,7 @@ class ScorerConfig:
 
 
 def define_scorer(config: ScorerConfig) -> ScorerImpl:
-    """
-    Define a custom scorer.
+    """Define a custom scorer.
 
     Example:
         ```python
@@ -103,8 +101,7 @@ def scorer(
     [Callable[[EvalContext], ScoreResult | Awaitable[ScoreResult]]],
     ScorerImpl,
 ]:
-    """
-    Decorator to define a custom scorer.
+    """Decorator to define a custom scorer.
 
     Example:
         ```python

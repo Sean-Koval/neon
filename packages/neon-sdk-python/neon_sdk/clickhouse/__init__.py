@@ -1,5 +1,4 @@
-"""
-Neon ClickHouse Client
+"""Neon ClickHouse Client.
 
 Provides connection to ClickHouse for trace/span/score storage.
 
@@ -189,8 +188,7 @@ class DashboardSummary:
 
 
 class NeonClickHouseClient:
-    """
-    Neon ClickHouse Client.
+    """Neon ClickHouse Client.
 
     Provides access to ClickHouse for trace/span/score storage and analytics.
 
