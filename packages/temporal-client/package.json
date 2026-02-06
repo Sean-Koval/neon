@@ -16,13 +16,11 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@neon/shared": "workspace:*",
     "@temporalio/client": "^1.11.0"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",
     "typescript": "^5.3.3"
-  },
-  "peerDependencies": {
-    "@neon/shared": "workspace:*"
   }
 }

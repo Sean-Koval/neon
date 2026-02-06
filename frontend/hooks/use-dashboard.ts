@@ -134,7 +134,7 @@ export function useDashboard(
           project_id: run.project_id,
           created_at: run.created_at,
           updated_at: run.created_at,
-        })
+        } as EvalSuite)
       }
     }
     return Array.from(suiteMap.values())

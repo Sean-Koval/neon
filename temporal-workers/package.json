@@ -13,6 +13,7 @@
     "build:bundle": "esbuild src/worker.ts --bundle --platform=node --format=esm --outdir=dist --external:@temporalio/*"
   },
   "dependencies": {
+    "@neon/shared": "workspace:*",
     "@anthropic-ai/sdk": "^0.32.0",
     "@clickhouse/client": "^1.0.1",
     "@temporalio/activity": "^1.11.0",

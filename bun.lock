@@ -25,6 +25,7 @@
         "clsx": "^2.1.0",
         "date-fns": "^4.1.0",
         "drizzle-orm": "^0.45.1",
+        "jose": "^5.9.0",
         "lucide-react": "^0.468.0",
         "next": "^16.1.0",
         "pg": "^8.18.0",
@@ -84,14 +85,12 @@
       "name": "@neon/temporal-client",
       "version": "0.1.0",
       "dependencies": {
+        "@neon/shared": "workspace:*",
         "@temporalio/client": "^1.11.0",
       },
       "devDependencies": {
         "@types/node": "^20.11.0",
         "typescript": "^5.3.3",
-      },
-      "peerDependencies": {
-        "@neon/shared": "workspace:*",
       },
     },
     "temporal-workers": {
@@ -100,6 +99,7 @@
       "dependencies": {
         "@anthropic-ai/sdk": "^0.32.0",
         "@clickhouse/client": "^1.0.1",
+        "@neon/shared": "workspace:*",
         "@temporalio/activity": "^1.11.0",
         "@temporalio/client": "^1.11.0",
         "@temporalio/worker": "^1.11.0",
@@ -853,6 +853,8 @@
     "jest-worker": ["jest-worker@27.5.1", "", { "dependencies": { "@types/node": "*", "merge-stream": "^2.0.0", "supports-color": "^8.0.0" } }, "sha512-7vuh85V5cdDofPyxn58nrPjBktZo0u9x1g8WtjQol+jZDaE+fhN+cIvTj11GndBnMnyfrUOG1sZQxCdjKh+DKg=="],
 
     "jiti": ["jiti@1.21.7", "", { "bin": { "jiti": "bin/jiti.js" } }, "sha512-/imKNG4EbWNrVjoNC/1H5/9GFy+tqjGBHCaSsN+P2RnPqjsLmv6UD3Ej+Kj8nBWaRAwyk7kK5ZUc+OEatnTR3A=="],
+
+    "jose": ["jose@5.10.0", "", {}, "sha512-s+3Al/p9g32Iq+oqXxkW//7jk2Vig6FF1CFqzVXoTUXt2qz89YWbL+OwS17NFYEvxC35n0FKeGO2LGYSxeM2Gg=="],
 
     "js-tokens": ["js-tokens@9.0.1", "", {}, "sha512-mxa9E9ITFOt0ban3j6L5MpjwegGz6lBQmM1IJkWeBZGcMxto50+eWdjC/52xDbS2vy0k7vIMK0Fe2wfL9OQSpQ=="],
 

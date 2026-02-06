@@ -85,7 +85,7 @@ const JWT_CONFIG = {
 async function verifyJwt(token: string): Promise<AuthenticatedUser | null> {
   try {
     // Dynamic import of jose for edge compatibility
-    const { jwtVerify, createSecretKey } = await import('jose')
+    const { jwtVerify } = await import('jose')
 
     if (!JWT_CONFIG.secret) {
       console.error('JWT_SECRET not configured')
@@ -93,7 +93,7 @@ async function verifyJwt(token: string): Promise<AuthenticatedUser | null> {
     }
 
     // Create secret key from environment variable
-    const secret = createSecretKey(Buffer.from(JWT_CONFIG.secret, 'utf-8'))
+    const secret = new TextEncoder().encode(JWT_CONFIG.secret)
 
     // Verify the token
     const { payload } = await jwtVerify(token, secret, {
