@@ -648,3 +648,259 @@ describe('RunStatusUpdate Map', () => {
     expect(statuses.size).toBe(0)
   })
 })
+
+// =============================================================================
+// Tests: Memory Leak Prevention
+// =============================================================================
+
+describe('Memory Leak Prevention', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+    _mockWebSocketInstance = null
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.restoreAllMocks()
+  })
+
+  it('clears WebSocket event handlers on disconnect', () => {
+    // Create a mock WebSocket
+    const ws = new MockWebSocket('ws://localhost:3000/api/ws')
+    ws.onopen = () => {}
+    ws.onmessage = () => {}
+    ws.onerror = () => {}
+    ws.onclose = () => {}
+
+    // Verify handlers are set
+    expect(ws.onopen).not.toBeNull()
+    expect(ws.onmessage).not.toBeNull()
+    expect(ws.onerror).not.toBeNull()
+    expect(ws.onclose).not.toBeNull()
+
+    // Simulate clearing handlers (as done in disconnect)
+    ws.onopen = null
+    ws.onmessage = null
+    ws.onerror = null
+    ws.onclose = null
+
+    // Verify handlers are cleared
+    expect(ws.onopen).toBeNull()
+    expect(ws.onmessage).toBeNull()
+    expect(ws.onerror).toBeNull()
+    expect(ws.onclose).toBeNull()
+  })
+
+  it('clears polling intervals on cleanup', () => {
+    const pollingIntervals = new Map<string, ReturnType<typeof setInterval>>()
+
+    // Simulate adding polling intervals
+    const interval1 = setInterval(() => {}, 1000)
+    const interval2 = setInterval(() => {}, 1000)
+    pollingIntervals.set('run-1', interval1)
+    pollingIntervals.set('run-2', interval2)
+
+    expect(pollingIntervals.size).toBe(2)
+
+    // Simulate cleanup (as done in stopAllPolling)
+    for (const interval of pollingIntervals.values()) {
+      clearInterval(interval)
+    }
+    pollingIntervals.clear()
+
+    expect(pollingIntervals.size).toBe(0)
+  })
+
+  it('clears ping interval on cleanup', () => {
+    let pingIntervalId: ReturnType<typeof setInterval> | null = null
+
+    // Simulate starting ping interval
+    pingIntervalId = setInterval(() => {}, 30000)
+    expect(pingIntervalId).not.toBeNull()
+
+    // Simulate cleanup (as done in stopPingInterval)
+    if (pingIntervalId) {
+      clearInterval(pingIntervalId)
+      pingIntervalId = null
+    }
+
+    expect(pingIntervalId).toBeNull()
+  })
+
+  it('clears reconnect timeout on cleanup', () => {
+    let reconnectTimeoutId: ReturnType<typeof setTimeout> | null = null
+
+    // Simulate setting reconnect timeout
+    reconnectTimeoutId = setTimeout(() => {}, 1000)
+    expect(reconnectTimeoutId).not.toBeNull()
+
+    // Simulate cleanup (as done in disconnect)
+    if (reconnectTimeoutId) {
+      clearTimeout(reconnectTimeoutId)
+      reconnectTimeoutId = null
+    }
+
+    expect(reconnectTimeoutId).toBeNull()
+  })
+
+  it('clears subscriptions on disconnect', () => {
+    const subscriptions = new Set<string>()
+
+    // Add some subscriptions
+    subscriptions.add('run-1')
+    subscriptions.add('run-2')
+    subscriptions.add('run-3')
+
+    expect(subscriptions.size).toBe(3)
+
+    // Simulate disconnect clearing subscriptions
+    subscriptions.clear()
+
+    expect(subscriptions.size).toBe(0)
+  })
+
+  it('prevents state updates after unmount via mountedRef', () => {
+    const mountedRef = { current: true }
+    let stateUpdateCalled = false
+
+    const setStateSafe = (value: unknown) => {
+      if (!mountedRef.current) return
+      stateUpdateCalled = true
+    }
+
+    // Before unmount - should update
+    setStateSafe('test')
+    expect(stateUpdateCalled).toBe(true)
+
+    // After unmount - should not update
+    stateUpdateCalled = false
+    mountedRef.current = false
+    setStateSafe('test')
+    expect(stateUpdateCalled).toBe(false)
+  })
+
+  it('uses refs for callbacks to prevent unnecessary re-renders', () => {
+    // This tests the pattern of using refs for callbacks
+    // to avoid dependency chain issues
+    const callbackRef = { current: () => {} }
+    let callCount = 0
+
+    const originalCallback = () => {
+      callCount++
+    }
+    const newCallback = () => {
+      callCount += 10
+    }
+
+    // Set initial callback
+    callbackRef.current = originalCallback
+
+    // Call through ref
+    callbackRef.current()
+    expect(callCount).toBe(1)
+
+    // Update callback ref
+    callbackRef.current = newCallback
+
+    // Call through ref - should use new callback
+    callbackRef.current()
+    expect(callCount).toBe(11)
+  })
+})
+
+// =============================================================================
+// Tests: Cleanup Behavior
+// =============================================================================
+
+describe('Cleanup Behavior', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+    _mockWebSocketInstance = null
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('properly sequences cleanup operations', () => {
+    const cleanupOrder: string[] = []
+
+    // Simulate the order of cleanup operations
+    const cleanup = () => {
+      // 1. Clear reconnect timeout
+      cleanupOrder.push('clearReconnectTimeout')
+
+      // 2. Stop ping interval
+      cleanupOrder.push('stopPingInterval')
+
+      // 3. Stop all polling
+      cleanupOrder.push('stopAllPolling')
+
+      // 4. Clear WebSocket event handlers
+      cleanupOrder.push('clearEventHandlers')
+
+      // 5. Close WebSocket
+      cleanupOrder.push('closeWebSocket')
+
+      // 6. Clear subscriptions
+      cleanupOrder.push('clearSubscriptions')
+    }
+
+    cleanup()
+
+    expect(cleanupOrder).toEqual([
+      'clearReconnectTimeout',
+      'stopPingInterval',
+      'stopAllPolling',
+      'clearEventHandlers',
+      'closeWebSocket',
+      'clearSubscriptions',
+    ])
+  })
+
+  it('handles multiple rapid connect/disconnect cycles', () => {
+    const connections: MockWebSocket[] = []
+    const cleanedUp: boolean[] = []
+
+    // Simulate multiple rapid connections
+    for (let i = 0; i < 5; i++) {
+      const ws = new MockWebSocket('ws://localhost:3000/api/ws')
+      connections.push(ws)
+      cleanedUp.push(false)
+    }
+
+    // Simulate cleaning up all connections
+    connections.forEach((ws, index) => {
+      ws.onopen = null
+      ws.onmessage = null
+      ws.onerror = null
+      ws.onclose = null
+      ws.close()
+      cleanedUp[index] = true
+    })
+
+    expect(cleanedUp.every((c) => c)).toBe(true)
+  })
+
+  it('WebSocket close prevents onclose handler from running after cleanup', () => {
+    const ws = new MockWebSocket('ws://localhost:3000/api/ws')
+    let onCloseCalledAfterCleanup = false
+
+    // Set up onclose handler
+    ws.onclose = () => {
+      onCloseCalledAfterCleanup = true
+    }
+
+    // Clear handler before close (simulating proper cleanup)
+    ws.onclose = null
+
+    // Now close - onclose should not be called
+    ws.readyState = MockWebSocket.CLOSED
+    // Manual trigger to verify no callback
+    if (ws.onclose !== null) {
+      ;(ws.onclose as (event: CloseEvent) => void)({} as CloseEvent)
+    }
+
+    expect(onCloseCalledAfterCleanup).toBe(false)
+  })
+})

@@ -130,6 +130,19 @@ export function useRealtime(
   >(new Map())
   const mountedRef = useRef(true)
 
+  // Refs to store latest callback versions without causing re-renders
+  const onConnectionChangeRef = useRef(onConnectionChange)
+  const onErrorRef = useRef(onError)
+
+  // Keep refs updated with latest callbacks
+  useEffect(() => {
+    onConnectionChangeRef.current = onConnectionChange
+  }, [onConnectionChange])
+
+  useEffect(() => {
+    onErrorRef.current = onError
+  }, [onError])
+
   /**
    * Update connection status and notify callback.
    */
@@ -137,9 +150,9 @@ export function useRealtime(
     (status: ConnectionStatus) => {
       if (!mountedRef.current) return
       setConnectionStatus(status)
-      onConnectionChange?.(status)
+      onConnectionChangeRef.current?.(status)
     },
-    [onConnectionChange],
+    [], // No dependencies - uses ref for callback
   )
 
   /**
@@ -181,7 +194,7 @@ export function useRealtime(
 
         case 'error':
           if (message.payload) {
-            onError?.(message.payload)
+            onErrorRef.current?.(message.payload)
           }
           break
 
@@ -194,7 +207,7 @@ export function useRealtime(
           break
       }
     },
-    [queryClient, onError],
+    [queryClient], // Removed onError - uses ref instead
   )
 
   /**
@@ -283,12 +296,17 @@ export function useRealtime(
     }
 
     pingIntervalRef.current = setInterval(() => {
-      sendMessage({
-        type: 'ping',
-        timestamp: new Date().toISOString(),
-      })
+      // Access wsRef directly instead of through sendMessage to avoid dependency
+      if (wsRef.current?.readyState === WebSocket.OPEN) {
+        wsRef.current.send(
+          JSON.stringify({
+            type: 'ping',
+            timestamp: new Date().toISOString(),
+          }),
+        )
+      }
     }, pingInterval)
-  }, [pingInterval, sendMessage])
+  }, [pingInterval])
 
   /**
    * Stop ping interval.
@@ -302,6 +320,7 @@ export function useRealtime(
 
   /**
    * Connect to WebSocket server.
+   * Uses refs for callbacks to avoid dependency chain issues that cause memory leaks.
    */
   const connect = useCallback(() => {
     if (!mountedRef.current) return
@@ -311,9 +330,15 @@ export function useRealtime(
       return
     }
 
-    // Close existing connection
+    // Close existing connection and clear its event handlers
     if (wsRef.current) {
+      // Clear event handlers to prevent memory leaks
+      wsRef.current.onopen = null
+      wsRef.current.onmessage = null
+      wsRef.current.onerror = null
+      wsRef.current.onclose = null
       wsRef.current.close()
+      wsRef.current = null
     }
 
     updateConnectionStatus('connecting')
@@ -338,12 +363,16 @@ export function useRealtime(
 
         // Re-subscribe to all current subscriptions
         for (const runId of subscriptionsRef.current) {
-          sendMessage({
-            type: 'subscribe',
-            id: uuidv4(),
-            timestamp: new Date().toISOString(),
-            payload: { runId },
-          })
+          if (wsRef.current?.readyState === WebSocket.OPEN) {
+            wsRef.current.send(
+              JSON.stringify({
+                type: 'subscribe',
+                id: uuidv4(),
+                timestamp: new Date().toISOString(),
+                payload: { runId },
+              }),
+            )
+          }
         }
       }
 
@@ -359,7 +388,7 @@ export function useRealtime(
       ws.onerror = (event) => {
         console.error('WebSocket error:', event)
         updateConnectionStatus('error')
-        onError?.({
+        onErrorRef.current?.({
           code: 'WS_ERROR',
           message: 'WebSocket connection error',
         })
@@ -415,16 +444,15 @@ export function useRealtime(
     reconnectDelay,
     updateConnectionStatus,
     handleMessage,
-    sendMessage,
     startPingInterval,
     stopPingInterval,
     stopAllPolling,
     startPolling,
-    onError,
   ])
 
   /**
    * Disconnect from WebSocket server.
+   * Clears all event handlers to prevent memory leaks.
    */
   const disconnect = useCallback(() => {
     if (reconnectTimeoutRef.current) {
@@ -436,9 +464,17 @@ export function useRealtime(
     stopAllPolling()
 
     if (wsRef.current) {
+      // Clear event handlers before closing to prevent memory leaks
+      wsRef.current.onopen = null
+      wsRef.current.onmessage = null
+      wsRef.current.onerror = null
+      wsRef.current.onclose = null
       wsRef.current.close(1000, 'Client disconnecting')
       wsRef.current = null
     }
+
+    // Clear subscriptions to release references
+    subscriptionsRef.current.clear()
 
     setIsWebSocket(false)
     updateConnectionStatus('disconnected')
@@ -516,16 +552,30 @@ export function useRealtime(
     connect()
   }, [disconnect, connect])
 
-  // Initialize connection on mount
+  // Store connect/disconnect in refs to avoid effect dependency issues
+  const connectRef = useRef(connect)
+  const disconnectRef = useRef(disconnect)
+
+  // Keep refs updated
+  useEffect(() => {
+    connectRef.current = connect
+  }, [connect])
+
+  useEffect(() => {
+    disconnectRef.current = disconnect
+  }, [disconnect])
+
+  // Initialize connection on mount - uses refs to avoid dependency issues
+  // that cause memory leaks from repeated connect/disconnect cycles
   useEffect(() => {
     mountedRef.current = true
-    connect()
+    connectRef.current()
 
     return () => {
       mountedRef.current = false
-      disconnect()
+      disconnectRef.current()
     }
-  }, [connect, disconnect]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, []) // Empty deps - only run on mount/unmount
 
   return {
     connectionStatus,
