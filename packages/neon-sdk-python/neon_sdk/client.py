@@ -1,5 +1,4 @@
-"""
-Neon API Client
+"""Neon API Client.
 
 Type-safe client for the Neon API.
 """
@@ -79,7 +78,7 @@ class TracesAPI:
         data = await self._client._request("GET", f"/api/traces/{trace_id}")
         return TraceWithSpans.model_validate(data)
 
-    async def search(self, query: str, limit: int | None = None) -> list[Trace]:
+    async def search(self, query: str, limit: int | None = None) -> list[Trace]:  # type: ignore[valid-type]
         """Search traces by content."""
         params: dict[str, Any] = {"query": query}
         if limit:
@@ -205,8 +204,7 @@ class EvalAPI:
 
 
 class Neon:
-    """
-    Neon API Client.
+    """Neon API Client.
 
     Example:
         ```python
@@ -267,8 +265,7 @@ class Neon:
 
 
 class NeonSync:
-    """
-    Synchronous Neon API Client wrapper.
+    """Synchronous Neon API Client wrapper.
 
     Wraps the async client for synchronous usage.
 
@@ -344,7 +341,7 @@ class SyncTracesAPI:
     def get(self, trace_id: str) -> TraceWithSpans:
         return _run_sync(self._async.get(trace_id))
 
-    def search(self, query: str, limit: int | None = None) -> list[Trace]:
+    def search(self, query: str, limit: int | None = None) -> list[Trace]:  # type: ignore[valid-type]
         return _run_sync(self._async.search(query, limit))
 
 

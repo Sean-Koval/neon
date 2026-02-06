@@ -1,5 +1,4 @@
-"""
-Scorers Index
+"""Scorers Index.
 
 Re-exports all scorer types and utilities.
 """

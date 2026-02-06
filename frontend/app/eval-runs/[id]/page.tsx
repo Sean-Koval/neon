@@ -7,7 +7,8 @@
  * Uses WebSocket for live updates with polling fallback.
  */
 
-import { format, formatDistanceToNow } from 'date-fns'
+import { format } from 'date-fns'
+import { safeFormatDistance } from '@/lib/format-date'
 import {
   ArrowLeft,
   Download,
@@ -239,9 +240,7 @@ export default function EvalRunDetailPage() {
           </p>
           <p className="text-sm">
             {run.closeTime
-              ? formatDistanceToNow(new Date(run.startTime), {
-                  includeSeconds: true,
-                })
+              ? safeFormatDistance(run.startTime)
               : 'In progress...'}
           </p>
         </div>
