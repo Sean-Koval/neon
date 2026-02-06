@@ -4,17 +4,16 @@
  * Tests workspace isolation and access control for all major API endpoints.
  * Ensures User A cannot access User B's data (traces, runs, suites).
  *
- * Security Model:
- * - All resources are scoped to workspaces
- * - Workspaces belong to organizations
- * - Users must be members of a workspace to access its resources
- * - API keys are workspace-scoped
+ * These tests import the actual route handlers which are wrapped with withAuth.
+ * The auth middleware is mocked to simulate authenticated/unauthenticated requests
+ * while preserving the real gating behavior (401 on missing auth, workspace filtering).
  *
  * @module __tests__/security/multi-tenant.test.ts
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { type NextRequest, NextResponse } from 'next/server'
+import type { AuthResult } from '@/lib/middleware/auth'
 
 // =============================================================================
 // Test Constants
@@ -33,79 +32,159 @@ const TEST_USERS = {
   },
 } as const
 
-const TEST_ORGANIZATIONS = {
-  orgA: {
-    id: 'org-a-0000-0000-0000-000000000001',
-    name: 'Organization A',
-    slug: 'org-a',
-  },
-  orgB: {
-    id: 'org-b-0000-0000-0000-000000000002',
-    name: 'Organization B',
-    slug: 'org-b',
-  },
-} as const
-
 const TEST_WORKSPACES = {
   workspaceA: {
     id: 'ws-a-00000-0000-0000-000000000001',
-    organizationId: TEST_ORGANIZATIONS.orgA.id,
     name: 'Workspace A',
-    slug: 'workspace-a',
   },
   workspaceB: {
     id: 'ws-b-00000-0000-0000-000000000002',
-    organizationId: TEST_ORGANIZATIONS.orgB.id,
     name: 'Workspace B',
-    slug: 'workspace-b',
   },
 } as const
 
-const TEST_API_KEYS = {
-  keyA: {
-    id: 'key-a-0000-0000-0000-000000000001',
-    rawKey: 'ae_test_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
-    keyPrefix: 'ae_test_aaa',
-    workspaceId: TEST_WORKSPACES.workspaceA.id,
-    scopes: ['read', 'write'],
-  },
-  keyB: {
-    id: 'key-b-0000-0000-0000-000000000002',
-    rawKey: 'ae_test_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
-    keyPrefix: 'ae_test_bbb',
-    workspaceId: TEST_WORKSPACES.workspaceB.id,
-    scopes: ['read', 'write'],
-  },
-} as const
+const AUTH_RESULT_A: AuthResult = {
+  user: TEST_USERS.userA,
+  workspaceId: TEST_WORKSPACES.workspaceA.id,
+}
+
+const AUTH_RESULT_B: AuthResult = {
+  user: TEST_USERS.userB,
+  workspaceId: TEST_WORKSPACES.workspaceB.id,
+}
 
 const TEST_RESOURCES = {
-  traceA: {
-    id: 'trace-a-000-0000-0000-000000000001',
-    projectId: TEST_WORKSPACES.workspaceA.id,
-  },
-  traceB: {
-    id: 'trace-b-000-0000-0000-000000000002',
-    projectId: TEST_WORKSPACES.workspaceB.id,
-  },
   suiteA: {
-    id: 'suite-a-000-0000-0000-000000000001',
-    projectId: TEST_WORKSPACES.workspaceA.id,
+    id: 'a0000000-0000-0000-0000-000000000001',
+    project_id: TEST_WORKSPACES.workspaceA.id,
     name: 'Suite A',
+    description: null,
+    agent_module_path: null,
+    config: '{}',
+    created_at: '2026-01-01T00:00:00.000Z',
+    updated_at: '2026-01-01T00:00:00.000Z',
   },
   suiteB: {
-    id: 'suite-b-000-0000-0000-000000000002',
-    projectId: TEST_WORKSPACES.workspaceB.id,
+    id: 'b0000000-0000-0000-0000-000000000002',
+    project_id: TEST_WORKSPACES.workspaceB.id,
     name: 'Suite B',
+    description: null,
+    agent_module_path: null,
+    config: '{}',
+    created_at: '2026-01-01T00:00:00.000Z',
+    updated_at: '2026-01-01T00:00:00.000Z',
   },
 } as const
+
+// =============================================================================
+// Mock: Auth middleware with realistic withAuth gating
+// =============================================================================
+
+/**
+ * The mock authenticate function. Tests set its return value to simulate
+ * different auth states (null = unauthenticated, AuthResult = authenticated).
+ */
+const mockAuthenticate = vi.fn<() => Promise<AuthResult | null>>()
+
+vi.mock('@/lib/middleware/auth', () => ({
+  authenticate: (...args: unknown[]) => mockAuthenticate(...(args as [])),
+  withAuth: vi.fn(
+    (handler: (req: NextRequest, auth: AuthResult, ...args: unknown[]) => Promise<NextResponse>, options?: { optional?: boolean }) => {
+      return async (request: NextRequest, ...args: unknown[]): Promise<NextResponse> => {
+        const auth = await mockAuthenticate()
+
+        if (!options?.optional && !auth) {
+          return NextResponse.json(
+            {
+              error: 'Unauthorized',
+              message: 'Valid authentication required',
+              hint: 'Provide a valid Bearer token or X-API-Key header',
+            },
+            { status: 401 },
+          )
+        }
+
+        return handler(request, auth as AuthResult, ...args)
+      }
+    },
+  ),
+}))
+
+// =============================================================================
+// Mock: ClickHouse
+// =============================================================================
+
+const mockQueryTraces = vi.fn()
+const mockGetTraceWithSpans = vi.fn()
+const mockGetTraceWithSpanSummaries = vi.fn()
+const mockGetScoresForTrace = vi.fn()
+const mockInsertTraces = vi.fn()
+const mockInsertSpans = vi.fn()
+
+vi.mock('@/lib/clickhouse', () => ({
+  queryTraces: (...args: unknown[]) => mockQueryTraces(...args),
+  getTraceWithSpans: (...args: unknown[]) => mockGetTraceWithSpans(...args),
+  getTraceWithSpanSummaries: (...args: unknown[]) => mockGetTraceWithSpanSummaries(...args),
+  getScoresForTrace: (...args: unknown[]) => mockGetScoresForTrace(...args),
+  insertTraces: (...args: unknown[]) => mockInsertTraces(...args),
+  insertSpans: (...args: unknown[]) => mockInsertSpans(...args),
+}))
+
+// =============================================================================
+// Mock: Temporal
+// =============================================================================
+
+const mockListEvalRuns = vi.fn()
+const mockStartEvalRunWorkflow = vi.fn()
+const mockGetWorkflowStatus = vi.fn()
+const mockCancelWorkflow = vi.fn()
+const mockPauseEvalRun = vi.fn()
+const mockResumeEvalRun = vi.fn()
+
+vi.mock('@/lib/temporal', () => ({
+  listEvalRuns: (...args: unknown[]) => mockListEvalRuns(...args),
+  startEvalRunWorkflow: (...args: unknown[]) => mockStartEvalRunWorkflow(...args),
+  getWorkflowStatus: (...args: unknown[]) => mockGetWorkflowStatus(...args),
+  cancelWorkflow: (...args: unknown[]) => mockCancelWorkflow(...args),
+  pauseEvalRun: (...args: unknown[]) => mockPauseEvalRun(...args),
+  resumeEvalRun: (...args: unknown[]) => mockResumeEvalRun(...args),
+}))
+
+// =============================================================================
+// Mock: PostgreSQL (pg)
+// =============================================================================
+
+const mockPgQuery = vi.fn()
+
+vi.mock('pg', () => {
+  return {
+    Pool: class MockPool {
+      query = (...args: unknown[]) => mockPgQuery(...args)
+      on = vi.fn()
+    },
+  }
+})
+
+// =============================================================================
+// Mock: Database (drizzle) - needed for auth module imports
+// =============================================================================
+
+vi.mock('@/lib/db', () => ({
+  db: {
+    query: { apiKeys: { findFirst: vi.fn() } },
+    update: vi.fn(() => ({ set: vi.fn(() => ({ where: vi.fn(() => ({ catch: vi.fn() })) })) })),
+  },
+  apiKeys: {},
+}))
+
+vi.mock('@/lib/db/permissions', () => ({
+  hasWorkspacePermission: vi.fn(),
+}))
 
 // =============================================================================
 // Mock Helpers
 // =============================================================================
 
-/**
- * Create a mock NextRequest
- */
 function createMockRequest(
   url: string,
   options: {
@@ -115,664 +194,655 @@ function createMockRequest(
   } = {},
 ): NextRequest {
   const { method = 'GET', headers = {}, body } = options
-
   const requestHeaders = new Headers()
   for (const [key, value] of Object.entries(headers)) {
     requestHeaders.set(key, value)
   }
 
-  const request = {
+  return {
     method,
     headers: requestHeaders,
     nextUrl: new URL(url, 'http://localhost:3000'),
     url: new URL(url, 'http://localhost:3000').toString(),
     json: () => Promise.resolve(body),
   } as unknown as NextRequest
-
-  // Add nextUrl.searchParams
-  Object.defineProperty(request.nextUrl, 'searchParams', {
-    get: () => new URL(url, 'http://localhost:3000').searchParams,
-  })
-
-  return request
-}
-
-/**
- * Create mock request with User A's API key
- */
-function createRequestWithKeyA(
-  url: string,
-  options: {
-    method?: string
-    headers?: Record<string, string>
-    body?: unknown
-  } = {},
-): NextRequest {
-  return createMockRequest(url, {
-    ...options,
-    headers: {
-      'x-api-key': TEST_API_KEYS.keyA.rawKey,
-      ...options.headers,
-    },
-  })
-}
-
-/**
- * Create mock request with User B's API key
- */
-function createRequestWithKeyB(
-  url: string,
-  options: {
-    method?: string
-    headers?: Record<string, string>
-    body?: unknown
-  } = {},
-): NextRequest {
-  return createMockRequest(url, {
-    ...options,
-    headers: {
-      'x-api-key': TEST_API_KEYS.keyB.rawKey,
-      ...options.headers,
-    },
-  })
 }
 
 // =============================================================================
-// Mock Database & Services
+// Import Route Handlers (after mocks are set up)
 // =============================================================================
 
-// Mock the auth middleware module
-vi.mock('@/lib/middleware/auth', () => ({
-  authenticate: vi.fn(),
-  withAuth: vi.fn((handler, _options) => handler),
-}))
+// These dynamic imports ensure mocks are in place before module evaluation.
+// We import inside each describe block or use top-level await.
 
-// Mock the permissions module
-vi.mock('@/lib/db/permissions', () => ({
-  hasWorkspacePermission: vi.fn(),
-  canAccessWorkspace: vi.fn(),
-  getWorkspaceRole: vi.fn(),
-  getEffectiveWorkspaceRole: vi.fn(),
-}))
+async function getTracesHandlers() {
+  const mod = await import('@/app/api/traces/route')
+  return { GET: mod.GET }
+}
 
-// Mock the database module
-vi.mock('@/lib/db', () => ({
-  db: {
-    query: {
-      apiKeys: {
-        findFirst: vi.fn(),
-      },
-      workspaceMembers: {
-        findFirst: vi.fn(),
-      },
-      workspaces: {
-        findFirst: vi.fn(),
-      },
-      orgMembers: {
-        findFirst: vi.fn(),
-      },
-    },
-    update: vi.fn(() => ({
-      set: vi.fn(() => ({
-        where: vi.fn(() => ({
-          catch: vi.fn(),
-        })),
-      })),
-    })),
-  },
-  apiKeys: {},
-  workspaceMembers: {},
-  workspaces: {},
-  orgMembers: {},
-}))
+async function getTraceDetailHandlers() {
+  const mod = await import('@/app/api/traces/[id]/route')
+  return { GET: mod.GET }
+}
 
-// Mock ClickHouse
-vi.mock('@/lib/clickhouse', () => ({
-  queryTraces: vi.fn(),
-  getTraceWithSpans: vi.fn(),
-  getTraceWithSpanSummaries: vi.fn(),
-  getScoresForTrace: vi.fn(),
-}))
+async function getV1TracesHandlers() {
+  const mod = await import('@/app/api/v1/traces/route')
+  return { POST: mod.POST }
+}
 
-// Mock Temporal
-vi.mock('@/lib/temporal', () => ({
-  listEvalRuns: vi.fn(),
-  startEvalRunWorkflow: vi.fn(),
-  getWorkflowStatus: vi.fn(),
-  cancelWorkflow: vi.fn(),
-}))
+async function getRunsHandlers() {
+  const mod = await import('@/app/api/runs/route')
+  return { GET: mod.GET, POST: mod.POST }
+}
+
+async function getRunDetailHandlers() {
+  const mod = await import('@/app/api/runs/[id]/route')
+  return { GET: mod.GET, DELETE: mod.DELETE }
+}
+
+async function getSuitesHandlers() {
+  const mod = await import('@/app/api/suites/route')
+  return { GET: mod.GET, POST: mod.POST }
+}
+
+async function getSuiteDetailHandlers() {
+  const mod = await import('@/app/api/suites/[id]/route')
+  return { GET: mod.GET, PATCH: mod.PATCH, DELETE: mod.DELETE }
+}
 
 // =============================================================================
-// Test Suite: Authentication Requirements
+// Tests
+// =============================================================================
+
+beforeEach(() => {
+  vi.clearAllMocks()
+  mockAuthenticate.mockResolvedValue(null) // Default: unauthenticated
+})
+
+afterEach(() => {
+  vi.restoreAllMocks()
+})
+
+// =============================================================================
+// Authentication: All endpoints reject unauthenticated requests
 // =============================================================================
 
 describe('Authentication Requirements', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
+  it('GET /api/traces returns 401 without auth', async () => {
+    const { GET } = await getTracesHandlers()
+    const req = createMockRequest('/api/traces')
+    const res = await GET(req)
+    expect(res.status).toBe(401)
+    const body = await res.json()
+    expect(body.error).toBe('Unauthorized')
   })
 
-  afterEach(() => {
-    vi.restoreAllMocks()
+  it('GET /api/traces/:id returns 401 without auth', async () => {
+    const { GET } = await getTraceDetailHandlers()
+    const req = createMockRequest('/api/traces/some-id')
+    const res = await GET(req, { params: Promise.resolve({ id: 'some-id' }) })
+    expect(res.status).toBe(401)
   })
 
-  describe('Unauthenticated Requests', () => {
-    it('should reject requests without authentication on protected endpoints', async () => {
-      // This test verifies that API endpoints require authentication
-      // Currently, the endpoints accept requests without auth - this is a security issue
-
-      const protectedEndpoints = [
-        '/api/traces',
-        '/api/traces/some-trace-id',
-        '/api/runs',
-        '/api/runs/some-run-id',
-        '/api/suites',
-        '/api/suites/some-suite-id',
-      ]
-
-      // SECURITY FINDING: These endpoints should return 401 without authentication
-      // Currently they don't use the withAuth middleware
-      for (const endpoint of protectedEndpoints) {
-        const request = createMockRequest(endpoint)
-        // Test expectation: unauthenticated requests should be rejected
-        expect(request.headers.get('authorization')).toBeNull()
-        expect(request.headers.get('x-api-key')).toBeNull()
-      }
+  it('POST /api/v1/traces returns 401 without auth', async () => {
+    const { POST } = await getV1TracesHandlers()
+    const req = createMockRequest('/api/v1/traces', {
+      method: 'POST',
+      body: { resourceSpans: [] },
     })
+    const res = await POST(req)
+    expect(res.status).toBe(401)
   })
 
-  describe('Invalid Authentication', () => {
-    it('should reject requests with invalid API key format', async () => {
-      const invalidKeys = [
-        'invalid-key',
-        'ae_only_two_parts',
-        'not_ae_prefix_key',
-        '',
-        'ae_test_', // Missing random part
-      ]
+  it('GET /api/runs returns 401 without auth', async () => {
+    const { GET } = await getRunsHandlers()
+    const req = createMockRequest('/api/runs')
+    const res = await GET(req)
+    expect(res.status).toBe(401)
+  })
 
-      for (const invalidKey of invalidKeys) {
-        const request = createMockRequest('/api/traces', {
-          headers: { 'x-api-key': invalidKey },
-        })
-        // API key format should be: ae_<env>_<32-char-random>
-        const key = request.headers.get('x-api-key')
-        const parts = key?.split('_') || []
-        const isValidFormat =
-          parts.length === 3 &&
-          parts[0] === 'ae' &&
-          parts[2] !== undefined &&
-          parts[2].length >= 32
+  it('POST /api/runs returns 401 without auth', async () => {
+    const { POST } = await getRunsHandlers()
+    const req = createMockRequest('/api/runs', { method: 'POST', body: {} })
+    const res = await POST(req)
+    expect(res.status).toBe(401)
+  })
 
-        expect(isValidFormat).toBe(false)
-      }
+  it('GET /api/runs/:id returns 401 without auth', async () => {
+    const { GET } = await getRunDetailHandlers()
+    const req = createMockRequest('/api/runs/some-id')
+    const res = await GET(req, { params: Promise.resolve({ id: 'some-id' }) })
+    expect(res.status).toBe(401)
+  })
+
+  it('DELETE /api/runs/:id returns 401 without auth', async () => {
+    const { DELETE } = await getRunDetailHandlers()
+    const req = createMockRequest('/api/runs/some-id', { method: 'DELETE' })
+    const res = await DELETE(req, { params: Promise.resolve({ id: 'some-id' }) })
+    expect(res.status).toBe(401)
+  })
+
+  it('GET /api/suites returns 401 without auth', async () => {
+    const { GET } = await getSuitesHandlers()
+    const req = createMockRequest('/api/suites')
+    const res = await GET(req)
+    expect(res.status).toBe(401)
+  })
+
+  it('POST /api/suites returns 401 without auth', async () => {
+    const { POST } = await getSuitesHandlers()
+    const req = createMockRequest('/api/suites', { method: 'POST', body: {} })
+    const res = await POST(req)
+    expect(res.status).toBe(401)
+  })
+
+  it('GET /api/suites/:id returns 401 without auth', async () => {
+    const { GET } = await getSuiteDetailHandlers()
+    const req = createMockRequest('/api/suites/a0000000-0000-0000-0000-000000000001')
+    const res = await GET(req, {
+      params: Promise.resolve({ id: 'a0000000-0000-0000-0000-000000000001' }),
     })
+    expect(res.status).toBe(401)
+  })
 
-    it('should reject requests with expired API keys', async () => {
-      // An expired API key should not grant access
-      const expiredKey = {
-        ...TEST_API_KEYS.keyA,
-        expiresAt: new Date(Date.now() - 86400000).toISOString(), // Expired yesterday
-      }
-
-      // The auth middleware should check expiresAt and reject expired keys
-      expect(new Date(expiredKey.expiresAt).getTime()).toBeLessThan(Date.now())
+  it('PATCH /api/suites/:id returns 401 without auth', async () => {
+    const { PATCH } = await getSuiteDetailHandlers()
+    const req = createMockRequest('/api/suites/a0000000-0000-0000-0000-000000000001', {
+      method: 'PATCH',
+      body: { name: 'hacked' },
     })
+    const res = await PATCH(req, {
+      params: Promise.resolve({ id: 'a0000000-0000-0000-0000-000000000001' }),
+    })
+    expect(res.status).toBe(401)
+  })
+
+  it('DELETE /api/suites/:id returns 401 without auth', async () => {
+    const { DELETE } = await getSuiteDetailHandlers()
+    const req = createMockRequest('/api/suites/a0000000-0000-0000-0000-000000000001', {
+      method: 'DELETE',
+    })
+    const res = await DELETE(req, {
+      params: Promise.resolve({ id: 'a0000000-0000-0000-0000-000000000001' }),
+    })
+    expect(res.status).toBe(401)
   })
 })
 
 // =============================================================================
-// Test Suite: Workspace Isolation
+// Workspace Isolation: Traces
 // =============================================================================
 
-describe('Workspace Isolation', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
+describe('Workspace Isolation - Traces', () => {
+  it('GET /api/traces uses auth.workspaceId, not x-project-id header', async () => {
+    mockAuthenticate.mockResolvedValue(AUTH_RESULT_A)
+    mockQueryTraces.mockResolvedValue([])
+
+    const { GET } = await getTracesHandlers()
+    const req = createMockRequest('/api/traces', {
+      headers: { 'x-project-id': TEST_WORKSPACES.workspaceB.id },
+    })
+    const res = await GET(req)
+    expect(res.status).toBe(200)
+
+    // Verify queryTraces was called with workspace A, NOT workspace B from header
+    expect(mockQueryTraces).toHaveBeenCalledWith(
+      expect.objectContaining({ projectId: TEST_WORKSPACES.workspaceA.id }),
+    )
   })
 
-  describe('Traces API - /api/traces', () => {
-    it('should only return traces from the authenticated workspace', async () => {
-      // SECURITY REQUIREMENT:
-      // User A with keyA should only see traces from workspaceA
-      // The traces query should filter by workspace/project_id from the API key
+  it('GET /api/traces ignores project_id query param, uses auth workspace', async () => {
+    mockAuthenticate.mockResolvedValue(AUTH_RESULT_A)
+    mockQueryTraces.mockResolvedValue([])
 
-      const requestA = createRequestWithKeyA('/api/traces')
+    const { GET } = await getTracesHandlers()
+    const req = createMockRequest(`/api/traces?project_id=${TEST_WORKSPACES.workspaceB.id}`)
+    const res = await GET(req)
+    expect(res.status).toBe(200)
 
-      // The API should use the workspace_id from the API key for filtering
-      // Currently it uses a default or accepts any project_id - THIS IS A VULNERABILITY
-      expect(requestA.headers.get('x-api-key')).toBe(TEST_API_KEYS.keyA.rawKey)
-    })
-
-    it('should not allow User A to access User B traces via project_id manipulation', async () => {
-      // SECURITY TEST: Even if user provides a different project_id,
-      // the API should validate ownership
-
-      const requestA = createRequestWithKeyA(
-        `/api/traces?project_id=${TEST_WORKSPACES.workspaceB.id}`,
-      )
-
-      // This request attempts to access workspaceB's data with keyA
-      // The API should reject this or ignore the project_id parameter
-      const claimedProjectId =
-        requestA.nextUrl.searchParams.get('project_id')
-      const apiKeyWorkspace = TEST_API_KEYS.keyA.workspaceId
-
-      // SECURITY FINDING: The claimed project_id doesn't match the API key's workspace
-      expect(claimedProjectId).not.toBe(apiKeyWorkspace)
-    })
-
-    it('should not allow header injection to override workspace', async () => {
-      // SECURITY TEST: x-project-id header should not override API key workspace
-
-      const requestA = createRequestWithKeyA('/api/traces', {
-        headers: {
-          'x-project-id': TEST_WORKSPACES.workspaceB.id,
-        },
-      })
-
-      // The API should use the workspace from the API key, not from headers
-      expect(requestA.headers.get('x-project-id')).toBe(
-        TEST_WORKSPACES.workspaceB.id,
-      )
-      // But the API key belongs to workspace A
-      expect(TEST_API_KEYS.keyA.workspaceId).toBe(TEST_WORKSPACES.workspaceA.id)
-
-      // SECURITY FINDING: Header injection could bypass workspace isolation
-    })
+    expect(mockQueryTraces).toHaveBeenCalledWith(
+      expect.objectContaining({ projectId: TEST_WORKSPACES.workspaceA.id }),
+    )
   })
 
-  describe('Traces API - /api/traces/:id', () => {
-    it('should not allow User A to access User B specific trace by ID', async () => {
-      // SECURITY TEST: Direct access to trace by ID should validate workspace ownership
-
-      const requestA = createRequestWithKeyA(
-        `/api/traces/${TEST_RESOURCES.traceB.id}`,
-      )
-
-      // User A trying to access trace B (which belongs to workspace B)
-      // This should be rejected
-      expect(TEST_API_KEYS.keyA.workspaceId).not.toBe(
-        TEST_RESOURCES.traceB.projectId,
-      )
+  it('GET /api/traces/:id uses auth workspace for data lookup', async () => {
+    mockAuthenticate.mockResolvedValue(AUTH_RESULT_A)
+    mockGetTraceWithSpanSummaries.mockResolvedValue({
+      trace: { trace_id: 'trace-1' },
+      spans: [],
     })
+    mockGetScoresForTrace.mockResolvedValue([])
+
+    const { GET } = await getTraceDetailHandlers()
+    const req = createMockRequest('/api/traces/trace-1')
+    const res = await GET(req, { params: Promise.resolve({ id: 'trace-1' }) })
+    expect(res.status).toBe(200)
+
+    // ClickHouse query should use workspace A
+    expect(mockGetTraceWithSpanSummaries).toHaveBeenCalledWith(
+      TEST_WORKSPACES.workspaceA.id,
+      'trace-1',
+    )
   })
 
-  describe('Runs API - /api/runs', () => {
-    it('should only return runs from the authenticated workspace', async () => {
-      // SECURITY REQUIREMENT:
-      // The runs API should filter by workspace
+  it('POST /api/v1/traces uses auth workspace for ingestion', async () => {
+    mockAuthenticate.mockResolvedValue(AUTH_RESULT_A)
+    mockInsertTraces.mockResolvedValue(undefined)
+    mockInsertSpans.mockResolvedValue(undefined)
 
-      const requestA = createRequestWithKeyA('/api/runs')
-
-      // Currently the runs API doesn't filter by workspace at all
-      // This is a security vulnerability
-      expect(requestA.headers.get('x-api-key')).toBe(TEST_API_KEYS.keyA.rawKey)
+    const { POST } = await getV1TracesHandlers()
+    const req = createMockRequest('/api/v1/traces', {
+      method: 'POST',
+      body: {
+        resourceSpans: [
+          {
+            scopeSpans: [
+              {
+                spans: [
+                  {
+                    traceId: 'abc123',
+                    spanId: 'span1',
+                    name: 'test-span',
+                    startTimeUnixNano: '1000000000000000',
+                    endTimeUnixNano: '2000000000000000',
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
     })
 
-    it('should reject run creation for different workspace project', async () => {
-      // SECURITY TEST: Cannot create run with different projectId
+    const res = await POST(req)
+    expect(res.status).toBe(200)
 
-      const requestA = createRequestWithKeyA('/api/runs', {
-        method: 'POST',
-        body: {
-          projectId: TEST_WORKSPACES.workspaceB.id, // Trying to use workspace B
-          agentId: 'some-agent',
-          dataset: { items: [{ input: 'test' }] },
-          scorers: ['tool_selection'],
-        },
-      })
-
-      // The API should reject this because keyA doesn't have access to workspaceB
-      expect(TEST_API_KEYS.keyA.workspaceId).not.toBe(
-        TEST_WORKSPACES.workspaceB.id,
-      )
-    })
+    // All inserted spans should use workspace A as project_id
+    expect(mockInsertSpans).toHaveBeenCalledWith(
+      expect.arrayContaining([
+        expect.objectContaining({ project_id: TEST_WORKSPACES.workspaceA.id }),
+      ]),
+    )
   })
 
-  describe('Runs API - /api/runs/:id', () => {
-    it('should validate workspace ownership before returning run details', async () => {
-      // SECURITY REQUIREMENT: Cannot access run from another workspace
+  it('no default project_id fallback exists in traces', async () => {
+    mockAuthenticate.mockResolvedValue(AUTH_RESULT_A)
+    mockQueryTraces.mockResolvedValue([])
 
-      // This test would need run-to-workspace mapping
-      // The current implementation doesn't validate workspace ownership
-      expect(true).toBe(true)
-    })
+    const { GET } = await getTracesHandlers()
+    const req = createMockRequest('/api/traces')
+    await GET(req)
 
-    it('should not allow canceling runs from other workspaces', async () => {
-      // SECURITY TEST: Cannot DELETE (cancel) a run that belongs to another workspace
-
-      const requestA = createRequestWithKeyA('/api/runs/other-workspace-run', {
-        method: 'DELETE',
-      })
-
-      // Should validate that the run belongs to keyA's workspace
-      expect(requestA.method).toBe('DELETE')
-    })
-  })
-
-  describe('Suites API - /api/suites', () => {
-    it('should only return suites from the authenticated workspace', async () => {
-      // SECURITY REQUIREMENT: Filter suites by workspace
-
-      const requestA = createRequestWithKeyA('/api/suites')
-
-      // The API should automatically filter by the workspace from the API key
-      // Currently it accepts any project_id parameter
-      expect(requestA.headers.get('x-api-key')).toBe(TEST_API_KEYS.keyA.rawKey)
-    })
-
-    it('should not allow creating suite in different workspace', async () => {
-      // SECURITY TEST: Cannot create suite with different project_id
-
-      const requestA = createRequestWithKeyA('/api/suites', {
-        method: 'POST',
-        body: {
-          name: 'Malicious Suite',
-          project_id: TEST_WORKSPACES.workspaceB.id, // Trying to use workspace B
-        },
-      })
-
-      // The API should reject this because keyA belongs to workspace A
-      expect(TEST_API_KEYS.keyA.workspaceId).not.toBe(
-        TEST_WORKSPACES.workspaceB.id,
-      )
-    })
-  })
-
-  describe('Suites API - /api/suites/:id', () => {
-    it('should not allow User A to read User B suite', async () => {
-      // SECURITY TEST: Cannot access suite from another workspace by ID
-
-      const requestA = createRequestWithKeyA(
-        `/api/suites/${TEST_RESOURCES.suiteB.id}`,
-      )
-
-      // User A trying to access suite B (which belongs to workspace B)
-      expect(TEST_API_KEYS.keyA.workspaceId).not.toBe(
-        TEST_RESOURCES.suiteB.projectId,
-      )
-    })
-
-    it('should not allow User A to update User B suite', async () => {
-      // SECURITY TEST: Cannot PATCH suite from another workspace
-
-      const requestA = createRequestWithKeyA(
-        `/api/suites/${TEST_RESOURCES.suiteB.id}`,
-        {
-          method: 'PATCH',
-          body: { name: 'Hacked Suite Name' },
-        },
-      )
-
-      expect(requestA.method).toBe('PATCH')
-      expect(TEST_API_KEYS.keyA.workspaceId).not.toBe(
-        TEST_RESOURCES.suiteB.projectId,
-      )
-    })
-
-    it('should not allow User A to delete User B suite', async () => {
-      // SECURITY TEST: Cannot DELETE suite from another workspace
-
-      const requestA = createRequestWithKeyA(
-        `/api/suites/${TEST_RESOURCES.suiteB.id}`,
-        {
-          method: 'DELETE',
-        },
-      )
-
-      expect(requestA.method).toBe('DELETE')
-      expect(TEST_API_KEYS.keyA.workspaceId).not.toBe(
-        TEST_RESOURCES.suiteB.projectId,
-      )
-    })
+    // Should NEVER use the old hardcoded default UUID
+    const calledProjectId = mockQueryTraces.mock.calls[0]?.[0]?.projectId
+    expect(calledProjectId).not.toBe('00000000-0000-0000-0000-000000000001')
+    expect(calledProjectId).toBe(TEST_WORKSPACES.workspaceA.id)
   })
 })
 
 // =============================================================================
-// Test Suite: Database Query Filtering
+// Workspace Isolation: Runs
 // =============================================================================
 
-describe('Database Query Filtering', () => {
-  describe('ClickHouse Queries', () => {
-    it('should always include project_id filter in trace queries', async () => {
-      // SECURITY REQUIREMENT:
-      // All ClickHouse queries must filter by project_id/workspace_id
-      // This should be enforced at the query level
+describe('Workspace Isolation - Runs', () => {
+  it('GET /api/runs requires workspace context', async () => {
+    mockAuthenticate.mockResolvedValue(AUTH_RESULT_A)
+    mockListEvalRuns.mockResolvedValue([])
 
-      const queryTraces = await import('@/lib/clickhouse').then(
-        (m) => m.queryTraces,
-      )
-
-      // The queryTraces function should require projectId
-      expect(queryTraces).toBeDefined()
-    })
-
-    it('should validate project_id ownership before querying', async () => {
-      // SECURITY REQUIREMENT:
-      // Before executing any ClickHouse query, validate that
-      // the authenticated user has access to the project_id
-
-      // This validation should happen in the API route handler
-      expect(true).toBe(true)
-    })
+    const { GET } = await getRunsHandlers()
+    const req = createMockRequest('/api/runs')
+    const res = await GET(req)
+    expect(res.status).toBe(200)
   })
 
-  describe('PostgreSQL Queries', () => {
-    it('should always include workspace_id filter in suite queries', async () => {
-      // SECURITY REQUIREMENT:
-      // All PostgreSQL queries for suites should filter by project_id (workspace)
+  it('POST /api/runs rejects mismatched projectId', async () => {
+    mockAuthenticate.mockResolvedValue(AUTH_RESULT_A)
 
-      // The current implementation accepts any project_id from query params
-      // It should use the workspace_id from the authenticated API key
-      expect(true).toBe(true)
+    const { POST } = await getRunsHandlers()
+    const req = createMockRequest('/api/runs', {
+      method: 'POST',
+      body: {
+        projectId: TEST_WORKSPACES.workspaceB.id, // Wrong workspace!
+        agentId: 'agent-1',
+        dataset: { items: [{ input: 'test' }] },
+        scorers: ['tool_selection'],
+      },
     })
 
-    it('should validate foreign key ownership before suite operations', async () => {
-      // SECURITY REQUIREMENT:
-      // When fetching suite by ID, validate that the suite's project_id
-      // matches the authenticated workspace
+    const res = await POST(req)
+    expect(res.status).toBe(403)
+    const body = await res.json()
+    expect(body.error).toMatch(/does not match/)
+  })
 
-      expect(true).toBe(true)
+  it('POST /api/runs uses auth workspace as projectId', async () => {
+    mockAuthenticate.mockResolvedValue(AUTH_RESULT_A)
+    mockStartEvalRunWorkflow.mockResolvedValue({
+      runId: 'run-1',
+      workflowId: 'eval-run-run-1',
     })
+
+    const { POST } = await getRunsHandlers()
+    const req = createMockRequest('/api/runs', {
+      method: 'POST',
+      body: {
+        agentId: 'agent-1',
+        dataset: { items: [{ input: 'test' }] },
+        scorers: ['tool_selection'],
+      },
+    })
+
+    const res = await POST(req)
+    expect(res.status).toBe(200)
+
+    // Workflow should be started with workspace A's project ID
+    expect(mockStartEvalRunWorkflow).toHaveBeenCalledWith(
+      expect.objectContaining({ projectId: TEST_WORKSPACES.workspaceA.id }),
+    )
+  })
+
+  it('GET /api/runs/:id requires auth', async () => {
+    mockAuthenticate.mockResolvedValue(AUTH_RESULT_A)
+    mockGetWorkflowStatus.mockResolvedValue({
+      runId: 'run-1',
+      workflowId: 'eval-run-run-1',
+      status: 'COMPLETED',
+    })
+
+    const { GET } = await getRunDetailHandlers()
+    const req = createMockRequest('/api/runs/run-1')
+    const res = await GET(req, { params: Promise.resolve({ id: 'run-1' }) })
+    expect(res.status).toBe(200)
+  })
+
+  it('DELETE /api/runs/:id requires auth', async () => {
+    mockAuthenticate.mockResolvedValue(AUTH_RESULT_A)
+    mockGetWorkflowStatus.mockResolvedValue({
+      runId: 'run-1',
+      workflowId: 'eval-run-run-1',
+      status: 'RUNNING',
+    })
+    mockCancelWorkflow.mockResolvedValue(undefined)
+
+    const { DELETE } = await getRunDetailHandlers()
+    const req = createMockRequest('/api/runs/run-1', { method: 'DELETE' })
+    const res = await DELETE(req, { params: Promise.resolve({ id: 'run-1' }) })
+    expect(res.status).toBe(200)
   })
 })
 
 // =============================================================================
-// Test Suite: Permission Levels
+// Workspace Isolation: Suites
 // =============================================================================
 
-describe('Permission Levels', () => {
-  describe('Workspace Roles', () => {
-    it('should respect viewer role limitations', async () => {
-      // SECURITY REQUIREMENT:
-      // Viewers can only read, not write
+describe('Workspace Isolation - Suites', () => {
+  it('GET /api/suites filters by auth workspace, ignoring query param', async () => {
+    mockAuthenticate.mockResolvedValue(AUTH_RESULT_A)
+    mockPgQuery
+      .mockResolvedValueOnce({ rows: [] }) // SELECT suites
+      .mockResolvedValueOnce({ rows: [{ count: '0' }] }) // COUNT
 
-      // Viewer scopes should only include 'read'
-      const viewerApiKey = {
-        ...TEST_API_KEYS.keyA,
-        scopes: ['read'],
-      }
+    const { GET } = await getSuitesHandlers()
+    const req = createMockRequest(`/api/suites?project_id=${TEST_WORKSPACES.workspaceB.id}`)
+    const res = await GET(req)
+    expect(res.status).toBe(200)
 
-      expect(viewerApiKey.scopes).not.toContain('write')
+    // The SQL query should filter by workspace A, not B from query param
+    const selectCall = mockPgQuery.mock.calls[0]
+    expect(selectCall[0]).toContain('WHERE project_id = $1')
+    expect(selectCall[1][0]).toBe(TEST_WORKSPACES.workspaceA.id)
+  })
+
+  it('POST /api/suites auto-sets project_id from auth workspace', async () => {
+    mockAuthenticate.mockResolvedValue(AUTH_RESULT_A)
+    mockPgQuery.mockResolvedValue({
+      rows: [{ ...TEST_RESOURCES.suiteA, project_id: TEST_WORKSPACES.workspaceA.id }],
     })
 
-    it('should respect member role permissions', async () => {
-      // Members can read and write but not manage API keys or members
-
-      const memberApiKey = {
-        ...TEST_API_KEYS.keyA,
-        scopes: ['read', 'write'],
-      }
-
-      expect(memberApiKey.scopes).toContain('read')
-      expect(memberApiKey.scopes).toContain('write')
-      expect(memberApiKey.scopes).not.toContain('admin')
+    const { POST } = await getSuitesHandlers()
+    const req = createMockRequest('/api/suites', {
+      method: 'POST',
+      body: { name: 'New Suite' },
     })
 
-    it('should validate write permission for POST/PATCH/DELETE', async () => {
-      // SECURITY REQUIREMENT:
-      // Write operations should require 'write' scope
+    const res = await POST(req)
+    expect(res.status).toBe(201)
 
-      const mutatingMethods = ['POST', 'PATCH', 'DELETE', 'PUT']
+    // INSERT should use workspace A as project_id
+    const insertCall = mockPgQuery.mock.calls[0]
+    expect(insertCall[1][0]).toBe(TEST_WORKSPACES.workspaceA.id) // $1 = project_id
+  })
 
-      for (const method of mutatingMethods) {
-        // These methods should require 'write' scope in the API key
-        expect(mutatingMethods).toContain(method)
-      }
+  it('POST /api/suites rejects mismatched project_id in body', async () => {
+    mockAuthenticate.mockResolvedValue(AUTH_RESULT_A)
+
+    const { POST } = await getSuitesHandlers()
+    const req = createMockRequest('/api/suites', {
+      method: 'POST',
+      body: {
+        name: 'Malicious Suite',
+        project_id: TEST_WORKSPACES.workspaceB.id, // Wrong workspace!
+      },
     })
+
+    const res = await POST(req)
+    expect(res.status).toBe(403)
+    const body = await res.json()
+    expect(body.error).toMatch(/does not match/)
+  })
+
+  it('GET /api/suites/:id returns 404 for suite belonging to different workspace', async () => {
+    mockAuthenticate.mockResolvedValue(AUTH_RESULT_A)
+    // Suite B exists but belongs to workspace B
+    mockPgQuery.mockResolvedValue({ rows: [TEST_RESOURCES.suiteB] })
+
+    const { GET } = await getSuiteDetailHandlers()
+    const req = createMockRequest(`/api/suites/${TEST_RESOURCES.suiteB.id}`)
+    const res = await GET(req, {
+      params: Promise.resolve({ id: TEST_RESOURCES.suiteB.id }),
+    })
+
+    // Should return 404 (not 403) to prevent enumeration
+    expect(res.status).toBe(404)
+  })
+
+  it('GET /api/suites/:id succeeds for suite in own workspace', async () => {
+    mockAuthenticate.mockResolvedValue(AUTH_RESULT_A)
+    mockPgQuery.mockResolvedValue({ rows: [TEST_RESOURCES.suiteA] })
+
+    const { GET } = await getSuiteDetailHandlers()
+    const req = createMockRequest(`/api/suites/${TEST_RESOURCES.suiteA.id}`)
+    const res = await GET(req, {
+      params: Promise.resolve({ id: TEST_RESOURCES.suiteA.id }),
+    })
+
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body.project_id).toBe(TEST_WORKSPACES.workspaceA.id)
+  })
+
+  it('PATCH /api/suites/:id returns 404 for suite in different workspace', async () => {
+    mockAuthenticate.mockResolvedValue(AUTH_RESULT_A)
+    // First query: fetch existing suite (belongs to workspace B)
+    mockPgQuery.mockResolvedValue({ rows: [TEST_RESOURCES.suiteB] })
+
+    const { PATCH } = await getSuiteDetailHandlers()
+    const req = createMockRequest(`/api/suites/${TEST_RESOURCES.suiteB.id}`, {
+      method: 'PATCH',
+      body: { name: 'Hacked Name' },
+    })
+    const res = await PATCH(req, {
+      params: Promise.resolve({ id: TEST_RESOURCES.suiteB.id }),
+    })
+
+    expect(res.status).toBe(404)
+  })
+
+  it('DELETE /api/suites/:id returns 404 for suite in different workspace', async () => {
+    mockAuthenticate.mockResolvedValue(AUTH_RESULT_A)
+    mockPgQuery.mockResolvedValue({
+      rows: [{ id: TEST_RESOURCES.suiteB.id, project_id: TEST_WORKSPACES.workspaceB.id }],
+    })
+
+    const { DELETE } = await getSuiteDetailHandlers()
+    const req = createMockRequest(`/api/suites/${TEST_RESOURCES.suiteB.id}`, {
+      method: 'DELETE',
+    })
+    const res = await DELETE(req, {
+      params: Promise.resolve({ id: TEST_RESOURCES.suiteB.id }),
+    })
+
+    expect(res.status).toBe(404)
+  })
+
+  it('DELETE /api/suites/:id succeeds for suite in own workspace', async () => {
+    mockAuthenticate.mockResolvedValue(AUTH_RESULT_A)
+    mockPgQuery
+      .mockResolvedValueOnce({
+        rows: [{ id: TEST_RESOURCES.suiteA.id, project_id: TEST_WORKSPACES.workspaceA.id }],
+      }) // SELECT check
+      .mockResolvedValueOnce({ rows: [] }) // DELETE
+
+    const { DELETE } = await getSuiteDetailHandlers()
+    const req = createMockRequest(`/api/suites/${TEST_RESOURCES.suiteA.id}`, {
+      method: 'DELETE',
+    })
+    const res = await DELETE(req, {
+      params: Promise.resolve({ id: TEST_RESOURCES.suiteA.id }),
+    })
+
+    expect(res.status).toBe(204)
   })
 })
 
 // =============================================================================
-// Test Suite: Cross-Tenant Data Leakage Prevention
+// Header Injection Prevention
 // =============================================================================
 
-describe('Cross-Tenant Data Leakage Prevention', () => {
-  it('should not leak data in error messages', async () => {
-    // SECURITY REQUIREMENT:
-    // Error messages should not reveal information about other tenants
+describe('Header Injection Prevention', () => {
+  it('x-project-id header does not override auth workspace for traces', async () => {
+    mockAuthenticate.mockResolvedValue(AUTH_RESULT_A)
+    mockQueryTraces.mockResolvedValue([])
 
-    const sensitivePatterns = [
-      /workspace.*not found/i,
-      /user.*not found/i,
-      /organization.*not found/i,
-      /project.*not found/i,
-    ]
+    const { GET } = await getTracesHandlers()
+    const req = createMockRequest('/api/traces', {
+      headers: { 'x-project-id': TEST_WORKSPACES.workspaceB.id },
+    })
+    await GET(req)
 
-    // Error messages should be generic, like "Resource not found" or "Access denied"
-    // Not "Workspace 'xyz' not found" which confirms xyz exists
-    for (const pattern of sensitivePatterns) {
-      // Good error messages shouldn't match these patterns with specific IDs
-      const goodErrorMessage = 'Resource not found'
-      expect(pattern.test(goodErrorMessage)).toBe(false)
-    }
+    // Should use workspace A from auth, NOT workspace B from header
+    expect(mockQueryTraces).toHaveBeenCalledWith(
+      expect.objectContaining({ projectId: TEST_WORKSPACES.workspaceA.id }),
+    )
+    expect(mockQueryTraces).not.toHaveBeenCalledWith(
+      expect.objectContaining({ projectId: TEST_WORKSPACES.workspaceB.id }),
+    )
   })
 
-  it('should not allow enumeration attacks via ID guessing', async () => {
-    // SECURITY REQUIREMENT:
-    // The API should return the same error for non-existent vs unauthorized resources
+  it('x-project-id header does not override auth workspace for trace detail', async () => {
+    mockAuthenticate.mockResolvedValue(AUTH_RESULT_A)
+    mockGetTraceWithSpanSummaries.mockResolvedValue({
+      trace: { trace_id: 'trace-1' },
+      spans: [],
+    })
+    mockGetScoresForTrace.mockResolvedValue([])
 
-    // Both "not found" and "not authorized" should return 404 (not 403)
-    // This prevents attackers from knowing if a resource exists
-    const expectedStatus = 404
+    const { GET } = await getTraceDetailHandlers()
+    const req = createMockRequest('/api/traces/trace-1', {
+      headers: { 'x-project-id': TEST_WORKSPACES.workspaceB.id },
+    })
+    await GET(req, { params: Promise.resolve({ id: 'trace-1' }) })
 
-    // When user A tries to access user B's resource:
-    // - If it returns 403: attacker knows the resource exists
-    // - If it returns 404: attacker doesn't know if it exists or is unauthorized
-    expect(expectedStatus).toBe(404)
+    expect(mockGetTraceWithSpanSummaries).toHaveBeenCalledWith(
+      TEST_WORKSPACES.workspaceA.id,
+      'trace-1',
+    )
   })
 
-  it('should use constant-time comparison for API keys', async () => {
-    // SECURITY REQUIREMENT:
-    // API key comparison should be constant-time to prevent timing attacks
+  it('x-project-id header does not override auth workspace for trace ingestion', async () => {
+    mockAuthenticate.mockResolvedValue(AUTH_RESULT_A)
+    mockInsertTraces.mockResolvedValue(undefined)
+    mockInsertSpans.mockResolvedValue(undefined)
 
-    // The auth middleware should use crypto.timingSafeEqual or similar
-    // This prevents attackers from guessing API keys character by character
-    expect(true).toBe(true)
+    const { POST } = await getV1TracesHandlers()
+    const req = createMockRequest('/api/v1/traces', {
+      method: 'POST',
+      headers: { 'x-project-id': TEST_WORKSPACES.workspaceB.id },
+      body: {
+        resourceSpans: [
+          {
+            scopeSpans: [
+              {
+                spans: [
+                  {
+                    traceId: 'abc123',
+                    spanId: 'span1',
+                    name: 'test',
+                    startTimeUnixNano: '1000000000000000',
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    })
+    await POST(req)
+
+    // Inserted spans should use workspace A, not B from header
+    expect(mockInsertSpans).toHaveBeenCalledWith(
+      expect.arrayContaining([
+        expect.objectContaining({ project_id: TEST_WORKSPACES.workspaceA.id }),
+      ]),
+    )
   })
 })
 
 // =============================================================================
-// Test Suite: API Key Scope Enforcement
+// Anti-Enumeration: Consistent 404 responses
 // =============================================================================
 
-describe('API Key Scope Enforcement', () => {
-  it('should enforce read scope for GET requests', async () => {
-    // API keys with 'read' scope should be able to GET resources
-    const readOnlyKey = {
-      ...TEST_API_KEYS.keyA,
-      scopes: ['read'],
-    }
+describe('Anti-Enumeration Protection', () => {
+  it('returns 404 (not 403) when accessing suite in another workspace', async () => {
+    mockAuthenticate.mockResolvedValue(AUTH_RESULT_A)
+    mockPgQuery.mockResolvedValue({ rows: [TEST_RESOURCES.suiteB] })
 
-    expect(readOnlyKey.scopes).toContain('read')
+    const { GET } = await getSuiteDetailHandlers()
+    const res = await GET(
+      createMockRequest(`/api/suites/${TEST_RESOURCES.suiteB.id}`),
+      { params: Promise.resolve({ id: TEST_RESOURCES.suiteB.id }) },
+    )
+
+    // Must be 404, not 403 - prevents attackers from confirming resource exists
+    expect(res.status).toBe(404)
+    const body = await res.json()
+    expect(body.error).toBe('Suite not found')
   })
 
-  it('should reject write operations with read-only API key', async () => {
-    // API keys with only 'read' scope should NOT be able to POST/PATCH/DELETE
-    const readOnlyKey = {
-      ...TEST_API_KEYS.keyA,
-      scopes: ['read'],
-    }
+  it('returns same 404 for nonexistent suite and unauthorized suite', async () => {
+    mockAuthenticate.mockResolvedValue(AUTH_RESULT_A)
 
-    expect(readOnlyKey.scopes).not.toContain('write')
-  })
+    const { GET } = await getSuiteDetailHandlers()
 
-  it('should validate scope before allowing trace ingestion', async () => {
-    // SECURITY REQUIREMENT:
-    // POST /api/v1/traces (ingestion endpoint) requires 'write' scope
+    // Nonexistent suite
+    mockPgQuery.mockResolvedValueOnce({ rows: [] })
+    const res1 = await GET(
+      createMockRequest('/api/suites/a0000000-0000-0000-0000-000000000099'),
+      { params: Promise.resolve({ id: 'a0000000-0000-0000-0000-000000000099' }) },
+    )
 
-    // The ingestion endpoint should validate that the API key has write permission
-    expect(true).toBe(true)
-  })
-})
+    // Suite exists but belongs to workspace B
+    mockPgQuery.mockResolvedValueOnce({ rows: [TEST_RESOURCES.suiteB] })
+    const res2 = await GET(
+      createMockRequest(`/api/suites/${TEST_RESOURCES.suiteB.id}`),
+      { params: Promise.resolve({ id: TEST_RESOURCES.suiteB.id }) },
+    )
 
-// =============================================================================
-// Test Suite: Current Security Vulnerabilities
-// =============================================================================
-
-describe('SECURITY FINDINGS - Current Vulnerabilities', () => {
-  /**
-   * These tests document current security vulnerabilities that need to be fixed.
-   * Each test describes what SHOULD happen but currently doesn't.
-   */
-
-  it('VULNERABILITY: /api/traces uses default project_id fallback', () => {
-    // FINDING: The traces API uses a hardcoded default project_id:
-    // '00000000-0000-0000-0000-000000000001'
-    //
-    // This means unauthenticated requests or requests without project_id
-    // will query the default project, potentially exposing data.
-    //
-    // FIX: Remove default project_id, require authentication,
-    // use workspace_id from authenticated API key
-
-    const defaultProjectId = '00000000-0000-0000-0000-000000000001'
-    expect(defaultProjectId).toBeDefined() // This is the vulnerability
-  })
-
-  it('VULNERABILITY: /api/traces does not use withAuth middleware', () => {
-    // FINDING: The traces routes don't use the withAuth middleware
-    // allowing unauthenticated access
-    //
-    // FIX: Wrap route handlers with withAuth:
-    // export const GET = withAuth(async (request, auth) => { ... })
-
-    expect(true).toBe(true)
-  })
-
-  it('VULNERABILITY: /api/runs does not validate workspace ownership', () => {
-    // FINDING: The runs API doesn't filter by workspace
-    // Any authenticated user might see all runs
-    //
-    // FIX: Filter runs by workspace_id from authenticated context
-
-    expect(true).toBe(true)
-  })
-
-  it('VULNERABILITY: /api/suites accepts any project_id from query params', () => {
-    // FINDING: The suites API accepts project_id from query parameters
-    // without validating that the authenticated user has access
-    //
-    // FIX: Ignore query param project_id, use workspace_id from API key
-
-    expect(true).toBe(true)
-  })
-
-  it('VULNERABILITY: /api/suites/:id does not validate project ownership', () => {
-    // FINDING: When fetching a suite by ID, the API doesn't verify
-    // that the suite belongs to the authenticated workspace
-    //
-    // FIX: After fetching suite, verify suite.project_id === auth.workspaceId
-
-    expect(true).toBe(true)
-  })
-
-  it('VULNERABILITY: Header injection allows project_id override', () => {
-    // FINDING: x-project-id header can override the workspace context
-    // allowing users to access resources in other workspaces
-    //
-    // FIX: Ignore x-project-id header when API key is provided,
-    // only use the workspace_id from the API key lookup
-
-    expect(true).toBe(true)
+    // Both should return identical 404 responses
+    expect(res1.status).toBe(404)
+    expect(res2.status).toBe(404)
+    const body1 = await res1.json()
+    const body2 = await res2.json()
+    expect(body1.error).toBe(body2.error)
   })
 })

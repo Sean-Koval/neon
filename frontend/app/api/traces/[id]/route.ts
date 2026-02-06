@@ -4,7 +4,6 @@
  * GET /api/traces/:id - Get single trace with span summaries and scores
  *
  * Query params:
- * - project_id: Project ID (required)
  * - full: If 'true', return full span data (default: 'false' for lazy loading)
  */
 
@@ -16,6 +15,7 @@ import {
   type SpanRecord,
   type SpanSummary,
 } from '@/lib/clickhouse'
+import { withAuth, type AuthResult } from '@/lib/middleware/auth'
 
 /**
  * Build span tree from flat list (works with both full spans and summaries)
@@ -50,32 +50,63 @@ function buildSpanTree<
   return roots
 }
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
-  try {
-    const { id: traceId } = await params
+export const GET = withAuth(
+  async (
+    request: NextRequest,
+    auth: AuthResult,
+    { params }: { params: Promise<{ id: string }> },
+  ) => {
+    try {
+      const { id: traceId } = await params
 
-    // Get project ID from header or query
-    const projectId =
-      request.headers.get('x-project-id') ||
-      request.nextUrl.searchParams.get('project_id') ||
-      '00000000-0000-0000-0000-000000000001'
-
-    // Check if full span data is requested (default: lazy loading with summaries)
-    const fullData = request.nextUrl.searchParams.get('full') === 'true'
-
-    if (fullData) {
-      // Return full span data (backward compatible)
-      const result = await getTraceWithSpans(projectId, traceId)
-
-      if (!result) {
-        return NextResponse.json({ error: 'Trace not found' }, { status: 404 })
+      const projectId = auth.workspaceId
+      if (!projectId) {
+        return NextResponse.json(
+          { error: 'Workspace context required' },
+          { status: 400 },
+        )
       }
 
+      // Check if full span data is requested (default: lazy loading with summaries)
+      const fullData = request.nextUrl.searchParams.get('full') === 'true'
+
+      if (fullData) {
+        // Return full span data (backward compatible)
+        const result = await getTraceWithSpans(projectId, traceId)
+
+        if (!result) {
+          return NextResponse.json(
+            { error: 'Trace not found' },
+            { status: 404 },
+          )
+        }
+
+        const scores = await getScoresForTrace(projectId, traceId)
+        const spanTree = buildSpanTree<SpanRecord>(result.spans)
+
+        return NextResponse.json({
+          trace: result.trace,
+          spans: spanTree,
+          flatSpans: result.spans,
+          scores,
+        })
+      }
+
+      // Return span summaries for lazy loading (default)
+      const result = await getTraceWithSpanSummaries(projectId, traceId)
+
+      if (!result) {
+        return NextResponse.json(
+          { error: 'Trace not found' },
+          { status: 404 },
+        )
+      }
+
+      // Get scores for trace
       const scores = await getScoresForTrace(projectId, traceId)
-      const spanTree = buildSpanTree<SpanRecord>(result.spans)
+
+      // Build span tree from summaries
+      const spanTree = buildSpanTree<SpanSummary>(result.spans)
 
       return NextResponse.json({
         trace: result.trace,
@@ -83,32 +114,12 @@ export async function GET(
         flatSpans: result.spans,
         scores,
       })
+    } catch (error) {
+      console.error('Error getting trace:', error)
+      return NextResponse.json(
+        { error: 'Failed to get trace', details: String(error) },
+        { status: 500 },
+      )
     }
-
-    // Return span summaries for lazy loading (default)
-    const result = await getTraceWithSpanSummaries(projectId, traceId)
-
-    if (!result) {
-      return NextResponse.json({ error: 'Trace not found' }, { status: 404 })
-    }
-
-    // Get scores for trace
-    const scores = await getScoresForTrace(projectId, traceId)
-
-    // Build span tree from summaries
-    const spanTree = buildSpanTree<SpanSummary>(result.spans)
-
-    return NextResponse.json({
-      trace: result.trace,
-      spans: spanTree,
-      flatSpans: result.spans,
-      scores,
-    })
-  } catch (error) {
-    console.error('Error getting trace:', error)
-    return NextResponse.json(
-      { error: 'Failed to get trace', details: String(error) },
-      { status: 500 },
-    )
-  }
-}
+  },
+)

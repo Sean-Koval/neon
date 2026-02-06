@@ -282,11 +282,12 @@ export async function authenticate(
  * }, { requiredPermission: 'workspace:write_traces' });
  * ```
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- route context varies by route
 export function withAuth<T extends AuthResult | null>(
-  handler: (request: NextRequest, auth: T) => Promise<NextResponse>,
+  handler: (request: NextRequest, auth: T, ...args: any[]) => Promise<NextResponse>,
   options: AuthOptions = {}
-): (request: NextRequest) => Promise<NextResponse> {
-  return async (request: NextRequest): Promise<NextResponse> => {
+): (request: NextRequest, ...args: any[]) => Promise<NextResponse> {
+  return async (request: NextRequest, ...args: any[]): Promise<NextResponse> => {
     const auth = await authenticate(request, options)
 
     // If auth is required but not present, return 401
@@ -331,8 +332,8 @@ export function withAuth<T extends AuthResult | null>(
       }
     }
 
-    // Call the actual handler
-    return handler(request, auth as T)
+    // Call the actual handler, passing through route context (e.g., { params })
+    return handler(request, auth as T, ...args)
   }
 }
 

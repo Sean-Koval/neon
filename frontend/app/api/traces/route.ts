@@ -6,17 +6,19 @@
 
 import { type NextRequest, NextResponse } from 'next/server'
 import { queryTraces } from '@/lib/clickhouse'
+import { withAuth, type AuthResult } from '@/lib/middleware/auth'
 
-export async function GET(request: NextRequest) {
+export const GET = withAuth(async (request: NextRequest, auth: AuthResult) => {
   try {
+    const projectId = auth.workspaceId
+    if (!projectId) {
+      return NextResponse.json(
+        { error: 'Workspace context required' },
+        { status: 400 },
+      )
+    }
+
     const searchParams = request.nextUrl.searchParams
-
-    // Get project ID from header or query
-    const projectId =
-      request.headers.get('x-project-id') ||
-      searchParams.get('project_id') ||
-      '00000000-0000-0000-0000-000000000001'
-
     const status = searchParams.get('status') as 'ok' | 'error' | null
     const startDate = searchParams.get('start_date')
     const endDate = searchParams.get('end_date')
@@ -45,4 +47,4 @@ export async function GET(request: NextRequest) {
       { status: 500 },
     )
   }
-}
+})
