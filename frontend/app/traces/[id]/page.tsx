@@ -27,6 +27,7 @@ import {
 import Link from 'next/link'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { useCallback, useMemo, useState } from 'react'
+import { ErrorBoundary } from '@/components/error-boundary'
 import {
   FailureCascade,
   MultiAgentExecutionFlow,
@@ -427,12 +428,12 @@ export default function TraceDetailPage() {
           </button>
         </div>
 
-        {/* Stats row */}
-        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+        {/* Stats row - grid on mobile, flex on desktop */}
+        <div className="grid grid-cols-3 gap-2 sm:flex sm:flex-wrap sm:items-center sm:gap-3">
           {/* Status */}
           <div
             className={clsx(
-              'flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium',
+              'flex items-center justify-center sm:justify-start gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium',
               trace.status === 'ok'
                 ? 'bg-green-100 text-green-700'
                 : 'bg-red-100 text-red-700',
@@ -527,39 +528,58 @@ export default function TraceDetailPage() {
           )}
 
           {/* Timeline, Decision Tree, or Multi-Agent view */}
-          {viewMode === 'timeline' && (
-            <div>
-              <h3 className="text-sm font-semibold text-gray-700 mb-3">
-                Execution Timeline
-                <span className="ml-2 font-normal text-gray-500">
-                  ({spanCounts.total} spans)
-                </span>
-              </h3>
-              <LazyTraceTimeline
-                spans={spans}
-                selectedSpanId={selectedSpanId || undefined}
-                onSpanSelect={(span) => setSelectedSpanId(span.span_id)}
-              />
-            </div>
-          )}
-          {viewMode === 'decisions' && (
-            <div>
-              <h3 className="text-sm font-semibold text-gray-700 mb-3">
-                Decision Tree
-                <span className="ml-2 font-normal text-gray-500">
-                  Agent decision points and outcomes
-                </span>
-              </h3>
-              <DecisionTreeView
-                spans={spans}
-                selectedSpanId={selectedSpanId}
-                onNodeClick={handleDecisionNodeClick}
-              />
-            </div>
-          )}
-          {viewMode === 'multi-agent' && (
-            <MultiAgentView spans={spans} onSpanClick={setSelectedSpanId} />
-          )}
+          <ErrorBoundary
+            fallback={
+              <div className="flex min-h-[200px] flex-col items-center justify-center rounded-lg border border-red-200 bg-red-50 p-6">
+                <h2 className="mb-2 text-lg font-semibold text-red-800">
+                  Something went wrong loading trace data
+                </h2>
+                <p className="text-sm text-red-600">
+                  Try refreshing the page to reload the trace visualization.
+                </p>
+              </div>
+            }
+          >
+            {viewMode === 'timeline' && (
+              <div>
+                <h3 className="text-sm font-semibold text-gray-700 mb-3">
+                  Execution Timeline
+                  <span className="ml-2 font-normal text-gray-500">
+                    ({spanCounts.total} spans)
+                  </span>
+                </h3>
+                {/* Mobile tap hint */}
+                {!selectedSpanId && (
+                  <p className="text-xs text-gray-400 mb-2 lg:hidden">
+                    Tap a span to view details
+                  </p>
+                )}
+                <LazyTraceTimeline
+                  spans={spans}
+                  selectedSpanId={selectedSpanId || undefined}
+                  onSpanSelect={(span) => setSelectedSpanId(span.span_id)}
+                />
+              </div>
+            )}
+            {viewMode === 'decisions' && (
+              <div>
+                <h3 className="text-sm font-semibold text-gray-700 mb-3">
+                  Decision Tree
+                  <span className="ml-2 font-normal text-gray-500">
+                    Agent decision points and outcomes
+                  </span>
+                </h3>
+                <DecisionTreeView
+                  spans={spans}
+                  selectedSpanId={selectedSpanId}
+                  onNodeClick={handleDecisionNodeClick}
+                />
+              </div>
+            )}
+            {viewMode === 'multi-agent' && (
+              <MultiAgentView spans={spans} onSpanClick={setSelectedSpanId} />
+            )}
+          </ErrorBoundary>
 
           {/* Mobile timestamp */}
           <div className="lg:hidden mt-6 text-center text-sm text-gray-500">
@@ -567,7 +587,7 @@ export default function TraceDetailPage() {
           </div>
         </div>
 
-        {/* Span detail panel - slide in from right on mobile */}
+        {/* Span detail panel - bottom sheet on mobile, side panel on desktop */}
         {selectedSpan && (
           <>
             {/* Mobile overlay backdrop */}
@@ -582,18 +602,32 @@ export default function TraceDetailPage() {
               aria-label="Close detail panel"
             />
 
-            {/* Detail panel */}
+            {/* Detail panel: bottom sheet on mobile, side panel on desktop */}
             <div
               className={clsx(
-                'fixed right-0 top-0 bottom-0 w-full max-w-md bg-white shadow-xl z-50',
-                'lg:relative lg:w-[400px] lg:max-w-none lg:shadow-none lg:z-auto',
+                'fixed inset-x-0 bottom-0 max-h-[70vh] bg-white shadow-xl z-50 rounded-t-2xl overflow-y-auto',
+                'lg:relative lg:inset-auto lg:max-h-none lg:w-[400px] lg:rounded-none lg:shadow-none lg:z-auto',
               )}
             >
-              <LazySpanDetail
-                span={selectedSpan}
-                onClose={() => setSelectedSpanId(null)}
-                projectId="00000000-0000-0000-0000-000000000001"
-              />
+              {/* Mobile drag handle */}
+              <div className="lg:hidden flex justify-center pt-2 pb-1 sticky top-0 bg-white">
+                <div className="w-10 h-1 bg-gray-300 rounded-full" />
+              </div>
+              <ErrorBoundary
+                fallback={
+                  <div className="p-6 text-center">
+                    <p className="text-sm text-red-600">
+                      Failed to load span details. Try selecting a different span.
+                    </p>
+                  </div>
+                }
+              >
+                <LazySpanDetail
+                  span={selectedSpan}
+                  onClose={() => setSelectedSpanId(null)}
+                  projectId="00000000-0000-0000-0000-000000000001"
+                />
+              </ErrorBoundary>
             </div>
           </>
         )}

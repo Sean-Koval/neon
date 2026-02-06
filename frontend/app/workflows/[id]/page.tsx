@@ -17,11 +17,28 @@ import {
   useCancelWorkflow,
   useWorkflow,
   useWorkflowProgress,
+  type WorkflowStatus as WorkflowStatusType,
 } from '@/hooks/use-workflows'
+
+const VALID_WORKFLOW_STATUSES: ReadonlySet<string> = new Set<string>([
+  'RUNNING',
+  'COMPLETED',
+  'FAILED',
+  'CANCELLED',
+  'TERMINATED',
+  'TIMED_OUT',
+  'awaiting_approval',
+])
+
+function isValidWorkflowStatus(
+  status: string,
+): status is WorkflowStatusType | 'awaiting_approval' {
+  return VALID_WORKFLOW_STATUSES.has(status)
+}
 
 export default function WorkflowDetailPage() {
   const params = useParams()
-  const workflowId = params.id as string
+  const workflowId = typeof params.id === 'string' ? params.id : ''
 
   const { data: workflow, isLoading, refetch } = useWorkflow(workflowId)
   const { data: progress } = useWorkflowProgress(workflowId)
@@ -93,7 +110,7 @@ export default function WorkflowDetailPage() {
       {/* Status card */}
       <WorkflowStatus
         workflowId={workflow.workflowId}
-        status={workflow.status as any}
+        status={isValidWorkflowStatus(workflow.status) ? workflow.status : 'RUNNING'}
         progress={progress}
         startTime={workflow.startTime}
         closeTime={workflow.closeTime}

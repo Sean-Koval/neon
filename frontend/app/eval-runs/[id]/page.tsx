@@ -19,6 +19,7 @@ import {
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { EvalRunProgress, EvalRunResults } from '@/components/eval-runs'
+import { ErrorBoundary } from '@/components/error-boundary'
 import { ConnectionStatusIndicator } from '@/components/realtime'
 import { useRealtimeRun } from '@/hooks/use-realtime'
 import {
@@ -29,10 +30,32 @@ import {
   useWorkflowRunStatus,
 } from '@/hooks/use-workflow-runs'
 
+interface RunResultSummary {
+  total: number
+  passed: number
+  failed: number
+  avgScore: number
+}
+
+function isRunResultSummary(value: unknown): value is RunResultSummary {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'total' in value &&
+    'passed' in value &&
+    'failed' in value &&
+    'avgScore' in value &&
+    typeof (value as RunResultSummary).total === 'number' &&
+    typeof (value as RunResultSummary).passed === 'number' &&
+    typeof (value as RunResultSummary).failed === 'number' &&
+    typeof (value as RunResultSummary).avgScore === 'number'
+  )
+}
+
 export default function EvalRunDetailPage() {
   const params = useParams()
   const router = useRouter()
-  const runId = params.id as string
+  const runId = typeof params.id === 'string' ? params.id : ''
 
   // Fetch full run details
   const { data: run, isLoading, error, refetch } = useWorkflowRun(runId)
@@ -120,9 +143,7 @@ export default function EvalRunDetailPage() {
                   : 0,
             }
           : undefined,
-        summary: run.result as
-          | { total: number; passed: number; failed: number; avgScore: number }
-          | undefined,
+        summary: isRunResultSummary(run.result) ? run.result : undefined,
         error: run.error,
       }
 
@@ -162,24 +183,34 @@ export default function EvalRunDetailPage() {
       </div>
 
       {/* Progress card */}
-      <div className="mb-6">
-        <EvalRunProgress
-          runId={runId}
-          status={currentStatus}
-          onPause={() => pauseMutation.mutate(runId)}
-          onResume={() => resumeMutation.mutate(runId)}
-          onCancel={() => {
-            if (confirm('Are you sure you want to cancel this eval run?')) {
-              cancelMutation.mutate(runId)
-            }
-          }}
-          isPausing={pauseMutation.isPending}
-          isResuming={resumeMutation.isPending}
-          isCancelling={cancelMutation.isPending}
-          connectionStatus={connectionStatus}
-          isWebSocket={isWebSocket}
-        />
-      </div>
+      <ErrorBoundary
+        fallback={
+          <div className="mb-6 flex min-h-[100px] flex-col items-center justify-center rounded-lg border border-red-200 bg-red-50 p-6">
+            <p className="text-sm text-red-600">
+              Something went wrong loading run progress. Try refreshing the page.
+            </p>
+          </div>
+        }
+      >
+        <div className="mb-6">
+          <EvalRunProgress
+            runId={runId}
+            status={currentStatus}
+            onPause={() => pauseMutation.mutate(runId)}
+            onResume={() => resumeMutation.mutate(runId)}
+            onCancel={() => {
+              if (confirm('Are you sure you want to cancel this eval run?')) {
+                cancelMutation.mutate(runId)
+              }
+            }}
+            isPausing={pauseMutation.isPending}
+            isResuming={resumeMutation.isPending}
+            isCancelling={cancelMutation.isPending}
+            connectionStatus={connectionStatus}
+            isWebSocket={isWebSocket}
+          />
+        </div>
+      </ErrorBoundary>
 
       {/* Metadata */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
@@ -229,30 +260,43 @@ export default function EvalRunDetailPage() {
 
       {/* Results */}
       {results.length > 0 && (
-        <div className="mb-6">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-lg font-semibold">Results</h2>
-            <button
-              className="flex items-center gap-1 text-sm text-gray-600 hover:text-gray-900"
-              onClick={() => {
-                // Export results as JSON
-                const blob = new Blob([JSON.stringify(results, null, 2)], {
-                  type: 'application/json',
-                })
-                const url = URL.createObjectURL(blob)
-                const a = document.createElement('a')
-                a.href = url
-                a.download = `eval-run-${runId}-results.json`
-                a.click()
-                URL.revokeObjectURL(url)
-              }}
-            >
-              <Download className="w-4 h-4" />
-              Export JSON
-            </button>
+        <ErrorBoundary
+          fallback={
+            <div className="mb-6 flex min-h-[200px] flex-col items-center justify-center rounded-lg border border-red-200 bg-red-50 p-6">
+              <h2 className="mb-2 text-lg font-semibold text-red-800">
+                Something went wrong loading eval results
+              </h2>
+              <p className="text-sm text-red-600">
+                Try refreshing the page to reload the results.
+              </p>
+            </div>
+          }
+        >
+          <div className="mb-6">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-lg font-semibold">Results</h2>
+              <button
+                className="flex items-center gap-1 text-sm text-gray-600 hover:text-gray-900"
+                onClick={() => {
+                  // Export results as JSON
+                  const blob = new Blob([JSON.stringify(results, null, 2)], {
+                    type: 'application/json',
+                  })
+                  const url = URL.createObjectURL(blob)
+                  const a = document.createElement('a')
+                  a.href = url
+                  a.download = `eval-run-${runId}-results.json`
+                  a.click()
+                  URL.revokeObjectURL(url)
+                }}
+              >
+                <Download className="w-4 h-4" />
+                Export JSON
+              </button>
+            </div>
+            <EvalRunResults results={results} />
           </div>
-          <EvalRunResults results={results} />
-        </div>
+        </ErrorBoundary>
       )}
 
       {/* Empty results state */}
