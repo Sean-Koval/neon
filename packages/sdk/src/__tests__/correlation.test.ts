@@ -5,7 +5,7 @@
  * across traces stored in ClickHouse.
  */
 
-import { describe, it, expect, beforeEach } from "bun:test";
+import { describe, it, expect, beforeEach } from "vitest";
 import {
   CorrelationAnalyzer,
   createCorrelationAnalyzer,
