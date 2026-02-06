@@ -298,10 +298,12 @@ export function useRealtime(
     pingIntervalRef.current = setInterval(() => {
       // Access wsRef directly instead of through sendMessage to avoid dependency
       if (wsRef.current?.readyState === WebSocket.OPEN) {
-        wsRef.current.send(JSON.stringify({
-          type: 'ping',
-          timestamp: new Date().toISOString(),
-        }))
+        wsRef.current.send(
+          JSON.stringify({
+            type: 'ping',
+            timestamp: new Date().toISOString(),
+          }),
+        )
       }
     }, pingInterval)
   }, [pingInterval])
@@ -362,12 +364,14 @@ export function useRealtime(
         // Re-subscribe to all current subscriptions
         for (const runId of subscriptionsRef.current) {
           if (wsRef.current?.readyState === WebSocket.OPEN) {
-            wsRef.current.send(JSON.stringify({
-              type: 'subscribe',
-              id: uuidv4(),
-              timestamp: new Date().toISOString(),
-              payload: { runId },
-            }))
+            wsRef.current.send(
+              JSON.stringify({
+                type: 'subscribe',
+                id: uuidv4(),
+                timestamp: new Date().toISOString(),
+                payload: { runId },
+              }),
+            )
           }
         }
       }

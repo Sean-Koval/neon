@@ -10,6 +10,7 @@
     "dev": "tsx watch src/worker.ts",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist",
+    "test": "vitest",
     "build:bundle": "esbuild src/worker.ts --bundle --platform=node --format=esm --outdir=dist --external:@temporalio/*"
   },
   "dependencies": {
@@ -22,9 +23,11 @@
     "@temporalio/workflow": "^1.11.0"
   },
   "devDependencies": {
+    "@neon/shared": "workspace:*",
     "@types/node": "^20.11.0",
     "esbuild": "^0.20.0",
     "tsx": "^4.7.0",
-    "typescript": "^5.3.3"
+    "typescript": "^5.3.3",
+    "vitest": "^1.2.0"
   }
 }

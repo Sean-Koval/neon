@@ -693,7 +693,7 @@ describe('Memory Leak Prevention', () => {
 
   it('clears polling intervals on cleanup', () => {
     const pollingIntervals = new Map<string, ReturnType<typeof setInterval>>()
-    
+
     // Simulate adding polling intervals
     const interval1 = setInterval(() => {}, 1000)
     const interval2 = setInterval(() => {}, 1000)
@@ -745,12 +745,12 @@ describe('Memory Leak Prevention', () => {
 
   it('clears subscriptions on disconnect', () => {
     const subscriptions = new Set<string>()
-    
+
     // Add some subscriptions
     subscriptions.add('run-1')
     subscriptions.add('run-2')
     subscriptions.add('run-3')
-    
+
     expect(subscriptions.size).toBe(3)
 
     // Simulate disconnect clearing subscriptions
@@ -760,7 +760,7 @@ describe('Memory Leak Prevention', () => {
   })
 
   it('prevents state updates after unmount via mountedRef', () => {
-    let mountedRef = { current: true }
+    const mountedRef = { current: true }
     let stateUpdateCalled = false
 
     const setStateSafe = (value: unknown) => {
@@ -785,8 +785,12 @@ describe('Memory Leak Prevention', () => {
     const callbackRef = { current: () => {} }
     let callCount = 0
 
-    const originalCallback = () => { callCount++ }
-    const newCallback = () => { callCount += 10 }
+    const originalCallback = () => {
+      callCount++
+    }
+    const newCallback = () => {
+      callCount += 10
+    }
 
     // Set initial callback
     callbackRef.current = originalCallback
@@ -825,19 +829,19 @@ describe('Cleanup Behavior', () => {
     const cleanup = () => {
       // 1. Clear reconnect timeout
       cleanupOrder.push('clearReconnectTimeout')
-      
+
       // 2. Stop ping interval
       cleanupOrder.push('stopPingInterval')
-      
+
       // 3. Stop all polling
       cleanupOrder.push('stopAllPolling')
-      
+
       // 4. Clear WebSocket event handlers
       cleanupOrder.push('clearEventHandlers')
-      
+
       // 5. Close WebSocket
       cleanupOrder.push('closeWebSocket')
-      
+
       // 6. Clear subscriptions
       cleanupOrder.push('clearSubscriptions')
     }
@@ -875,7 +879,7 @@ describe('Cleanup Behavior', () => {
       cleanedUp[index] = true
     })
 
-    expect(cleanedUp.every(c => c)).toBe(true)
+    expect(cleanedUp.every((c) => c)).toBe(true)
   })
 
   it('WebSocket close prevents onclose handler from running after cleanup', () => {
@@ -893,8 +897,8 @@ describe('Cleanup Behavior', () => {
     // Now close - onclose should not be called
     ws.readyState = MockWebSocket.CLOSED
     // Manual trigger to verify no callback
-    if (ws.onclose) {
-      ws.onclose({} as CloseEvent)
+    if (ws.onclose !== null) {
+      ;(ws.onclose as (event: CloseEvent) => void)({} as CloseEvent)
     }
 
     expect(onCloseCalledAfterCleanup).toBe(false)
