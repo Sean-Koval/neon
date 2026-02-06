@@ -1,6 +1,5 @@
 'use client'
 
-import { memo, useMemo } from 'react'
 import { formatDistanceToNow } from 'date-fns'
 import {
   AlertCircle,
@@ -13,6 +12,7 @@ import {
   XCircle,
 } from 'lucide-react'
 import Link from 'next/link'
+import { memo, useMemo } from 'react'
 import { CostAnalyticsCards } from '@/components/dashboard/cost-analytics'
 import {
   type DashboardFilters,
@@ -197,9 +197,7 @@ function RecentRunsCard({
                 <ChevronLeft className="w-4 h-4" />
                 Prev
               </button>
-              <span className="text-sm text-gray-500">
-                Page {page + 1}
-              </span>
+              <span className="text-sm text-gray-500">Page {page + 1}</span>
               <button
                 type="button"
                 onClick={onNextPage}
@@ -315,7 +313,12 @@ const RunRow = memo(function RunRow({ run }: RunRowProps) {
         : passed > 0
           ? 'text-yellow-600'
           : 'text-red-600'
-    return { passedCount: passed, totalCount: total, score: avgScore, passedColor: color }
+    return {
+      passedCount: passed,
+      totalCount: total,
+      score: avgScore,
+      passedColor: color,
+    }
   }, [run.summary])
 
   const timeAgo = useMemo(
@@ -332,16 +335,17 @@ const RunRow = memo(function RunRow({ run }: RunRowProps) {
         <div className="flex items-center space-x-4 min-w-0 flex-1">
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
-              <span
+              <button
+                type="button"
                 onClick={(e) => {
                   e.preventDefault()
                   e.stopPropagation()
                   window.location.href = `/eval-runs`
                 }}
-                className="font-medium text-gray-900 hover:text-primary-600 truncate cursor-pointer"
+                className="font-medium text-gray-900 hover:text-primary-600 truncate cursor-pointer text-left"
               >
                 {run.suite_name}
-              </span>
+              </button>
             </div>
             <p className="text-sm text-gray-500 truncate">
               {run.agent_version ? `${run.agent_version}` : 'No version'}
@@ -354,9 +358,7 @@ const RunRow = memo(function RunRow({ run }: RunRowProps) {
             {run.summary ? (
               <>
                 <p className="font-medium text-gray-900">
-                  <span className={passedColor}>
-                    {passedCount}
-                  </span>
+                  <span className={passedColor}>{passedCount}</span>
                   <span className="text-gray-400">/</span>
                   <span className="text-gray-600">{totalCount}</span>
                 </p>
@@ -413,7 +415,11 @@ const STATUS_CONFIG: Record<
   },
 }
 
-const StatusBadge = memo(function StatusBadge({ status }: { status: EvalRunStatus }) {
+const StatusBadge = memo(function StatusBadge({
+  status,
+}: {
+  status: EvalRunStatus
+}) {
   const config = STATUS_CONFIG[status] || STATUS_CONFIG.pending
   const Icon = config.icon
 

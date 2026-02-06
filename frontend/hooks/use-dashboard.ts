@@ -205,7 +205,8 @@ export function useDashboard(
   const refetchStats = useServerSide ? refetchServerStats : refetchClientStats
 
   // Select trend data based on mode - fall back to client-side if server-side fails
-  const useServerTrend = useServerSide && !serverTrendError && serverTrendData.length > 0
+  const useServerTrend =
+    useServerSide && !serverTrendError && serverTrendData.length > 0
   const isLoadingTrend = useServerTrend
     ? isLoadingServerTrend
     : isLoadingClientTrend
@@ -233,9 +234,10 @@ export function useDashboard(
   }, [useServerSide, serverStats, serverStatsError, clientStats])
 
   // Select trend data - fall back to client if server fails
-  const rawTrendData = (useServerSide && !serverTrendError && serverTrendData.length > 0)
-    ? serverTrendData
-    : clientTrendData
+  const rawTrendData =
+    useServerSide && !serverTrendError && serverTrendData.length > 0
+      ? serverTrendData
+      : clientTrendData
 
   // Transform server trend data to expected format if needed
   const trendData: ScoreTrendPoint[] = useMemo(() => {

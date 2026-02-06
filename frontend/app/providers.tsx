@@ -5,9 +5,9 @@ import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
 import { type ReactNode, useCallback, useState } from 'react'
 import { ErrorBoundary } from '@/components/error-boundary'
 import { ToastProvider, useToast } from '@/components/toast'
+import { workflowQueryKeys } from '@/hooks/use-workflow-runs'
 import { AuthProvider } from '@/lib/auth'
 import { queryKeys } from '@/lib/query-keys'
-import { workflowQueryKeys } from '@/hooks/use-workflow-runs'
 
 // Query error handler that can be used with toast
 function useQueryErrorHandler() {

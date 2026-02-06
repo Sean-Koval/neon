@@ -33,7 +33,8 @@ function ComparePageContent() {
   const suiteFilter = searchParams.get('suite') || ''
 
   // Fetch runs
-  const { data: runs = [], isLoading: runsLoading } = useRuns({ limit: 100 })
+  const { data, isLoading: runsLoading } = useRuns({ limit: 100 })
+  const runs = data?.items ?? []
 
   // Get unique suites for filter
   const uniqueSuites = useMemo(() => getUniqueSuites(runs), [runs])

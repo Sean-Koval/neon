@@ -231,9 +231,7 @@ export function useRealtime(
     const runIds = Array.from(pollingRunIdsRef.current) as string[]
     if (runIds.length === 0) return
 
-    const activeRunIds = runIds.filter((id) =>
-      subscriptionsRef.current.has(id),
-    )
+    const activeRunIds = runIds.filter((id) => subscriptionsRef.current.has(id))
     if (activeRunIds.length === 0) return
 
     const results = await Promise.allSettled(
@@ -293,7 +291,10 @@ export function useRealtime(
     }
 
     // Stop the interval if no more runs to poll
-    if (pollingRunIdsRef.current.size === 0 && batchPollingIntervalRef.current) {
+    if (
+      pollingRunIdsRef.current.size === 0 &&
+      batchPollingIntervalRef.current
+    ) {
       clearInterval(batchPollingIntervalRef.current)
       batchPollingIntervalRef.current = null
     }
@@ -331,7 +332,10 @@ export function useRealtime(
   const stopPolling = useCallback((runId: string) => {
     pollingRunIdsRef.current.delete(runId)
 
-    if (pollingRunIdsRef.current.size === 0 && batchPollingIntervalRef.current) {
+    if (
+      pollingRunIdsRef.current.size === 0 &&
+      batchPollingIntervalRef.current
+    ) {
       clearInterval(batchPollingIntervalRef.current)
       batchPollingIntervalRef.current = null
     }

@@ -7,12 +7,12 @@
 
 import { type NextRequest, NextResponse } from 'next/server'
 import { v4 as uuidv4 } from 'uuid'
+import { type AuthResult, withAuth } from '@/lib/middleware/auth'
 import {
   listEvalRuns,
   type StartEvalRunParams,
   startEvalRunWorkflow,
 } from '@/lib/temporal'
-import { withAuth, type AuthResult } from '@/lib/middleware/auth'
 
 /**
  * POST /api/runs

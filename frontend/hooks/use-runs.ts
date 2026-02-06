@@ -190,7 +190,10 @@ function computeStats(runs: EvalRun[]): DashboardStats {
  * Fetches all runs and computes aggregate statistics.
  */
 export function useDashboardStats() {
-  const { data, isLoading, error, refetch } = useRuns({ limit: 1000 }, { retry: 1 })
+  const { data, isLoading, error, refetch } = useRuns(
+    { limit: 1000 },
+    { retry: 1 },
+  )
   const runs = data?.items
 
   const stats = useMemo(() => {
@@ -399,7 +402,10 @@ interface UseScoreTrendOptions {
 export function useScoreTrend(options: UseScoreTrendOptions = {}) {
   const { days = 7, maxRuns = 50 } = options
 
-  const { data, isLoading, isError, error } = useRuns({ limit: maxRuns }, { retry: 1 })
+  const { data, isLoading, isError, error } = useRuns(
+    { limit: maxRuns },
+    { retry: 1 },
+  )
   const runs = data?.items
 
   const trendData = useMemo(() => {
