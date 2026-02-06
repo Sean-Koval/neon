@@ -100,6 +100,7 @@ export default function WorkflowDetailPage() {
           <p className="text-sm text-gray-500 font-mono">{workflowId}</p>
         </div>
         <button
+          type="button"
           onClick={() => refetch()}
           className="p-2 hover:bg-gray-100 rounded-lg"
         >
@@ -110,7 +111,9 @@ export default function WorkflowDetailPage() {
       {/* Status card */}
       <WorkflowStatus
         workflowId={workflow.workflowId}
-        status={isValidWorkflowStatus(workflow.status) ? workflow.status : 'RUNNING'}
+        status={
+          isValidWorkflowStatus(workflow.status) ? workflow.status : 'RUNNING'
+        }
         progress={progress}
         startTime={workflow.startTime}
         closeTime={workflow.closeTime}

@@ -591,14 +591,13 @@ export default function TraceDetailPage() {
         {selectedSpan && (
           <>
             {/* Mobile overlay backdrop */}
-            <div
-              className="fixed inset-0 bg-black/20 z-40 lg:hidden"
+            <button
+              type="button"
+              className="fixed inset-0 bg-black/20 z-40 lg:hidden appearance-none border-none cursor-default"
               onClick={() => setSelectedSpanId(null)}
               onKeyDown={(e) => {
                 if (e.key === 'Escape') setSelectedSpanId(null)
               }}
-              role="button"
-              tabIndex={0}
               aria-label="Close detail panel"
             />
 
@@ -617,7 +616,8 @@ export default function TraceDetailPage() {
                 fallback={
                   <div className="p-6 text-center">
                     <p className="text-sm text-red-600">
-                      Failed to load span details. Try selecting a different span.
+                      Failed to load span details. Try selecting a different
+                      span.
                     </p>
                   </div>
                 }

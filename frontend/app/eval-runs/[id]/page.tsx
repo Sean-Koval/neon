@@ -18,8 +18,8 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
-import { EvalRunProgress, EvalRunResults } from '@/components/eval-runs'
 import { ErrorBoundary } from '@/components/error-boundary'
+import { EvalRunProgress, EvalRunResults } from '@/components/eval-runs'
 import { ConnectionStatusIndicator } from '@/components/realtime'
 import { useRealtimeRun } from '@/hooks/use-realtime'
 import {
@@ -155,6 +155,7 @@ export default function EvalRunDetailPage() {
       {/* Header */}
       <div className="flex items-center gap-4 mb-6">
         <button
+          type="button"
           onClick={() => router.back()}
           className="p-2 hover:bg-gray-100 rounded-lg"
         >
@@ -173,6 +174,7 @@ export default function EvalRunDetailPage() {
             />
           )}
           <button
+            type="button"
             onClick={() => refetch()}
             className="p-2 hover:bg-gray-100 rounded-lg"
             title="Refresh"
@@ -187,7 +189,8 @@ export default function EvalRunDetailPage() {
         fallback={
           <div className="mb-6 flex min-h-[100px] flex-col items-center justify-center rounded-lg border border-red-200 bg-red-50 p-6">
             <p className="text-sm text-red-600">
-              Something went wrong loading run progress. Try refreshing the page.
+              Something went wrong loading run progress. Try refreshing the
+              page.
             </p>
           </div>
         }
@@ -276,6 +279,7 @@ export default function EvalRunDetailPage() {
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-lg font-semibold">Results</h2>
               <button
+                type="button"
                 className="flex items-center gap-1 text-sm text-gray-600 hover:text-gray-900"
                 onClick={() => {
                   // Export results as JSON

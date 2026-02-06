@@ -403,14 +403,13 @@ export default function AnalysisPage() {
       {selectedComponent && (
         <>
           {/* Mobile overlay backdrop */}
-          <div
-            className="fixed inset-0 bg-black/20 z-40 md:hidden"
+          <button
+            type="button"
+            className="fixed inset-0 bg-black/20 z-40 md:hidden appearance-none border-none cursor-default"
             onClick={() => setSelectedComponent(null)}
             onKeyDown={(e) => {
               if (e.key === 'Escape') setSelectedComponent(null)
             }}
-            role="button"
-            tabIndex={0}
             aria-label="Close component details"
           />
 
