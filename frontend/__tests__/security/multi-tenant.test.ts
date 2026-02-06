@@ -142,8 +142,10 @@ function createMockRequest(
  */
 function createRequestWithKeyA(
   url: string,
-  options: Omit<Parameters<typeof createMockRequest>[1], 'headers'> & {
+  options: {
+    method?: string
     headers?: Record<string, string>
+    body?: unknown
   } = {},
 ): NextRequest {
   return createMockRequest(url, {
@@ -160,8 +162,10 @@ function createRequestWithKeyA(
  */
 function createRequestWithKeyB(
   url: string,
-  options: Omit<Parameters<typeof createMockRequest>[1], 'headers'> & {
+  options: {
+    method?: string
     headers?: Record<string, string>
+    body?: unknown
   } = {},
 ): NextRequest {
   return createMockRequest(url, {
