@@ -78,7 +78,7 @@ describe("initDebugSession", () => {
 
   it("emits sessionStarted event", async () => {
     await initDebugSession({
-      traceId: "trace-123",
+      traceId: "trace-event-test",
       projectId: "project-1",
     });
 
@@ -89,7 +89,7 @@ describe("initDebugSession", () => {
     expect(eventCall).toBeDefined();
     const body = JSON.parse(eventCall![1].body);
     expect(body.type).toBe("sessionStarted");
-    expect(body.traceId).toBe("trace-123");
+    expect(body.traceId).toBe("trace-event-test");
   });
 });
 
