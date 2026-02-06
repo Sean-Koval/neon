@@ -8,6 +8,7 @@ import { ToastProvider, useToast } from '@/components/toast'
 import { workflowQueryKeys } from '@/hooks/use-workflow-runs'
 import { AuthProvider } from '@/lib/auth'
 import { queryKeys } from '@/lib/query-keys'
+import { createTRPCClientLinks, trpc } from '@/lib/trpc'
 
 // Query error handler that can be used with toast
 function useQueryErrorHandler() {
@@ -104,19 +105,26 @@ function QueryProvider({ children }: QueryProviderProps) {
   // Use useState to create the query client once per component lifecycle
   // This prevents creating a new client on every render
   const [queryClient] = useState(() => createQueryClient())
+  const [trpcClient] = useState(() =>
+    trpc.createClient({
+      links: createTRPCClientLinks(),
+    }),
+  )
 
   return (
     <AuthProvider>
-      <QueryClientProvider client={queryClient}>
-        {children}
-        {/* React Query Devtools - only visible in development */}
-        {process.env.NODE_ENV === 'development' && (
-          <ReactQueryDevtools
-            initialIsOpen={false}
-            buttonPosition="bottom-left"
-          />
-        )}
-      </QueryClientProvider>
+      <trpc.Provider client={trpcClient} queryClient={queryClient}>
+        <QueryClientProvider client={queryClient}>
+          {children}
+          {/* React Query Devtools - only visible in development */}
+          {process.env.NODE_ENV === 'development' && (
+            <ReactQueryDevtools
+              initialIsOpen={false}
+              buttonPosition="bottom-left"
+            />
+          )}
+        </QueryClientProvider>
+      </trpc.Provider>
     </AuthProvider>
   )
 }

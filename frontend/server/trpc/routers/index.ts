@@ -12,6 +12,9 @@ import { analyticsRouter } from "./analytics";
 import { organizationsRouter } from "./organizations";
 import { workspacesRouter } from "./workspaces";
 import { orgAnalyticsRouter } from "./orgAnalytics";
+import { evalsRouter } from "./evals";
+import { suitesRouter } from "./suites";
+import { skillsRouter } from "./skills";
 
 /**
  * Main app router
@@ -22,6 +25,11 @@ export const appRouter = router({
   scores: scoresRouter,
   workflows: workflowsRouter,
   analytics: analyticsRouter,
+
+  // Eval & suite routers
+  evals: evalsRouter,
+  suites: suitesRouter,
+  skills: skillsRouter,
 
   // Multi-tenant routers
   organizations: organizationsRouter,
