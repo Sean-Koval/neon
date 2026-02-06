@@ -1,5 +1,4 @@
-"""
-Causal Failure Analysis Scorer
+"""Causal Failure Analysis Scorer.
 
 Analyzes trace spans to identify causal chains in failed executions.
 Traces error propagation paths and identifies root cause components.
@@ -161,7 +160,7 @@ def _build_causal_chain(
 def _get_component_label(node: CausalNode) -> str:
     """Generate a human-readable component label."""
     if node.component_type and node.component_type != ComponentType.OTHER:
-        return node.component_type.value
+        return str(node.component_type.value)
     if node.span_type != "span":
         return node.span_type
     return node.span_name
@@ -241,8 +240,7 @@ def analyze_causality(context: EvalContext) -> CausalAnalysisResult:
 
 
 def causal_analysis_scorer(config: CausalAnalysisConfig | None = None) -> ScorerImpl:
-    """
-    Create a causal failure analysis scorer.
+    """Create a causal failure analysis scorer.
 
     This scorer analyzes error propagation in traces to:
     1. Identify the root cause of failures
@@ -319,8 +317,7 @@ def causal_analysis_scorer(config: CausalAnalysisConfig | None = None) -> Scorer
 def causal_analysis_detailed_scorer(
     config: CausalAnalysisConfig | None = None,
 ) -> ScorerImpl:
-    """
-    Get detailed causal analysis for a trace.
+    """Get detailed causal analysis for a trace.
 
     Use this when you need the full analysis result, not just a score.
 
@@ -381,8 +378,7 @@ def causal_analysis_detailed_scorer(
 
 
 def root_cause_scorer() -> ScorerImpl:
-    """
-    Scorer that only checks if root cause can be identified.
+    """Scorer that only checks if root cause can be identified.
 
     Returns 1 if root cause is identified, 0 otherwise.
 

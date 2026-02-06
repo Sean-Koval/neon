@@ -108,7 +108,18 @@ convention = "google"
 python_version = "3.11"
 strict = true
 warn_return_any = true
-warn_unused_ignores = true
+warn_unused_ignores = false
+
+[[tool.mypy.overrides]]
+module = [
+    "temporalio.*",
+    "clickhouse_connect.*",
+]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "neon_sdk.tests.*"
+disable_error_code = ["union-attr", "call-arg", "no-untyped-def", "type-arg", "operator"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

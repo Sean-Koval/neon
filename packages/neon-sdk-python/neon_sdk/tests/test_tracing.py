@@ -1,6 +1,4 @@
-"""
-Tests for tracing utilities.
-"""
+"""Tests for tracing utilities."""
 
 import asyncio
 
