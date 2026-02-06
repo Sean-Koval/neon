@@ -319,6 +319,9 @@ export async function listEvalRuns(options?: {
 
     let index = 0
     let hasMore = false
+    // TODO: O(n) offset pagination - iterates through all skipped items sequentially.
+    // For deep pages (e.g., page 50 with pageSize=20 = 1000 items iterated).
+    // Consider cursor-based pagination or server-side offset support for better scaling.
     for await (const workflow of iterator) {
       // Skip items before offset
       if (index < offset) {

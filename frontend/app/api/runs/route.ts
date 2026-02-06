@@ -144,7 +144,7 @@ export const GET = withAuth(async (request: NextRequest, auth: AuthResult) => {
 
     return NextResponse.json({
       items: result.items,
-      total: result.items.length,
+      count: result.items.length,
       hasMore: result.hasMore,
       limit,
       offset,
