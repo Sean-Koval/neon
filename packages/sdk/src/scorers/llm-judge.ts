@@ -172,13 +172,26 @@ export function llmJudge(config: LLMJudgeConfig): Scorer {
         const errorMessage =
           error instanceof Error ? error.message : "Unknown error";
 
-        // Provide helpful error messages for common issues
+        // Re-throw unrecoverable errors instead of silently returning score 0.
+        // These indicate misconfiguration that the user must fix.
         if (errorMessage.includes("401") || errorMessage.includes("authentication")) {
-          return {
-            value: 0,
-            reason: "LLM judge error: Invalid API key",
-          };
+          throw new Error(
+            "LLM judge error: Invalid API key. " +
+            "Check your ANTHROPIC_API_KEY environment variable."
+          );
         }
+        if (errorMessage.includes("403") || errorMessage.includes("permission")) {
+          throw new Error(
+            `LLM judge error: Permission denied. ${errorMessage}`
+          );
+        }
+        if (errorMessage.includes("invalid") && errorMessage.includes("model")) {
+          throw new Error(
+            `LLM judge error: Invalid model configuration. ${errorMessage}`
+          );
+        }
+
+        // Recoverable errors: return score 0 with reason so the eval can continue
         if (errorMessage.includes("429") || errorMessage.includes("rate")) {
           return {
             value: 0,
