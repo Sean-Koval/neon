@@ -1,0 +1,115 @@
+name: 'Neon Eval Action'
+description: 'Run agent evaluation suites and report results as GitHub status checks'
+
+inputs:
+  suite-path:
+    description: 'Path to the eval suite file or directory'
+    required: true
+  api-key:
+    description: 'Neon API key for cloud sync'
+    required: false
+  threshold:
+    description: 'Minimum passing score (0-1). Fails the check if average score is below this.'
+    required: false
+    default: '0.7'
+  sdk-version:
+    description: 'Version of @neon/sdk to install (e.g., "latest", "0.1.0")'
+    required: false
+    default: 'latest'
+  bun-version:
+    description: 'Bun version to use'
+    required: false
+    default: '1.2.0'
+
+outputs:
+  score:
+    description: 'Average score across all test cases'
+    value: ${{ steps.run-eval.outputs.score }}
+  passed:
+    description: 'Number of test cases that passed'
+    value: ${{ steps.run-eval.outputs.passed }}
+  total:
+    description: 'Total number of test cases'
+    value: ${{ steps.run-eval.outputs.total }}
+  result:
+    description: '"pass" or "fail" based on threshold'
+    value: ${{ steps.run-eval.outputs.result }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup Bun
+      uses: oven-sh/setup-bun@v2
+      with:
+        bun-version: ${{ inputs.bun-version }}
+
+    - name: Install SDK
+      shell: bash
+      run: |
+        if [ "${{ inputs.sdk-version }}" = "latest" ]; then
+          bun add @neon/sdk
+        else
+          bun add @neon/sdk@${{ inputs.sdk-version }}
+        fi
+
+    - name: Run eval suite
+      id: run-eval
+      shell: bash
+      env:
+        NEON_API_KEY: ${{ inputs.api-key }}
+        NEON_THRESHOLD: ${{ inputs.threshold }}
+        SUITE_PATH: ${{ inputs.suite-path }}
+      run: |
+        ${{ github.action_path }}/entrypoint.sh
+
+    - name: Post PR comment
+      if: github.event_name == 'pull_request' && always()
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const score = '${{ steps.run-eval.outputs.score }}';
+          const passed = '${{ steps.run-eval.outputs.passed }}';
+          const total = '${{ steps.run-eval.outputs.total }}';
+          const result = '${{ steps.run-eval.outputs.result }}';
+          const threshold = '${{ inputs.threshold }}';
+          const icon = result === 'pass' ? ':white_check_mark:' : ':x:';
+
+          const body = [
+            `## ${icon} Eval Results`,
+            '',
+            `| Metric | Value |`,
+            `|--------|-------|`,
+            `| Score | **${score}** |`,
+            `| Passed | ${passed} / ${total} |`,
+            `| Threshold | ${threshold} |`,
+            `| Result | **${result.toUpperCase()}** |`,
+            '',
+            `> Run by [Neon Eval Action](https://github.com/neon-ai/eval-action)`,
+          ].join('\n');
+
+          const { data: comments } = await github.rest.issues.listComments({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            issue_number: context.issue.number,
+          });
+
+          const existing = comments.find(c =>
+            c.body?.includes('## :white_check_mark: Eval Results') ||
+            c.body?.includes('## :x: Eval Results')
+          );
+
+          if (existing) {
+            await github.rest.issues.updateComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: existing.id,
+              body,
+            });
+          } else {
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body,
+            });
+          }

@@ -1,0 +1,24 @@
+# Example workflow: Run evals on pull requests
+#
+# Usage: Copy this workflow and adjust suite-path and threshold for your project.
+
+name: Eval Suite
+
+on:
+  workflow_dispatch:
+
+jobs:
+  eval:
+    name: Run Eval Suite
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run evals
+        uses: ./.github/actions/eval-action
+        with:
+          suite-path: ./evals/
+          api-key: ${{ secrets.NEON_API_KEY }}
+          threshold: '0.8'

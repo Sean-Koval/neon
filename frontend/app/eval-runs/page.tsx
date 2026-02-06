@@ -6,7 +6,7 @@
  * Lists all Temporal-based eval runs with real-time status updates.
  */
 
-import { formatDistanceToNow } from 'date-fns'
+import { safeFormatDistance } from '@/lib/format-date'
 import {
   AlertCircle,
   CheckCircle,
@@ -164,7 +164,7 @@ function RunRow({ run }: { run: WorkflowStatusResponse }) {
       </div>
 
       <div className="w-32 text-right text-sm text-gray-500">
-        {formatDistanceToNow(new Date(run.startTime), { addSuffix: true })}
+        {safeFormatDistance(run.startTime)}
       </div>
 
       <div className="w-8 flex justify-center">
