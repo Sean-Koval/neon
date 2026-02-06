@@ -1,7 +1,8 @@
 'use client'
 
 import { clsx } from 'clsx'
-import { format, formatDistanceToNow } from 'date-fns'
+import { format } from 'date-fns'
+import { safeFormatDistance } from '@/lib/format-date'
 import {
   Calendar,
   CheckCircle,
@@ -269,7 +270,7 @@ function RunOption({ run, isSelected, onSelect }: RunOptionProps) {
         <Calendar className="w-3 h-3" />
         <span>
           {format(new Date(run.created_at), 'MMM d, yyyy')} (
-          {formatDistanceToNow(new Date(run.created_at), { addSuffix: true })})
+          {safeFormatDistance(run.created_at)})
         </span>
       </div>
     </button>

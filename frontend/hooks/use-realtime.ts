@@ -28,15 +28,17 @@ import type {
 } from '@/lib/types'
 import { workflowQueryKeys } from './use-workflow-runs'
 
+import { CONFIG } from '@/lib/config'
+
 // Default configuration
 const DEFAULT_OPTIONS: Required<
   Omit<UseRealtimeOptions, 'onConnectionChange' | 'onError' | 'wsUrl'>
 > = {
   enableWebSocket: true,
-  pollingInterval: 2000,
-  maxReconnectAttempts: 3,
-  reconnectDelay: 1000,
-  pingInterval: 30000,
+  pollingInterval: CONFIG.REALTIME_POLLING_INTERVAL_MS,
+  maxReconnectAttempts: CONFIG.REALTIME_MAX_RECONNECT_ATTEMPTS,
+  reconnectDelay: CONFIG.REALTIME_RECONNECT_DELAY_MS,
+  pingInterval: CONFIG.REALTIME_PING_INTERVAL_MS,
 }
 
 /**

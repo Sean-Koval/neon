@@ -1,6 +1,6 @@
 'use client'
 
-import { formatDistanceToNow } from 'date-fns'
+import { safeFormatDistance } from '@/lib/format-date'
 import { FileText } from 'lucide-react'
 import Link from 'next/link'
 import { PassRatioBadge, ScoreBadge, StatusBadge } from '@/components/ui/badge'
@@ -53,9 +53,7 @@ interface RunRowProps {
 }
 
 function RunRow({ run }: RunRowProps) {
-  const relativeTime = run.created_at
-    ? formatDistanceToNow(new Date(run.created_at), { addSuffix: true })
-    : 'Unknown'
+  const relativeTime = safeFormatDistance(run.created_at)
 
   return (
     <Link

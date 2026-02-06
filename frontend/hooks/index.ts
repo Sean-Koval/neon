@@ -38,6 +38,8 @@ export {
   useLazySpan,
   usePrefetchSpanDetails,
 } from './use-lazy-span'
+// Eval progress hooks (SSE-based real-time)
+export { useEvalProgress } from './use-eval-progress'
 // Real-time hooks (WebSocket + polling)
 export { useRealtime, useRealtimeRun } from './use-realtime'
 // Run hooks
