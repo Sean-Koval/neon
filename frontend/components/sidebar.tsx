@@ -8,6 +8,7 @@ import {
   LayoutDashboard,
   MessageSquare,
   Settings,
+  Target,
   Workflow,
   Zap,
 } from 'lucide-react'
@@ -19,6 +20,7 @@ const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
   { name: 'Eval Runs', href: '/eval-runs', icon: Workflow },
   { name: 'Traces', href: '/traces', icon: Activity },
+  { name: 'Skills', href: '/skills', icon: Target },
   { name: 'Analysis', href: '/analysis', icon: BarChart3 },
   { name: 'Compare', href: '/compare', icon: GitCompare },
   { name: 'Feedback', href: '/feedback', icon: MessageSquare },
