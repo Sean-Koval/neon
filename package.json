@@ -14,6 +14,7 @@
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
+    "test:coverage": "turbo run test:coverage",
     "clean": "turbo run clean",
     "frontend": "turbo run dev --filter=agent-eval-frontend",
     "workers": "turbo run dev --filter=@neon/temporal-workers"
