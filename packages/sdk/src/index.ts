@@ -322,6 +322,8 @@ export {
   EmbeddingIndex,
   cosineSimilarity,
   clearEmbeddingCache,
+  clearEmbeddingCacheForProject,
+  getEmbeddingCache,
   getEmbeddingCacheSize,
   // Scorers
   patternDiversityScorer,

@@ -493,6 +493,9 @@ function tokenSimilarity(str1: string | undefined, str2: string | undefined): nu
 // Embedding-Based Similarity
 // ============================================================================
 
+/** Maximum number of texts to send in a single embedding API call */
+const MAX_EMBEDDING_BATCH_SIZE = 500;
+
 /**
  * LRU Cache for computed embeddings with configurable max size
  * Prevents memory leaks from unbounded caching
@@ -543,8 +546,29 @@ class EmbeddingCache {
   }
 }
 
-// Global embedding cache with LRU eviction (max 10K entries)
-const globalEmbeddingCache = new EmbeddingCache(10000);
+// Per-project embedding caches to prevent data leakage between projects in multi-tenant scenarios
+const projectEmbeddingCaches = new Map<string, EmbeddingCache>();
+const DEFAULT_PROJECT_ID = "__default__";
+
+/**
+ * Get (or create) the embedding cache for a specific project.
+ * Each project gets its own isolated LRU cache to prevent cross-tenant data leakage.
+ */
+export function getEmbeddingCache(projectId: string = DEFAULT_PROJECT_ID): EmbeddingCache {
+  let cache = projectEmbeddingCaches.get(projectId);
+  if (!cache) {
+    cache = new EmbeddingCache(10000);
+    projectEmbeddingCaches.set(projectId, cache);
+  }
+  return cache;
+}
+
+/**
+ * Clear the embedding cache for a specific project
+ */
+export function clearEmbeddingCacheForProject(projectId: string): void {
+  projectEmbeddingCaches.delete(projectId);
+}
 
 /**
  * Compute cosine similarity between two embedding vectors
@@ -586,9 +610,11 @@ export class EmbeddingIndex {
   static async build(
     texts: string[],
     embeddingFn: EmbeddingFunction,
-    useCache = true
+    useCache = true,
+    projectId: string = DEFAULT_PROJECT_ID
   ): Promise<EmbeddingIndex> {
     const index = new EmbeddingIndex();
+    const cache = useCache ? getEmbeddingCache(projectId) : null;
 
     // Deduplicate texts (filter out empty and whitespace-only strings)
     const uniqueTexts = [...new Set(texts.filter((t) => t && t.trim().length > 0))];
@@ -600,8 +626,8 @@ export class EmbeddingIndex {
     // Check cache for existing embeddings
     const uncachedTexts: string[] = [];
     for (const text of uniqueTexts) {
-      if (useCache) {
-        const cached = globalEmbeddingCache.get(text);
+      if (cache) {
+        const cached = cache.get(text);
         if (cached) {
           index.embeddings.set(text, cached);
           continue;
@@ -610,15 +636,18 @@ export class EmbeddingIndex {
       uncachedTexts.push(text);
     }
 
-    // Batch compute embeddings for uncached texts
+    // Batch compute embeddings for uncached texts (chunked to avoid API limits)
     if (uncachedTexts.length > 0) {
-      const newEmbeddings = await embeddingFn(uncachedTexts);
-      for (let i = 0; i < uncachedTexts.length; i++) {
-        const text = uncachedTexts[i];
-        const embedding = newEmbeddings[i];
-        index.embeddings.set(text, embedding);
-        if (useCache) {
-          globalEmbeddingCache.set(text, embedding);
+      for (let offset = 0; offset < uncachedTexts.length; offset += MAX_EMBEDDING_BATCH_SIZE) {
+        const batch = uncachedTexts.slice(offset, offset + MAX_EMBEDDING_BATCH_SIZE);
+        const batchEmbeddings = await embeddingFn(batch);
+        for (let i = 0; i < batch.length; i++) {
+          const text = batch[i];
+          const embedding = batchEmbeddings[i];
+          index.embeddings.set(text, embedding);
+          if (cache) {
+            cache.set(text, embedding);
+          }
         }
       }
     }
@@ -667,18 +696,19 @@ export class EmbeddingIndex {
 }
 
 /**
- * Clear the global embedding cache
+ * Clear all embedding caches (all projects)
  * Useful for testing or when switching embedding models
  */
 export function clearEmbeddingCache(): void {
-  globalEmbeddingCache.clear();
+  projectEmbeddingCaches.clear();
 }
 
 /**
- * Get the current size of the embedding cache
+ * Get the current size of the default embedding cache
  */
 export function getEmbeddingCacheSize(): number {
-  return globalEmbeddingCache.size;
+  const cache = projectEmbeddingCaches.get(DEFAULT_PROJECT_ID);
+  return cache ? cache.size : 0;
 }
 
 /**
