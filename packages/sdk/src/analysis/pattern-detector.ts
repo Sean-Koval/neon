@@ -206,33 +206,66 @@ interface FailureCluster {
 // Default Error Category Rules
 // ============================================================================
 
+/**
+ * Maximum input length for regex matching
+ * Prevents ReDoS attacks from causing hangs on malicious input
+ */
+const MAX_REGEX_INPUT_LENGTH = 1000;
+
+/**
+ * Safe regex test with input length protection
+ * Truncates long inputs to prevent catastrophic backtracking
+ */
+function safeRegexTest(pattern: RegExp, input: string): boolean {
+  // For short inputs, just run the regex directly (low risk)
+  if (input.length <= MAX_REGEX_INPUT_LENGTH) {
+    return pattern.test(input);
+  }
+  // For longer inputs, truncate to prevent ReDoS
+  return pattern.test(input.slice(0, MAX_REGEX_INPUT_LENGTH));
+}
+
+/**
+ * Default error category rules
+ * SECURITY: Patterns are designed to avoid ReDoS vulnerabilities:
+ * - Avoid nested quantifiers (e.g., (a+)+ or (a*)*)
+ * - Use word boundaries to limit backtracking
+ * - Replace \s* with literal space or [ ]? for optional single space
+ * - Split complex patterns into multiple simpler patterns
+ */
 const DEFAULT_ERROR_CATEGORIES: Array<{ pattern: RegExp; category: ErrorCategory }> = [
-  // Timeout patterns (check early - common and specific)
-  { pattern: /timeout|timed?\s*out|deadline\s*exceeded/i, category: "timeout" },
-  // Connection patterns
-  { pattern: /connect|connection|ECONNREFUSED|ECONNRESET|ETIMEDOUT|network/i, category: "connection" },
-  // Rate limit patterns (check before auth - "too many" is specific)
-  { pattern: /rate\s*limit|too\s*many\s*requests|quota|throttl/i, category: "rate_limit" },
-  // Authentication patterns (check before validation - token/credential are specific)
-  { pattern: /auth(?:entication|orization)?\s*(?:failed|error)|unauthenticated|login\s*fail|credential|invalid\s*token|token\s*(?:invalid|expired)|api\s*key/i, category: "authentication" },
-  // Authorization patterns
-  { pattern: /forbidden|permission\s*denied|access\s*denied|unauthorized|not\s*allowed|403/i, category: "authorization" },
-  // Not found patterns (check before validation)
-  { pattern: /not\s*found|404|does\s*not\s*exist|no\s*such/i, category: "not_found" },
-  // Server error patterns
-  { pattern: /500|internal\s*server|server\s*error|service\s*unavailable|503/i, category: "server_error" },
-  // Client error patterns
-  { pattern: /400|bad\s*request|client\s*error/i, category: "client_error" },
-  // Parse error patterns
-  { pattern: /parse\s*error|JSON\.parse|XML\s*(?:parse|syntax)|syntax\s*error|unexpected\s*token/i, category: "parse_error" },
-  // Configuration patterns
-  { pattern: /config(?:uration)?\s*(?:error|missing|invalid)|not\s*configured|environment\s*variable/i, category: "configuration" },
-  // Dependency patterns
-  { pattern: /dependency|cannot\s*find\s*module|package|require\s*failed/i, category: "dependency" },
-  // Resource exhausted patterns
-  { pattern: /out\s*of\s*memory|disk\s*(?:full|space)|resource\s*exhausted|quota\s*exceeded/i, category: "resource_exhausted" },
-  // Validation patterns (check last - very broad patterns)
-  { pattern: /validation|invalid\s*(?:input|value|argument|parameter)|malformed|required\s*field|missing\s*(?:field|parameter)|must\s*be|cannot\s*be\s*(?:empty|null)/i, category: "validation" },
+  // Timeout patterns - use literal space or optional single space
+  { pattern: /\b(?:timeout|timed ?out|deadline exceeded)\b/i, category: "timeout" },
+  // Connection patterns - simple alternation
+  { pattern: /\b(?:connect|connection|ECONNREFUSED|ECONNRESET|ETIMEDOUT|network)\b/i, category: "connection" },
+  // Rate limit patterns - use literal space
+  { pattern: /\b(?:rate limit|too many requests|quota|throttl)/i, category: "rate_limit" },
+  // Authentication patterns - split into simpler patterns to avoid backtracking
+  { pattern: /\b(?:auth failed|auth error|authentication failed|authentication error|authorization failed|authorization error)\b/i, category: "authentication" },
+  { pattern: /\b(?:unauthenticated|login fail|credential|invalid token|token invalid|token expired|api key)\b/i, category: "authentication" },
+  // Authorization patterns - simple literals
+  { pattern: /\b(?:forbidden|permission denied|access denied|unauthorized|not allowed)\b|403/i, category: "authorization" },
+  // Not found patterns - simple literals
+  { pattern: /\b(?:not found|does not exist|no such)\b|404/i, category: "not_found" },
+  // Server error patterns - simple literals
+  { pattern: /\b(?:internal server|server error|service unavailable)\b|500|503/i, category: "server_error" },
+  // Client error patterns - simple literals
+  { pattern: /\b(?:bad request|client error)\b|400/i, category: "client_error" },
+  // Parse error patterns - split to avoid complex alternations
+  { pattern: /\b(?:parse error|syntax error|unexpected token)\b/i, category: "parse_error" },
+  { pattern: /JSON\.parse|XML parse|XML syntax/i, category: "parse_error" },
+  // Configuration patterns - split to avoid nested optional groups
+  { pattern: /\b(?:config error|config missing|config invalid|configuration error|configuration missing|configuration invalid)\b/i, category: "configuration" },
+  { pattern: /\b(?:not configured|environment variable)\b/i, category: "configuration" },
+  // Dependency patterns - simple literals
+  { pattern: /\b(?:dependency|cannot find module|package|require failed)\b/i, category: "dependency" },
+  // Resource exhausted patterns - use literal spaces
+  { pattern: /\b(?:out of memory|disk full|disk space|resource exhausted|quota exceeded)\b/i, category: "resource_exhausted" },
+  // Validation patterns - split into multiple simpler patterns
+  { pattern: /\bvalidation|malformed\b/i, category: "validation" },
+  { pattern: /\binvalid (?:input|value|argument|parameter)\b/i, category: "validation" },
+  { pattern: /\b(?:required field|missing field|missing parameter)\b/i, category: "validation" },
+  { pattern: /\b(?:must be|cannot be empty|cannot be null)\b/i, category: "validation" },
 ];
 
 // ============================================================================
@@ -301,18 +334,18 @@ export function categorizeError(
     return "unknown";
   }
 
-  // Check custom categories first
+  // Check custom categories first (use safe test for user-provided patterns)
   if (customCategories) {
     for (const { pattern, category } of customCategories) {
-      if (pattern.test(message)) {
+      if (safeRegexTest(pattern, message)) {
         return category;
       }
     }
   }
 
-  // Check default categories
+  // Check default categories (safe patterns, but still use safeRegexTest for defense in depth)
   for (const { pattern, category } of DEFAULT_ERROR_CATEGORIES) {
-    if (pattern.test(message)) {
+    if (safeRegexTest(pattern, message)) {
       return category;
     }
   }

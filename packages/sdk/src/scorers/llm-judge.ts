@@ -113,12 +113,12 @@ export function llmJudge(config: LLMJudgeConfig): Scorer {
     description,
     dataType: "numeric",
     evaluate: async (context: EvalContext) => {
-      // Check for API key
+      // Check for API key - fail fast if not configured
       if (!process.env.ANTHROPIC_API_KEY) {
-        return {
-          value: 0,
-          reason: "LLM judge error: ANTHROPIC_API_KEY environment variable not set",
-        };
+        throw new Error(
+          "LLM judge requires ANTHROPIC_API_KEY environment variable. " +
+          "Set it before running evals or use a different scorer."
+        );
       }
 
       const anthropic = new Anthropic();

@@ -453,16 +453,14 @@ describe("llmJudge", () => {
   });
 
   describe("API key handling", () => {
-    it("returns error when ANTHROPIC_API_KEY is not set", async () => {
+    it("throws error when ANTHROPIC_API_KEY is not set", async () => {
       delete process.env.ANTHROPIC_API_KEY;
 
       const scorer = llmJudge({ prompt: "Rate: {{output}}" });
-      const result = await scorer.evaluate(createMockContext("test output"));
 
-      expect(result).toEqual({
-        value: 0,
-        reason: "LLM judge error: ANTHROPIC_API_KEY environment variable not set",
-      });
+      await expect(scorer.evaluate(createMockContext("test output"))).rejects.toThrow(
+        "LLM judge requires ANTHROPIC_API_KEY environment variable"
+      );
     });
   });
 

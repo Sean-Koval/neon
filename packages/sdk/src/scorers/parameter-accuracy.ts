@@ -182,17 +182,20 @@ export function parameterAccuracyScorer(config?: ParameterAccuracyConfig): Score
       for (const span of toolSpans) {
         const params = extractParameters(span, useSkillContext);
         const expectedFromContext = context.expected?.parameters as Record<string, unknown> | undefined;
+        const mergedExpectedValues = { ...expectedValues, ...expectedFromContext };
+        const expectedValueCount = Object.keys(mergedExpectedValues).length;
+        const expectedPatternCount = Object.keys(expectedPatterns).length;
 
         const details = validateParameters({
           actual: params,
           schema,
-          expectedValues: { ...expectedValues, ...expectedFromContext },
+          expectedValues: mergedExpectedValues,
           expectedPatterns,
           penalizeExtraParams,
           extraParamPenalty,
         });
 
-        const score = calculateParameterScore(details, w, totalWeight);
+        const score = calculateParameterScore(details, w, totalWeight, expectedValueCount, expectedPatternCount);
         totalScore += score;
         allDetails.push(formatDetails(span.toolName ?? 'unknown', details));
       }
@@ -661,7 +664,9 @@ function validateParameters(config: {
 function calculateParameterScore(
   details: ParameterAccuracyDetails,
   weights: { typeCheck: number; constraintCheck: number; valueMatch: number; patternMatch: number },
-  totalWeight: number
+  totalWeight: number,
+  expectedValueCount: number,
+  expectedPatternCount: number
 ): number {
   let score = 0;
 
@@ -673,15 +678,20 @@ function calculateParameterScore(
     score += weights.typeCheck + weights.constraintCheck; // No schema = full credit
   }
 
-  // Value match score
-  const expectedValueCount = Object.keys(details).length; // Simplified
-  if (details.valueMatches > 0) {
-    score += weights.valueMatch; // Simplified scoring
+  // Value match score - calculate ratio of matched to expected
+  if (expectedValueCount > 0) {
+    const valueMatchRatio = details.valueMatches / expectedValueCount;
+    score += valueMatchRatio * weights.valueMatch;
+  } else {
+    score += weights.valueMatch; // No expected values = full credit
   }
 
-  // Pattern match score
-  if (details.patternMatches > 0) {
-    score += weights.patternMatch;
+  // Pattern match score - calculate ratio of matched to expected
+  if (expectedPatternCount > 0) {
+    const patternMatchRatio = details.patternMatches / expectedPatternCount;
+    score += patternMatchRatio * weights.patternMatch;
+  } else {
+    score += weights.patternMatch; // No expected patterns = full credit
   }
 
   // Normalize

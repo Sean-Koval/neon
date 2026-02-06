@@ -42,11 +42,9 @@ jobs:
 
       - name: Type check
         run: bun run typecheck
-        continue-on-error: true
 
       - name: Run tests
         run: bun run test
-        continue-on-error: true
 
       - name: Summary
         run: echo "✅ PR validation complete"
