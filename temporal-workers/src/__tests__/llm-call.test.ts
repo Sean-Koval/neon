@@ -7,13 +7,12 @@ import { llmCall, estimateCost } from "../activities/llm-call";
 import type { LLMCallParams } from "../types";
 
 // Mock the Anthropic SDK
+const mockAnthropicCreate = vi.fn();
 vi.mock("@anthropic-ai/sdk", () => {
   return {
-    default: vi.fn().mockImplementation(() => ({
-      messages: {
-        create: vi.fn(),
-      },
-    })),
+    default: class MockAnthropic {
+      messages = { create: mockAnthropicCreate };
+    },
   };
 });
 
@@ -22,20 +21,9 @@ const mockFetch = vi.fn();
 global.fetch = mockFetch;
 
 describe("llmCall", () => {
-  let mockAnthropicCreate: ReturnType<typeof vi.fn>;
-
-  beforeEach(async () => {
-    vi.resetAllMocks();
+  beforeEach(() => {
+    vi.clearAllMocks();
     mockFetch.mockResolvedValue({ ok: true });
-
-    // Get reference to the mock
-    const Anthropic = (await import("@anthropic-ai/sdk")).default;
-    mockAnthropicCreate = vi.fn();
-    vi.mocked(Anthropic).mockImplementation(() => ({
-      messages: {
-        create: mockAnthropicCreate,
-      },
-    }) as any);
   });
 
   describe("basic LLM calls", () => {
