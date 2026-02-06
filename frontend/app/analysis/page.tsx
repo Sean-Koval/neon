@@ -17,8 +17,10 @@ import {
   GitBranch,
   Grid3X3,
   HeartPulse,
+  Info,
   LayoutGrid,
   RefreshCcw,
+  X,
 } from 'lucide-react'
 import { useState } from 'react'
 import {
@@ -143,26 +145,26 @@ export default function AnalysisPage() {
   ]
 
   return (
-    <div className="p-6">
+    <div className="p-4 sm:p-6">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
             Component Analysis
           </h1>
-          <p className="text-gray-500">
+          <p className="text-sm sm:text-base text-gray-500">
             Cross-component correlations and system health
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           {/* Date Range Selector */}
           <div className="flex items-center gap-2">
-            <Calendar className="w-4 h-4 text-gray-500" />
+            <Calendar className="w-4 h-4 text-gray-500 hidden sm:block" />
             <select
               value={dateRange}
               onChange={(e) => setDateRange(Number(e.target.value))}
-              className="px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-primary-500"
+              className="px-2 sm:px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-primary-500"
             >
               {DATE_RANGES.map((range) => (
                 <option key={range.days} value={range.days}>
@@ -193,7 +195,7 @@ export default function AnalysisPage() {
             className="flex items-center gap-2 px-3 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors disabled:opacity-50"
           >
             <Download className="w-4 h-4" />
-            Export
+            <span className="hidden sm:inline">Export</span>
           </button>
         </div>
       </div>
@@ -219,7 +221,7 @@ export default function AnalysisPage() {
 
       {/* Summary Stats */}
       {health && !isLoading && (
-        <div className="grid grid-cols-5 gap-4 mb-6">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4 mb-6">
           <div className="bg-white border rounded-lg p-4">
             <div className="flex items-center gap-2 text-gray-500 mb-1">
               <Activity className="w-4 h-4" />
@@ -274,15 +276,15 @@ export default function AnalysisPage() {
       )}
 
       {/* Tab Navigation */}
-      <div className="border-b border-gray-200 mb-6">
-        <nav className="flex gap-4">
+      <div className="border-b border-gray-200 mb-6 -mx-6 px-6 overflow-x-auto">
+        <nav className="flex gap-1 sm:gap-4 min-w-max">
           {tabs.map((tab) => (
             <button
               key={tab.id}
               type="button"
               onClick={() => setActiveTab(tab.id)}
               className={`
-                flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors
+                flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-3 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap
                 ${
                   activeTab === tab.id
                     ? 'border-primary-500 text-primary-600'
@@ -291,7 +293,8 @@ export default function AnalysisPage() {
               `}
             >
               <tab.icon className="w-4 h-4" />
-              {tab.label}
+              <span className="hidden sm:inline">{tab.label}</span>
+              <span className="sm:hidden">{tab.label.split(' ')[0]}</span>
             </button>
           ))}
         </nav>
@@ -384,143 +387,176 @@ export default function AnalysisPage() {
           ))}
       </div>
 
-      {/* Selected Component Sidebar */}
+      {/* Mobile toggle button for component details */}
       {selectedComponent && (
-        <div className="fixed right-0 top-0 bottom-0 w-80 bg-white border-l shadow-lg p-6 overflow-y-auto z-50">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">
-              Component Details
-            </h3>
-            <button
-              type="button"
-              onClick={() => setSelectedComponent(null)}
-              className="text-gray-400 hover:text-gray-600"
-            >
-              &times;
-            </button>
-          </div>
+        <button
+          type="button"
+          onClick={() => setSelectedComponent(null)}
+          className="fixed bottom-4 right-4 z-40 md:hidden flex items-center gap-2 px-4 py-3 bg-primary-600 text-white rounded-full shadow-lg hover:bg-primary-700 transition-colors"
+        >
+          <Info className="w-4 h-4" />
+          {selectedComponent.name}
+        </button>
+      )}
 
-          <div className="space-y-4">
-            <div>
-              <p className="text-sm text-gray-500">Name</p>
-              <p className="font-medium">{selectedComponent.name}</p>
+      {/* Selected Component Sidebar - modal on mobile, fixed panel on desktop */}
+      {selectedComponent && (
+        <>
+          {/* Mobile overlay backdrop */}
+          <div
+            className="fixed inset-0 bg-black/20 z-40 md:hidden"
+            onClick={() => setSelectedComponent(null)}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') setSelectedComponent(null)
+            }}
+            role="button"
+            tabIndex={0}
+            aria-label="Close component details"
+          />
+
+          <div className="fixed inset-x-0 bottom-0 max-h-[80vh] bg-white rounded-t-2xl shadow-xl z-50 overflow-y-auto md:inset-x-auto md:right-0 md:top-0 md:bottom-0 md:w-80 md:max-h-none md:rounded-none md:border-l p-6">
+            {/* Mobile drag handle */}
+            <div className="md:hidden flex justify-center -mt-4 mb-3">
+              <div className="w-10 h-1 bg-gray-300 rounded-full" />
             </div>
-            <div>
-              <p className="text-sm text-gray-500">Type</p>
-              <p className="font-medium capitalize">{selectedComponent.type}</p>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <p className="text-sm text-gray-500">Score</p>
-                <p
-                  className={`text-xl font-bold ${
-                    selectedComponent.avgScore >= 0.8
-                      ? 'text-emerald-600'
-                      : selectedComponent.avgScore >= 0.6
-                        ? 'text-amber-600'
-                        : 'text-rose-600'
-                  }`}
-                >
-                  {(selectedComponent.avgScore * 100).toFixed(1)}%
-                </p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-500">Pass Rate</p>
-                <p className="text-xl font-bold text-gray-900">
-                  {(selectedComponent.passRate * 100).toFixed(1)}%
-                </p>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <p className="text-sm text-gray-500">Evaluations</p>
-                <p className="font-medium">{selectedComponent.evalCount}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-500">Avg Latency</p>
-                <p className="font-medium">
-                  {selectedComponent.avgLatency >= 1000
-                    ? `${(selectedComponent.avgLatency / 1000).toFixed(1)}s`
-                    : `${Math.round(selectedComponent.avgLatency)}ms`}
-                </p>
-              </div>
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">Health Status</p>
-              <span
-                className={`
-                  inline-flex px-2 py-1 text-sm font-medium rounded-full mt-1
-                  ${
-                    selectedComponent.healthStatus === 'healthy'
-                      ? 'bg-emerald-100 text-emerald-800'
-                      : selectedComponent.healthStatus === 'warning'
-                        ? 'bg-amber-100 text-amber-800'
-                        : 'bg-rose-100 text-rose-800'
-                  }
-                `}
+
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">
+                Component Details
+              </h3>
+              <button
+                type="button"
+                onClick={() => setSelectedComponent(null)}
+                className="p-1 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
               >
-                {selectedComponent.healthStatus}
-              </span>
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">Trend</p>
-              <p className="font-medium capitalize">
-                {selectedComponent.trend}
-              </p>
+                <X className="w-5 h-5" />
+              </button>
             </div>
 
-            {/* Related Correlations */}
-            {correlations.filter(
-              (c) =>
-                c.componentA === selectedComponent.id ||
-                c.componentB === selectedComponent.id,
-            ).length > 0 && (
-              <div className="pt-4 border-t">
-                <p className="text-sm font-medium text-gray-900 mb-2">
-                  Top Correlations
+            <div className="space-y-4">
+              <div>
+                <p className="text-sm text-gray-500">Name</p>
+                <p className="font-medium">{selectedComponent.name}</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-500">Type</p>
+                <p className="font-medium capitalize">
+                  {selectedComponent.type}
                 </p>
-                <div className="space-y-2">
-                  {correlations
-                    .filter(
-                      (c) =>
-                        c.componentA === selectedComponent.id ||
-                        c.componentB === selectedComponent.id,
-                    )
-                    .slice(0, 5)
-                    .map((corr) => {
-                      const otherId =
-                        corr.componentA === selectedComponent.id
-                          ? corr.componentB
-                          : corr.componentA
-                      const otherName = components.find(
-                        (c) => c.id === otherId,
-                      )?.name
-
-                      return (
-                        <div
-                          key={`${corr.componentA}-${corr.componentB}`}
-                          className="flex items-center justify-between text-sm"
-                        >
-                          <span className="text-gray-600 truncate max-w-[60%]">
-                            {otherName}
-                          </span>
-                          <span
-                            className={`font-medium ${
-                              corr.correlation > 0
-                                ? 'text-emerald-600'
-                                : 'text-rose-600'
-                            }`}
-                          >
-                            {corr.correlation.toFixed(3)}
-                          </span>
-                        </div>
-                      )
-                    })}
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm text-gray-500">Score</p>
+                  <p
+                    className={`text-xl font-bold ${
+                      selectedComponent.avgScore >= 0.8
+                        ? 'text-emerald-600'
+                        : selectedComponent.avgScore >= 0.6
+                          ? 'text-amber-600'
+                          : 'text-rose-600'
+                    }`}
+                  >
+                    {(selectedComponent.avgScore * 100).toFixed(1)}%
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Pass Rate</p>
+                  <p className="text-xl font-bold text-gray-900">
+                    {(selectedComponent.passRate * 100).toFixed(1)}%
+                  </p>
                 </div>
               </div>
-            )}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm text-gray-500">Evaluations</p>
+                  <p className="font-medium">{selectedComponent.evalCount}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Avg Latency</p>
+                  <p className="font-medium">
+                    {selectedComponent.avgLatency >= 1000
+                      ? `${(selectedComponent.avgLatency / 1000).toFixed(1)}s`
+                      : `${Math.round(selectedComponent.avgLatency)}ms`}
+                  </p>
+                </div>
+              </div>
+              <div>
+                <p className="text-sm text-gray-500">Health Status</p>
+                <span
+                  className={`
+                    inline-flex px-2 py-1 text-sm font-medium rounded-full mt-1
+                    ${
+                      selectedComponent.healthStatus === 'healthy'
+                        ? 'bg-emerald-100 text-emerald-800'
+                        : selectedComponent.healthStatus === 'warning'
+                          ? 'bg-amber-100 text-amber-800'
+                          : 'bg-rose-100 text-rose-800'
+                    }
+                  `}
+                >
+                  {selectedComponent.healthStatus}
+                </span>
+              </div>
+              <div>
+                <p className="text-sm text-gray-500">Trend</p>
+                <p className="font-medium capitalize">
+                  {selectedComponent.trend}
+                </p>
+              </div>
+
+              {/* Related Correlations */}
+              {correlations.filter(
+                (c) =>
+                  c.componentA === selectedComponent.id ||
+                  c.componentB === selectedComponent.id,
+              ).length > 0 && (
+                <div className="pt-4 border-t">
+                  <p className="text-sm font-medium text-gray-900 mb-2">
+                    Top Correlations
+                  </p>
+                  <div className="space-y-2">
+                    {correlations
+                      .filter(
+                        (c) =>
+                          c.componentA === selectedComponent.id ||
+                          c.componentB === selectedComponent.id,
+                      )
+                      .slice(0, 5)
+                      .map((corr) => {
+                        const otherId =
+                          corr.componentA === selectedComponent.id
+                            ? corr.componentB
+                            : corr.componentA
+                        const otherName = components.find(
+                          (c) => c.id === otherId,
+                        )?.name
+
+                        return (
+                          <div
+                            key={`${corr.componentA}-${corr.componentB}`}
+                            className="flex items-center justify-between text-sm"
+                          >
+                            <span className="text-gray-600 truncate max-w-[60%]">
+                              {otherName}
+                            </span>
+                            <span
+                              className={`font-medium ${
+                                corr.correlation > 0
+                                  ? 'text-emerald-600'
+                                  : 'text-rose-600'
+                              }`}
+                            >
+                              {corr.correlation.toFixed(3)}
+                            </span>
+                          </div>
+                        )
+                      })}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
+        </>
       )}
     </div>
   )
