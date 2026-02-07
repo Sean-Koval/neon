@@ -19,6 +19,7 @@ import { dashboardRouter } from "./dashboard";
 import { feedbackRouter } from "./feedback";
 import { promptsRouter } from "./prompts";
 import { compareRouter } from "./compare";
+import { alertRulesRouter } from "./alertRules";
 
 /**
  * Main app router
@@ -45,6 +46,9 @@ export const appRouter = router({
   feedback: feedbackRouter,
   prompts: promptsRouter,
   compare: compareRouter,
+
+  // Alert rules
+  alertRules: alertRulesRouter,
 });
 
 /**

@@ -1,25 +1,79 @@
 'use client'
 
-import { AlertCircle, Bell, RefreshCw } from 'lucide-react'
+import { AlertCircle, Bell, Plus, RefreshCw } from 'lucide-react'
+import { useState } from 'react'
 import { AlertConfig } from '@/components/alerts/alert-config'
 import { AlertHistory } from '@/components/alerts/alert-history'
+import { AlertRulesList } from '@/components/alerts/alert-rules-list'
+import {
+  CreateAlertRuleDialog,
+  type AlertRuleFormData,
+} from '@/components/alerts/create-alert-rule-dialog'
+import { useToast } from '@/components/toast'
 import { useAlerts } from '@/hooks/use-alerts'
+import {
+  useAlertRules,
+  useCreateAlertRule,
+  useDeleteAlertRule,
+  useUpdateAlertRule,
+} from '@/hooks/use-alert-rules'
 
 export default function AlertsPage() {
   const { data, isLoading, error, refetch } = useAlerts()
+  const {
+    data: rulesData,
+    isLoading: rulesLoading,
+    refetch: refetchRules,
+  } = useAlertRules()
+  const [dialogOpen, setDialogOpen] = useState(false)
+  const { addToast } = useToast()
 
   const alerts = data?.alerts ?? []
   const thresholds = data?.thresholds ?? []
+  const rules = rulesData?.items ?? []
 
   // Build a unique suite list from thresholds
   const suites = thresholds.map((t) => ({
     id: t.suiteId,
     name: alerts.find((a) => a.suiteId === t.suiteId)?.suiteName ?? t.suiteId,
   }))
-  // Deduplicate suites by id
   const uniqueSuites = Array.from(
     new Map(suites.map((s) => [s.id, s])).values(),
   )
+
+  const { mutate: createRule, isPending: isCreating } = useCreateAlertRule({
+    onSuccess: () => {
+      addToast('Alert rule created', 'success')
+      setDialogOpen(false)
+    },
+    onError: (err) => addToast(err.message, 'error'),
+  })
+
+  const { mutate: updateRule, isPending: isUpdating } = useUpdateAlertRule({
+    onError: (err) => addToast(err.message, 'error'),
+  })
+
+  const { mutate: deleteRule, isPending: isDeleting } = useDeleteAlertRule({
+    onSuccess: () => addToast('Alert rule deleted', 'success'),
+    onError: (err) => addToast(err.message, 'error'),
+  })
+
+  function handleCreateRule(formData: AlertRuleFormData) {
+    createRule(formData)
+  }
+
+  function handleToggleRule(id: string, enabled: boolean) {
+    updateRule({ id, enabled })
+  }
+
+  function handleDeleteRule(id: string) {
+    deleteRule(id)
+  }
+
+  function handleRefresh() {
+    refetch()
+    refetchRules()
+  }
 
   return (
     <div className="space-y-8">
@@ -31,25 +85,35 @@ export default function AlertsPage() {
             Regression detection and threshold configuration
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => refetch()}
-          className="btn btn-secondary inline-flex items-center gap-2"
-          title="Refresh alerts"
-        >
-          <RefreshCw className="w-4 h-4" />
-          Refresh
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setDialogOpen(true)}
+            className="btn btn-primary inline-flex items-center gap-2 text-sm"
+          >
+            <Plus className="w-4 h-4" />
+            Create Alert Rule
+          </button>
+          <button
+            type="button"
+            onClick={handleRefresh}
+            className="btn btn-secondary inline-flex items-center gap-2"
+            title="Refresh alerts"
+          >
+            <RefreshCw className="w-4 h-4" />
+            Refresh
+          </button>
+        </div>
       </div>
 
-      {isLoading ? (
+      {isLoading && rulesLoading ? (
         <AlertsSkeleton />
       ) : error ? (
         <div className="card p-6 text-center">
           <AlertCircle className="w-8 h-8 text-red-400 mx-auto mb-2" />
           <p className="text-sm font-medium text-gray-900">Failed to load alerts</p>
           <p className="text-xs text-gray-500 mt-1">{error.message}</p>
-          <button type="button" onClick={() => refetch()} className="mt-3 btn btn-secondary text-sm inline-flex items-center gap-1">
+          <button type="button" onClick={handleRefresh} className="mt-3 btn btn-secondary text-sm inline-flex items-center gap-1">
             <RefreshCw className="w-3 h-3" /> Retry
           </button>
         </div>
@@ -57,6 +121,16 @@ export default function AlertsPage() {
         <>
           {/* Active Alerts */}
           <AlertHistory alerts={alerts} />
+
+          {/* Alert Rules */}
+          <div className="space-y-4">
+            <AlertRulesList
+              rules={rules}
+              onToggle={handleToggleRule}
+              onDelete={handleDeleteRule}
+              isUpdating={isUpdating || isDeleting}
+            />
+          </div>
 
           {/* Threshold Configuration */}
           {uniqueSuites.length > 0 && (
@@ -83,6 +157,14 @@ export default function AlertsPage() {
           )}
         </>
       )}
+
+      {/* Create Alert Rule Dialog */}
+      <CreateAlertRuleDialog
+        open={dialogOpen}
+        onClose={() => setDialogOpen(false)}
+        onSubmit={handleCreateRule}
+        isPending={isCreating}
+      />
     </div>
   )
 }

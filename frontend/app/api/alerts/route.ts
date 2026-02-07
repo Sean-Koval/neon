@@ -1,15 +1,18 @@
 /**
  * Alerts API
  *
- * GET /api/alerts - List active regression alerts
+ * GET /api/alerts - List active regression alerts + evaluate alert rules
  * POST /api/alerts - Configure alert thresholds per suite
  *
  * Thresholds are stored in-memory (reset on server restart).
  * Alerts are computed from runs data on each request.
+ * Alert rules are also evaluated against current run metrics.
  */
 
 import { type NextRequest, NextResponse } from 'next/server'
 import { Pool } from 'pg'
+import { AlertEvaluator, DEFAULT_ALERT_RULES } from '@/lib/alerting'
+import type { MetricDataPoint } from '@/lib/alerting/types'
 import { type AuthResult, withAuth } from '@/lib/middleware/auth'
 import {
   type AlertThreshold,
@@ -20,6 +23,70 @@ import type { EvalRun } from '@/lib/types'
 
 // In-memory threshold storage per workspace
 const thresholdStore = new Map<string, AlertThreshold[]>()
+
+// Shared alert rule evaluator (initialized with defaults)
+const ruleEvaluator = new AlertEvaluator(DEFAULT_ALERT_RULES)
+
+/**
+ * Compute metrics from eval runs for alert rule evaluation.
+ */
+function computeMetricsFromRuns(runs: EvalRun[]): MetricDataPoint[] {
+  const metrics: MetricDataPoint[] = []
+  const now = new Date().toISOString()
+
+  if (runs.length === 0) return metrics
+
+  // Average score across recent completed runs
+  const completedRuns = runs.filter(
+    (r) => r.status === 'completed' && r.summary?.avg_score != null,
+  )
+
+  if (completedRuns.length > 0) {
+    const avgScore =
+      completedRuns.reduce((sum, r) => sum + (r.summary?.avg_score ?? 0), 0) /
+      completedRuns.length
+
+    metrics.push({ metric: 'eval.avg_score', value: avgScore, timestamp: now })
+
+    // Pass rate
+    const totalCases = completedRuns.reduce(
+      (sum, r) => sum + (r.summary?.total_cases ?? 0),
+      0,
+    )
+    const passedCases = completedRuns.reduce(
+      (sum, r) => sum + (r.summary?.passed ?? 0),
+      0,
+    )
+    if (totalCases > 0) {
+      metrics.push({
+        metric: 'eval.pass_rate',
+        value: passedCases / totalCases,
+        timestamp: now,
+      })
+    }
+  }
+
+  // Consecutive failures
+  let consecutiveFailures = 0
+  const sortedRuns = [...runs].sort(
+    (a, b) =>
+      new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+  )
+  for (const run of sortedRuns) {
+    if (run.status === 'failed') {
+      consecutiveFailures++
+    } else {
+      break
+    }
+  }
+  metrics.push({
+    metric: 'eval.consecutive_failures',
+    value: consecutiveFailures,
+    timestamp: now,
+  })
+
+  return metrics
+}
 
 let pool: Pool | null = null
 
@@ -92,6 +159,11 @@ export const GET = withAuth(async (_request: NextRequest, auth: AuthResult) => {
     const thresholds = thresholdStore.get(projectId) ?? []
     const alerts = detectRegressions(runs, thresholds)
 
+    // Evaluate alert rules against current metrics
+    const metrics = computeMetricsFromRuns(runs)
+    const ruleNotifications = ruleEvaluator.evaluate(metrics)
+    const firingRules = ruleEvaluator.getFiringAlerts()
+
     return NextResponse.json({
       alerts,
       thresholds:
@@ -101,6 +173,19 @@ export const GET = withAuth(async (_request: NextRequest, auth: AuthResult) => {
               suiteId,
               ...DEFAULT_THRESHOLD,
             })),
+      ruleAlerts: {
+        firing: firingRules.length,
+        notifications: ruleNotifications.map((n) => ({
+          ruleId: n.rule.id,
+          ruleName: n.rule.name,
+          type: n.type,
+          severity: n.rule.severity,
+          metric: n.rule.metric,
+          currentValue: n.state.currentValue,
+          threshold: n.rule.threshold,
+          timestamp: n.timestamp,
+        })),
+      },
     })
   } catch (error) {
     console.error('Error fetching alerts:', error)
