@@ -33,6 +33,7 @@ jobs:
             node_modules
             frontend/node_modules
             packages/*/node_modules
+            temporal-workers/node_modules
           key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lock') }}
           restore-keys: |
             ${{ runner.os }}-bun-
