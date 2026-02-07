@@ -496,6 +496,7 @@ const dashboardData = {
 
 ## Related
 
+- [SDK Reference](../sdk.md) - Full SDK API reference
 - [Test Suites](../test-suites.md) - Define test suites with pattern scorers
 - [Scorers](../scorers.md) - Custom scorer development
 - [Breakpoints](./breakpoints.md) - Debug specific failure patterns

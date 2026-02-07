@@ -141,8 +141,14 @@ define_test(
 
 ## Next Steps
 
+- [SDK Reference](./sdk) — Full API reference for TypeScript and Python
 - [Scorers](./scorers) — Built-in and custom scoring functions
 - [Test Suites](./test-suites) — Organizing comprehensive test coverage
+- [A/B Testing](./features/ab-testing) — Compare agent variants with statistical analysis
+- [Failure Patterns](./features/failure-patterns) — Detect recurring failure signatures
+- [Breakpoints](./features/breakpoints) — Debug traces with conditional breakpoints
+- [Offline Buffer](./features/offline-buffer) — Buffer spans for disconnected scenarios
+- [DSPy Export](./features/dspy-export) — Export traces for prompt optimization
 - [Configuration](./configuration) — Environment variables and settings
 - [Self-Hosting](./self-hosting) — Deploy Neon on your infrastructure
 - [CI/CD Integration](./cicd) — Automate quality gates in your pipeline

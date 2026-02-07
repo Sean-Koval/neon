@@ -43,11 +43,17 @@ export function validateBody<T>(
       message: issue.message,
     }))
 
+    const fieldNames = errors.map((e) => e.path).filter(Boolean)
+    const errorMessage =
+      fieldNames.length > 0
+        ? `Validation failed: ${fieldNames.join(', ')}`
+        : 'Validation failed'
+
     return {
       success: false,
       response: NextResponse.json(
         {
-          error: 'Validation failed',
+          error: errorMessage,
           details: errors,
         },
         { status: 400 },

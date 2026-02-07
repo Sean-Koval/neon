@@ -616,6 +616,7 @@ train, dev = load_dataset('training_data.json')
 
 ## Related
 
+- [SDK Reference](../sdk.md) - Full SDK API reference
 - [A/B Testing](./ab-testing.md) - Run experiments and export winner traces
 - [Scorers](../scorers.md) - Score traces before export
 - [Test Suites](../test-suites.md) - Generate traces from test runs
