@@ -111,7 +111,7 @@ describe('Score Creation Integration', () => {
           value: 0.8,
           score_type: 'numeric',
           comment: 'Good tool usage',
-          source: 'evaluator',
+          source: 'eval',
         },
       })
 
@@ -127,7 +127,7 @@ describe('Score Creation Integration', () => {
         value: 0.8,
         score_type: 'numeric',
         comment: 'Good tool usage',
-        source: 'evaluator',
+        source: 'eval',
       })
     })
 
@@ -347,9 +347,9 @@ describe('Score Creation Integration', () => {
 
       // Step 1: Create multiple scores for a trace
       const scoreData = [
-        { trace_id: 'trace-flow', name: 'accuracy', value: 0.95, source: 'evaluator' },
-        { trace_id: 'trace-flow', name: 'tool_selection', value: 0.8, source: 'evaluator' },
-        { trace_id: 'trace-flow', name: 'reasoning', value: 0.85, source: 'evaluator' },
+        { trace_id: 'trace-flow', name: 'accuracy', value: 0.95, source: 'eval' },
+        { trace_id: 'trace-flow', name: 'tool_selection', value: 0.8, source: 'eval' },
+        { trace_id: 'trace-flow', name: 'reasoning', value: 0.85, source: 'eval' },
       ]
 
       const scoreIds: string[] = []
