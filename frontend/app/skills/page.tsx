@@ -25,6 +25,8 @@ import {
   Zap,
 } from 'lucide-react'
 import { useState } from 'react'
+import { HelpTooltip } from '@/components/ui/help-tooltip'
+import { usePersistedFilters } from '@/hooks/use-persisted-filters'
 import {
   type SkillEvalSummary,
   useSkillEvalDetail,
@@ -32,6 +34,7 @@ import {
   useSkillEvalSummaries,
   useSkillRegressions,
 } from '@/hooks/use-skill-eval'
+import { CONFIG } from '@/lib/config'
 
 // =============================================================================
 // Helpers
@@ -69,13 +72,13 @@ function getTrendIcon(trend: SkillEvalSummary['trend']) {
 
 function getScoreColor(score: number): string {
   if (score >= 0.9) return 'text-emerald-600'
-  if (score >= 0.7) return 'text-amber-600'
+  if (score >= CONFIG.DASHBOARD_SCORE_THRESHOLD) return 'text-amber-600'
   return 'text-rose-600'
 }
 
 function getScoreBgColor(score: number): string {
   if (score >= 0.9) return 'bg-emerald-100'
-  if (score >= 0.7) return 'bg-amber-100'
+  if (score >= CONFIG.DASHBOARD_SCORE_THRESHOLD) return 'bg-amber-100'
   return 'bg-rose-100'
 }
 
@@ -113,7 +116,10 @@ function SkillCard({
 
       <div className="mt-4 grid grid-cols-4 gap-4">
         <div>
-          <p className="text-xs text-gray-500">Pass Rate</p>
+          <p className="text-xs text-gray-500">
+            Pass Rate
+            <HelpTooltip content="Percentage of test cases that met the minimum score threshold" />
+          </p>
           <p
             className={clsx(
               'text-lg font-semibold',
@@ -124,7 +130,10 @@ function SkillCard({
           </p>
         </div>
         <div>
-          <p className="text-xs text-gray-500">Avg Score</p>
+          <p className="text-xs text-gray-500">
+            Avg Score
+            <HelpTooltip content="Average score across all evaluations (0–1 scale)" />
+          </p>
           <p
             className={clsx(
               'text-lg font-semibold',
@@ -267,6 +276,7 @@ function SummaryStats({ skills }: { skills: SkillEvalSummary[] }) {
         <div className="flex items-center gap-2 text-gray-500">
           <CheckCircle className="w-4 h-4" />
           <span className="text-sm">Avg Pass Rate</span>
+          <HelpTooltip content="Average pass rate across all skills" />
         </div>
         <p
           className={clsx(
@@ -353,7 +363,10 @@ function SkillDetailModal({
               {/* Summary Stats */}
               <div className="grid grid-cols-4 gap-4">
                 <div className="p-4 bg-gray-50 rounded-lg">
-                  <p className="text-sm text-gray-500">Pass Rate</p>
+                  <p className="text-sm text-gray-500">
+                    Pass Rate
+                    <HelpTooltip content="Percentage of test cases that met the minimum score threshold" />
+                  </p>
                   <p
                     className={clsx(
                       'text-2xl font-bold',
@@ -364,7 +377,10 @@ function SkillDetailModal({
                   </p>
                 </div>
                 <div className="p-4 bg-gray-50 rounded-lg">
-                  <p className="text-sm text-gray-500">Avg Score</p>
+                  <p className="text-sm text-gray-500">
+                    Avg Score
+                    <HelpTooltip content="Average score across all scorers for this skill (0–1 scale)" />
+                  </p>
                   <p
                     className={clsx(
                       'text-2xl font-bold',
@@ -562,9 +578,9 @@ function SkillDetailModal({
 export default function SkillsPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedSkill, setSelectedSkill] = useState<string | null>(null)
-  const [filterTrend, setFilterTrend] = useState<
+  const [filterTrend, setFilterTrend] = usePersistedFilters<
     'all' | 'improving' | 'stable' | 'regressing'
-  >('all')
+  >('neon-skills-trend-filter', 'all')
 
   const {
     data: skills = [],

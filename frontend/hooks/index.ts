@@ -18,6 +18,8 @@ export {
 } from './use-component-correlation'
 // Dashboard hooks
 export { useDashboard } from './use-dashboard'
+// Persisted filters hook
+export { usePersistedFilters } from './use-persisted-filters'
 // Eval progress hooks (SSE-based real-time)
 export { useEvalProgress } from './use-eval-progress'
 // Feedback hooks (RLHF)

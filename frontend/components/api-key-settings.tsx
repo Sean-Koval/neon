@@ -4,6 +4,7 @@ import { AlertCircle, Check, Key } from 'lucide-react'
 import { useCallback, useState } from 'react'
 import { api } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
+import { CONFIG } from '@/lib/config'
 
 /**
  * Component for setting/updating the API key at runtime.
@@ -45,7 +46,7 @@ export function ApiKeySettings() {
         setSuccess(true)
         setInputValue('')
         // Clear success message after 3 seconds
-        setTimeout(() => setSuccess(false), 3000)
+        setTimeout(() => setSuccess(false), CONFIG.SUCCESS_FEEDBACK_MS)
       } catch {
         // Key didn't work - clear it
         clearApiKey()

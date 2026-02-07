@@ -21,6 +21,7 @@ import {
 import Link from 'next/link'
 import { useState } from 'react'
 import { StartEvalRunDialog } from '@/components/eval-runs'
+import { usePersistedFilters } from '@/hooks/use-persisted-filters'
 import { useStartWorkflowRun, useWorkflowRuns } from '@/hooks/use-workflow-runs'
 import { safeFormatDistance } from '@/lib/format-date'
 import type { WorkflowStatus, WorkflowStatusResponse } from '@/lib/types'
@@ -175,7 +176,7 @@ function RunRow({ run }: { run: WorkflowStatusResponse }) {
 }
 
 export default function EvalRunsPage() {
-  const [statusFilter, setStatusFilter] = useState<WorkflowStatus | ''>('')
+  const [statusFilter, setStatusFilter] = usePersistedFilters<WorkflowStatus | ''>('neon-eval-runs-status-filter', '')
   const [showStartDialog, setShowStartDialog] = useState(false)
 
   const {
