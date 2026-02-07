@@ -126,13 +126,17 @@ export const GET = withRateLimit(
       | 'RUNNING'
       | 'COMPLETED'
       | 'FAILED'
+      | 'CANCELLED'
+      | 'TERMINATED'
+      | 'TIMED_OUT'
       | null
+    const statusFilter = searchParams.get('status_filter') as typeof status
 
     try {
       const result = await listEvalRuns({
         limit,
         offset,
-        status: status || undefined,
+        status: status || statusFilter || undefined,
       })
 
       return NextResponse.json({
