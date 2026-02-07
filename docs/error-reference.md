@@ -143,6 +143,23 @@ Returned when the requested resource does not exist. For security, 404 is also r
 | `Baseline run {id} not found` | `POST /api/compare` |
 | `Candidate run {id} not found` | `POST /api/compare` |
 
+### 422 Unprocessable Entity
+
+Returned when request body validation fails (Zod schema validation).
+
+```json
+{
+  "error": "Validation error",
+  "code": "VALIDATION_ERROR",
+  "message": "Field validation failed",
+  "details": [
+    { "field": "field_name", "message": "error message" }
+  ]
+}
+```
+
+Common causes: missing required fields, invalid data types, invalid enum values.
+
 ### 500 Internal Server Error
 
 Returned when an unexpected error occurs. The `details` field contains the error message.
@@ -167,6 +184,19 @@ Returned when an unexpected error occurs. The `details` field contains the error
 | `Failed to submit feedback` | `POST /api/feedback` |
 | `Failed to fetch feedback` | `GET /api/feedback` |
 | `Failed to compare runs` | `POST /api/compare` |
+
+### Alert Rule API Errors
+
+| Error Message | Endpoint | Cause |
+|---------------|----------|-------|
+| `name is required` | `POST /api/alerts/rules` | Missing rule name |
+| `metric is required` | `POST /api/alerts/rules` | Missing metric field |
+| `threshold is required` | `POST /api/alerts/rules` | Missing threshold |
+| `operator is required` | `POST /api/alerts/rules` | Missing operator |
+| `operator must be one of: gt, gte, lt, lte, eq` | `POST /api/alerts/rules` | Invalid operator |
+| `severity must be one of: critical, warning, info` | `POST /api/alerts/rules` | Invalid severity |
+| `Alert rule not found` | `DELETE /api/alerts/rules` | Rule ID doesn't exist (404) |
+| `id query parameter is required` | `DELETE /api/alerts/rules` | Missing ID parameter (400) |
 
 ### 503 Service Unavailable
 
@@ -332,6 +362,30 @@ Activities have configured timeouts and retry policies. If an activity exceeds i
 | `pauseSignal` | Pauses/resumes workflow execution | 24 hours max pause |
 | `approvalSignal` | Provides human approval for sensitive tools | 7 days max wait |
 | `cancelSignal` | Cancels an individual eval case | Immediate |
+
+### LLM Provider Errors
+
+Thrown when LLM provider SDKs are missing or misconfigured in the Temporal worker.
+
+| Provider | Error Message | Resolution |
+|----------|---------------|------------|
+| Anthropic | `Anthropic provider requires the "@anthropic-ai/sdk" package` | Run `bun add @anthropic-ai/sdk` |
+| OpenAI | `OpenAI provider requires the "openai" package` | Run `bun add openai` |
+| Vertex AI | `Vertex AI provider requires a GCP project ID` | Set `GOOGLE_CLOUD_PROJECT` env var |
+| Vertex AI | `Vertex AI provider requires the "@google-cloud/vertexai" package` | Run `bun add @google-cloud/vertexai` |
+| Vertex Claude | `Vertex Claude provider requires a GCP project ID` | Set `GOOGLE_CLOUD_PROJECT` env var |
+| Vertex Claude | `Vertex Claude provider requires the "@anthropic-ai/vertex-sdk" package` | Run `bun add @anthropic-ai/vertex-sdk` |
+| Factory | `Unknown provider: {name}` | Use a supported provider name |
+
+### Health Check API
+
+The `GET /api/health` endpoint returns the overall system status:
+
+| HTTP Status | Response | Meaning |
+|-------------|----------|---------|
+| 200 | `{ "status": "healthy" }` | All services operational |
+| 200 | `{ "status": "degraded" }` | Some services unavailable (e.g., ClickHouse down) |
+| 503 | `{ "status": "unhealthy" }` | No backend services available |
 
 ### ClickHouse Errors
 

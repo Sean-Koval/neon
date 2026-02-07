@@ -1,0 +1,77 @@
+# Example workflow: Run Neon evals on pull requests
+#
+# Usage: Copy this workflow into your repository and adjust the suite-path,
+# agent-id, and secrets for your project.
+
+name: Agent Eval
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      suite-path:
+        description: 'Path to eval suite'
+        default: './evals/'
+      min-pass-rate:
+        description: 'Minimum pass rate (0-1)'
+        default: '0.7'
+
+jobs:
+  eval:
+    name: Run Eval Suite
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run evaluations
+        id: eval
+        uses: ./.github/actions/eval-run
+        with:
+          api-url: ${{ secrets.NEON_API_URL }}
+          api-key: ${{ secrets.NEON_API_KEY }}
+          suite-path: ${{ github.event.inputs.suite-path || './evals/' }}
+          agent-id: ${{ github.repository }}
+          fail-on-regression: 'true'
+          min-pass-rate: ${{ github.event.inputs.min-pass-rate || '0.7' }}
+
+      - name: Print results
+        if: always()
+        run: |
+          echo "Run ID: ${{ steps.eval.outputs.run-id }}"
+          echo "Score:  ${{ steps.eval.outputs.score }}"
+          echo "Pass Rate: ${{ steps.eval.outputs.pass-rate }}"
+          echo "Status: ${{ steps.eval.outputs.status }}"
+          echo "Passed: ${{ steps.eval.outputs.passed }} / ${{ steps.eval.outputs.total }}"
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-results
+          path: results.json
+          retention-days: 30
+          if-no-files-found: ignore
+
+  eval-with-baseline:
+    name: Eval with Baseline Comparison
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run evaluations with regression check
+        id: eval
+        uses: ./.github/actions/eval-run
+        with:
+          api-url: ${{ secrets.NEON_API_URL }}
+          api-key: ${{ secrets.NEON_API_KEY }}
+          suite-path: ./evals/
+          agent-id: ${{ github.repository }}
+          fail-on-regression: 'true'
+          min-pass-rate: '0.8'
+          baseline-ref: main
