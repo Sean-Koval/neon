@@ -6,15 +6,11 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { llmCall, estimateCost } from "../activities/llm-call";
 import type { LLMCallParams } from "../types";
 
-// Mock the Anthropic SDK
-const mockAnthropicCreate = vi.fn();
-vi.mock("@anthropic-ai/sdk", () => {
-  return {
-    default: class MockAnthropic {
-      messages = { create: mockAnthropicCreate };
-    },
-  };
-});
+// Mock @neon/llm-providers
+const mockChat = vi.fn();
+vi.mock("@neon/llm-providers", () => ({
+  getProvider: () => ({ chat: mockChat, name: "anthropic" }),
+}));
 
 // Mock fetch for span emission
 const mockFetch = vi.fn();
@@ -28,9 +24,11 @@ describe("llmCall", () => {
 
   describe("basic LLM calls", () => {
     it("makes a successful LLM call and returns content", async () => {
-      mockAnthropicCreate.mockResolvedValue({
-        content: [{ type: "text", text: "Hello! How can I help you?" }],
-        usage: { input_tokens: 10, output_tokens: 15 },
+      mockChat.mockResolvedValue({
+        content: "Hello! How can I help you?",
+        inputTokens: 10,
+        outputTokens: 15,
+        model: "claude-3-sonnet-20240229",
       });
 
       const params: LLMCallParams = {
@@ -46,13 +44,12 @@ describe("llmCall", () => {
       expect(result.toolCalls).toBeUndefined();
     });
 
-    it("handles multiple text blocks in response", async () => {
-      mockAnthropicCreate.mockResolvedValue({
-        content: [
-          { type: "text", text: "First part. " },
-          { type: "text", text: "Second part." },
-        ],
-        usage: { input_tokens: 10, output_tokens: 20 },
+    it("returns content from provider response", async () => {
+      mockChat.mockResolvedValue({
+        content: "First part. Second part.",
+        inputTokens: 10,
+        outputTokens: 20,
+        model: "claude-3-sonnet-20240229",
       });
 
       const params: LLMCallParams = {
@@ -64,21 +61,22 @@ describe("llmCall", () => {
 
       const result = await llmCall(params);
 
-      expect(result.content).toBe("First part. \nSecond part.");
+      expect(result.content).toBe("First part. Second part.");
     });
 
     it("extracts tool calls from response", async () => {
-      mockAnthropicCreate.mockResolvedValue({
-        content: [
-          { type: "text", text: "I'll search for that." },
+      mockChat.mockResolvedValue({
+        content: "I'll search for that.",
+        toolCalls: [
           {
-            type: "tool_use",
             id: "tool-123",
             name: "search",
-            input: { query: "test query" },
+            arguments: { query: "test query" },
           },
         ],
-        usage: { input_tokens: 20, output_tokens: 30 },
+        inputTokens: 20,
+        outputTokens: 30,
+        model: "claude-3-sonnet-20240229",
       });
 
       const params: LLMCallParams = {
@@ -106,22 +104,15 @@ describe("llmCall", () => {
     });
 
     it("handles multiple tool calls", async () => {
-      mockAnthropicCreate.mockResolvedValue({
-        content: [
-          {
-            type: "tool_use",
-            id: "tool-1",
-            name: "search",
-            input: { query: "first" },
-          },
-          {
-            type: "tool_use",
-            id: "tool-2",
-            name: "analyze",
-            input: { data: "result" },
-          },
+      mockChat.mockResolvedValue({
+        content: "",
+        toolCalls: [
+          { id: "tool-1", name: "search", arguments: { query: "first" } },
+          { id: "tool-2", name: "analyze", arguments: { data: "result" } },
         ],
-        usage: { input_tokens: 30, output_tokens: 40 },
+        inputTokens: 30,
+        outputTokens: 40,
+        model: "claude-3-sonnet-20240229",
       });
 
       const params: LLMCallParams = {
@@ -142,11 +133,13 @@ describe("llmCall", () => {
     });
   });
 
-  describe("message conversion", () => {
-    it("converts tool result messages correctly", async () => {
-      mockAnthropicCreate.mockResolvedValue({
-        content: [{ type: "text", text: "Got it!" }],
-        usage: { input_tokens: 50, output_tokens: 10 },
+  describe("provider integration", () => {
+    it("passes messages and tools to provider.chat()", async () => {
+      mockChat.mockResolvedValue({
+        content: "Got it!",
+        inputTokens: 50,
+        outputTokens: 10,
+        model: "claude-3-sonnet-20240229",
       });
 
       const params: LLMCallParams = {
@@ -154,7 +147,7 @@ describe("llmCall", () => {
         messages: [
           { role: "user", content: "Call the tool" },
           { role: "assistant", content: "Calling search..." },
-          { role: "tool", content: "Search results: ..." , toolCallId: "tool-abc" },
+          { role: "tool", content: "Search results: ...", toolCallId: "tool-abc" },
         ],
         tools: [],
         model: "claude-3-sonnet-20240229",
@@ -162,25 +155,21 @@ describe("llmCall", () => {
 
       await llmCall(params);
 
-      const createCall = mockAnthropicCreate.mock.calls[0][0];
-      expect(createCall.messages[2]).toEqual({
-        role: "user",
-        content: [
-          {
-            type: "tool_result",
-            tool_use_id: "tool-abc",
-            content: "Search results: ...",
-          },
-        ],
+      expect(mockChat).toHaveBeenCalledWith({
+        model: "claude-3-sonnet-20240229",
+        messages: params.messages,
+        maxTokens: 4096,
       });
     });
   });
 
   describe("span emission", () => {
     it("emits success span with token counts", async () => {
-      mockAnthropicCreate.mockResolvedValue({
-        content: [{ type: "text", text: "Response" }],
-        usage: { input_tokens: 100, output_tokens: 50 },
+      mockChat.mockResolvedValue({
+        content: "Response",
+        inputTokens: 100,
+        outputTokens: 50,
+        model: "claude-3-sonnet-20240229",
       });
 
       const params: LLMCallParams = {
@@ -208,7 +197,7 @@ describe("llmCall", () => {
     });
 
     it("emits error span on failure", async () => {
-      mockAnthropicCreate.mockRejectedValue(new Error("API rate limit exceeded"));
+      mockChat.mockRejectedValue(new Error("API rate limit exceeded"));
 
       const params: LLMCallParams = {
         traceId: "trace-project1-12345",
@@ -232,7 +221,7 @@ describe("llmCall", () => {
 
   describe("error handling", () => {
     it("re-throws errors for Temporal retry handling", async () => {
-      mockAnthropicCreate.mockRejectedValue(new Error("Network error"));
+      mockChat.mockRejectedValue(new Error("Network error"));
 
       const params: LLMCallParams = {
         traceId: "trace-project1-12345",
@@ -245,7 +234,7 @@ describe("llmCall", () => {
     });
 
     it("handles unknown error types", async () => {
-      mockAnthropicCreate.mockRejectedValue("String error");
+      mockChat.mockRejectedValue("String error");
 
       const params: LLMCallParams = {
         traceId: "trace-project1-12345",
@@ -268,49 +257,56 @@ describe("llmCall", () => {
 describe("estimateCost", () => {
   it("estimates cost for claude-3-5-sonnet", () => {
     const cost = estimateCost("claude-3-5-sonnet", 1000000, 500000);
-    
+
     // $3 per 1M input + $7.50 per 500K output = $10.50
     expect(cost).toBeCloseTo(3 + 7.5, 2);
   });
 
   it("estimates cost for claude-3-opus", () => {
     const cost = estimateCost("claude-3-opus", 1000000, 1000000);
-    
+
     // $15 per 1M input + $75 per 1M output = $90
     expect(cost).toBeCloseTo(15 + 75, 2);
   });
 
   it("estimates cost for claude-3-haiku", () => {
     const cost = estimateCost("claude-3-haiku", 10000000, 5000000);
-    
+
     // $2.50 per 10M input + $6.25 per 5M output = $8.75
     expect(cost).toBeCloseTo(2.5 + 6.25, 2);
   });
 
   it("estimates cost for gpt-4-turbo", () => {
     const cost = estimateCost("gpt-4-turbo", 1000000, 1000000);
-    
+
     // $10 per 1M input + $30 per 1M output = $40
     expect(cost).toBeCloseTo(10 + 30, 2);
   });
 
   it("estimates cost for gpt-4o", () => {
     const cost = estimateCost("gpt-4o", 1000000, 1000000);
-    
+
     // $5 per 1M input + $15 per 1M output = $20
     expect(cost).toBeCloseTo(5 + 15, 2);
   });
 
   it("estimates cost for gpt-4o-mini", () => {
     const cost = estimateCost("gpt-4o-mini", 1000000, 1000000);
-    
+
     // $0.15 per 1M input + $0.60 per 1M output = $0.75
     expect(cost).toBeCloseTo(0.15 + 0.60, 2);
   });
 
+  it("estimates cost for gemini-1.5-pro", () => {
+    const cost = estimateCost("gemini-1.5-pro", 1000000, 1000000);
+
+    // $3.5 per 1M input + $10.5 per 1M output = $14
+    expect(cost).toBeCloseTo(3.5 + 10.5, 2);
+  });
+
   it("uses default pricing for unknown models", () => {
     const cost = estimateCost("unknown-model", 1000000, 1000000);
-    
+
     // Default: $1 per 1M input + $3 per 1M output = $4
     expect(cost).toBeCloseTo(1 + 3, 2);
   });
@@ -322,7 +318,7 @@ describe("estimateCost", () => {
 
   it("handles small token counts", () => {
     const cost = estimateCost("claude-3-haiku", 100, 50);
-    
+
     // Very small cost
     expect(cost).toBeGreaterThan(0);
     expect(cost).toBeLessThan(0.001);

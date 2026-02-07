@@ -6,11 +6,11 @@
  *
  * Scorer Types:
  * - Rule-based: Fast, deterministic scoring (contains, regex, tool_selection)
- * - LLM Judge: Uses Claude to evaluate quality, reasoning, etc.
+ * - LLM Judge: Uses LLM to evaluate quality, reasoning, etc.
  * - Custom: User-defined scoring logic via config
  */
 
-import Anthropic from "@anthropic-ai/sdk";
+import { getProvider } from "@neon/llm-providers";
 import type { ScoreTraceParams, ScorerDefinition } from "../types";
 
 // Use NEON_API_URL to point to the Next.js frontend API
@@ -693,7 +693,8 @@ async function scoreLLMJudge(
   customPrompt?: string,
   model?: string
 ): Promise<ScoreResult> {
-  const anthropic = new Anthropic();
+  const judgeModel = model || "claude-3-haiku-20240307";
+  const provider = getProvider(judgeModel);
   const lastGeneration = getLastGeneration(trace);
 
   const systemPrompt = customPrompt || PROMPTS[scorerName as keyof typeof PROMPTS] || `
@@ -732,13 +733,13 @@ Example response:
 {"score": 0.85, "reason": "The response is accurate and well-structured, with only minor areas for improvement."}`;
 
   try {
-    const response = await anthropic.messages.create({
-      model: model || "claude-3-haiku-20240307",
-      max_tokens: 300,
+    const response = await provider.chat({
+      model: judgeModel,
+      maxTokens: 300,
       messages: [{ role: "user", content: userPrompt }],
     });
 
-    const text = response.content[0].type === "text" ? response.content[0].text : "";
+    const text = response.content;
 
     // Extract JSON from response (handle markdown code blocks)
     const jsonMatch = text.match(/\{[\s\S]*?"score"[\s\S]*?"reason"[\s\S]*?\}/);
@@ -749,7 +750,7 @@ Example response:
         value: Math.min(1, Math.max(0, result.score)),
         reason: result.reason,
         metadata: {
-          model: model || "claude-3-haiku-20240307",
+          model: judgeModel,
           raw_response: text,
         },
       };

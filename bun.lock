@@ -63,6 +63,27 @@
         "vitest": "^4.0.18",
       },
     },
+    "packages/llm-providers": {
+      "name": "@neon/llm-providers",
+      "version": "0.1.0",
+      "devDependencies": {
+        "@anthropic-ai/sdk": "^0.32.0",
+        "@types/node": "^20.11.0",
+        "typescript": "^5.3.3",
+      },
+      "peerDependencies": {
+        "@anthropic-ai/sdk": "^0.32.0",
+        "@anthropic-ai/vertex-sdk": "^0.4.0",
+        "@google-cloud/vertexai": "^1.0.0",
+        "openai": "^4.0.0",
+      },
+      "optionalPeers": [
+        "@anthropic-ai/sdk",
+        "@anthropic-ai/vertex-sdk",
+        "@google-cloud/vertexai",
+        "openai",
+      ],
+    },
     "packages/sdk": {
       "name": "@neon/sdk",
       "version": "0.1.0",
@@ -71,6 +92,7 @@
       },
       "dependencies": {
         "@anthropic-ai/sdk": "^0.32.0",
+        "@neon/llm-providers": "workspace:*",
         "@neon/shared": "workspace:*",
         "commander": "^12.1.0",
         "glob": "^11.0.0",
@@ -108,6 +130,7 @@
       "dependencies": {
         "@anthropic-ai/sdk": "^0.32.0",
         "@clickhouse/client": "^1.0.1",
+        "@neon/llm-providers": "workspace:*",
         "@neon/shared": "workspace:*",
         "@opentelemetry/auto-instrumentations-node": "^0.61.0",
         "@opentelemetry/exporter-trace-otlp-http": "^0.211.0",
@@ -333,6 +356,8 @@
     "@jsonjoy.com/json-pointer": ["@jsonjoy.com/json-pointer@1.0.2", "", { "dependencies": { "@jsonjoy.com/codegen": "^1.0.0", "@jsonjoy.com/util": "^1.9.0" }, "peerDependencies": { "tslib": "2" } }, "sha512-Fsn6wM2zlDzY1U+v4Nc8bo3bVqgfNTGcn6dMgs6FjrEnt4ZCe60o6ByKRjOGlI2gow0aE/Q41QOigdTqkyK5fg=="],
 
     "@jsonjoy.com/util": ["@jsonjoy.com/util@1.9.0", "", { "dependencies": { "@jsonjoy.com/buffers": "^1.0.0", "@jsonjoy.com/codegen": "^1.0.0" }, "peerDependencies": { "tslib": "2" } }, "sha512-pLuQo+VPRnN8hfPqUTLTHk126wuYdXVxE6aDmjSeV4NCAgyxWbiOIeNJVtID3h1Vzpoi9m4jXezf73I6LgabgQ=="],
+
+    "@neon/llm-providers": ["@neon/llm-providers@workspace:packages/llm-providers"],
 
     "@neon/sdk": ["@neon/sdk@workspace:packages/sdk"],
 

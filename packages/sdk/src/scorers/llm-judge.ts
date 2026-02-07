@@ -2,9 +2,10 @@
  * LLM Judge Scorer
  *
  * Uses an LLM to evaluate agent performance.
+ * Supports any provider via @neon/llm-providers.
  */
 
-import Anthropic from "@anthropic-ai/sdk";
+import { getProvider, hasProviderConfigured } from "@neon/llm-providers";
 import type { SpanWithChildren } from "@neon/shared";
 import { defineScorer, type Scorer, type EvalContext } from "./base.js";
 
@@ -59,22 +60,6 @@ function defaultParser(response: string): number {
  *
  * @example
  * ```typescript
- * const qualityScorer = llmJudge({
- *   prompt: `Rate the response quality from 0 to 1.
- *
- * Input: {{input}}
- * Output: {{output}}
- *
- * Provide your rating as JSON: {"score": <0-1>, "reason": "<explanation>"}`,
- *   model: 'claude-3-haiku-20240307',
- * });
- * ```
- */
-/**
- * Create an LLM judge scorer
- *
- * @example
- * ```typescript
  * // Basic usage
  * const qualityScorer = llmJudge({
  *   prompt: `Rate the response quality from 0 to 1.
@@ -113,29 +98,29 @@ export function llmJudge(config: LLMJudgeConfig): Scorer {
     description,
     dataType: "numeric",
     evaluate: async (context: EvalContext) => {
-      // Check for API key - fail fast if not configured
-      if (!process.env.ANTHROPIC_API_KEY) {
+      // Check for any configured provider - fail fast if none
+      if (!hasProviderConfigured()) {
         throw new Error(
-          "LLM judge requires ANTHROPIC_API_KEY environment variable. " +
-          "Set it before running evals or use a different scorer."
+          "LLM judge requires a configured LLM provider. " +
+          "Set ANTHROPIC_API_KEY, OPENAI_API_KEY, or configure a provider. " +
+          "See @neon/llm-providers for details."
         );
       }
 
-      const anthropic = new Anthropic();
+      const provider = getProvider(model);
 
       // Build the evaluation prompt
       const evalPrompt = buildPrompt(prompt, context);
 
       try {
-        const response = await anthropic.messages.create({
+        const response = await provider.chat({
           model,
-          max_tokens: maxTokens,
+          maxTokens,
           temperature,
           messages: [{ role: "user", content: evalPrompt }],
         });
 
-        const text =
-          response.content[0].type === "text" ? response.content[0].text : "";
+        const text = response.content;
 
         if (!text) {
           return {
@@ -177,7 +162,7 @@ export function llmJudge(config: LLMJudgeConfig): Scorer {
         if (errorMessage.includes("401") || errorMessage.includes("authentication")) {
           throw new Error(
             "LLM judge error: Invalid API key. " +
-            "Check your ANTHROPIC_API_KEY environment variable."
+            "Check your provider API key environment variable."
           );
         }
         if (errorMessage.includes("403") || errorMessage.includes("permission")) {

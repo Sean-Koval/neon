@@ -453,18 +453,26 @@ describe("llmJudge", () => {
   });
 
   describe("API key handling", () => {
-    it("throws error when ANTHROPIC_API_KEY is not set", async () => {
+    it("throws error when no LLM provider is configured", async () => {
       delete process.env.ANTHROPIC_API_KEY;
+      delete process.env.OPENAI_API_KEY;
+      delete process.env.GOOGLE_CLOUD_PROJECT;
+      delete process.env.GOOGLE_PROJECT_ID;
+      delete process.env.NEON_LLM_BASE_URL;
 
       const scorer = llmJudge({ prompt: "Rate: {{output}}" });
 
       await expect(scorer.evaluate(createMockContext("test output"))).rejects.toThrow(
-        "LLM judge requires ANTHROPIC_API_KEY environment variable"
+        "LLM judge requires a configured LLM provider"
       );
     });
 
     it("missing API key error is not swallowed by catch block", async () => {
       delete process.env.ANTHROPIC_API_KEY;
+      delete process.env.OPENAI_API_KEY;
+      delete process.env.GOOGLE_CLOUD_PROJECT;
+      delete process.env.GOOGLE_PROJECT_ID;
+      delete process.env.NEON_LLM_BASE_URL;
 
       const scorer = llmJudge({ prompt: "Rate: {{output}}" });
 
