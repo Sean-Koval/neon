@@ -57,11 +57,13 @@ export const GET = withAuth(async (_request: NextRequest, auth: AuthResult) => {
   try {
     const db = getPool()
     const result = await db.query(
-      `SELECT id, suite_id, suite_name, project_id, agent_version, trigger, status,
-              config, summary, started_at, completed_at, created_at
-       FROM eval_runs
-       WHERE project_id = $1 AND status = 'completed'
-       ORDER BY created_at DESC
+      `SELECT r.id, r.suite_id, COALESCE(s.name, 'Unknown Suite') as suite_name,
+              r.project_id, r.agent_version, r.status,
+              r.config, r.started_at, r.completed_at, r.created_at
+       FROM runs r
+       LEFT JOIN suites s ON r.suite_id = s.id
+       WHERE r.project_id = $1 AND r.status = 'completed'
+       ORDER BY r.created_at DESC
        LIMIT 100`,
       [projectId],
     )
@@ -72,10 +74,10 @@ export const GET = withAuth(async (_request: NextRequest, auth: AuthResult) => {
       suite_name: row.suite_name || 'Unknown Suite',
       project_id: row.project_id,
       agent_version: row.agent_version,
-      trigger: row.trigger || 'manual',
+      trigger: 'manual',
       status: row.status,
       config: row.config,
-      summary: row.summary,
+      summary: null,
       started_at: row.started_at
         ? new Date(row.started_at).toISOString()
         : null,

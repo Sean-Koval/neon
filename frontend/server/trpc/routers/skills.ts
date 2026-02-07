@@ -7,7 +7,7 @@
 import { z } from "zod";
 import { router, publicProcedure } from "../trpc";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "/api";
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || `http://localhost:${process.env.PORT || 3000}/api`;
 
 /**
  * Skills router - wraps existing /api/skills endpoints

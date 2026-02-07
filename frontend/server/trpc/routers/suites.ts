@@ -7,7 +7,7 @@
 import { z } from "zod";
 import { router, publicProcedure, protectedProcedure } from "../trpc";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "/api";
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || `http://localhost:${process.env.PORT || 3000}/api`;
 
 const scorerTypeSchema = z.enum([
   "tool_selection",
