@@ -127,6 +127,61 @@ Use the `/wt` command or run scripts directly:
 - `.project/tasks/*.json` - Individual task definitions
 - `.project/state.json` - Current project state
 
+## Local Dev Verification
+
+**Always verify your frontend/API changes actually work.** Don't just write code and assume it renders correctly. Use the app like a real user — click buttons, fill forms, submit data — and verify the results through screenshots.
+
+### Dev Loop: Edit → Use the App → Fix → Repeat
+
+```
+1. Make your code changes
+2. Run /api-check                        # ~5s  - are API endpoints healthy?
+3. Run /ui-explore /page-you-changed     # ~2m  - click, fill, submit, verify
+4. Fix any bugs found, go to step 2
+```
+
+Or run the full orchestrator:
+```
+/dev-check                               # API check + interactive exploration
+```
+
+### Verification Skills
+
+| Skill | What it does |
+|-------|-------------|
+| `/api-check` | Curls every API endpoint, reports status codes. **Run first, always.** ~5s |
+| `/ui-explore` | **The primary tool.** Navigates pages, clicks buttons, fills forms, opens modals, submits data, screenshots every step. Uses Playwright + multimodal vision in a see-act loop. ~2-5min |
+| `/dev-check` | Orchestrator: runs `/api-check` then `/ui-explore`. Use for thorough pre-commit verification. |
+| `/nav-check` | Lightweight: visits every page passively, captures console/network errors. No interaction. ~15s |
+| `/visual-check` | Lightweight: screenshots every page passively, checks for visual issues. No interaction. ~40s |
+
+### How `/ui-explore` Works
+
+Claude operates as a QA tester using an iterative see-act loop:
+
+```
+Screenshot page → View with Read (multimodal) → Identify interactive elements
+→ Write Playwright script to click/fill/submit → Screenshot result → Evaluate
+→ Continue exploring...
+```
+
+Each step produces a screenshot that Claude views to decide the next action. This catches bugs that passive page visits miss: broken form submissions, modals that don't open, buttons that error, dropdowns that don't filter.
+
+### Prerequisites
+
+Dev server must be running. Playwright must be installed:
+```bash
+bun add -d playwright @playwright/test && bunx playwright install chromium
+bun run dev   # or bun run frontend
+```
+
+### When to Verify
+
+- **After any API/route change**: `/api-check` (5 seconds, no excuses)
+- **After any UI change**: `/ui-explore /the-page` (click through the changes)
+- **Before committing**: `/dev-check` (full verification)
+- **Quick passive scan**: `/nav-check` (just checks pages load, no interaction)
+
 ## Code Style
 
 ### Python
