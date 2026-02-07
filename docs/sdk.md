@@ -607,6 +607,182 @@ dspy_dataset = create_dspy_dataset(traces)
 
 ---
 
+## A/B Testing & Experiments
+
+Compare agent variants with statistical rigor. Define control and treatment configurations, run experiments in parallel, and get data-driven recommendations.
+
+```typescript
+import {
+  defineExperiment,
+  defineControl,
+  defineTreatment,
+  runExperiment,
+} from '@neon/sdk'
+
+const control = defineControl({
+  name: 'GPT-4',
+  config: { model: 'gpt-4' },
+})
+
+const treatment = defineTreatment({
+  name: 'Claude Sonnet',
+  config: { model: 'claude-3-5-sonnet' },
+})
+
+const experiment = defineExperiment({
+  name: 'model-comparison',
+  variants: [control, treatment],
+  suite: mySuite,
+  primaryMetric: 'quality',
+  hypotheses: [{
+    metric: 'quality',
+    direction: 'increase',
+    minimumEffect: 0.05,
+  }],
+})
+
+const result = await runExperiment(experiment, {
+  runsPerVariant: 50,
+  parallel: true,
+  maxConcurrency: 5,
+})
+
+console.log(result.conclusion.winner)         // 'Claude Sonnet'
+console.log(result.conclusion.recommendation) // 'ship'
+```
+
+Includes Welch's t-test, Mann-Whitney U, bootstrap CI, effect size (Cohen's d, Cliff's delta), and multiple comparison corrections (Bonferroni, Holm).
+
+**Full guide:** [A/B Testing Framework](./features/ab-testing.md)
+
+---
+
+## Failure Pattern Detection
+
+Automatically identify recurring failure signatures across agent traces using token-based or semantic similarity clustering.
+
+```typescript
+import {
+  detectPatterns,
+  patternDiversityScorer,
+  novelPatternScorer,
+} from '@neon/sdk'
+
+// Detect patterns in a trace
+const result = detectPatterns(evalContext)
+console.log(result.patterns)    // Array of FailurePattern
+console.log(result.topPattern)  // Most frequent pattern
+console.log(result.summary)     // Human-readable summary
+
+// Use as scorers in test suites
+const suite = defineSuite({
+  name: 'reliability',
+  defaultScorers: [
+    patternDiversityScorer(),
+    novelPatternScorer({ knownPatterns: baselinePatterns }),
+  ],
+})
+```
+
+Supports custom error categories, embedding-based semantic matching (OpenAI, Transformers.js), and per-project caching.
+
+**Full guide:** [Failure Pattern Detection](./features/failure-patterns.md)
+
+---
+
+## Offline Tracing Buffer
+
+Buffer spans locally when connectivity is unavailable and flush them when the backend is reachable again.
+
+```typescript
+import { createOfflineBuffer, createBufferableSpan } from '@neon/sdk'
+
+const buffer = createOfflineBuffer({
+  maxSize: 1000,
+  flushInterval: 30000,
+  flushStrategy: 'hybrid',
+  persistPath: './traces-buffer.jsonl',
+  onFlush: async (spans) => {
+    await neon.traces.ingest(spans)
+    return { success: spans.length, failed: 0 }
+  },
+})
+
+await buffer.initialize()
+buffer.add(createBufferableSpan({ traceId, name: 'my-span', type: 'generation' }))
+```
+
+Four flush strategies: `size`, `time`, `manual`, and `hybrid` (default). Includes disk persistence, cross-process file locking, automatic retry, and health monitoring.
+
+**Full guide:** [Offline Tracing Buffer](./features/offline-buffer.md)
+
+---
+
+## Breakpoint Debugging
+
+Define inspection points in agent traces that trigger actions when conditions are met — similar to IDE debugger breakpoints.
+
+```typescript
+import {
+  defineBreakpoint,
+  onSpanType,
+  onError,
+  and,
+  getBreakpointManager,
+} from '@neon/sdk'
+
+const bp = defineBreakpoint({
+  name: 'tool-errors',
+  matcher: and(onSpanType('tool'), onError()),
+  trigger: 'onExit',
+  action: { type: 'log', message: 'Tool failed: {{span.toolName}}' },
+  hitCondition: { every: 1 },
+})
+
+const manager = getBreakpointManager()
+manager.register(bp)
+
+// Evaluate against a trace
+const fired = await manager.evaluate(span, trace, 'onExit')
+```
+
+Includes 10 matcher factories (`onSpanType`, `onTool`, `onModel`, `onError`, etc.), composable `and`/`or`/`not` combinators, and capture actions for collecting contexts.
+
+**Full guide:** [Breakpoint Definition API](./features/breakpoints.md)
+
+---
+
+## DSPy Export
+
+Export traces to DSPy-compatible training data for prompt optimization.
+
+```typescript
+import { exportToDSPy, exportBatchToDSPy } from '@neon/sdk'
+
+const examples = exportToDSPy(traceContext, {
+  fieldMapping: { preset: 'question-answer' },
+  filter: { scoreThreshold: 0.8, successOnly: true },
+})
+
+const dataset = exportBatchToDSPy(traceContexts, {
+  fieldMapping: { preset: 'chain-of-thought' },
+  splitRatio: 0.8,  // 80% train, 20% dev
+})
+```
+
+**Python:**
+```python
+from neon_sdk.integrations.dspy import trace_to_dspy_example, create_dspy_dataset
+
+dataset = create_dspy_dataset(traces, name="my-dataset")
+```
+
+Supports 5 presets (question-answer, chat, completion, tool-use, chain-of-thought), quality filtering, JSONL export, and auto-generated Python loader code.
+
+**Full guide:** [DSPy Export](./features/dspy-export.md)
+
+---
+
 ## Types Reference
 
 ### Core Types

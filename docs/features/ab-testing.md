@@ -641,6 +641,7 @@ console.log(`95% CI: [${ci.lower.toFixed(2)}, ${ci.upper.toFixed(2)}]`);
 
 ## Related
 
+- [SDK Reference](../sdk.md) - Full SDK API reference
 - [Test Suites](../test-suites.md) - Define test suites for experiments
 - [Scorers](../scorers.md) - Create custom metrics
 - [DSPy Export](./dspy-export.md) - Export winning variant traces for training
