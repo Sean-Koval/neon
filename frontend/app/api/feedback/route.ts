@@ -8,37 +8,23 @@
 import { type NextRequest, NextResponse } from 'next/server'
 import { v4 as uuidv4 } from 'uuid'
 import type { FeedbackCreate, FeedbackFilter, FeedbackItem } from '@/lib/types'
+import { createFeedbackSchema } from '@/lib/validation/schemas'
+import { validateBody } from '@/lib/validation/middleware'
+import { withRateLimit } from '@/lib/middleware/rate-limit'
+import { WRITE_LIMIT, READ_LIMIT } from '@/lib/rate-limit'
 
 // In-memory store for feedback (will be replaced with ClickHouse)
 // Using a Map for easy lookup and filtering
 const feedbackStore = new Map<string, FeedbackItem>()
 
-export async function POST(request: NextRequest) {
+export const POST = withRateLimit(async function POST(request: NextRequest) {
   try {
-    const body: FeedbackCreate = await request.json()
+    const rawBody = await request.json()
 
-    // Validate feedback type
-    if (!body.type) {
-      return NextResponse.json(
-        { error: 'Feedback type is required' },
-        { status: 400 },
-      )
-    }
-
-    // Validate type-specific data
-    if (body.type === 'preference' && !body.preference) {
-      return NextResponse.json(
-        { error: 'Preference data is required for preference feedback' },
-        { status: 400 },
-      )
-    }
-
-    if (body.type === 'correction' && !body.correction) {
-      return NextResponse.json(
-        { error: 'Correction data is required for correction feedback' },
-        { status: 400 },
-      )
-    }
+    // Validate request body
+    const validation = validateBody(createFeedbackSchema, rawBody)
+    if (!validation.success) return validation.response
+    const body = validation.data
 
     const feedbackId = uuidv4()
     const timestamp = new Date().toISOString()
@@ -69,9 +55,9 @@ export async function POST(request: NextRequest) {
       { status: 500 },
     )
   }
-}
+}, WRITE_LIMIT)
 
-export async function GET(request: NextRequest) {
+export const GET = withRateLimit(async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams
 
@@ -124,4 +110,4 @@ export async function GET(request: NextRequest) {
       { status: 500 },
     )
   }
-}
+}, READ_LIMIT)

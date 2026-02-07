@@ -13,13 +13,16 @@ import {
   type StartEvalRunParams,
   startEvalRunWorkflow,
 } from '@/lib/temporal'
+import { createRunSchema } from '@/lib/validation/schemas'
+import { validateBody } from '@/lib/validation/middleware'
+import { withRateLimit } from '@/lib/middleware/rate-limit'
 
 /**
  * POST /api/runs
  *
  * Start a new evaluation run via Temporal workflow.
  */
-export const POST = withAuth(async (request: NextRequest, auth: AuthResult) => {
+export const POST = withRateLimit(withAuth(async (request: NextRequest, auth: AuthResult) => {
   try {
     const projectId = auth.workspaceId
     if (!projectId) {
@@ -31,47 +34,33 @@ export const POST = withAuth(async (request: NextRequest, auth: AuthResult) => {
 
     const body = await request.json()
 
-    // Validate that body.projectId matches auth workspace if provided
-    if (body.projectId && body.projectId !== projectId) {
+    // Validate request body
+    const validation = validateBody(createRunSchema, body)
+    if (!validation.success) return validation.response
+    const data = validation.data
+
+    // Validate that projectId matches auth workspace if provided
+    if (data.projectId && data.projectId !== projectId) {
       return NextResponse.json(
         { error: 'projectId does not match authenticated workspace' },
         { status: 403 },
       )
     }
 
-    if (!body.agentId) {
-      return NextResponse.json(
-        { error: 'agentId is required' },
-        { status: 400 },
-      )
-    }
-    if (!body.dataset?.items || body.dataset.items.length === 0) {
-      return NextResponse.json(
-        { error: 'dataset.items is required and must not be empty' },
-        { status: 400 },
-      )
-    }
-    if (!body.scorers || body.scorers.length === 0) {
-      return NextResponse.json(
-        { error: 'scorers is required and must not be empty' },
-        { status: 400 },
-      )
-    }
-
     // Generate run ID
-    const runId = body.runId || uuidv4()
+    const runId = data.runId || uuidv4()
 
     // Build workflow params - always use auth workspace as projectId
     const params: StartEvalRunParams = {
       runId,
       projectId,
-      agentId: body.agentId,
-      agentVersion: body.agentVersion || 'latest',
-      dataset: body.dataset,
-      tools: body.tools || [],
-      scorers: body.scorers,
-      parallel: body.parallel || false,
-      parallelism: body.parallelism || 5,
+      agentId: data.agentId,
+      agentVersion: data.agentVersion || 'latest',
+      dataset: data.dataset,
+      tools: data.tools || [],
+      scorers: data.scorers,
+      parallel: data.parallel || false,
+      parallelism: data.parallelism || 5,
     }
 
     // Start the workflow
@@ -106,7 +95,7 @@ export const POST = withAuth(async (request: NextRequest, auth: AuthResult) => {
       { status: 500 },
     )
   }
-})
+}))
 
 /**
  * GET /api/runs
@@ -117,7 +106,7 @@ export const POST = withAuth(async (request: NextRequest, auth: AuthResult) => {
  * - limit: number (default 50)
  * - status: "RUNNING" | "COMPLETED" | "FAILED"
  */
-export const GET = withAuth(async (request: NextRequest, auth: AuthResult) => {
+export const GET = withRateLimit(withAuth(async (request: NextRequest, auth: AuthResult) => {
   const projectId = auth.workspaceId
   if (!projectId) {
     return NextResponse.json(
@@ -174,4 +163,4 @@ export const GET = withAuth(async (request: NextRequest, auth: AuthResult) => {
       { status: 500 },
     )
   }
-})
+}))

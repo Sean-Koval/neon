@@ -16,6 +16,10 @@ import {
   type PromptRecord,
 } from '@/lib/clickhouse'
 import type { Prompt, PromptUpdate, PromptVersionEntry } from '@/lib/types'
+import { updatePromptSchema } from '@/lib/validation/schemas'
+import { validateBody } from '@/lib/validation/middleware'
+import { withRateLimit } from '@/lib/middleware/rate-limit'
+import { WRITE_LIMIT, READ_LIMIT } from '@/lib/rate-limit'
 
 interface RouteParams {
   params: Promise<{ id: string }>
@@ -57,7 +61,7 @@ function transformPrompt(record: PromptRecord): Prompt {
  * - version: Specific version number (optional)
  * - history: If 'true', return version history instead of single prompt
  */
-export async function GET(request: NextRequest, { params }: RouteParams) {
+export const GET = withRateLimit(async function GET(request: NextRequest, { params }: RouteParams) {
   try {
     const { id } = await params
     const searchParams = request.nextUrl.searchParams
@@ -124,7 +128,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       { status: 500 },
     )
   }
-}
+}, READ_LIMIT)
 
 /**
  * PATCH /api/prompts/[id]
@@ -143,10 +147,15 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
  *   commit_message?: string;
  * }
  */
-export async function PATCH(request: NextRequest, { params }: RouteParams) {
+export const PATCH = withRateLimit(async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
     const { id } = await params
-    const body: PromptUpdate & { projectId?: string } = await request.json()
+    const rawBody = await request.json()
+
+    // Validate request body
+    const validation = validateBody(updatePromptSchema, rawBody)
+    if (!validation.success) return validation.response
+    const body = validation.data
     const projectId = body.projectId || 'default'
 
     // Get existing prompt
@@ -230,4 +239,4 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       { status: 500 },
     )
   }
-}
+}, WRITE_LIMIT)

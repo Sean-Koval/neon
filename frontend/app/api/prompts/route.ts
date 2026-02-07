@@ -14,6 +14,10 @@ import {
   type PromptRecord,
 } from '@/lib/clickhouse'
 import type { Prompt, PromptCreate, PromptList } from '@/lib/types'
+import { createPromptSchema } from '@/lib/validation/schemas'
+import { validateBody } from '@/lib/validation/middleware'
+import { withRateLimit } from '@/lib/middleware/rate-limit'
+import { WRITE_LIMIT, READ_LIMIT } from '@/lib/rate-limit'
 
 /**
  * Transform ClickHouse record to API response
@@ -53,7 +57,7 @@ function transformPrompt(record: PromptRecord): Prompt {
  * - limit: Number of results (default: 50)
  * - offset: Offset for pagination (default: 0)
  */
-export async function GET(request: NextRequest) {
+export const GET = withRateLimit(async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams
     const projectId = searchParams.get('projectId') || 'default'
@@ -102,7 +106,7 @@ export async function GET(request: NextRequest) {
       { status: 500 },
     )
   }
-}
+}, READ_LIMIT)
 
 /**
  * POST /api/prompts
@@ -123,36 +127,15 @@ export async function GET(request: NextRequest) {
  *   commit_message?: string;
  * }
  */
-export async function POST(request: NextRequest) {
+export const POST = withRateLimit(async function POST(request: NextRequest) {
   try {
-    const body: PromptCreate & { projectId?: string } = await request.json()
-    const projectId = body.projectId || 'default'
+    const rawBody = await request.json()
 
-    // Validate required fields
-    if (!body.name) {
-      return NextResponse.json({ error: 'name is required' }, { status: 400 })
-    }
-    if (!body.type || !['text', 'chat'].includes(body.type)) {
-      return NextResponse.json(
-        { error: 'type must be "text" or "chat"' },
-        { status: 400 },
-      )
-    }
-    if (body.type === 'text' && !body.template) {
-      return NextResponse.json(
-        { error: 'template is required for text prompts' },
-        { status: 400 },
-      )
-    }
-    if (
-      body.type === 'chat' &&
-      (!body.messages || body.messages.length === 0)
-    ) {
-      return NextResponse.json(
-        { error: 'messages are required for chat prompts' },
-        { status: 400 },
-      )
-    }
+    // Validate request body
+    const validation = validateBody(createPromptSchema, rawBody)
+    if (!validation.success) return validation.response
+    const body = validation.data
+    const projectId = body.projectId || 'default'
 
     // Check if prompt with this name already exists and get next version
     const existingVersion = await getLatestPromptVersion(projectId, body.name)
@@ -202,4 +185,4 @@ export async function POST(request: NextRequest) {
       { status: 500 },
     )
   }
-}
+}, WRITE_LIMIT)

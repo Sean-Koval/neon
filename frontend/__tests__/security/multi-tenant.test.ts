@@ -504,7 +504,7 @@ describe('Workspace Isolation - Runs', () => {
       body: {
         projectId: TEST_WORKSPACES.workspaceB.id, // Wrong workspace!
         agentId: 'agent-1',
-        dataset: { items: [{ input: 'test' }] },
+        dataset: { items: [{ input: { query: 'test' } }] },
         scorers: ['tool_selection'],
       },
     })
@@ -527,7 +527,7 @@ describe('Workspace Isolation - Runs', () => {
       method: 'POST',
       body: {
         agentId: 'agent-1',
-        dataset: { items: [{ input: 'test' }] },
+        dataset: { items: [{ input: { query: 'test' } }] },
         scorers: ['tool_selection'],
       },
     })

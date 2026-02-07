@@ -8,6 +8,10 @@
 import { type NextRequest, NextResponse } from 'next/server'
 import { v4 as uuidv4 } from 'uuid'
 import type { ComparisonPair } from '@/lib/types'
+import { createComparisonSchema } from '@/lib/validation/schemas'
+import { validateBody } from '@/lib/validation/middleware'
+import { withRateLimit } from '@/lib/middleware/rate-limit'
+import { WRITE_LIMIT, READ_LIMIT } from '@/lib/rate-limit'
 
 // In-memory store for comparison pairs (will be replaced with ClickHouse)
 const comparisonStore = new Map<string, ComparisonPair>()
@@ -208,7 +212,7 @@ Test cases:
 // Seed on module load
 seedExampleComparisons()
 
-export async function GET(request: NextRequest) {
+export const GET = withRateLimit(async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams
 
@@ -249,23 +253,16 @@ export async function GET(request: NextRequest) {
       { status: 500 },
     )
   }
-}
+}, READ_LIMIT)
 
-export async function POST(request: NextRequest) {
+export const POST = withRateLimit(async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
+    const rawBody = await request.json()
 
-    // Validate required fields
-    if (!body.prompt) {
-      return NextResponse.json({ error: 'Prompt is required' }, { status: 400 })
-    }
-
-    if (!body.responseA || !body.responseB) {
-      return NextResponse.json(
-        { error: 'Both responseA and responseB are required' },
-        { status: 400 },
-      )
-    }
+    // Validate request body
+    const validation = validateBody(createComparisonSchema, rawBody)
+    if (!validation.success) return validation.response
+    const body = validation.data
 
     const id = uuidv4()
     const timestamp = new Date().toISOString()
@@ -304,4 +301,4 @@ export async function POST(request: NextRequest) {
       { status: 500 },
     )
   }
-}
+}, WRITE_LIMIT)

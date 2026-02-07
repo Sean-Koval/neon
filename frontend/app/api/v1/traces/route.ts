@@ -11,6 +11,10 @@ import { type NextRequest, NextResponse } from 'next/server'
 import type { SpanRecord, TraceRecord } from '@/lib/clickhouse'
 import { insertSpans, insertTraces } from '@/lib/clickhouse'
 import { withAuth, type AuthResult } from '@/lib/middleware/auth'
+import { createTracesSchema } from '@/lib/validation/schemas'
+import { validateBody } from '@/lib/validation/middleware'
+import { withRateLimit } from '@/lib/middleware/rate-limit'
+import { BATCH_LIMIT } from '@/lib/rate-limit'
 
 /**
  * OTel OTLP Span format (simplified)
@@ -234,7 +238,7 @@ function aggregateTrace(spans: SpanRecord[], projectId: string): TraceRecord {
  *
  * Ingest OTel traces
  */
-export const POST = withAuth(
+export const POST = withRateLimit(withAuth(
   async (request: NextRequest, auth: AuthResult) => {
     try {
       const projectId = auth.workspaceId
@@ -245,21 +249,17 @@ export const POST = withAuth(
         )
       }
 
-      // Parse OTLP request
-      const body: OTLPRequest = await request.json()
-
-      if (!body.resourceSpans || body.resourceSpans.length === 0) {
-        return NextResponse.json(
-          { error: 'No resourceSpans provided' },
-          { status: 400 },
-        )
-      }
+      // Parse and validate OTLP request
+      const body = await request.json()
+      const validation = validateBody(createTracesSchema, body)
+      if (!validation.success) return validation.response
+      const otlpRequest: OTLPRequest = validation.data
 
       // Transform all spans
       const allSpans: SpanRecord[] = []
       const traceIds = new Set<string>()
 
-      for (const resourceSpan of body.resourceSpans) {
+      for (const resourceSpan of otlpRequest.resourceSpans) {
         for (const scopeSpan of resourceSpan.scopeSpans) {
           for (const span of scopeSpan.spans) {
             const transformed = transformSpan(span, projectId)
@@ -299,4 +299,4 @@ export const POST = withAuth(
       )
     }
   },
-)
+), BATCH_LIMIT)

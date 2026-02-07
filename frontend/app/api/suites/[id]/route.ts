@@ -10,6 +10,9 @@ import { type NextRequest, NextResponse } from 'next/server'
 import { Pool } from 'pg'
 import type { EvalSuite, ScorerType } from '@/lib/types'
 import { withAuth, type AuthResult } from '@/lib/middleware/auth'
+import { updateSuiteSchema } from '@/lib/validation/schemas'
+import { validateBody } from '@/lib/validation/middleware'
+import { withRateLimit } from '@/lib/middleware/rate-limit'
 
 // Connection pool (shared with main suites route via process-level singleton)
 let pool: Pool | null = null
@@ -80,7 +83,7 @@ function isConnectionError(error: unknown): boolean {
  * Get a single evaluation suite by ID.
  * Verifies ownership against authenticated workspace.
  */
-export const GET = withAuth(
+export const GET = withRateLimit(withAuth(
   async (
     _request: NextRequest,
     auth: AuthResult,
@@ -140,7 +143,7 @@ export const GET = withAuth(
       )
     }
   },
-)
+))
 
 /**
  * PATCH /api/suites/:id
@@ -159,7 +162,7 @@ export const GET = withAuth(
  *   default_config?: object;
  * }
  */
-export const PATCH = withAuth(
+export const PATCH = withRateLimit(withAuth(
   async (
     request: NextRequest,
     auth: AuthResult,
@@ -187,6 +190,11 @@ export const PATCH = withAuth(
 
     try {
       const body = await request.json()
+
+      // Validate request body
+      const validation = validateBody(updateSuiteSchema, body)
+      if (!validation.success) return validation.response
+
       const pool = getPool()
 
       // First, fetch current suite to merge config
@@ -292,7 +300,7 @@ export const PATCH = withAuth(
       )
     }
   },
-)
+))
 
 /**
  * DELETE /api/suites/:id
@@ -300,7 +308,7 @@ export const PATCH = withAuth(
  * Delete an evaluation suite and all associated cases.
  * Verifies ownership against authenticated workspace.
  */
-export const DELETE = withAuth(
+export const DELETE = withRateLimit(withAuth(
   async (
     _request: NextRequest,
     auth: AuthResult,
@@ -367,4 +375,4 @@ export const DELETE = withAuth(
       )
     }
   },
-)
+))
