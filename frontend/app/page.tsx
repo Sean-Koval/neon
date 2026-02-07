@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import { memo, useMemo } from 'react'
+import { RegressionBanner } from '@/components/alerts/regression-banner'
 import { CostAnalyticsCards } from '@/components/dashboard/cost-analytics'
 import {
   type DashboardFilters,
@@ -24,6 +25,7 @@ import {
   LazyScoreTrends,
   LazyToolMetricsCard,
 } from '@/components/dashboard/lazy-components'
+import { useAlerts } from '@/hooks/use-alerts'
 import { useDashboard } from '@/hooks/use-dashboard'
 import type { EvalRun, EvalRunStatus } from '@/lib/types'
 
@@ -46,8 +48,14 @@ export default function Dashboard() {
     refresh,
   } = useDashboard()
 
+  const { data: alertsData } = useAlerts()
+  const regressionAlerts = alertsData?.alerts ?? []
+
   return (
     <div className="space-y-8">
+      {/* Regression Banner */}
+      <RegressionBanner alerts={regressionAlerts} />
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

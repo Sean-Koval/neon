@@ -4,6 +4,7 @@ import { clsx } from 'clsx'
 import {
   Activity,
   BarChart3,
+  Bell,
   GitCompare,
   LayoutDashboard,
   MessageSquare,
@@ -23,6 +24,7 @@ const navigation = [
   { name: 'Skills', href: '/skills', icon: Target },
   { name: 'Analysis', href: '/analysis', icon: BarChart3 },
   { name: 'Compare', href: '/compare', icon: GitCompare },
+  { name: 'Alerts', href: '/alerts', icon: Bell },
   { name: 'Feedback', href: '/feedback', icon: MessageSquare },
   { name: 'Settings', href: '/settings', icon: Settings },
 ]
