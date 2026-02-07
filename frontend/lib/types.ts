@@ -822,18 +822,12 @@ export type OutgoingWebSocketMessage =
  * Options for the useRealtime hook.
  */
 export interface UseRealtimeOptions {
-  /** WebSocket URL (defaults to auto-detected) */
-  wsUrl?: string
-  /** Enable WebSocket (defaults to true) */
-  enableWebSocket?: boolean
-  /** Polling interval in ms when WebSocket unavailable (defaults to 2000) */
+  /** Polling interval in ms when SSE unavailable (defaults to 2000) */
   pollingInterval?: number
   /** Reconnect attempts before falling back to polling (defaults to 3) */
   maxReconnectAttempts?: number
   /** Reconnect delay in ms (defaults to 1000, doubles each attempt) */
   reconnectDelay?: number
-  /** Ping interval in ms to keep connection alive (defaults to 30000) */
-  pingInterval?: number
   /** Callback when connection status changes */
   onConnectionChange?: (status: ConnectionStatus) => void
   /** Callback when an error occurs */
@@ -846,7 +840,7 @@ export interface UseRealtimeOptions {
 export interface UseRealtimeReturn {
   /** Current connection status */
   connectionStatus: ConnectionStatus
-  /** Whether using WebSocket (true) or polling fallback (false) */
+  /** Whether using SSE streaming (true) or polling fallback (false) */
   isWebSocket: boolean
   /** Subscribe to updates for a run */
   subscribe: (runId: string) => void

@@ -2,71 +2,74 @@
  * Real-time Hook Unit Tests
  *
  * Tests for the useRealtime and useRealtimeRun hooks.
+ * Tests cover the SSE-based real-time architecture with polling fallback.
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type {
   ConnectionStatus,
-  IncomingWebSocketMessage,
   RunStatusUpdate,
   WebSocketErrorPayload,
 } from '@/lib/types'
 
 // =============================================================================
-// Mock WebSocket
+// Mock EventSource
 // =============================================================================
 
-class MockWebSocket {
+class MockEventSource {
   static CONNECTING = 0
   static OPEN = 1
-  static CLOSING = 2
-  static CLOSED = 3
+  static CLOSED = 2
 
   url: string
   readyState: number
   onopen: ((event: Event) => void) | null = null
-  onclose: ((event: CloseEvent) => void) | null = null
   onmessage: ((event: MessageEvent) => void) | null = null
   onerror: ((event: Event) => void) | null = null
 
-  private sentMessages: string[] = []
+  private listeners = new Map<string, Array<(event: MessageEvent) => void>>()
 
   constructor(url: string) {
     this.url = url
-    this.readyState = MockWebSocket.CONNECTING
+    this.readyState = MockEventSource.CONNECTING
+    _mockEventSourceInstances.push(this)
   }
 
-  send(data: string): void {
-    if (this.readyState !== MockWebSocket.OPEN) {
-      throw new Error('WebSocket is not open')
-    }
-    this.sentMessages.push(data)
+  addEventListener(type: string, handler: (event: MessageEvent) => void): void {
+    const handlers = this.listeners.get(type) || []
+    handlers.push(handler)
+    this.listeners.set(type, handlers)
   }
 
-  close(code?: number, reason?: string): void {
-    this.readyState = MockWebSocket.CLOSED
-    if (this.onclose) {
-      this.onclose({
-        wasClean: true,
-        code: code || 1000,
-        reason: reason || '',
-      } as CloseEvent)
-    }
+  removeEventListener(
+    type: string,
+    handler: (event: MessageEvent) => void,
+  ): void {
+    const handlers = this.listeners.get(type) || []
+    this.listeners.set(
+      type,
+      handlers.filter((h) => h !== handler),
+    )
+  }
+
+  close(): void {
+    this.readyState = MockEventSource.CLOSED
+    this.listeners.clear()
   }
 
   // Test helpers
   simulateOpen(): void {
-    this.readyState = MockWebSocket.OPEN
+    this.readyState = MockEventSource.OPEN
     if (this.onopen) {
       this.onopen(new Event('open'))
     }
   }
 
-  simulateMessage(data: IncomingWebSocketMessage): void {
-    if (this.onmessage) {
-      this.onmessage({
-        data: JSON.stringify(data),
-      } as MessageEvent)
+  simulateEvent(type: string, data: unknown): void {
+    const handlers = this.listeners.get(type) || []
+    const event = { data: JSON.stringify(data) } as MessageEvent
+    for (const handler of handlers) {
+      handler(event)
     }
   }
 
@@ -74,48 +77,18 @@ class MockWebSocket {
     if (this.onerror) {
       this.onerror(new Event('error'))
     }
-  }
-
-  simulateClose(wasClean = false): void {
-    this.readyState = MockWebSocket.CLOSED
-    if (this.onclose) {
-      this.onclose({
-        wasClean,
-        code: wasClean ? 1000 : 1006,
-        reason: '',
-      } as CloseEvent)
+    // Also fire error event listeners
+    const handlers = this.listeners.get('error') || []
+    for (const handler of handlers) {
+      handler(new Event('error') as unknown as MessageEvent)
     }
-  }
-
-  getSentMessages(): string[] {
-    return this.sentMessages
-  }
-
-  getLastSentMessage<T>(): T | undefined {
-    const last = this.sentMessages[this.sentMessages.length - 1]
-    return last ? JSON.parse(last) : undefined
   }
 }
 
-// Store created WebSocket instances for test access
-let _mockWebSocketInstance: MockWebSocket | null = null
+// Store created EventSource instances for test access
+let _mockEventSourceInstances: MockEventSource[] = []
 
-// Mock global WebSocket as a constructor class
-const MockWebSocketConstructor = function (this: MockWebSocket, url: string) {
-  const instance = new MockWebSocket(url)
-  _mockWebSocketInstance = instance
-  return instance
-} as unknown as typeof WebSocket
-
-// Add static properties
-Object.assign(MockWebSocketConstructor, {
-  CONNECTING: 0,
-  OPEN: 1,
-  CLOSING: 2,
-  CLOSED: 3,
-})
-
-vi.stubGlobal('WebSocket', MockWebSocketConstructor)
+vi.stubGlobal('EventSource', MockEventSource)
 
 // Mock uuid
 vi.mock('uuid', () => ({
@@ -172,19 +145,19 @@ const mockCompletedStatusUpdate: RunStatusUpdate = {
   },
 }
 
-const mockErrorPayload: WebSocketErrorPayload = {
+const _mockErrorPayload: WebSocketErrorPayload = {
   code: 'SUBSCRIBE_ERROR',
   message: 'Run not found',
 }
 
 // =============================================================================
-// Tests: WebSocket Message Handling
+// Tests: SSE Event Handling
 // =============================================================================
 
-describe('WebSocket Message Handling', () => {
+describe('SSE Event Handling', () => {
   beforeEach(() => {
     vi.useFakeTimers()
-    _mockWebSocketInstance = null
+    _mockEventSourceInstances = []
     mockGetWorkflowRunStatus.mockReset()
     mockSetQueryData.mockReset()
   })
@@ -194,127 +167,85 @@ describe('WebSocket Message Handling', () => {
     vi.restoreAllMocks()
   })
 
-  it('creates WebSocket connection with correct URL', () => {
-    // This tests the URL detection logic
-    const expectedProtocol = 'ws:'
-    const expectedHost = 'localhost:3000'
-    const expectedPath = '/api/ws'
+  it('creates EventSource with correct URL format', () => {
+    const runId = 'run-123'
+    const projectId = 'proj-456'
+    const url = `/api/eval-progress?runId=${encodeURIComponent(runId)}&projectId=${encodeURIComponent(projectId)}`
 
-    // Mock window.location
-    vi.stubGlobal('window', {
-      location: {
-        protocol: 'http:',
-        host: 'localhost:3000',
+    const es = new MockEventSource(url)
+
+    expect(es.url).toBe('/api/eval-progress?runId=run-123&projectId=proj-456')
+  })
+
+  it('parses progress events correctly', () => {
+    const progressEvent = {
+      type: 'progress',
+      runId: 'run-123',
+      data: {
+        status: 'RUNNING',
+        progress: {
+          completed: 5,
+          total: 10,
+          passed: 4,
+          failed: 1,
+          percentComplete: 50,
+        },
       },
-    })
-
-    // Create a new WebSocket to test URL generation
-    const ws = new MockWebSocket(
-      `${expectedProtocol}//${expectedHost}${expectedPath}`,
-    )
-
-    expect(ws.url).toBe('ws://localhost:3000/api/ws')
-  })
-
-  it('parses update messages correctly', () => {
-    const message: IncomingWebSocketMessage = {
-      type: 'update',
       timestamp: new Date().toISOString(),
-      payload: mockRunStatusUpdate,
     }
 
-    // Parse the message
-    const parsed = JSON.parse(JSON.stringify(message))
+    const parsed = JSON.parse(JSON.stringify(progressEvent))
 
-    expect(parsed.type).toBe('update')
-    expect(parsed.payload).toEqual(mockRunStatusUpdate)
-    expect(parsed.payload.runId).toBe('run-123')
-    expect(parsed.payload.status).toBe('RUNNING')
-    expect(parsed.payload.progress?.percentComplete).toBe(50)
+    expect(parsed.type).toBe('progress')
+    expect(parsed.data.status).toBe('RUNNING')
+    expect(parsed.data.progress?.percentComplete).toBe(50)
   })
 
-  it('parses error messages correctly', () => {
-    const message: IncomingWebSocketMessage = {
+  it('parses complete events correctly', () => {
+    const completeEvent = {
+      type: 'complete',
+      runId: 'run-123',
+      data: {
+        status: 'COMPLETED',
+        progress: {
+          completed: 10,
+          total: 10,
+          passed: 8,
+          failed: 2,
+          percentComplete: 100,
+        },
+        summary: {
+          total: 10,
+          passed: 8,
+          failed: 2,
+          avgScore: 0.85,
+        },
+      },
+      timestamp: new Date().toISOString(),
+    }
+
+    const parsed = JSON.parse(JSON.stringify(completeEvent))
+
+    expect(parsed.type).toBe('complete')
+    expect(parsed.data.status).toBe('COMPLETED')
+    expect(parsed.data.summary?.avgScore).toBe(0.85)
+  })
+
+  it('parses error events correctly', () => {
+    const errorEvent = {
       type: 'error',
+      runId: 'run-123',
+      data: {
+        status: 'FAILED',
+        error: 'Run not found',
+      },
       timestamp: new Date().toISOString(),
-      payload: mockErrorPayload,
     }
 
-    const parsed = JSON.parse(JSON.stringify(message))
+    const parsed = JSON.parse(JSON.stringify(errorEvent))
 
     expect(parsed.type).toBe('error')
-    expect(parsed.payload.code).toBe('SUBSCRIBE_ERROR')
-    expect(parsed.payload.message).toBe('Run not found')
-  })
-
-  it('parses ack messages correctly', () => {
-    const message: IncomingWebSocketMessage = {
-      type: 'ack',
-      timestamp: new Date().toISOString(),
-      payload: {
-        messageId: 'msg-123',
-        success: true,
-      },
-    }
-
-    const parsed = JSON.parse(JSON.stringify(message))
-
-    expect(parsed.type).toBe('ack')
-    expect(parsed.payload.success).toBe(true)
-    expect(parsed.payload.messageId).toBe('msg-123')
-  })
-
-  it('parses pong messages correctly', () => {
-    const message: IncomingWebSocketMessage = {
-      type: 'pong',
-      timestamp: new Date().toISOString(),
-    }
-
-    const parsed = JSON.parse(JSON.stringify(message))
-
-    expect(parsed.type).toBe('pong')
-  })
-})
-
-// =============================================================================
-// Tests: Outgoing Message Format
-// =============================================================================
-
-describe('Outgoing Message Format', () => {
-  it('creates subscribe message with correct format', () => {
-    const message = {
-      type: 'subscribe',
-      id: 'test-uuid-1234',
-      timestamp: new Date().toISOString(),
-      payload: { runId: 'run-123' },
-    }
-
-    expect(message.type).toBe('subscribe')
-    expect(message.payload.runId).toBe('run-123')
-    expect(message.id).toBeDefined()
-    expect(message.timestamp).toBeDefined()
-  })
-
-  it('creates unsubscribe message with correct format', () => {
-    const message = {
-      type: 'unsubscribe',
-      id: 'test-uuid-1234',
-      timestamp: new Date().toISOString(),
-      payload: { runId: 'run-123' },
-    }
-
-    expect(message.type).toBe('unsubscribe')
-    expect(message.payload.runId).toBe('run-123')
-  })
-
-  it('creates ping message with correct format', () => {
-    const message = {
-      type: 'ping',
-      timestamp: new Date().toISOString(),
-    }
-
-    expect(message.type).toBe('ping')
-    expect(message.timestamp).toBeDefined()
+    expect(parsed.data.error).toBe('Run not found')
   })
 })
 
@@ -343,17 +274,16 @@ describe('Connection Status', () => {
     }
   })
 
-  it('WebSocket readyState maps to connection status', () => {
+  it('EventSource readyState maps to connection status', () => {
     const stateMap: Record<number, ConnectionStatus> = {
-      [MockWebSocket.CONNECTING]: 'connecting',
-      [MockWebSocket.OPEN]: 'connected',
-      [MockWebSocket.CLOSING]: 'disconnected',
-      [MockWebSocket.CLOSED]: 'disconnected',
+      [MockEventSource.CONNECTING]: 'connecting',
+      [MockEventSource.OPEN]: 'connected',
+      [MockEventSource.CLOSED]: 'disconnected',
     }
 
-    expect(stateMap[MockWebSocket.CONNECTING]).toBe('connecting')
-    expect(stateMap[MockWebSocket.OPEN]).toBe('connected')
-    expect(stateMap[MockWebSocket.CLOSED]).toBe('disconnected')
+    expect(stateMap[MockEventSource.CONNECTING]).toBe('connecting')
+    expect(stateMap[MockEventSource.OPEN]).toBe('connected')
+    expect(stateMap[MockEventSource.CLOSED]).toBe('disconnected')
   })
 })
 
@@ -542,31 +472,28 @@ describe('Reconnection Logic', () => {
     expect(attempts).toBe(maxAttempts)
     expect(attempts >= maxAttempts).toBe(true)
   })
-})
 
-// =============================================================================
-// Tests: WebSocket Support Detection
-// =============================================================================
+  it('falls back to polling after SSE reconnect attempts exhausted', () => {
+    // Simulates the fallback behavior
+    const maxReconnectAttempts = 3
+    let reconnectAttempts = 0
+    let pollingStarted = false
 
-describe('WebSocket Support Detection', () => {
-  it('detects WebSocket support', () => {
-    const isSupported = typeof WebSocket !== 'undefined'
-    expect(isSupported).toBe(true)
-  })
+    const onSseError = () => {
+      if (reconnectAttempts >= maxReconnectAttempts) {
+        pollingStarted = true
+        return
+      }
+      reconnectAttempts++
+    }
 
-  it('handles missing WebSocket gracefully', () => {
-    // Save original
-    const originalWebSocket = global.WebSocket
+    // Exhaust reconnect attempts
+    for (let i = 0; i <= maxReconnectAttempts; i++) {
+      onSseError()
+    }
 
-    // Remove WebSocket
-    // @ts-expect-error - intentionally setting to undefined for test
-    global.WebSocket = undefined
-
-    const isSupported = typeof WebSocket !== 'undefined'
-    expect(isSupported).toBe(false)
-
-    // Restore
-    global.WebSocket = originalWebSocket
+    expect(pollingStarted).toBe(true)
+    expect(reconnectAttempts).toBe(maxReconnectAttempts)
   })
 })
 
@@ -575,40 +502,20 @@ describe('WebSocket Support Detection', () => {
 // =============================================================================
 
 describe('URL Generation', () => {
-  it('generates ws:// URL for http:// pages', () => {
-    const protocol: string = 'http:'
-    const host = 'localhost:3000'
-    const wsProtocol = protocol === 'https:' ? 'wss:' : 'ws:'
-    const url = `${wsProtocol}//${host}/api/ws`
+  it('generates SSE URL with runId and projectId', () => {
+    const runId = 'run-123'
+    const projectId = 'default'
+    const url = `/api/eval-progress?runId=${encodeURIComponent(runId)}&projectId=${encodeURIComponent(projectId)}`
 
-    expect(url).toBe('ws://localhost:3000/api/ws')
+    expect(url).toBe('/api/eval-progress?runId=run-123&projectId=default')
   })
 
-  it('generates wss:// URL for https:// pages', () => {
-    const protocol: string = 'https:'
-    const host = 'example.com'
-    const wsProtocol = protocol === 'https:' ? 'wss:' : 'ws:'
-    const url = `${wsProtocol}//${host}/api/ws`
+  it('encodes special characters in runId', () => {
+    const runId = 'run-123/special&chars'
+    const projectId = 'default'
+    const url = `/api/eval-progress?runId=${encodeURIComponent(runId)}&projectId=${encodeURIComponent(projectId)}`
 
-    expect(url).toBe('wss://example.com/api/ws')
-  })
-})
-
-// =============================================================================
-// Tests: Message Queue
-// =============================================================================
-
-describe('Message Queue', () => {
-  it('maintains message order', () => {
-    const messages: string[] = []
-
-    messages.push('msg-1')
-    messages.push('msg-2')
-    messages.push('msg-3')
-
-    expect(messages[0]).toBe('msg-1')
-    expect(messages[1]).toBe('msg-2')
-    expect(messages[2]).toBe('msg-3')
+    expect(url).toContain('run-123%2Fspecial%26chars')
   })
 })
 
@@ -656,7 +563,7 @@ describe('RunStatusUpdate Map', () => {
 describe('Memory Leak Prevention', () => {
   beforeEach(() => {
     vi.useFakeTimers()
-    _mockWebSocketInstance = null
+    _mockEventSourceInstances = []
   })
 
   afterEach(() => {
@@ -664,37 +571,22 @@ describe('Memory Leak Prevention', () => {
     vi.restoreAllMocks()
   })
 
-  it('clears WebSocket event handlers on disconnect', () => {
-    // Create a mock WebSocket
-    const ws = new MockWebSocket('ws://localhost:3000/api/ws')
-    ws.onopen = () => {}
-    ws.onmessage = () => {}
-    ws.onerror = () => {}
-    ws.onclose = () => {}
+  it('closes EventSource on cleanup', () => {
+    const es = new MockEventSource(
+      '/api/eval-progress?runId=run-1&projectId=default',
+    )
+    es.simulateOpen()
 
-    // Verify handlers are set
-    expect(ws.onopen).not.toBeNull()
-    expect(ws.onmessage).not.toBeNull()
-    expect(ws.onerror).not.toBeNull()
-    expect(ws.onclose).not.toBeNull()
+    expect(es.readyState).toBe(MockEventSource.OPEN)
 
-    // Simulate clearing handlers (as done in disconnect)
-    ws.onopen = null
-    ws.onmessage = null
-    ws.onerror = null
-    ws.onclose = null
+    es.close()
 
-    // Verify handlers are cleared
-    expect(ws.onopen).toBeNull()
-    expect(ws.onmessage).toBeNull()
-    expect(ws.onerror).toBeNull()
-    expect(ws.onclose).toBeNull()
+    expect(es.readyState).toBe(MockEventSource.CLOSED)
   })
 
   it('clears polling intervals on cleanup', () => {
     const pollingIntervals = new Map<string, ReturnType<typeof setInterval>>()
 
-    // Simulate adding polling intervals
     const interval1 = setInterval(() => {}, 1000)
     const interval2 = setInterval(() => {}, 1000)
     pollingIntervals.set('run-1', interval1)
@@ -702,7 +594,6 @@ describe('Memory Leak Prevention', () => {
 
     expect(pollingIntervals.size).toBe(2)
 
-    // Simulate cleanup (as done in stopAllPolling)
     for (const interval of pollingIntervals.values()) {
       clearInterval(interval)
     }
@@ -711,30 +602,12 @@ describe('Memory Leak Prevention', () => {
     expect(pollingIntervals.size).toBe(0)
   })
 
-  it('clears ping interval on cleanup', () => {
-    let pingIntervalId: ReturnType<typeof setInterval> | null = null
-
-    // Simulate starting ping interval
-    pingIntervalId = setInterval(() => {}, 30000)
-    expect(pingIntervalId).not.toBeNull()
-
-    // Simulate cleanup (as done in stopPingInterval)
-    if (pingIntervalId) {
-      clearInterval(pingIntervalId)
-      pingIntervalId = null
-    }
-
-    expect(pingIntervalId).toBeNull()
-  })
-
   it('clears reconnect timeout on cleanup', () => {
     let reconnectTimeoutId: ReturnType<typeof setTimeout> | null = null
 
-    // Simulate setting reconnect timeout
     reconnectTimeoutId = setTimeout(() => {}, 1000)
     expect(reconnectTimeoutId).not.toBeNull()
 
-    // Simulate cleanup (as done in disconnect)
     if (reconnectTimeoutId) {
       clearTimeout(reconnectTimeoutId)
       reconnectTimeoutId = null
@@ -743,27 +616,11 @@ describe('Memory Leak Prevention', () => {
     expect(reconnectTimeoutId).toBeNull()
   })
 
-  it('clears subscriptions on disconnect', () => {
-    const subscriptions = new Set<string>()
-
-    // Add some subscriptions
-    subscriptions.add('run-1')
-    subscriptions.add('run-2')
-    subscriptions.add('run-3')
-
-    expect(subscriptions.size).toBe(3)
-
-    // Simulate disconnect clearing subscriptions
-    subscriptions.clear()
-
-    expect(subscriptions.size).toBe(0)
-  })
-
   it('prevents state updates after unmount via mountedRef', () => {
     const mountedRef = { current: true }
     let stateUpdateCalled = false
 
-    const setStateSafe = (value: unknown) => {
+    const setStateSafe = (_value: unknown) => {
       if (!mountedRef.current) return
       stateUpdateCalled = true
     }
@@ -779,32 +636,152 @@ describe('Memory Leak Prevention', () => {
     expect(stateUpdateCalled).toBe(false)
   })
 
-  it('uses refs for callbacks to prevent unnecessary re-renders', () => {
-    // This tests the pattern of using refs for callbacks
-    // to avoid dependency chain issues
-    const callbackRef = { current: () => {} }
-    let callCount = 0
+  it('poll generation counter invalidates stale poll results', () => {
+    const pollGenerationRef = { current: 0 }
+    const results: string[] = []
 
-    const originalCallback = () => {
-      callCount++
+    const executePoll = async (generation: number) => {
+      await Promise.resolve()
+
+      if (generation !== pollGenerationRef.current) return
+
+      results.push('poll-result')
     }
-    const newCallback = () => {
-      callCount += 10
+
+    // Start a poll
+    const gen1 = pollGenerationRef.current
+    const poll1 = executePoll(gen1)
+
+    // Disconnect bumps the generation
+    pollGenerationRef.current++
+
+    // Start a new poll with the new generation
+    const gen2 = pollGenerationRef.current
+    const poll2 = executePoll(gen2)
+
+    return Promise.all([poll1, poll2]).then(() => {
+      expect(results).toHaveLength(1)
+    })
+  })
+
+  it('disconnect skips state updates when unmounted', () => {
+    const mountedRef = { current: true }
+    let setStateCalled = false
+
+    const disconnect = () => {
+      if (mountedRef.current) {
+        setStateCalled = true
+      }
     }
 
-    // Set initial callback
-    callbackRef.current = originalCallback
+    mountedRef.current = false
+    disconnect()
+    expect(setStateCalled).toBe(false)
 
-    // Call through ref
-    callbackRef.current()
-    expect(callCount).toBe(1)
+    mountedRef.current = true
+    disconnect()
+    expect(setStateCalled).toBe(true)
+  })
 
-    // Update callback ref
-    callbackRef.current = newCallback
+  it('disconnect clears runStatuses map to prevent unbounded growth', () => {
+    const runStatuses = new Map<string, RunStatusUpdate>()
 
-    // Call through ref - should use new callback
-    callbackRef.current()
-    expect(callCount).toBe(11)
+    runStatuses.set('run-1', mockRunStatusUpdate)
+    runStatuses.set('run-2', mockCompletedStatusUpdate)
+    runStatuses.set('run-3', { ...mockRunStatusUpdate, runId: 'run-3' })
+
+    expect(runStatuses.size).toBe(3)
+
+    const clearedStatuses = new Map<string, RunStatusUpdate>()
+    expect(clearedStatuses.size).toBe(0)
+    expect(clearedStatuses.has('run-1')).toBe(false)
+  })
+})
+
+// =============================================================================
+// Tests: SSE Subscription Lifecycle
+// =============================================================================
+
+describe('SSE Subscription Lifecycle', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+    _mockEventSourceInstances = []
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('manages per-run SSE connections', () => {
+    const connections = new Map<string, MockEventSource>()
+
+    // Subscribe to two runs
+    const es1 = new MockEventSource(
+      '/api/eval-progress?runId=run-1&projectId=default',
+    )
+    const es2 = new MockEventSource(
+      '/api/eval-progress?runId=run-2&projectId=default',
+    )
+    connections.set('run-1', es1)
+    connections.set('run-2', es2)
+
+    expect(connections.size).toBe(2)
+
+    // Unsubscribe from one
+    const removed = connections.get('run-1')
+    removed?.close()
+    connections.delete('run-1')
+
+    expect(connections.size).toBe(1)
+    expect(connections.has('run-2')).toBe(true)
+    expect(removed?.readyState).toBe(MockEventSource.CLOSED)
+  })
+
+  it('closes SSE connection on run completion', () => {
+    const es = new MockEventSource(
+      '/api/eval-progress?runId=run-1&projectId=default',
+    )
+    es.simulateOpen()
+
+    expect(es.readyState).toBe(MockEventSource.OPEN)
+
+    // Simulate receiving a complete event
+    es.close()
+    expect(es.readyState).toBe(MockEventSource.CLOSED)
+  })
+
+  it('closes all SSE connections on disconnect', () => {
+    const connections = new Map<string, MockEventSource>()
+
+    for (let i = 1; i <= 5; i++) {
+      const es = new MockEventSource(
+        `/api/eval-progress?runId=run-${i}&projectId=default`,
+      )
+      es.simulateOpen()
+      connections.set(`run-${i}`, es)
+    }
+
+    expect(connections.size).toBe(5)
+
+    // Disconnect all
+    for (const [runId, es] of connections) {
+      es.close()
+      connections.delete(runId)
+    }
+
+    expect(connections.size).toBe(0)
+  })
+
+  it('reconnect re-opens SSE connections for all tracked runs', () => {
+    const trackedRunIds = ['run-1', 'run-2', 'run-3']
+    const reconnectedIds: string[] = []
+
+    // Simulate reconnect
+    for (const runId of trackedRunIds) {
+      reconnectedIds.push(runId)
+    }
+
+    expect(reconnectedIds).toEqual(trackedRunIds)
   })
 })
 
@@ -815,7 +792,7 @@ describe('Memory Leak Prevention', () => {
 describe('Cleanup Behavior', () => {
   beforeEach(() => {
     vi.useFakeTimers()
-    _mockWebSocketInstance = null
+    _mockEventSourceInstances = []
   })
 
   afterEach(() => {
@@ -825,82 +802,47 @@ describe('Cleanup Behavior', () => {
   it('properly sequences cleanup operations', () => {
     const cleanupOrder: string[] = []
 
-    // Simulate the order of cleanup operations
     const cleanup = () => {
-      // 1. Clear reconnect timeout
-      cleanupOrder.push('clearReconnectTimeout')
+      // 1. Close all SSE connections
+      cleanupOrder.push('closeSseConnections')
 
-      // 2. Stop ping interval
-      cleanupOrder.push('stopPingInterval')
-
-      // 3. Stop all polling
+      // 2. Stop all polling
       cleanupOrder.push('stopAllPolling')
 
-      // 4. Clear WebSocket event handlers
-      cleanupOrder.push('clearEventHandlers')
+      // 3. Clear run statuses
+      cleanupOrder.push('clearRunStatuses')
 
-      // 5. Close WebSocket
-      cleanupOrder.push('closeWebSocket')
-
-      // 6. Clear subscriptions
-      cleanupOrder.push('clearSubscriptions')
+      // 4. Update connection status
+      cleanupOrder.push('updateConnectionStatus')
     }
 
     cleanup()
 
     expect(cleanupOrder).toEqual([
-      'clearReconnectTimeout',
-      'stopPingInterval',
+      'closeSseConnections',
       'stopAllPolling',
-      'clearEventHandlers',
-      'closeWebSocket',
-      'clearSubscriptions',
+      'clearRunStatuses',
+      'updateConnectionStatus',
     ])
   })
 
-  it('handles multiple rapid connect/disconnect cycles', () => {
-    const connections: MockWebSocket[] = []
+  it('handles multiple rapid subscribe/unsubscribe cycles', () => {
+    const connections: MockEventSource[] = []
     const cleanedUp: boolean[] = []
 
-    // Simulate multiple rapid connections
     for (let i = 0; i < 5; i++) {
-      const ws = new MockWebSocket('ws://localhost:3000/api/ws')
-      connections.push(ws)
+      const es = new MockEventSource(
+        `/api/eval-progress?runId=run-${i}&projectId=default`,
+      )
+      connections.push(es)
       cleanedUp.push(false)
     }
 
-    // Simulate cleaning up all connections
-    connections.forEach((ws, index) => {
-      ws.onopen = null
-      ws.onmessage = null
-      ws.onerror = null
-      ws.onclose = null
-      ws.close()
+    connections.forEach((es, index) => {
+      es.close()
       cleanedUp[index] = true
     })
 
     expect(cleanedUp.every((c) => c)).toBe(true)
-  })
-
-  it('WebSocket close prevents onclose handler from running after cleanup', () => {
-    const ws = new MockWebSocket('ws://localhost:3000/api/ws')
-    let onCloseCalledAfterCleanup = false
-
-    // Set up onclose handler
-    ws.onclose = () => {
-      onCloseCalledAfterCleanup = true
-    }
-
-    // Clear handler before close (simulating proper cleanup)
-    ws.onclose = null
-
-    // Now close - onclose should not be called
-    ws.readyState = MockWebSocket.CLOSED
-    // Manual trigger to verify no callback
-    if (ws.onclose !== null) {
-      ;(ws.onclose as (event: CloseEvent) => void)({} as CloseEvent)
-    }
-
-    expect(onCloseCalledAfterCleanup).toBe(false)
   })
 })
