@@ -13,7 +13,7 @@ import {
   type Test,
   type Suite,
   type AgentOutput,
-} from "../test";
+} from "../test/index";
 import { defineScorer } from "../scorers/base";
 
 describe("defineTest", () => {

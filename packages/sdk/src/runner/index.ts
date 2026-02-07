@@ -4,9 +4,9 @@
  * Executes test suites and generates reports.
  */
 
-import type { Suite, Test, TestResult, SuiteResult, AgentOutput, ExpectedOutput } from "../test.js";
+import type { Suite, Test, TestResult, SuiteResult, AgentOutput, ExpectedOutput } from "../test/index.js";
 import type { Scorer, EvalContext } from "../scorers/base.js";
-import { Neon } from "../client.js";
+import { Neon } from "../client/index.js";
 
 /**
  * Agent function type for test execution

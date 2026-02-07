@@ -42,9 +42,9 @@
  * ```
  */
 
-import type { SuiteResult, TestResult } from "../../test.js";
-import type { ThresholdConfig } from "../../threshold.js";
-import { evaluateThreshold, getThreshold, DEFAULT_THRESHOLD } from "../../threshold.js";
+import type { SuiteResult, TestResult } from "../../test/index.js";
+import type { ThresholdConfig } from "../../threshold/index.js";
+import { evaluateThreshold, getThreshold, DEFAULT_THRESHOLD } from "../../threshold/index.js";
 
 /**
  * JSON Output Schema version

@@ -12,7 +12,7 @@ import {
   evaluateAllThresholds,
   DEFAULT_THRESHOLD,
   type ThresholdConfig,
-} from "../threshold.js";
+} from "../threshold/index.js";
 
 describe("parseThreshold", () => {
   describe("decimal format", () => {

@@ -4,8 +4,8 @@
  * Define and run A/B experiments with statistical analysis.
  */
 
-import type { Suite, SuiteResult, TestResult } from "../test.js";
-import { run as runTests, type RunOptions } from "../test.js";
+import type { Suite, SuiteResult, TestResult } from "../test/index.js";
+import { run as runTests, type RunOptions } from "../test/index.js";
 import type { Scorer } from "../scorers/base.js";
 import type {
   Experiment,
