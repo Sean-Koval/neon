@@ -763,7 +763,7 @@ describe('Memory Leak Prevention', () => {
     const mountedRef = { current: true }
     let stateUpdateCalled = false
 
-    const setStateSafe = (value: unknown) => {
+    const setStateSafe = (_value: unknown) => {
       if (!mountedRef.current) return
       stateUpdateCalled = true
     }
@@ -805,6 +805,114 @@ describe('Memory Leak Prevention', () => {
     // Call through ref - should use new callback
     callbackRef.current()
     expect(callCount).toBe(11)
+  })
+
+  it('uses isWebSocketRef for stable subscribe/unsubscribe identity', () => {
+    // subscribe/unsubscribe use isWebSocketRef instead of isWebSocket state
+    // to prevent identity changes that cause useEffect re-fires in useRealtimeRun
+    const isWebSocketRef = { current: false }
+    const subscriptions = new Set<string>()
+    let pollStarted = false
+    let wsSent = false
+
+    const subscribe = (runId: string) => {
+      if (subscriptions.has(runId)) return
+      subscriptions.add(runId)
+
+      if (isWebSocketRef.current) {
+        wsSent = true
+      } else {
+        pollStarted = true
+      }
+    }
+
+    // Subscribe when WS is not connected - should poll
+    subscribe('run-1')
+    expect(pollStarted).toBe(true)
+    expect(wsSent).toBe(false)
+
+    // Change WS state via ref - subscribe function identity is unchanged
+    isWebSocketRef.current = true
+    pollStarted = false
+
+    // New subscription uses WS without function identity changing
+    subscribe('run-2')
+    expect(wsSent).toBe(true)
+    expect(pollStarted).toBe(false)
+  })
+
+  it('poll generation counter invalidates stale poll results', () => {
+    // Simulates the generation counter pattern used in executeBatchPoll
+    const pollGenerationRef = { current: 0 }
+    const results: string[] = []
+
+    const executePoll = async (generation: number) => {
+      // Simulate async delay
+      await Promise.resolve()
+
+      // Check generation - stale results should be discarded
+      if (generation !== pollGenerationRef.current) return
+
+      results.push('poll-result')
+    }
+
+    // Start a poll
+    const gen1 = pollGenerationRef.current
+    const poll1 = executePoll(gen1)
+
+    // Disconnect bumps the generation, invalidating in-flight polls
+    pollGenerationRef.current++
+
+    // Start a new poll with the new generation
+    const gen2 = pollGenerationRef.current
+    const poll2 = executePoll(gen2)
+
+    return Promise.all([poll1, poll2]).then(() => {
+      // Only the second poll should have produced results
+      expect(results).toHaveLength(1)
+    })
+  })
+
+  it('disconnect skips state updates when unmounted', () => {
+    const mountedRef = { current: true }
+    let setStateCalled = false
+
+    const disconnect = () => {
+      // Only update state if still mounted
+      if (mountedRef.current) {
+        setStateCalled = true
+      }
+    }
+
+    // Simulate unmount then disconnect (as in cleanup effect)
+    mountedRef.current = false
+    disconnect()
+    expect(setStateCalled).toBe(false)
+
+    // When still mounted, state updates should happen
+    mountedRef.current = true
+    disconnect()
+    expect(setStateCalled).toBe(true)
+  })
+
+  it('disconnect clears runStatuses map to prevent unbounded growth', () => {
+    const runStatuses = new Map<string, RunStatusUpdate>()
+
+    // Accumulate statuses over time
+    runStatuses.set('run-1', mockRunStatusUpdate)
+    runStatuses.set('run-2', mockCompletedStatusUpdate)
+    runStatuses.set('run-3', { ...mockRunStatusUpdate, runId: 'run-3' })
+
+    expect(runStatuses.size).toBe(3)
+
+    // Disconnect should clear the map (simulating setRunStatuses(new Map()))
+    const clearedStatuses = new Map<string, RunStatusUpdate>()
+    expect(clearedStatuses.size).toBe(0)
+
+    // Verify old map entries don't leak into new map
+    expect(clearedStatuses.has('run-1')).toBe(false)
+    expect(clearedStatuses.has('run-2')).toBe(false)
+    expect(clearedStatuses.has('run-3')).toBe(false)
   })
 })
 

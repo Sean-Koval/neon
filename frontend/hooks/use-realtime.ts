@@ -17,6 +17,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { v4 as uuidv4 } from 'uuid'
 
 import { api } from '@/lib/api'
+import { CONFIG } from '@/lib/config'
 import type {
   ConnectionStatus,
   IncomingWebSocketMessage,
@@ -27,8 +28,6 @@ import type {
   WorkflowStatusPoll,
 } from '@/lib/types'
 import { workflowQueryKeys } from './use-workflow-runs'
-
-import { CONFIG } from '@/lib/config'
 
 // Default configuration
 const DEFAULT_OPTIONS: Required<
@@ -132,6 +131,10 @@ export function useRealtime(
   )
   const pollingRunIdsRef = useRef<Set<string>>(new Set())
   const mountedRef = useRef(true)
+  // Track isWebSocket via ref so subscribe/unsubscribe have stable identities
+  const isWebSocketRef = useRef(false)
+  // Generation counter to discard stale poll results after disconnect
+  const pollGenerationRef = useRef(0)
 
   // Refs to store latest callback versions without causing re-renders
   const onConnectionChangeRef = useRef(onConnectionChange)
@@ -145,6 +148,11 @@ export function useRealtime(
   useEffect(() => {
     onErrorRef.current = onError
   }, [onError])
+
+  // Keep isWebSocketRef in sync with state
+  useEffect(() => {
+    isWebSocketRef.current = isWebSocket
+  }, [isWebSocket])
 
   /**
    * Update connection status and notify callback.
@@ -227,6 +235,7 @@ export function useRealtime(
   /**
    * Execute a single batch poll for all active polling run IDs.
    * Fetches status for all runs concurrently and removes completed runs.
+   * Uses a generation counter to discard results from stale polls.
    */
   const executeBatchPoll = useCallback(async () => {
     if (!mountedRef.current) return
@@ -236,6 +245,9 @@ export function useRealtime(
     const activeRunIds = runIds.filter((id) => subscriptionsRef.current.has(id))
     if (activeRunIds.length === 0) return
 
+    // Capture generation at start of poll to detect staleness
+    const generation = pollGenerationRef.current
+
     const results = await Promise.allSettled(
       activeRunIds.map(async (runId) => {
         const status = await api.getWorkflowRunStatus(runId)
@@ -243,7 +255,9 @@ export function useRealtime(
       }),
     )
 
+    // Discard results if component unmounted or a disconnect invalidated this poll
     if (!mountedRef.current) return
+    if (generation !== pollGenerationRef.current) return
 
     const completedRunIds: string[] = []
     const updates = new Map<string, RunStatusUpdate>()
@@ -344,10 +358,12 @@ export function useRealtime(
   }, [])
 
   /**
-   * Stop all polling.
+   * Stop all polling and invalidate in-flight poll results.
    */
   const stopAllPolling = useCallback(() => {
     pollingRunIdsRef.current.clear()
+    // Bump generation to invalidate any in-flight poll results
+    pollGenerationRef.current++
     if (batchPollingIntervalRef.current) {
       clearInterval(batchPollingIntervalRef.current)
       batchPollingIntervalRef.current = null
@@ -519,7 +535,7 @@ export function useRealtime(
 
   /**
    * Disconnect from WebSocket server.
-   * Clears all event handlers to prevent memory leaks.
+   * Clears all event handlers and invalidates in-flight polls to prevent memory leaks.
    */
   const disconnect = useCallback(() => {
     if (reconnectTimeoutRef.current) {
@@ -543,12 +559,17 @@ export function useRealtime(
     // Clear subscriptions to release references
     subscriptionsRef.current.clear()
 
-    setIsWebSocket(false)
-    updateConnectionStatus('disconnected')
+    // Only update state if still mounted to prevent React warnings
+    if (mountedRef.current) {
+      setIsWebSocket(false)
+      setRunStatuses(new Map())
+      updateConnectionStatus('disconnected')
+    }
   }, [stopPingInterval, stopAllPolling, updateConnectionStatus])
 
   /**
    * Subscribe to updates for a specific run.
+   * Uses isWebSocketRef for stable callback identity.
    */
   const subscribe = useCallback(
     (runId: string) => {
@@ -556,7 +577,10 @@ export function useRealtime(
 
       subscriptionsRef.current.add(runId)
 
-      if (isWebSocket && wsRef.current?.readyState === WebSocket.OPEN) {
+      if (
+        isWebSocketRef.current &&
+        wsRef.current?.readyState === WebSocket.OPEN
+      ) {
         sendMessage({
           type: 'subscribe',
           id: uuidv4(),
@@ -568,11 +592,12 @@ export function useRealtime(
         startPolling(runId)
       }
     },
-    [isWebSocket, sendMessage, startPolling],
+    [sendMessage, startPolling],
   )
 
   /**
    * Unsubscribe from updates for a specific run.
+   * Uses isWebSocketRef for stable callback identity.
    */
   const unsubscribe = useCallback(
     (runId: string) => {
@@ -588,7 +613,10 @@ export function useRealtime(
         return next
       })
 
-      if (isWebSocket && wsRef.current?.readyState === WebSocket.OPEN) {
+      if (
+        isWebSocketRef.current &&
+        wsRef.current?.readyState === WebSocket.OPEN
+      ) {
         sendMessage({
           type: 'unsubscribe',
           id: uuidv4(),
@@ -597,7 +625,7 @@ export function useRealtime(
         })
       }
     },
-    [isWebSocket, sendMessage, stopPolling],
+    [sendMessage, stopPolling],
   )
 
   /**
