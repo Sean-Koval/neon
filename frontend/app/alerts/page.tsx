@@ -1,12 +1,12 @@
 'use client'
 
-import { Bell, RefreshCw } from 'lucide-react'
+import { AlertCircle, Bell, RefreshCw } from 'lucide-react'
 import { AlertConfig } from '@/components/alerts/alert-config'
 import { AlertHistory } from '@/components/alerts/alert-history'
 import { useAlerts } from '@/hooks/use-alerts'
 
 export default function AlertsPage() {
-  const { data, isLoading, refetch } = useAlerts()
+  const { data, isLoading, error, refetch } = useAlerts()
 
   const alerts = data?.alerts ?? []
   const thresholds = data?.thresholds ?? []
@@ -44,6 +44,15 @@ export default function AlertsPage() {
 
       {isLoading ? (
         <AlertsSkeleton />
+      ) : error ? (
+        <div className="card p-6 text-center">
+          <AlertCircle className="w-8 h-8 text-red-400 mx-auto mb-2" />
+          <p className="text-sm font-medium text-gray-900">Failed to load alerts</p>
+          <p className="text-xs text-gray-500 mt-1">{error.message}</p>
+          <button type="button" onClick={() => refetch()} className="mt-3 btn btn-secondary text-sm inline-flex items-center gap-1">
+            <RefreshCw className="w-3 h-3" /> Retry
+          </button>
+        </div>
       ) : (
         <>
           {/* Active Alerts */}

@@ -220,6 +220,23 @@ export async function authenticate(
 ): Promise<AuthResult | null> {
   const opts = { ...DEFAULT_OPTIONS, ...options }
 
+  // Dev auth bypass — double-gated, cannot activate in production
+  if (
+    process.env.NODE_ENV === 'development' &&
+    process.env.AUTH_DEV_BYPASS === 'true'
+  ) {
+    const devWorkspaceId =
+      request.headers.get('x-workspace-id') ||
+      request.nextUrl.searchParams.get('workspace_id') ||
+      process.env.DEV_WORKSPACE_ID ||
+      '00000000-0000-0000-0000-000000000001'
+    return {
+      user: { id: 'dev-user-001', email: 'dev@neon.local', name: 'Dev User' },
+      workspaceId: devWorkspaceId,
+      organizationId: 'dev-org-001',
+    }
+  }
+
   // Extract authorization header
   const authHeader = request.headers.get('authorization')
   const apiKeyHeader = request.headers.get('x-api-key')
