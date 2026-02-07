@@ -7,13 +7,12 @@
 
 'use client'
 
-import { trpc } from '@/lib/trpc'
-
 import type {
   DashboardQueryParams,
   DashboardSummaryResponse,
   ScoreTrendPointResponse,
 } from '@/lib/api'
+import { trpc } from '@/lib/trpc'
 
 // =============================================================================
 // Query Keys (kept for backward compatibility with use-dashboard.ts)
@@ -138,7 +137,9 @@ export function useDashboardSummary(
 
   return {
     ...query,
-    data: query.data ? transformSummary(query.data as DashboardSummaryResponse) : undefined,
+    data: query.data
+      ? transformSummary(query.data as DashboardSummaryResponse)
+      : undefined,
   }
 }
 

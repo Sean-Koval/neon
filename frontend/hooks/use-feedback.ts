@@ -7,11 +7,7 @@
 
 import { useCallback, useState } from 'react'
 import { trpc } from '@/lib/trpc'
-import type {
-  ComparisonPair,
-  FeedbackFilter,
-  FeedbackItem,
-} from '@/lib/types'
+import type { ComparisonPair, FeedbackFilter, FeedbackItem } from '@/lib/types'
 
 type PreferenceChoice = 'A' | 'B' | 'tie' | 'both_bad'
 

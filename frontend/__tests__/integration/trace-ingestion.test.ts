@@ -68,6 +68,15 @@ vi.mock('@/lib/clickhouse', () => ({
   insertSpans: (...args: unknown[]) => mockInsertSpans(...args),
 }))
 
+vi.mock('@/lib/db/clickhouse', () => ({
+  traces: {
+    listTraces: (...args: unknown[]) => mockQueryTraces(...args).then((data: unknown) => ({ data })),
+    getTrace: (...args: unknown[]) => mockGetTraceWithSpans(...args).then((data: unknown) => ({ data })),
+    getTraceSummary: (...args: unknown[]) => mockGetTraceWithSpanSummaries(...args).then((data: unknown) => ({ data })),
+    getTraceScores: (...args: unknown[]) => mockGetScoresForTrace(...args).then((data: unknown) => ({ data })),
+  },
+}))
+
 vi.mock('@/lib/db', () => ({
   db: {
     query: { apiKeys: { findFirst: vi.fn() } },

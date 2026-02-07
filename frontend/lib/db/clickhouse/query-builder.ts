@@ -9,8 +9,6 @@
  * calling getClickHouseClient() directly in route handlers.
  */
 
-import { getClickHouseClient } from '../../clickhouse'
-
 // =============================================================================
 // Types
 // =============================================================================
