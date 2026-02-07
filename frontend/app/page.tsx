@@ -48,8 +48,8 @@ export default function Dashboard() {
     refresh,
   } = useDashboard()
 
-  const { data: alertsData } = useAlerts()
-  const regressionAlerts = alertsData?.alerts ?? []
+  const { data: alertsData, error: alertsError } = useAlerts()
+  const regressionAlerts = alertsError ? [] : (alertsData?.alerts ?? [])
 
   return (
     <div className="space-y-8">

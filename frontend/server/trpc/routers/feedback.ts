@@ -249,6 +249,7 @@ export const feedbackRouter = router({
         };
 
         feedbackStore.set(feedbackId, feedbackItem);
+        logger.info({ feedbackId, type: input.type }, 'Feedback submitted')
 
         return {
           message: "Feedback submitted successfully",
@@ -402,4 +403,17 @@ export const feedbackRouter = router({
         });
       }
     }),
+
+  /**
+   * Get feedback statistics for diagnostics.
+   */
+  stats: publicProcedure.query(async () => {
+    const items = Array.from(feedbackStore.values())
+    return {
+      totalFeedback: items.length,
+      preferenceCount: items.filter((i) => i.type === 'preference').length,
+      correctionCount: items.filter((i) => i.type === 'correction').length,
+      totalComparisons: comparisonStore.size,
+    }
+  }),
 });

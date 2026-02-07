@@ -295,14 +295,25 @@ export async function resumeEvalRun(workflowId: string): Promise<void> {
 export async function listEvalRuns(options?: {
   limit?: number
   offset?: number
-  status?: 'RUNNING' | 'COMPLETED' | 'FAILED'
+  status?: 'RUNNING' | 'COMPLETED' | 'FAILED' | 'CANCELLED' | 'TERMINATED' | 'TIMED_OUT'
 }): Promise<{ items: WorkflowStatus[]; hasMore: boolean }> {
   const client = await getTemporalClient()
 
+  // Map UI status values to Temporal visibility query format (title-case, single quotes)
+  const statusMap: Record<string, string> = {
+    RUNNING: 'Running',
+    COMPLETED: 'Completed',
+    FAILED: 'Failed',
+    CANCELLED: 'Canceled',
+    TERMINATED: 'Terminated',
+    TIMED_OUT: 'TimedOut',
+  }
+
   let query =
-    'WorkflowType = "evalRunWorkflow" OR WorkflowType = "parallelEvalRunWorkflow"'
+    '(WorkflowType = "evalRunWorkflow" OR WorkflowType = "parallelEvalRunWorkflow")'
   if (options?.status) {
-    query += ` AND ExecutionStatus = "${options.status}"`
+    const temporalStatus = statusMap[options.status] || options.status
+    query += ` AND ExecutionStatus = '${temporalStatus}'`
   }
 
   const limit = options?.limit || 50

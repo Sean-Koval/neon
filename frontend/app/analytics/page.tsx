@@ -24,8 +24,7 @@ import {
   YAxis,
 } from 'recharts'
 
-const _MOOSE_API_URL =
-  process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
+const _MOOSE_API_URL = process.env.NEXT_PUBLIC_API_URL || ''
 
 /**
  * Date range options

@@ -152,8 +152,12 @@ export function StartEvalRunDialog({
             {/* Error */}
             {error && (
               <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-red-800">
-                <AlertCircle className="w-5 h-5" />
-                <span>{error}</span>
+                <AlertCircle className="w-5 h-5 flex-shrink-0" />
+                <span>{
+                  error.includes('ECONNREFUSED') || error.includes('Temporal') || error.includes('temporal')
+                    ? 'Temporal workflow service unavailable. Ensure `docker compose up -d` is running.'
+                    : error
+                }</span>
               </div>
             )}
 
