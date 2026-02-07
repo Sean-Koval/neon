@@ -8,6 +8,7 @@
 import { type NextRequest, NextResponse } from 'next/server'
 import type { SpanRecord } from '@/lib/clickhouse'
 import { batchInsertSpans } from '@/lib/clickhouse-batch'
+import { logger } from '@/lib/logger'
 
 export async function POST(request: NextRequest) {
   try {
@@ -44,7 +45,7 @@ export async function POST(request: NextRequest) {
       count: normalizedSpans.length,
     })
   } catch (error) {
-    console.error('Error inserting span:', error)
+    logger.error({ err: error }, 'Error inserting span')
     return NextResponse.json(
       { error: 'Failed to insert span', details: String(error) },
       { status: 500 },

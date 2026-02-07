@@ -11,6 +11,7 @@ import { type NextRequest, NextResponse } from 'next/server'
 import type { SpanRecord, TraceRecord } from '@/lib/clickhouse'
 import { insertSpans, insertTraces } from '@/lib/clickhouse'
 import { withAuth, type AuthResult } from '@/lib/middleware/auth'
+import { logger } from '@/lib/logger'
 
 /**
  * OTel OTLP Span format (simplified)
@@ -292,7 +293,7 @@ export const POST = withAuth(
         spans: allSpans.length,
       })
     } catch (error) {
-      console.error('Error ingesting traces:', error)
+      logger.error({ err: error }, 'Error ingesting traces')
       return NextResponse.json(
         { error: 'Failed to ingest traces', details: String(error) },
         { status: 500 },

@@ -10,6 +10,7 @@
 
 import { type NextRequest, NextResponse } from 'next/server'
 import { broadcastToTrace, sessionStates } from '../stream/route'
+import { logger } from '@/lib/logger'
 
 // ============================================================================
 // Types
@@ -67,10 +68,7 @@ export async function POST(request: NextRequest) {
 
     // In development without INTERNAL_API_KEY set, log a warning
     if (isDev && !expectedKey) {
-      console.warn(
-        '[DEBUG EVENTS] Running without INTERNAL_API_KEY. ' +
-          'Set INTERNAL_API_KEY env var for production security.',
-      )
+      logger.warn('Running without INTERNAL_API_KEY. Set INTERNAL_API_KEY env var for production security.')
     }
 
     const event: DebugEvent = await request.json()
@@ -155,7 +153,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true })
   } catch (error) {
-    console.error('Error processing debug event:', error)
+    logger.error({ err: error }, 'Error processing debug event')
     return NextResponse.json(
       { error: 'Failed to process event', details: String(error) },
       { status: 500 },

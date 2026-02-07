@@ -6,6 +6,7 @@
 
 import { type NextRequest, NextResponse } from 'next/server'
 import { getClickHouseClient } from '@/lib/clickhouse'
+import { logger } from '@/lib/logger'
 import type {
   CompareRequest,
   CompareResponse,
@@ -278,7 +279,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(response)
   } catch (error) {
-    console.error('Error comparing runs:', error)
+    logger.error({ err: error }, 'Error comparing runs')
 
     // Check if it's a ClickHouse connection error
     if (error instanceof Error && error.message.includes('ECONNREFUSED')) {

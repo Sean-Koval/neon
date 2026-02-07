@@ -16,6 +16,7 @@ import {
   type SpanSummary,
 } from '@/lib/clickhouse'
 import { withAuth, type AuthResult } from '@/lib/middleware/auth'
+import { logger } from '@/lib/logger'
 
 /**
  * Build span tree from flat list (works with both full spans and summaries)
@@ -115,7 +116,7 @@ export const GET = withAuth(
         scores,
       })
     } catch (error) {
-      console.error('Error getting trace:', error)
+      logger.error({ err: error }, 'Error getting trace')
       return NextResponse.json(
         { error: 'Failed to get trace', details: String(error) },
         { status: 500 },

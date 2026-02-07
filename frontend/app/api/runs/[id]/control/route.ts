@@ -12,6 +12,7 @@ import {
   resumeEvalRun,
 } from '@/lib/temporal'
 import { withAuth, type AuthResult } from '@/lib/middleware/auth'
+import { logger } from '@/lib/logger'
 
 /**
  * POST /api/runs/:id/control
@@ -106,7 +107,7 @@ export const POST = withAuth(
           )
       }
     } catch (error) {
-      console.error('Error controlling eval run:', error)
+      logger.error({ err: error }, 'Error controlling eval run')
 
       // Check for workflow not found
       if (error instanceof Error && error.message.includes('not found')) {

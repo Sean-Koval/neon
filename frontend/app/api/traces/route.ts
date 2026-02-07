@@ -7,6 +7,7 @@
 import { type NextRequest, NextResponse } from 'next/server'
 import { queryTraces } from '@/lib/clickhouse'
 import { withAuth, type AuthResult } from '@/lib/middleware/auth'
+import { logger } from '@/lib/logger'
 
 export const GET = withAuth(async (request: NextRequest, auth: AuthResult) => {
   try {
@@ -41,7 +42,7 @@ export const GET = withAuth(async (request: NextRequest, auth: AuthResult) => {
       offset,
     })
   } catch (error) {
-    console.error('Error querying traces:', error)
+    logger.error({ err: error }, 'Error querying traces')
     return NextResponse.json(
       { error: 'Failed to query traces', details: String(error) },
       { status: 500 },

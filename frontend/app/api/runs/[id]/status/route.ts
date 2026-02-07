@@ -7,6 +7,7 @@
 import { type NextRequest, NextResponse } from 'next/server'
 import { getWorkflowStatus } from '@/lib/temporal'
 import { withAuth, type AuthResult } from '@/lib/middleware/auth'
+import { logger } from '@/lib/logger'
 
 /**
  * GET /api/runs/:id/status
@@ -86,7 +87,7 @@ export const GET = withAuth(
 
       return NextResponse.json(response)
     } catch (error) {
-      console.error('Error getting eval run status:', error)
+      logger.error({ err: error }, 'Error getting eval run status')
 
       // Check for workflow not found
       if (error instanceof Error && error.message.includes('not found')) {

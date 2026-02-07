@@ -19,6 +19,7 @@ import {
   type WorkspacePermission,
   hasWorkspacePermission,
 } from '@/lib/db/permissions'
+import { logger } from '@/lib/logger'
 
 // =============================================================================
 // Types
@@ -88,7 +89,7 @@ async function verifyJwt(token: string): Promise<AuthenticatedUser | null> {
     const { jwtVerify } = await import('jose')
 
     if (!JWT_CONFIG.secret) {
-      console.error('JWT_SECRET not configured')
+      logger.error('JWT_SECRET not configured')
       return null
     }
 
@@ -107,7 +108,7 @@ async function verifyJwt(token: string): Promise<AuthenticatedUser | null> {
     const name = payload.name as string | undefined
 
     if (!userId || !email) {
-      console.error('JWT missing required claims (sub, email)')
+      logger.error('JWT missing required claims (sub, email)')
       return null
     }
 
@@ -120,11 +121,11 @@ async function verifyJwt(token: string): Promise<AuthenticatedUser | null> {
     // Log specific JWT errors for debugging
     if (error instanceof Error) {
       if (error.message.includes('expired')) {
-        console.warn('JWT token expired')
+        logger.warn('JWT token expired')
       } else if (error.message.includes('signature')) {
-        console.warn('JWT signature verification failed')
+        logger.warn('JWT signature verification failed')
       } else {
-        console.error('JWT verification error:', error.message)
+        logger.error({ err: error.message }, 'JWT verification error')
       }
     }
     return null
@@ -174,7 +175,7 @@ async function verifyApiKey(apiKey: string): Promise<AuthResult | null> {
 
     // Check expiration
     if (key.expiresAt && new Date(key.expiresAt) < new Date()) {
-      console.warn('API key expired:', key.keyPrefix)
+      logger.warn({ keyPrefix: key.keyPrefix }, 'API key expired')
       return null
     }
 
@@ -197,7 +198,7 @@ async function verifyApiKey(apiKey: string): Promise<AuthResult | null> {
       scopes: (key.scopes as string[]) || ['read', 'write'],
     }
   } catch (error) {
-    console.error('API key verification error:', error)
+    logger.error({ err: error }, 'API key verification error')
     return null
   }
 }

@@ -8,6 +8,7 @@
 import { type NextRequest, NextResponse } from 'next/server'
 import { v4 as uuidv4 } from 'uuid'
 import type { FeedbackCreate, FeedbackFilter, FeedbackItem } from '@/lib/types'
+import { logger } from '@/lib/logger'
 
 // In-memory store for feedback (will be replaced with ClickHouse)
 // Using a Map for easy lookup and filtering
@@ -63,7 +64,7 @@ export async function POST(request: NextRequest) {
       item: feedbackItem,
     })
   } catch (error) {
-    console.error('Error submitting feedback:', error)
+    logger.error({ err: error }, 'Error submitting feedback')
     return NextResponse.json(
       { error: 'Failed to submit feedback', details: String(error) },
       { status: 500 },
@@ -118,7 +119,7 @@ export async function GET(request: NextRequest) {
       total,
     })
   } catch (error) {
-    console.error('Error fetching feedback:', error)
+    logger.error({ err: error }, 'Error fetching feedback')
     return NextResponse.json(
       { error: 'Failed to fetch feedback', details: String(error) },
       { status: 500 },
