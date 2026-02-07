@@ -8,34 +8,56 @@
 import { type NextRequest, NextResponse } from 'next/server'
 import type { SpanRecord } from '@/lib/clickhouse'
 import { batchInsertSpans } from '@/lib/clickhouse-batch'
+import { createSpanSchema } from '@/lib/validation/schemas'
+import { validateBody } from '@/lib/validation/middleware'
+import { withRateLimit } from '@/lib/middleware/rate-limit'
+import { BATCH_LIMIT } from '@/lib/rate-limit'
 import { logger } from '@/lib/logger'
 
-export async function POST(request: NextRequest) {
+export const POST = withRateLimit(async function POST(request: NextRequest) {
   try {
     const body = await request.json()
+
+    // Validate request body
+    const validation = validateBody(createSpanSchema, body)
+    if (!validation.success) return validation.response
+    const data = validation.data
 
     // Get project ID from header or body
     const projectId =
       request.headers.get('x-project-id') ||
-      body.project_id ||
+      (Array.isArray(data) ? data[0]?.project_id : data.project_id) ||
       '00000000-0000-0000-0000-000000000001'
 
     // Handle both single span and array
-    const spans: SpanRecord[] = Array.isArray(body) ? body : [body]
+    const rawSpans = Array.isArray(data) ? data : [data]
 
-    // Ensure all spans have project_id
-    const normalizedSpans = spans.map((span) => ({
-      ...span,
+    // Ensure all spans have project_id and required defaults
+    const normalizedSpans: SpanRecord[] = rawSpans.map((span) => ({
       project_id: span.project_id || projectId,
-      // Ensure required fields have defaults
+      trace_id: span.trace_id,
+      span_id: span.span_id,
+      parent_span_id: span.parent_span_id ?? null,
+      name: span.name,
       kind: span.kind || 'internal',
+      span_type: span.span_type || 'span',
+      timestamp: span.timestamp,
+      end_time: span.end_time ?? null,
+      duration_ms: span.duration_ms || 0,
+      status: span.status || 'unset',
       status_message: span.status_message || '',
-      model_parameters: span.model_parameters || {},
+      model: span.model ?? null,
+      model_parameters: (span.model_parameters || {}) as Record<string, string>,
       input: span.input || '',
       output: span.output || '',
+      input_tokens: span.input_tokens ?? null,
+      output_tokens: span.output_tokens ?? null,
+      total_tokens: span.total_tokens ?? null,
+      cost_usd: span.cost_usd ?? null,
+      tool_name: span.tool_name ?? null,
       tool_input: span.tool_input || '',
       tool_output: span.tool_output || '',
-      attributes: span.attributes || {},
+      attributes: (span.attributes || {}) as Record<string, string>,
     }))
 
     await batchInsertSpans(normalizedSpans, { immediate: true })
@@ -51,4 +73,4 @@ export async function POST(request: NextRequest) {
       { status: 500 },
     )
   }
-}
+}, BATCH_LIMIT)

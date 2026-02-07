@@ -16,6 +16,7 @@ import {
   type SpanSummary,
 } from '@/lib/clickhouse'
 import { withAuth, type AuthResult } from '@/lib/middleware/auth'
+import { withRateLimit } from '@/lib/middleware/rate-limit'
 import { logger } from '@/lib/logger'
 
 /**
@@ -51,7 +52,7 @@ function buildSpanTree<
   return roots
 }
 
-export const GET = withAuth(
+export const GET = withRateLimit(withAuth(
   async (
     request: NextRequest,
     auth: AuthResult,
@@ -123,4 +124,4 @@ export const GET = withAuth(
       )
     }
   },
-)
+))

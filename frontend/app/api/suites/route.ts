@@ -13,6 +13,9 @@ import { type NextRequest, NextResponse } from 'next/server'
 import { Pool } from 'pg'
 import type { EvalSuite, EvalSuiteList, ScorerType } from '@/lib/types'
 import { withAuth, type AuthResult } from '@/lib/middleware/auth'
+import { createSuiteSchema } from '@/lib/validation/schemas'
+import { validateBody } from '@/lib/validation/middleware'
+import { withRateLimit } from '@/lib/middleware/rate-limit'
 import { logger } from '@/lib/logger'
 
 // Create a connection pool for raw queries
@@ -74,7 +77,7 @@ function mapRowToSuite(row: Record<string, unknown>): EvalSuite {
  * - limit: Maximum results (default 100)
  * - offset: Pagination offset (default 0)
  */
-export const GET = withAuth(async (request: NextRequest, auth: AuthResult) => {
+export const GET = withRateLimit(withAuth(async (request: NextRequest, auth: AuthResult) => {
   const projectId = auth.workspaceId
   if (!projectId) {
     return NextResponse.json(
@@ -138,7 +141,7 @@ export const GET = withAuth(async (request: NextRequest, auth: AuthResult) => {
       { status: 500 },
     )
   }
-})
+}))
 
 /**
  * POST /api/suites
@@ -156,7 +159,7 @@ export const GET = withAuth(async (request: NextRequest, auth: AuthResult) => {
  *   default_config?: object;
  * }
  */
-export const POST = withAuth(async (request: NextRequest, auth: AuthResult) => {
+export const POST = withRateLimit(withAuth(async (request: NextRequest, auth: AuthResult) => {
   try {
     const projectId = auth.workspaceId
     if (!projectId) {
@@ -168,13 +171,13 @@ export const POST = withAuth(async (request: NextRequest, auth: AuthResult) => {
 
     const body = await request.json()
 
-    // Validate required fields
-    if (!body.name) {
-      return NextResponse.json({ error: 'name is required' }, { status: 400 })
-    }
+    // Validate request body
+    const validation = validateBody(createSuiteSchema, body)
+    if (!validation.success) return validation.response
+    const data = validation.data
 
-    // Validate that body.project_id matches auth workspace if provided
-    if (body.project_id && body.project_id !== projectId) {
+    // Validate that project_id matches auth workspace if provided
+    if (data.project_id && data.project_id !== projectId) {
       return NextResponse.json(
         { error: 'project_id does not match authenticated workspace' },
         { status: 403 },
@@ -185,12 +188,12 @@ export const POST = withAuth(async (request: NextRequest, auth: AuthResult) => {
 
     // Build config object from optional fields
     const config: Record<string, unknown> = {}
-    if (body.default_scorers) config.default_scorers = body.default_scorers
-    if (body.default_min_score !== undefined)
-      config.default_min_score = body.default_min_score
-    if (body.default_timeout_seconds !== undefined)
-      config.default_timeout_seconds = body.default_timeout_seconds
-    if (body.default_config) config.default_config = body.default_config
+    if (data.default_scorers) config.default_scorers = data.default_scorers
+    if (data.default_min_score !== undefined)
+      config.default_min_score = data.default_min_score
+    if (data.default_timeout_seconds !== undefined)
+      config.default_timeout_seconds = data.default_timeout_seconds
+    if (data.default_config) config.default_config = data.default_config
 
     // Always use auth workspace as project_id
     const result = await pool.query(
@@ -199,9 +202,9 @@ export const POST = withAuth(async (request: NextRequest, auth: AuthResult) => {
        RETURNING *`,
       [
         projectId,
-        body.name,
-        body.description || null,
-        body.agent_id || null,
+        data.name,
+        data.description || null,
+        data.agent_id || null,
         JSON.stringify(config),
       ],
     )
@@ -246,4 +249,4 @@ export const POST = withAuth(async (request: NextRequest, auth: AuthResult) => {
       { status: 500 },
     )
   }
-})
+}))

@@ -12,6 +12,9 @@ import {
   resumeEvalRun,
 } from '@/lib/temporal'
 import { withAuth, type AuthResult } from '@/lib/middleware/auth'
+import { runControlSchema } from '@/lib/validation/schemas'
+import { validateBody } from '@/lib/validation/middleware'
+import { withRateLimit } from '@/lib/middleware/rate-limit'
 import { logger } from '@/lib/logger'
 
 /**
@@ -24,7 +27,7 @@ import { logger } from '@/lib/logger'
  *   action: "pause" | "resume" | "cancel"
  * }
  */
-export const POST = withAuth(
+export const POST = withRateLimit(withAuth(
   async (
     request: NextRequest,
     auth: AuthResult,
@@ -42,17 +45,10 @@ export const POST = withAuth(
       const { id } = await params
       const body = await request.json()
 
-      // Validate action
-      const validActions = ['pause', 'resume', 'cancel']
-      if (!body.action || !validActions.includes(body.action)) {
-        return NextResponse.json(
-          {
-            error: 'Invalid action',
-            details: `Action must be one of: ${validActions.join(', ')}`,
-          },
-          { status: 400 },
-        )
-      }
+      // Validate request body
+      const validation = validateBody(runControlSchema, body)
+      if (!validation.success) return validation.response
+      const data = validation.data
 
       // Workflow ID format is "eval-run-{runId}"
       const workflowId = id.startsWith('eval-run-') ? id : `eval-run-${id}`
@@ -72,7 +68,7 @@ export const POST = withAuth(
       }
 
       // Execute the action
-      switch (body.action) {
+      switch (data.action) {
         case 'pause':
           await pauseEvalRun(workflowId)
           return NextResponse.json({
@@ -134,4 +130,4 @@ export const POST = withAuth(
       )
     }
   },
-)
+))

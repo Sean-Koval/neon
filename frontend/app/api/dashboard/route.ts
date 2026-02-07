@@ -6,6 +6,7 @@
  */
 
 import { type NextRequest, NextResponse } from 'next/server'
+import { withRateLimit } from '@/lib/middleware/rate-limit'
 
 import { logger } from '@/lib/logger'
 import {
@@ -96,7 +97,7 @@ function parseRequest(request: NextRequest): DashboardRequest {
  *
  * Returns aggregated dashboard data from materialized views.
  */
-export async function GET(request: NextRequest) {
+export const GET = withRateLimit(async function GET(request: NextRequest) {
   const startTime = performance.now()
 
   try {
@@ -143,7 +144,7 @@ export async function GET(request: NextRequest) {
       { status: 500 },
     )
   }
-}
+})
 
 // =============================================================================
 // Individual Endpoints

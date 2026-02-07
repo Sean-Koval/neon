@@ -12,6 +12,9 @@ import type {
   CompareResponse,
   RegressionItem,
 } from '@/lib/types'
+import { compareRunsSchema } from '@/lib/validation/schemas'
+import { validateBody } from '@/lib/validation/middleware'
+import { withRateLimit } from '@/lib/middleware/rate-limit'
 
 /**
  * Score record from ClickHouse for a specific run
@@ -46,23 +49,15 @@ interface RunTraceRecord {
  *   threshold?: number; // default 0.05
  * }
  */
-export async function POST(request: NextRequest) {
+export const POST = withRateLimit(async function POST(request: NextRequest) {
   try {
-    const body: CompareRequest = await request.json()
+    const rawBody = await request.json()
 
-    // Validate required fields
-    if (!body.baseline_run_id) {
-      return NextResponse.json(
-        { error: 'baseline_run_id is required' },
-        { status: 400 },
-      )
-    }
-    if (!body.candidate_run_id) {
-      return NextResponse.json(
-        { error: 'candidate_run_id is required' },
-        { status: 400 },
-      )
-    }
+    // Validate request body
+    const validation = validateBody(compareRunsSchema, rawBody)
+    if (!validation.success) return validation.response
+    const body: CompareRequest = validation.data
+
     if (body.baseline_run_id === body.candidate_run_id) {
       return NextResponse.json(
         { error: 'baseline_run_id and candidate_run_id must be different' },
@@ -298,4 +293,4 @@ export async function POST(request: NextRequest) {
       { status: 500 },
     )
   }
-}
+})

@@ -6,9 +6,10 @@
 
 import { type NextRequest, NextResponse } from 'next/server'
 import { getSpanDetails } from '@/lib/clickhouse'
+import { withRateLimit } from '@/lib/middleware/rate-limit'
 import { logger } from '@/lib/logger'
 
-export async function GET(
+export const GET = withRateLimit(async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
@@ -35,4 +36,4 @@ export async function GET(
       { status: 500 },
     )
   }
-}
+})

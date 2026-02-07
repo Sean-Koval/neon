@@ -7,6 +7,7 @@
 import { type NextRequest, NextResponse } from 'next/server'
 import { getWorkflowStatus } from '@/lib/temporal'
 import { withAuth, type AuthResult } from '@/lib/middleware/auth'
+import { withRateLimit } from '@/lib/middleware/rate-limit'
 import { logger } from '@/lib/logger'
 
 /**
@@ -15,7 +16,7 @@ import { logger } from '@/lib/logger'
  * Get lightweight status for polling.
  * Returns only essential fields for efficient updates.
  */
-export const GET = withAuth(
+export const GET = withRateLimit(withAuth(
   async (
     _request: NextRequest,
     auth: AuthResult,
@@ -117,4 +118,4 @@ export const GET = withAuth(
       )
     }
   },
-)
+))

@@ -8,6 +8,7 @@
 import { type NextRequest, NextResponse } from 'next/server'
 import { cancelWorkflow, getWorkflowStatus } from '@/lib/temporal'
 import { withAuth, type AuthResult } from '@/lib/middleware/auth'
+import { withRateLimit } from '@/lib/middleware/rate-limit'
 import { logger } from '@/lib/logger'
 
 /**
@@ -15,7 +16,7 @@ import { logger } from '@/lib/logger'
  *
  * Get detailed status and progress for an eval run.
  */
-export const GET = withAuth(
+export const GET = withRateLimit(withAuth(
   async (
     _request: NextRequest,
     auth: AuthResult,
@@ -75,14 +76,14 @@ export const GET = withAuth(
       )
     }
   },
-)
+))
 
 /**
  * DELETE /api/runs/:id
  *
  * Cancel a running eval run.
  */
-export const DELETE = withAuth(
+export const DELETE = withRateLimit(withAuth(
   async (
     _request: NextRequest,
     auth: AuthResult,
@@ -142,4 +143,4 @@ export const DELETE = withAuth(
       )
     }
   },
-)
+))

@@ -7,9 +7,10 @@
 import { type NextRequest, NextResponse } from 'next/server'
 import { queryTraces } from '@/lib/clickhouse'
 import { withAuth, type AuthResult } from '@/lib/middleware/auth'
+import { withRateLimit } from '@/lib/middleware/rate-limit'
 import { logger } from '@/lib/logger'
 
-export const GET = withAuth(async (request: NextRequest, auth: AuthResult) => {
+export const GET = withRateLimit(withAuth(async (request: NextRequest, auth: AuthResult) => {
   try {
     const projectId = auth.workspaceId
     if (!projectId) {
@@ -48,4 +49,4 @@ export const GET = withAuth(async (request: NextRequest, auth: AuthResult) => {
       { status: 500 },
     )
   }
-})
+}))
