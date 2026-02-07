@@ -4,7 +4,6 @@ import { CONFIG } from '@/lib/config'
 import { safeFormatDistance } from '@/lib/format-date'
 import {
   AlertCircle,
-  AlertTriangle,
   CheckCircle,
   ChevronLeft,
   ChevronRight,
@@ -51,15 +50,6 @@ export default function Dashboard() {
 
   const { data: alertsData } = useAlerts()
   const regressionAlerts = alertsData?.alerts ?? []
-
-  // Build a set of suite IDs with active regressions for warning indicators
-  const regressedSuiteIds = useMemo(() => {
-    const ids = new Set<string>()
-    for (const alert of regressionAlerts) {
-      ids.add(alert.suiteId)
-    }
-    return ids
-  }, [regressionAlerts])
 
   return (
     <div className="space-y-8">
@@ -138,7 +128,6 @@ export default function Dashboard() {
         hasPrevPage={hasPrevPage}
         onNextPage={loadNextPage}
         onPrevPage={loadPrevPage}
-        regressedSuiteIds={regressedSuiteIds}
       />
     </div>
   )
