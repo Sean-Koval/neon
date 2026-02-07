@@ -18,6 +18,7 @@ import { createPromptSchema } from '@/lib/validation/schemas'
 import { validateBody } from '@/lib/validation/middleware'
 import { withRateLimit } from '@/lib/middleware/rate-limit'
 import { WRITE_LIMIT, READ_LIMIT } from '@/lib/rate-limit'
+import { logger } from '@/lib/logger'
 
 /**
  * Transform ClickHouse record to API response
@@ -89,7 +90,7 @@ export const GET = withRateLimit(async function GET(request: NextRequest) {
 
     return NextResponse.json(response)
   } catch (error) {
-    console.error('Error listing prompts:', error)
+    logger.error({ err: error }, 'Error listing prompts')
 
     if (error instanceof Error && error.message.includes('ECONNREFUSED')) {
       return NextResponse.json(
@@ -168,7 +169,7 @@ export const POST = withRateLimit(async function POST(request: NextRequest) {
 
     return NextResponse.json(transformPrompt(record), { status: 201 })
   } catch (error) {
-    console.error('Error creating prompt:', error)
+    logger.error({ err: error }, 'Error creating prompt')
 
     if (error instanceof Error && error.message.includes('ECONNREFUSED')) {
       return NextResponse.json(

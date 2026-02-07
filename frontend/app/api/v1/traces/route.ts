@@ -15,6 +15,7 @@ import { createTracesSchema } from '@/lib/validation/schemas'
 import { validateBody } from '@/lib/validation/middleware'
 import { withRateLimit } from '@/lib/middleware/rate-limit'
 import { BATCH_LIMIT } from '@/lib/rate-limit'
+import { logger } from '@/lib/logger'
 
 /**
  * OTel OTLP Span format (simplified)
@@ -292,7 +293,7 @@ export const POST = withRateLimit(withAuth(
         spans: allSpans.length,
       })
     } catch (error) {
-      console.error('Error ingesting traces:', error)
+      logger.error({ err: error }, 'Error ingesting traces')
       return NextResponse.json(
         { error: 'Failed to ingest traces', details: String(error) },
         { status: 500 },

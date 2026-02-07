@@ -15,6 +15,7 @@ import { withAuth, type AuthResult } from '@/lib/middleware/auth'
 import { runControlSchema } from '@/lib/validation/schemas'
 import { validateBody } from '@/lib/validation/middleware'
 import { withRateLimit } from '@/lib/middleware/rate-limit'
+import { logger } from '@/lib/logger'
 
 /**
  * POST /api/runs/:id/control
@@ -102,7 +103,7 @@ export const POST = withRateLimit(withAuth(
           )
       }
     } catch (error) {
-      console.error('Error controlling eval run:', error)
+      logger.error({ err: error }, 'Error controlling eval run')
 
       // Check for workflow not found
       if (error instanceof Error && error.message.includes('not found')) {

@@ -7,6 +7,7 @@
 import { type NextRequest, NextResponse } from 'next/server'
 import { getSpanDetails } from '@/lib/clickhouse'
 import { withRateLimit } from '@/lib/middleware/rate-limit'
+import { logger } from '@/lib/logger'
 
 export const GET = withRateLimit(async function GET(
   request: NextRequest,
@@ -29,7 +30,7 @@ export const GET = withRateLimit(async function GET(
 
     return NextResponse.json(details)
   } catch (error) {
-    console.error('Error getting span details:', error)
+    logger.error({ err: error }, 'Error getting span details')
     return NextResponse.json(
       { error: 'Failed to get span details', details: String(error) },
       { status: 500 },

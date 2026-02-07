@@ -12,6 +12,7 @@ import { createComparisonSchema } from '@/lib/validation/schemas'
 import { validateBody } from '@/lib/validation/middleware'
 import { withRateLimit } from '@/lib/middleware/rate-limit'
 import { WRITE_LIMIT, READ_LIMIT } from '@/lib/rate-limit'
+import { logger } from '@/lib/logger'
 
 // In-memory store for comparison pairs (will be replaced with ClickHouse)
 const comparisonStore = new Map<string, ComparisonPair>()
@@ -247,7 +248,7 @@ export const GET = withRateLimit(async function GET(request: NextRequest) {
       total,
     })
   } catch (error) {
-    console.error('Error fetching comparisons:', error)
+    logger.error({ err: error }, 'Error fetching comparisons')
     return NextResponse.json(
       { error: 'Failed to fetch comparisons', details: String(error) },
       { status: 500 },
@@ -295,7 +296,7 @@ export const POST = withRateLimit(async function POST(request: NextRequest) {
       item: comparison,
     })
   } catch (error) {
-    console.error('Error creating comparison:', error)
+    logger.error({ err: error }, 'Error creating comparison')
     return NextResponse.json(
       { error: 'Failed to create comparison', details: String(error) },
       { status: 500 },

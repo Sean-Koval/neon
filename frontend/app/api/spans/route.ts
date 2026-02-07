@@ -12,6 +12,7 @@ import { createSpanSchema } from '@/lib/validation/schemas'
 import { validateBody } from '@/lib/validation/middleware'
 import { withRateLimit } from '@/lib/middleware/rate-limit'
 import { BATCH_LIMIT } from '@/lib/rate-limit'
+import { logger } from '@/lib/logger'
 
 export const POST = withRateLimit(async function POST(request: NextRequest) {
   try {
@@ -66,7 +67,7 @@ export const POST = withRateLimit(async function POST(request: NextRequest) {
       count: normalizedSpans.length,
     })
   } catch (error) {
-    console.error('Error inserting span:', error)
+    logger.error({ err: error }, 'Error inserting span')
     return NextResponse.json(
       { error: 'Failed to insert span', details: String(error) },
       { status: 500 },

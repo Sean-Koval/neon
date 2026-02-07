@@ -8,6 +8,7 @@
 import { type NextRequest, NextResponse } from 'next/server'
 
 import { backfillMaterializedViews } from '@/lib/clickhouse'
+import { logger } from '@/lib/logger'
 
 /**
  * POST /api/dashboard/backfill
@@ -47,7 +48,7 @@ export async function POST(request: NextRequest) {
       queryTimeMs,
     })
   } catch (error) {
-    console.error('Backfill error:', error)
+    logger.error({ err: error }, 'Backfill error')
 
     const queryTimeMs = Math.round(performance.now() - startTime)
 

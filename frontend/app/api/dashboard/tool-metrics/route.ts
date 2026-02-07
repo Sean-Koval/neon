@@ -8,6 +8,7 @@
 import { type NextRequest, NextResponse } from 'next/server'
 
 import { getToolMetrics } from '@/lib/clickhouse'
+import { logger } from '@/lib/logger'
 
 function getDateRange(days: number): { startDate: string; endDate: string } {
   const endDate = new Date()
@@ -59,7 +60,7 @@ export async function GET(request: NextRequest) {
       },
     )
   } catch (error) {
-    console.error('Tool metrics API error:', error)
+    logger.error({ err: error }, 'Tool metrics API error')
 
     // Graceful degradation when ClickHouse is unavailable
     const isClickHouseError =

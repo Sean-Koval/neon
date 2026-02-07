@@ -16,6 +16,7 @@ import { withAuth, type AuthResult } from '@/lib/middleware/auth'
 import { createSuiteSchema } from '@/lib/validation/schemas'
 import { validateBody } from '@/lib/validation/middleware'
 import { withRateLimit } from '@/lib/middleware/rate-limit'
+import { logger } from '@/lib/logger'
 
 // Create a connection pool for raw queries
 // (suites table is in postgres-init.sql, not Drizzle schema)
@@ -34,7 +35,7 @@ function getPool(): Pool {
     })
 
     pool.on('error', (err: Error) => {
-      console.error('PostgreSQL pool error in suites route:', err)
+      logger.error({ err }, 'PostgreSQL pool error in suites route')
     })
   }
   return pool
@@ -115,7 +116,7 @@ export const GET = withRateLimit(withAuth(async (request: NextRequest, auth: Aut
 
     return NextResponse.json(response)
   } catch (error) {
-    console.error('Error fetching suites:', error)
+    logger.error({ err: error }, 'Error fetching suites')
 
     // Graceful degradation - return empty list if database isn't available
     const isConnectionError =
@@ -212,7 +213,7 @@ export const POST = withRateLimit(withAuth(async (request: NextRequest, auth: Au
 
     return NextResponse.json(suite, { status: 201 })
   } catch (error) {
-    console.error('Error creating suite:', error)
+    logger.error({ err: error }, 'Error creating suite')
 
     // Check for foreign key violation (invalid project_id)
     if (

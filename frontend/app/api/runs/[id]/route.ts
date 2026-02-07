@@ -9,6 +9,7 @@ import { type NextRequest, NextResponse } from 'next/server'
 import { cancelWorkflow, getWorkflowStatus } from '@/lib/temporal'
 import { withAuth, type AuthResult } from '@/lib/middleware/auth'
 import { withRateLimit } from '@/lib/middleware/rate-limit'
+import { logger } from '@/lib/logger'
 
 /**
  * GET /api/runs/:id
@@ -48,7 +49,7 @@ export const GET = withRateLimit(withAuth(
         error: status.error,
       })
     } catch (error) {
-      console.error('Error getting eval run:', error)
+      logger.error({ err: error }, 'Error getting eval run')
 
       // Check for workflow not found
       if (error instanceof Error && error.message.includes('not found')) {
@@ -126,7 +127,7 @@ export const DELETE = withRateLimit(withAuth(
         newStatus: 'CANCELLED',
       })
     } catch (error) {
-      console.error('Error cancelling eval run:', error)
+      logger.error({ err: error }, 'Error cancelling eval run')
 
       // Check for workflow not found
       if (error instanceof Error && error.message.includes('not found')) {

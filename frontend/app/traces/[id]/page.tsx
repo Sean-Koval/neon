@@ -13,6 +13,7 @@ import {
   AlertTriangle,
   ArrowLeft,
   Bot,
+  Bug,
   CheckCircle,
   Clock,
   GitBranch,
@@ -418,6 +419,14 @@ export default function TraceDetailPage() {
               <CopyButton value={trace.trace_id} size="sm" label="Copy ID" />
             </div>
           </div>
+          <Link
+            href={`/traces/${traceId}/debug`}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-orange-700 bg-orange-50 hover:bg-orange-100 rounded-lg transition-colors flex-shrink-0"
+            title="Open trace debugger"
+          >
+            <Bug className="w-4 h-4" />
+            Debug
+          </Link>
           <button
             type="button"
             onClick={() => refetch()}

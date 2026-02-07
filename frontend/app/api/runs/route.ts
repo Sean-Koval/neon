@@ -8,6 +8,7 @@
 import { type NextRequest, NextResponse } from 'next/server'
 import { v4 as uuidv4 } from 'uuid'
 import { type AuthResult, withAuth } from '@/lib/middleware/auth'
+import { logger } from '@/lib/logger'
 import {
   listEvalRuns,
   type StartEvalRunParams,
@@ -76,7 +77,7 @@ export const POST = withRateLimit(withAuth(async (request: NextRequest, auth: Au
       parallel: params.parallel,
     })
   } catch (error) {
-    console.error('Error starting eval run:', error)
+    logger.error({ err: error }, 'Error starting eval run')
 
     // Check if it's a Temporal connection error
     if (error instanceof Error && error.message.includes('UNAVAILABLE')) {
@@ -139,7 +140,7 @@ export const GET = withRateLimit(withAuth(async (request: NextRequest, auth: Aut
       offset,
     })
   } catch (error) {
-    console.error('Error listing eval runs:', error)
+    logger.error({ err: error }, 'Error listing eval runs')
 
     // Return empty list when Temporal isn't available (graceful degradation)
     const isTemporalError =

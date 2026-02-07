@@ -20,6 +20,7 @@ import { updatePromptSchema } from '@/lib/validation/schemas'
 import { validateBody } from '@/lib/validation/middleware'
 import { withRateLimit } from '@/lib/middleware/rate-limit'
 import { WRITE_LIMIT, READ_LIMIT } from '@/lib/rate-limit'
+import { logger } from '@/lib/logger'
 
 interface RouteParams {
   params: Promise<{ id: string }>
@@ -111,7 +112,7 @@ export const GET = withRateLimit(async function GET(request: NextRequest, { para
 
     return NextResponse.json(transformPrompt(record))
   } catch (error) {
-    console.error('Error getting prompt:', error)
+    logger.error({ err: error }, 'Error getting prompt')
 
     if (error instanceof Error && error.message.includes('ECONNREFUSED')) {
       return NextResponse.json(
@@ -222,7 +223,7 @@ export const PATCH = withRateLimit(async function PATCH(request: NextRequest, { 
 
     return NextResponse.json(transformPrompt(record))
   } catch (error) {
-    console.error('Error updating prompt:', error)
+    logger.error({ err: error }, 'Error updating prompt')
 
     if (error instanceof Error && error.message.includes('ECONNREFUSED')) {
       return NextResponse.json(

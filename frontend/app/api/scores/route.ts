@@ -13,6 +13,7 @@ import { createScoreSchema } from '@/lib/validation/schemas'
 import { validateBody } from '@/lib/validation/middleware'
 import { withRateLimit } from '@/lib/middleware/rate-limit'
 import { WRITE_LIMIT, READ_LIMIT } from '@/lib/rate-limit'
+import { logger } from '@/lib/logger'
 
 export const POST = withRateLimit(async function POST(request: NextRequest) {
   try {
@@ -54,7 +55,7 @@ export const POST = withRateLimit(async function POST(request: NextRequest) {
       score_id: score.score_id,
     })
   } catch (error) {
-    console.error('Error creating score:', error)
+    logger.error({ err: error }, 'Error creating score')
     return NextResponse.json(
       { error: 'Failed to create score', details: String(error) },
       { status: 500 },
@@ -89,7 +90,7 @@ export const GET = withRateLimit(async function GET(request: NextRequest) {
       count: scores.length,
     })
   } catch (error) {
-    console.error('Error fetching scores:', error)
+    logger.error({ err: error }, 'Error fetching scores')
     return NextResponse.json(
       { error: 'Failed to fetch scores', details: String(error) },
       { status: 500 },

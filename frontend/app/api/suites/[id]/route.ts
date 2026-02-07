@@ -13,6 +13,7 @@ import { withAuth, type AuthResult } from '@/lib/middleware/auth'
 import { updateSuiteSchema } from '@/lib/validation/schemas'
 import { validateBody } from '@/lib/validation/middleware'
 import { withRateLimit } from '@/lib/middleware/rate-limit'
+import { logger } from '@/lib/logger'
 
 // Connection pool (shared with main suites route via process-level singleton)
 let pool: Pool | null = null
@@ -30,7 +31,7 @@ function getPool(): Pool {
     })
 
     pool.on('error', (err: Error) => {
-      console.error('PostgreSQL pool error in suites/[id] route:', err)
+      logger.error({ err }, 'PostgreSQL pool error in suites/[id] route')
     })
   }
   return pool
@@ -125,7 +126,7 @@ export const GET = withRateLimit(withAuth(
       const suite = mapRowToSuite(result.rows[0])
       return NextResponse.json(suite)
     } catch (error) {
-      console.error('Error fetching suite:', error)
+      logger.error({ err: error }, 'Error fetching suite')
 
       if (isConnectionError(error)) {
         return NextResponse.json(
@@ -282,7 +283,7 @@ export const PATCH = withRateLimit(withAuth(
 
       return NextResponse.json(suite)
     } catch (error) {
-      console.error('Error updating suite:', error)
+      logger.error({ err: error }, 'Error updating suite')
 
       if (isConnectionError(error)) {
         return NextResponse.json(
@@ -357,7 +358,7 @@ export const DELETE = withRateLimit(withAuth(
 
       return new NextResponse(null, { status: 204 })
     } catch (error) {
-      console.error('Error deleting suite:', error)
+      logger.error({ err: error }, 'Error deleting suite')
 
       if (isConnectionError(error)) {
         return NextResponse.json(
