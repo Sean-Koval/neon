@@ -25,25 +25,12 @@ import type { ScoreTraceParams, ScorerDefinition } from "../types";
 const mockFetch = vi.fn();
 global.fetch = mockFetch;
 
-// Mock the Anthropic SDK for LLM judges
-// Store mock create function on global so it survives vi.resetAllMocks
-const _mockCreate = vi.fn();
-(globalThis as any).__mockAnthropicCreate = _mockCreate;
+// Mock @neon/llm-providers for LLM judges
+const mockChat = vi.fn();
 
-vi.mock("@anthropic-ai/sdk", () => {
-  return {
-    default: class MockAnthropic {
-      messages = {
-        create: (...args: unknown[]) => (globalThis as any).__mockAnthropicCreate(...args),
-      };
-    },
-  };
-});
-
-// Helper to access the mock
-function getMockAnthropicCreate() {
-  return (globalThis as any).__mockAnthropicCreate as ReturnType<typeof vi.fn>;
-}
+vi.mock("@neon/llm-providers", () => ({
+  getProvider: () => ({ chat: mockChat, name: "anthropic" }),
+}));
 
 // Helper to create mock trace data
 function createMockTraceData(options: {
@@ -125,8 +112,8 @@ describe("scoreTrace", () => {
 
   beforeEach(() => {
     vi.resetAllMocks();
-    getMockAnthropicCreate().mockResolvedValue({
-      content: [{ type: "text", text: '{"score": 0.85, "reason": "Good quality"}' }],
+    mockChat.mockResolvedValue({
+      content: '{"score": 0.85, "reason": "Good quality"}', inputTokens: 0, outputTokens: 0, model: "claude-3-haiku-20240307",
     });
     process.env = { ...originalEnv };
     process.env.NEON_API_URL = "http://localhost:3000";
@@ -1081,8 +1068,8 @@ describe("scoreTrace", () => {
 
     for (const scorerName of llmScorerNames) {
       it(`runs ${scorerName} scorer via LLM`, async () => {
-        getMockAnthropicCreate().mockResolvedValue({
-          content: [{ type: "text", text: `{"score": 0.9, "reason": "High ${scorerName}"}` }],
+        mockChat.mockResolvedValue({
+          content: `{"score": 0.9, "reason": "High ${scorerName}"}`, inputTokens: 0, outputTokens: 0, model: "claude-3-haiku-20240307",
         });
 
         setupFetchMock(createMockTraceData({
@@ -1104,8 +1091,8 @@ describe("scoreTrace", () => {
     }
 
     it("clamps LLM score to 0-1 range", async () => {
-      getMockAnthropicCreate().mockResolvedValue({
-        content: [{ type: "text", text: '{"score": 1.5, "reason": "Over max"}' }],
+      mockChat.mockResolvedValue({
+        content: '{"score": 1.5, "reason": "Over max"}', inputTokens: 0, outputTokens: 0, model: "claude-3-haiku-20240307",
       });
 
       setupFetchMock(createMockTraceData({
@@ -1122,8 +1109,8 @@ describe("scoreTrace", () => {
     });
 
     it("clamps negative LLM score to 0", async () => {
-      getMockAnthropicCreate().mockResolvedValue({
-        content: [{ type: "text", text: '{"score": -0.5, "reason": "Below min"}' }],
+      mockChat.mockResolvedValue({
+        content: '{"score": -0.5, "reason": "Below min"}', inputTokens: 0, outputTokens: 0, model: "claude-3-haiku-20240307",
       });
 
       setupFetchMock(createMockTraceData({
@@ -1140,8 +1127,8 @@ describe("scoreTrace", () => {
     });
 
     it("handles LLM response in markdown code block", async () => {
-      getMockAnthropicCreate().mockResolvedValue({
-        content: [{ type: "text", text: '```json\n{"score": 0.75, "reason": "Good"}\n```' }],
+      mockChat.mockResolvedValue({
+        content: '```json\n{"score": 0.75, "reason": "Good"}\n```', inputTokens: 0, outputTokens: 0, model: "claude-3-haiku-20240307",
       });
 
       setupFetchMock(createMockTraceData({
@@ -1158,8 +1145,8 @@ describe("scoreTrace", () => {
     });
 
     it("returns 0.5 when LLM response cannot be parsed", async () => {
-      getMockAnthropicCreate().mockResolvedValue({
-        content: [{ type: "text", text: "Not a JSON response at all" }],
+      mockChat.mockResolvedValue({
+        content: "Not a JSON response at all", inputTokens: 0, outputTokens: 0, model: "claude-3-haiku-20240307",
       });
 
       setupFetchMock(createMockTraceData({
@@ -1177,7 +1164,7 @@ describe("scoreTrace", () => {
     });
 
     it("returns 0.5 when LLM API call fails", async () => {
-      getMockAnthropicCreate().mockRejectedValue(new Error("API rate limit"));
+      mockChat.mockRejectedValue(new Error("API rate limit"));
 
       setupFetchMock(createMockTraceData({
         spans: [{ span_type: "generation", name: "gen", status: "ok", output: "test" }],
@@ -1194,8 +1181,8 @@ describe("scoreTrace", () => {
     });
 
     it("falls back to generic LLM judge for unknown scorer names", async () => {
-      getMockAnthropicCreate().mockResolvedValue({
-        content: [{ type: "text", text: '{"score": 0.8, "reason": "Custom eval"}' }],
+      mockChat.mockResolvedValue({
+        content: '{"score": 0.8, "reason": "Custom eval"}', inputTokens: 0, outputTokens: 0, model: "claude-3-haiku-20240307",
       });
 
       setupFetchMock(createMockTraceData({
@@ -1213,8 +1200,8 @@ describe("scoreTrace", () => {
     });
 
     it("includes model metadata in result", async () => {
-      getMockAnthropicCreate().mockResolvedValue({
-        content: [{ type: "text", text: '{"score": 0.9, "reason": "Great"}' }],
+      mockChat.mockResolvedValue({
+        content: '{"score": 0.9, "reason": "Great"}', inputTokens: 0, outputTokens: 0, model: "claude-3-haiku-20240307",
       });
 
       setupFetchMock(createMockTraceData({
@@ -1231,8 +1218,8 @@ describe("scoreTrace", () => {
     });
 
     it("handles trace with no generation spans", async () => {
-      getMockAnthropicCreate().mockResolvedValue({
-        content: [{ type: "text", text: '{"score": 0.5, "reason": "No generation found"}' }],
+      mockChat.mockResolvedValue({
+        content: '{"score": 0.5, "reason": "No generation found"}', inputTokens: 0, outputTokens: 0, model: "claude-3-haiku-20240307",
       });
 
       setupFetchMock(createMockTraceData({
@@ -1421,8 +1408,8 @@ describe("scoreTrace", () => {
 describe("scoreTraceWithConfig", () => {
   beforeEach(() => {
     vi.resetAllMocks();
-    getMockAnthropicCreate().mockResolvedValue({
-      content: [{ type: "text", text: '{"score": 0.85, "reason": "Good quality"}' }],
+    mockChat.mockResolvedValue({
+      content: '{"score": 0.85, "reason": "Good quality"}', inputTokens: 0, outputTokens: 0, model: "claude-3-haiku-20240307",
     });
     process.env.NEON_API_URL = "http://localhost:3000";
 
@@ -1544,8 +1531,8 @@ describe("scoreTraceWithConfig", () => {
   });
 
   it("runs LLM judge scorer with config", async () => {
-    getMockAnthropicCreate().mockResolvedValue({
-      content: [{ type: "text", text: '{"score": 0.92, "reason": "Excellent"}' }],
+    mockChat.mockResolvedValue({
+      content: '{"score": 0.92, "reason": "Excellent"}', inputTokens: 0, outputTokens: 0, model: "claude-3-haiku-20240307",
     });
 
     const result = await scoreTraceWithConfig({
@@ -1562,8 +1549,8 @@ describe("scoreTraceWithConfig", () => {
   });
 
   it("runs LLM judge scorer with custom model", async () => {
-    getMockAnthropicCreate().mockResolvedValue({
-      content: [{ type: "text", text: '{"score": 0.88, "reason": "Good"}' }],
+    mockChat.mockResolvedValue({
+      content: '{"score": 0.88, "reason": "Good"}', inputTokens: 0, outputTokens: 0, model: "claude-3-haiku-20240307",
     });
 
     const result = await scoreTraceWithConfig({
@@ -1578,8 +1565,8 @@ describe("scoreTraceWithConfig", () => {
     });
 
     expect(result.value).toBe(0.88);
-    // Verify the model was passed to Anthropic
-    expect(getMockAnthropicCreate()).toHaveBeenCalledWith(
+    // Verify the model was passed to the provider
+    expect(mockChat).toHaveBeenCalledWith(
       expect.objectContaining({
         model: "claude-3-sonnet-20240229",
       })
@@ -1652,8 +1639,8 @@ describe("scoreTraceWithConfig", () => {
   });
 
   it("stores score result in ClickHouse", async () => {
-    getMockAnthropicCreate().mockResolvedValue({
-      content: [{ type: "text", text: '{"score": 0.8, "reason": "OK"}' }],
+    mockChat.mockResolvedValue({
+      content: '{"score": 0.8, "reason": "OK"}', inputTokens: 0, outputTokens: 0, model: "claude-3-haiku-20240307",
     });
 
     await scoreTraceWithConfig({

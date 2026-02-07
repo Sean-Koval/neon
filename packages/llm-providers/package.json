@@ -1,0 +1,43 @@
+{
+  "name": "@neon/llm-providers",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "@anthropic-ai/sdk": "^0.32.0",
+    "@anthropic-ai/vertex-sdk": "^0.4.0",
+    "@google-cloud/vertexai": "^1.0.0",
+    "openai": "^4.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@anthropic-ai/sdk": {
+      "optional": true
+    },
+    "@anthropic-ai/vertex-sdk": {
+      "optional": true
+    },
+    "@google-cloud/vertexai": {
+      "optional": true
+    },
+    "openai": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@anthropic-ai/sdk": "^0.32.0",
+    "@types/node": "^20.11.0",
+    "typescript": "^5.3.3"
+  }
+}

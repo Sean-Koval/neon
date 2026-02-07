@@ -12,10 +12,11 @@
     "clean": "rm -rf dist",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
-    "build:bundle": "esbuild src/worker.ts --bundle --platform=node --format=esm --outdir=dist --external:@temporalio/*"
+    "build:bundle": "esbuild src/worker.ts --bundle --platform=node --format=esm --outdir=dist --external:@temporalio/* --external:openai --external:@google-cloud/* --external:@anthropic-ai/vertex-sdk"
   },
   "dependencies": {
     "@neon/shared": "workspace:*",
+    "@neon/llm-providers": "workspace:*",
     "@anthropic-ai/sdk": "^0.32.0",
     "@clickhouse/client": "^1.0.1",
     "@temporalio/activity": "^1.11.0",
