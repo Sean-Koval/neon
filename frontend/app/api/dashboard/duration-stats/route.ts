@@ -7,6 +7,7 @@
 import { type NextRequest, NextResponse } from 'next/server'
 
 import { getDurationStats } from '@/lib/clickhouse'
+import { logger } from '@/lib/logger'
 
 function getDateRange(days: number): { startDate: string; endDate: string } {
   const endDate = new Date()
@@ -65,7 +66,7 @@ export async function GET(request: NextRequest) {
       },
     )
   } catch (error) {
-    console.error('Duration stats API error:', error)
+    logger.error({ err: error }, 'Duration stats API error')
 
     // Graceful degradation when ClickHouse is unavailable
     const isClickHouseError =

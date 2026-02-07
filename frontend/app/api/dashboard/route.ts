@@ -7,6 +7,7 @@
 
 import { type NextRequest, NextResponse } from 'next/server'
 
+import { logger } from '@/lib/logger'
 import {
   type DailyRunSummary,
   type DashboardSummary,
@@ -129,7 +130,7 @@ export async function GET(request: NextRequest) {
       },
     })
   } catch (error) {
-    console.error('Dashboard API error:', error)
+    logger.error({ err: error }, 'Dashboard API error')
 
     const queryTimeMs = Math.round(performance.now() - startTime)
 
@@ -173,7 +174,7 @@ export async function getSummaryOnly(request: NextRequest) {
       },
     )
   } catch (error) {
-    console.error('Summary API error:', error)
+    logger.error({ err: error }, 'Summary API error')
     return NextResponse.json(
       { error: 'Failed to fetch summary' },
       { status: 500 },

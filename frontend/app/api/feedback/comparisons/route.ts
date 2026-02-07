@@ -8,6 +8,7 @@
 import { type NextRequest, NextResponse } from 'next/server'
 import { v4 as uuidv4 } from 'uuid'
 import type { ComparisonPair } from '@/lib/types'
+import { logger } from '@/lib/logger'
 
 // In-memory store for comparison pairs (will be replaced with ClickHouse)
 const comparisonStore = new Map<string, ComparisonPair>()
@@ -243,7 +244,7 @@ export async function GET(request: NextRequest) {
       total,
     })
   } catch (error) {
-    console.error('Error fetching comparisons:', error)
+    logger.error({ err: error }, 'Error fetching comparisons')
     return NextResponse.json(
       { error: 'Failed to fetch comparisons', details: String(error) },
       { status: 500 },
@@ -298,7 +299,7 @@ export async function POST(request: NextRequest) {
       item: comparison,
     })
   } catch (error) {
-    console.error('Error creating comparison:', error)
+    logger.error({ err: error }, 'Error creating comparison')
     return NextResponse.json(
       { error: 'Failed to create comparison', details: String(error) },
       { status: 500 },

@@ -9,6 +9,7 @@ import { type NextRequest, NextResponse } from 'next/server'
 import { v4 as uuidv4 } from 'uuid'
 import type { ScoreRecord } from '@/lib/clickhouse'
 import { batchInsertScores } from '@/lib/clickhouse-batch'
+import { logger } from '@/lib/logger'
 
 export async function POST(request: NextRequest) {
   try {
@@ -45,7 +46,7 @@ export async function POST(request: NextRequest) {
       score_id: score.score_id,
     })
   } catch (error) {
-    console.error('Error creating score:', error)
+    logger.error({ err: error }, 'Error creating score')
     return NextResponse.json(
       { error: 'Failed to create score', details: String(error) },
       { status: 500 },
@@ -80,7 +81,7 @@ export async function GET(request: NextRequest) {
       count: scores.length,
     })
   } catch (error) {
-    console.error('Error fetching scores:', error)
+    logger.error({ err: error }, 'Error fetching scores')
     return NextResponse.json(
       { error: 'Failed to fetch scores', details: String(error) },
       { status: 500 },

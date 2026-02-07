@@ -18,3 +18,6 @@ export {
   // Request context
   getRequestContext,
 } from './auth'
+
+export { withLogging } from './logging'
+export { withMetrics } from './metrics'

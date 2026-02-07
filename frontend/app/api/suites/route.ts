@@ -13,6 +13,7 @@ import { type NextRequest, NextResponse } from 'next/server'
 import { Pool } from 'pg'
 import type { EvalSuite, EvalSuiteList, ScorerType } from '@/lib/types'
 import { withAuth, type AuthResult } from '@/lib/middleware/auth'
+import { logger } from '@/lib/logger'
 
 // Create a connection pool for raw queries
 // (suites table is in postgres-init.sql, not Drizzle schema)
@@ -31,7 +32,7 @@ function getPool(): Pool {
     })
 
     pool.on('error', (err: Error) => {
-      console.error('PostgreSQL pool error in suites route:', err)
+      logger.error({ err }, 'PostgreSQL pool error in suites route')
     })
   }
   return pool
@@ -112,7 +113,7 @@ export const GET = withAuth(async (request: NextRequest, auth: AuthResult) => {
 
     return NextResponse.json(response)
   } catch (error) {
-    console.error('Error fetching suites:', error)
+    logger.error({ err: error }, 'Error fetching suites')
 
     // Graceful degradation - return empty list if database isn't available
     const isConnectionError =
@@ -209,7 +210,7 @@ export const POST = withAuth(async (request: NextRequest, auth: AuthResult) => {
 
     return NextResponse.json(suite, { status: 201 })
   } catch (error) {
-    console.error('Error creating suite:', error)
+    logger.error({ err: error }, 'Error creating suite')
 
     // Check for foreign key violation (invalid project_id)
     if (

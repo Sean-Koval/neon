@@ -34,6 +34,7 @@ import {
   type SpanDetails,
   type SpanRecord,
 } from '@/lib/clickhouse'
+import { logger } from '@/lib/logger'
 
 // ============================================================================
 // Authentication
@@ -230,9 +231,9 @@ function cleanupStaleConnections(): void {
   for (const [connectionId, subscriber] of subscribers) {
     const timeSinceLastPing = now - subscriber.lastPing
     if (timeSinceLastPing > STALE_CONNECTION_THRESHOLD_MS) {
-      console.warn(
-        `[DEBUG STREAM] Cleaning up stale connection ${connectionId} ` +
-          `(last ping: ${Math.round(timeSinceLastPing / 1000)}s ago)`,
+      logger.warn(
+        { connectionId, staleSec: Math.round(timeSinceLastPing / 1000) },
+        'Cleaning up stale debug stream connection',
       )
       cleanupSubscriber(connectionId)
     }
@@ -560,7 +561,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(responsePayload)
   } catch (error) {
-    console.error('Error handling debug command:', error)
+    logger.error({ err: error }, 'Error handling debug command')
     return NextResponse.json(
       { error: 'Failed to process command', details: String(error) },
       { status: 500 },
@@ -758,7 +759,7 @@ async function getSpanInspection(
       },
     }
   } catch (error) {
-    console.error('Error fetching span inspection data:', error)
+    logger.error({ err: error }, 'Error fetching span inspection data')
     return {
       error: `Failed to fetch span data: ${error instanceof Error ? error.message : String(error)}`,
     }

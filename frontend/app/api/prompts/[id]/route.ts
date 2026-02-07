@@ -16,6 +16,7 @@ import {
   type PromptRecord,
 } from '@/lib/clickhouse'
 import type { Prompt, PromptUpdate, PromptVersionEntry } from '@/lib/types'
+import { logger } from '@/lib/logger'
 
 interface RouteParams {
   params: Promise<{ id: string }>
@@ -107,7 +108,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
     return NextResponse.json(transformPrompt(record))
   } catch (error) {
-    console.error('Error getting prompt:', error)
+    logger.error({ err: error }, 'Error getting prompt')
 
     if (error instanceof Error && error.message.includes('ECONNREFUSED')) {
       return NextResponse.json(
@@ -213,7 +214,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
     return NextResponse.json(transformPrompt(record))
   } catch (error) {
-    console.error('Error updating prompt:', error)
+    logger.error({ err: error }, 'Error updating prompt')
 
     if (error instanceof Error && error.message.includes('ECONNREFUSED')) {
       return NextResponse.json(

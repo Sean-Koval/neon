@@ -14,6 +14,7 @@ import {
   type PromptRecord,
 } from '@/lib/clickhouse'
 import type { Prompt, PromptCreate, PromptList } from '@/lib/types'
+import { logger } from '@/lib/logger'
 
 /**
  * Transform ClickHouse record to API response
@@ -85,7 +86,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(response)
   } catch (error) {
-    console.error('Error listing prompts:', error)
+    logger.error({ err: error }, 'Error listing prompts')
 
     if (error instanceof Error && error.message.includes('ECONNREFUSED')) {
       return NextResponse.json(
@@ -185,7 +186,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(transformPrompt(record), { status: 201 })
   } catch (error) {
-    console.error('Error creating prompt:', error)
+    logger.error({ err: error }, 'Error creating prompt')
 
     if (error instanceof Error && error.message.includes('ECONNREFUSED')) {
       return NextResponse.json(
