@@ -15,6 +15,8 @@
  *   const { data: tools } = await metrics.getToolMetricsData({ ... })
  */
 
+// Connection management
+export { closeClickHouseClient, healthCheck } from '../../clickhouse'
 // Re-export types for convenience
 export type {
   DailyRunSummary,
@@ -38,15 +40,19 @@ export {
   buildWhereClause,
   clearCache,
   executeQuery,
+  getCacheMetrics,
   getClickHouseClient,
   invalidateCache,
+  invalidateOnWrite,
   type PaginationParams,
   type QueryResult,
 } from './query-builder'
 
+import * as compare from './queries/compare'
 import * as evals from './queries/evals'
 import * as metrics from './queries/metrics'
+import * as prompts from './queries/prompts'
 // Domain-specific query modules
 import * as traces from './queries/traces'
 
-export { traces, evals, metrics }
+export { traces, evals, metrics, compare, prompts }

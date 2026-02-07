@@ -518,6 +518,8 @@ def traced_planning(
     return traced(name, span_type="span", component_type=ComponentType.PLANNING)
 
 
+from neon_sdk.tracing.exporter import ExportSpan, NeonExporter, create_neon_exporter
+
 __all__ = [
     # Context
     "TraceContext",
@@ -544,4 +546,8 @@ __all__ = [
     "traced_retrieval",
     "traced_reasoning",
     "traced_planning",
+    # Exporter
+    "NeonExporter",
+    "ExportSpan",
+    "create_neon_exporter",
 ]

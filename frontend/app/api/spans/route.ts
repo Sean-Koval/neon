@@ -6,13 +6,13 @@
  */
 
 import { type NextRequest, NextResponse } from 'next/server'
-import type { SpanRecord } from '@/lib/clickhouse'
 import { batchInsertSpans } from '@/lib/clickhouse-batch'
-import { createSpanSchema } from '@/lib/validation/schemas'
-import { validateBody } from '@/lib/validation/middleware'
+import type { SpanRecord } from '@/lib/db/clickhouse'
+import { logger } from '@/lib/logger'
 import { withRateLimit } from '@/lib/middleware/rate-limit'
 import { BATCH_LIMIT } from '@/lib/rate-limit'
-import { logger } from '@/lib/logger'
+import { validateBody } from '@/lib/validation/middleware'
+import { createSpanSchema } from '@/lib/validation/schemas'
 
 export const POST = withRateLimit(async function POST(request: NextRequest) {
   try {

@@ -19,6 +19,7 @@ import {
   type SpanRecord,
   type TraceRecord,
 } from './clickhouse'
+import { invalidateOnWrite } from './db/clickhouse'
 
 /**
  * Configuration for batch buffer
@@ -424,6 +425,9 @@ export async function batchInsertTraces(
   if (options?.immediate) {
     await buffer.flush()
   }
+
+  // Invalidate cached queries that depend on traces data
+  invalidateOnWrite('traces')
 }
 
 /**
@@ -441,6 +445,9 @@ export async function batchInsertSpans(
   if (options?.immediate) {
     await buffer.flush()
   }
+
+  // Invalidate cached queries that depend on spans data
+  invalidateOnWrite('spans')
 }
 
 /**
@@ -458,6 +465,9 @@ export async function batchInsertScores(
   if (options?.immediate) {
     await buffer.flush()
   }
+
+  // Invalidate cached queries that depend on scores data
+  invalidateOnWrite('scores')
 }
 
 /**

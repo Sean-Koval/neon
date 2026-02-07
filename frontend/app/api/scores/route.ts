@@ -7,13 +7,13 @@
 
 import { type NextRequest, NextResponse } from 'next/server'
 import { v4 as uuidv4 } from 'uuid'
-import type { ScoreRecord } from '@/lib/clickhouse'
 import { batchInsertScores } from '@/lib/clickhouse-batch'
-import { createScoreSchema } from '@/lib/validation/schemas'
-import { validateBody } from '@/lib/validation/middleware'
-import { withRateLimit } from '@/lib/middleware/rate-limit'
-import { WRITE_LIMIT, READ_LIMIT } from '@/lib/rate-limit'
+import type { ScoreRecord } from '@/lib/db/clickhouse'
 import { logger } from '@/lib/logger'
+import { withRateLimit } from '@/lib/middleware/rate-limit'
+import { READ_LIMIT, WRITE_LIMIT } from '@/lib/rate-limit'
+import { validateBody } from '@/lib/validation/middleware'
+import { createScoreSchema } from '@/lib/validation/schemas'
 
 export const POST = withRateLimit(async function POST(request: NextRequest) {
   try {
@@ -81,9 +81,9 @@ export const GET = withRateLimit(async function GET(request: NextRequest) {
       )
     }
 
-    // Import getScoresForTrace
-    const { getScoresForTrace } = await import('@/lib/clickhouse')
-    const scores = await getScoresForTrace(projectId, traceId)
+    // Import traces module from abstraction layer
+    const { traces } = await import('@/lib/db/clickhouse')
+    const { data: scores } = await traces.getTraceScores(projectId, traceId)
 
     return NextResponse.json({
       items: scores,

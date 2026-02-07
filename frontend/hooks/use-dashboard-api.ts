@@ -2,22 +2,21 @@
  * Dashboard API Hooks
  *
  * React Query hooks for fetching dashboard data from server-side
- * materialized views. Provides <100ms query latency for aggregations.
+ * materialized views via tRPC. Provides <100ms query latency for aggregations.
  */
 
-import { type UseQueryOptions, useQuery } from '@tanstack/react-query'
+'use client'
 
-import {
-  type DashboardQueryParams,
-  type DashboardResponse,
-  type DashboardSummaryResponse,
-  type DurationStatsResponse,
-  dashboardApi,
-  type ScoreTrendPointResponse,
+import { trpc } from '@/lib/trpc'
+
+import type {
+  DashboardQueryParams,
+  DashboardSummaryResponse,
+  ScoreTrendPointResponse,
 } from '@/lib/api'
 
 // =============================================================================
-// Query Keys
+// Query Keys (kept for backward compatibility with use-dashboard.ts)
 // =============================================================================
 
 export const dashboardKeys = {
@@ -51,11 +50,18 @@ export interface ServerDashboardStats {
 }
 
 /**
- * Transform API response to hook-compatible format.
+ * Transform tRPC summary response to hook-compatible format.
  */
-function transformSummary(
-  data: DashboardSummaryResponse,
-): ServerDashboardStats {
+function transformSummary(data: {
+  total_runs: number
+  passed_runs: number
+  failed_runs: number
+  pass_rate: number
+  avg_duration_ms: number
+  total_tokens: number
+  total_cost: number
+  queryTimeMs: number
+}): ServerDashboardStats {
   const passedPercentage =
     data.total_runs > 0
       ? Math.round((data.passed_runs / data.total_runs) * 100)
@@ -85,90 +91,110 @@ function transformSummary(
 // =============================================================================
 
 /**
- * Fetch complete dashboard data in a single request.
+ * Fetch complete dashboard data in a single request via tRPC.
  * Use this when you need all dashboard widgets at once.
  */
 export function useDashboardData(
   params?: DashboardQueryParams,
-  options?: Omit<
-    UseQueryOptions<DashboardResponse, Error>,
-    'queryKey' | 'queryFn'
-  >,
+  options?: { enabled?: boolean },
 ) {
-  return useQuery({
-    queryKey: dashboardKeys.dashboard(params),
-    queryFn: () => dashboardApi.getDashboard(params),
-    staleTime: 10 * 1000, // 10 seconds - dashboard data refreshes often
-    retry: 1, // Limit retries for faster error feedback
-    ...options,
-  })
+  return trpc.dashboard.summary.useQuery(
+    {
+      projectId: params?.projectId,
+      days: params?.days,
+      startDate: params?.startDate,
+      endDate: params?.endDate,
+      scorerName: params?.scorerName,
+    },
+    {
+      staleTime: 10 * 1000,
+      retry: 1,
+      ...options,
+    },
+  )
 }
 
 /**
- * Fetch just dashboard summary stats.
+ * Fetch just dashboard summary stats via tRPC.
  * Optimized for fast initial page load.
  */
 export function useDashboardSummary(
   params?: DashboardQueryParams,
-  options?: Omit<
-    UseQueryOptions<ServerDashboardStats, Error>,
-    'queryKey' | 'queryFn'
-  >,
+  options?: { enabled?: boolean },
 ) {
-  return useQuery({
-    queryKey: dashboardKeys.summary(params),
-    queryFn: async () => {
-      const data = await dashboardApi.getSummary(params)
-      return transformSummary(data)
+  const query = trpc.dashboard.aggregatedSummary.useQuery(
+    {
+      projectId: params?.projectId,
+      days: params?.days,
+      startDate: params?.startDate,
+      endDate: params?.endDate,
     },
-    staleTime: 10 * 1000,
-    retry: 1, // Limit retries for faster fallback to client-side
-    ...options,
-  })
+    {
+      staleTime: 10 * 1000,
+      retry: 1,
+      ...options,
+    },
+  )
+
+  return {
+    ...query,
+    data: query.data ? transformSummary(query.data as DashboardSummaryResponse) : undefined,
+  }
 }
 
 /**
- * Fetch score trends with min/max values.
+ * Fetch score trends with min/max values via tRPC.
  */
 export function useScoreTrendsApi(
   params?: DashboardQueryParams,
-  options?: Omit<
-    UseQueryOptions<ScoreTrendPointResponse[], Error>,
-    'queryKey' | 'queryFn'
-  >,
+  options?: { enabled?: boolean },
 ) {
-  return useQuery({
-    queryKey: dashboardKeys.scoreTrends(params),
-    queryFn: async () => {
-      const { trends } = await dashboardApi.getScoreTrends(params)
-      return trends
+  const query = trpc.dashboard.scoreTrends.useQuery(
+    {
+      projectId: params?.projectId,
+      days: params?.days,
+      startDate: params?.startDate,
+      endDate: params?.endDate,
+      scorerName: params?.scorerName,
     },
-    staleTime: 10 * 1000,
-    retry: 1, // Limit retries for faster fallback to client-side
-    ...options,
-  })
+    {
+      staleTime: 10 * 1000,
+      retry: 1,
+      ...options,
+    },
+  )
+
+  return {
+    ...query,
+    data: query.data?.trends as ScoreTrendPointResponse[] | undefined,
+  }
 }
 
 /**
- * Fetch duration statistics with percentiles.
+ * Fetch duration statistics with percentiles via tRPC.
  */
 export function useDurationStats(
   params?: DashboardQueryParams,
-  options?: Omit<
-    UseQueryOptions<DurationStatsResponse[], Error>,
-    'queryKey' | 'queryFn'
-  >,
+  options?: { enabled?: boolean },
 ) {
-  return useQuery({
-    queryKey: dashboardKeys.durationStats(params),
-    queryFn: async () => {
-      const { stats } = await dashboardApi.getDurationStats(params)
-      return stats
+  const query = trpc.dashboard.durationStats.useQuery(
+    {
+      projectId: params?.projectId,
+      days: params?.days,
+      startDate: params?.startDate,
+      endDate: params?.endDate,
     },
-    staleTime: 10 * 1000,
-    retry: 1, // Limit retries for faster error feedback
-    ...options,
-  })
+    {
+      staleTime: 10 * 1000,
+      retry: 1,
+      ...options,
+    },
+  )
+
+  return {
+    ...query,
+    data: query.data?.stats,
+  }
 }
 
 // =============================================================================

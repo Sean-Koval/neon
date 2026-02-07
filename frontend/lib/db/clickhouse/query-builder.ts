@@ -107,10 +107,38 @@ export function invalidateCache(prefix: string): void {
 }
 
 /**
+ * Invalidate cache entries related to write operations on a table.
+ * Call this after insert/update/delete operations.
+ */
+export function invalidateOnWrite(table: string): void {
+  const prefixMap: Record<string, string[]> = {
+    traces: ['traces.', 'evals.', 'metrics.', 'compare.'],
+    spans: ['spans.', 'traces.'],
+    scores: ['traces.scores', 'evals.', 'metrics.scoreComparison', 'compare.'],
+    prompts: ['prompts.'],
+  }
+  const prefixes = prefixMap[table] || []
+  for (const prefix of prefixes) {
+    invalidateCache(prefix)
+  }
+}
+
+/**
  * Clear the entire cache.
  */
 export function clearCache(): void {
   cache.clear()
+}
+
+/**
+ * Get cache metrics for monitoring.
+ */
+export function getCacheMetrics(): {
+  size: number
+  maxSize: number
+  ttlMs: number
+} {
+  return { size: cache.size, maxSize: MAX_CACHE_SIZE, ttlMs: DEFAULT_TTL_MS }
 }
 
 // =============================================================================

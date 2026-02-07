@@ -6,7 +6,7 @@
 
 import { type NextRequest, NextResponse } from 'next/server'
 
-import { getScoreTrends } from '@/lib/clickhouse'
+import { evals } from '@/lib/db/clickhouse'
 import { logger } from '@/lib/logger'
 
 function getDateRange(days: number): { startDate: string; endDate: string } {
@@ -54,12 +54,12 @@ export async function GET(request: NextRequest) {
       endDate = range.endDate
     }
 
-    const trends = await getScoreTrends(
+    const { data: trends } = await evals.getScoreTrendData({
       projectId,
       startDate,
       endDate,
       scorerName,
-    )
+    })
 
     const queryTimeMs = Math.round(performance.now() - startTime)
 

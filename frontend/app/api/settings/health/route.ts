@@ -5,7 +5,7 @@
  */
 
 import { NextResponse } from 'next/server'
-import { getClickHouseClient } from '@/lib/clickhouse'
+import { healthCheck } from '@/lib/db/clickhouse'
 
 export interface InfrastructureHealth {
   status: 'healthy' | 'degraded' | 'unhealthy'
@@ -24,18 +24,10 @@ export async function GET(): Promise<NextResponse<InfrastructureHealth>> {
     timestamp: new Date().toISOString(),
   }
 
-  // Check ClickHouse connectivity
-  try {
-    const client = getClickHouseClient()
-    const result = await client.query({
-      query: 'SELECT 1',
-      format: 'JSON',
-    })
-    await result.json()
-    health.clickhouse = true
+  // Check ClickHouse connectivity via abstraction layer
+  health.clickhouse = await healthCheck()
+  if (health.clickhouse) {
     health.clickhouseUrl = process.env.CLICKHOUSE_URL || 'http://localhost:8123'
-  } catch {
-    health.clickhouse = false
   }
 
   // Check Temporal connectivity

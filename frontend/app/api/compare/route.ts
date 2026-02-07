@@ -5,16 +5,16 @@
  */
 
 import { type NextRequest, NextResponse } from 'next/server'
-import { getClickHouseClient } from '@/lib/clickhouse'
+import { getClickHouseClient } from '@/lib/db/clickhouse'
 import { logger } from '@/lib/logger'
+import { withRateLimit } from '@/lib/middleware/rate-limit'
 import type {
   CompareRequest,
   CompareResponse,
   RegressionItem,
 } from '@/lib/types'
-import { compareRunsSchema } from '@/lib/validation/schemas'
 import { validateBody } from '@/lib/validation/middleware'
-import { withRateLimit } from '@/lib/middleware/rate-limit'
+import { compareRunsSchema } from '@/lib/validation/schemas'
 
 /**
  * Score record from ClickHouse for a specific run

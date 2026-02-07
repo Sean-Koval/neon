@@ -6,7 +6,7 @@
 
 import { type NextRequest, NextResponse } from 'next/server'
 
-import { getDurationStats } from '@/lib/clickhouse'
+import { evals } from '@/lib/db/clickhouse'
 import { logger } from '@/lib/logger'
 
 function getDateRange(days: number): { startDate: string; endDate: string } {
@@ -52,7 +52,11 @@ export async function GET(request: NextRequest) {
       endDate = range.endDate
     }
 
-    const stats = await getDurationStats(projectId, startDate, endDate)
+    const { data: stats } = await evals.getDurationStatsData({
+      projectId,
+      startDate,
+      endDate,
+    })
 
     const queryTimeMs = Math.round(performance.now() - startTime)
 

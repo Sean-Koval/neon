@@ -7,7 +7,7 @@
 
 import { type NextRequest, NextResponse } from 'next/server'
 
-import { backfillMaterializedViews } from '@/lib/clickhouse'
+import { evals } from '@/lib/db/clickhouse'
 import { logger } from '@/lib/logger'
 
 /**
@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const projectId = searchParams.get('projectId') || undefined
 
-    const results = await backfillMaterializedViews(projectId)
+    const { data: results } = await evals.backfillViews(projectId)
 
     const queryTimeMs = Math.round(performance.now() - startTime)
 
