@@ -33,7 +33,7 @@ import {
   getClickHouseClient,
   type SpanDetails,
   type SpanRecord,
-} from '@/lib/clickhouse'
+} from '@/lib/db/clickhouse'
 import { logger } from '@/lib/logger'
 
 // ============================================================================

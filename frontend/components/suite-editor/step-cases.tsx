@@ -47,7 +47,8 @@ export function StepCases({ data, onChange }: StepCasesProps) {
       {data.cases.length === 0 ? (
         <div className="rounded-lg border border-dashed border-zinc-700 p-8 text-center">
           <p className="text-sm text-zinc-400">
-            No test cases yet. Click &quot;Add Case&quot; to create your first test case.
+            No test cases yet. Click &quot;Add Case&quot; to create your first
+            test case.
           </p>
         </div>
       ) : (

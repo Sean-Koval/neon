@@ -19,6 +19,8 @@ export { CopyButton } from './copy-button'
 export { DecisionTree, DecisionTreeSkeleton } from './decision-tree'
 // Diff components
 export * from './diff'
+// Live debugger
+export { LiveDebugger } from './live-debugger'
 export { type Span, SpanDetail, type SpanSummary } from './span-detail'
 export {
   getSpanTypeConfig,
@@ -27,5 +29,3 @@ export {
 } from './span-type-badge'
 export { TraceLoadingSkeleton } from './trace-loading-skeleton'
 export { type TimelineSpan, TraceTimeline } from './trace-timeline'
-// Live debugger
-export { LiveDebugger } from './live-debugger'

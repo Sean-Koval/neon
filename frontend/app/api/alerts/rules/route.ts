@@ -11,8 +11,12 @@
 
 import { type NextRequest, NextResponse } from 'next/server'
 import { v4 as uuidv4 } from 'uuid'
+import type {
+  AlertRule,
+  AlertRuleCreate,
+  AlertRuleUpdate,
+} from '@/lib/alerting'
 import { AlertEvaluator, DEFAULT_ALERT_RULES } from '@/lib/alerting'
-import type { AlertRule, AlertRuleCreate, AlertRuleUpdate } from '@/lib/alerting'
 
 // Singleton evaluator with default rules
 const evaluator = new AlertEvaluator(DEFAULT_ALERT_RULES)
@@ -73,10 +77,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'metric is required' }, { status: 400 })
     }
     if (body.threshold === undefined || body.threshold === null) {
-      return NextResponse.json({ error: 'threshold is required' }, { status: 400 })
+      return NextResponse.json(
+        { error: 'threshold is required' },
+        { status: 400 },
+      )
     }
     if (!body.operator) {
-      return NextResponse.json({ error: 'operator is required' }, { status: 400 })
+      return NextResponse.json(
+        { error: 'operator is required' },
+        { status: 400 },
+      )
     }
 
     const validOperators = ['gt', 'gte', 'lt', 'lte', 'eq']
@@ -141,7 +151,10 @@ export async function DELETE(request: NextRequest) {
   const id = request.nextUrl.searchParams.get('id')
 
   if (!id) {
-    return NextResponse.json({ error: 'id query parameter is required' }, { status: 400 })
+    return NextResponse.json(
+      { error: 'id query parameter is required' },
+      { status: 400 },
+    )
   }
 
   const rule = evaluator.getRule(id)

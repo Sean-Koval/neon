@@ -8,16 +8,10 @@
  */
 
 import { type NextRequest, NextResponse } from 'next/server'
-import {
-  getScoresForTrace,
-  getTraceWithSpanSummaries,
-  getTraceWithSpans,
-  type SpanRecord,
-  type SpanSummary,
-} from '@/lib/clickhouse'
-import { withAuth, type AuthResult } from '@/lib/middleware/auth'
-import { withRateLimit } from '@/lib/middleware/rate-limit'
+import { type SpanRecord, type SpanSummary, traces } from '@/lib/db/clickhouse'
 import { logger } from '@/lib/logger'
+import { type AuthResult, withAuth } from '@/lib/middleware/auth'
+import { withRateLimit } from '@/lib/middleware/rate-limit'
 
 /**
  * Build span tree from flat list (works with both full spans and summaries)
@@ -52,29 +46,57 @@ function buildSpanTree<
   return roots
 }
 
-export const GET = withRateLimit(withAuth(
-  async (
-    request: NextRequest,
-    auth: AuthResult,
-    { params }: { params: Promise<{ id: string }> },
-  ) => {
-    try {
-      const { id: traceId } = await params
+export const GET = withRateLimit(
+  withAuth(
+    async (
+      request: NextRequest,
+      auth: AuthResult,
+      { params }: { params: Promise<{ id: string }> },
+    ) => {
+      try {
+        const { id: traceId } = await params
 
-      const projectId = auth.workspaceId
-      if (!projectId) {
-        return NextResponse.json(
-          { error: 'Workspace context required' },
-          { status: 400 },
+        const projectId = auth.workspaceId
+        if (!projectId) {
+          return NextResponse.json(
+            { error: 'Workspace context required' },
+            { status: 400 },
+          )
+        }
+
+        // Check if full span data is requested (default: lazy loading with summaries)
+        const fullData = request.nextUrl.searchParams.get('full') === 'true'
+
+        if (fullData) {
+          // Return full span data (backward compatible)
+          const { data: result } = await traces.getTrace(projectId, traceId)
+
+          if (!result) {
+            return NextResponse.json(
+              { error: 'Trace not found' },
+              { status: 404 },
+            )
+          }
+
+          const { data: scores } = await traces.getTraceScores(
+            projectId,
+            traceId,
+          )
+          const spanTree = buildSpanTree<SpanRecord>(result.spans)
+
+          return NextResponse.json({
+            trace: result.trace,
+            spans: spanTree,
+            flatSpans: result.spans,
+            scores,
+          })
+        }
+
+        // Return span summaries for lazy loading (default)
+        const { data: result } = await traces.getTraceSummary(
+          projectId,
+          traceId,
         )
-      }
-
-      // Check if full span data is requested (default: lazy loading with summaries)
-      const fullData = request.nextUrl.searchParams.get('full') === 'true'
-
-      if (fullData) {
-        // Return full span data (backward compatible)
-        const result = await getTraceWithSpans(projectId, traceId)
 
         if (!result) {
           return NextResponse.json(
@@ -83,8 +105,11 @@ export const GET = withRateLimit(withAuth(
           )
         }
 
-        const scores = await getScoresForTrace(projectId, traceId)
-        const spanTree = buildSpanTree<SpanRecord>(result.spans)
+        // Get scores for trace
+        const { data: scores } = await traces.getTraceScores(projectId, traceId)
+
+        // Build span tree from summaries
+        const spanTree = buildSpanTree<SpanSummary>(result.spans)
 
         return NextResponse.json({
           trace: result.trace,
@@ -92,36 +117,13 @@ export const GET = withRateLimit(withAuth(
           flatSpans: result.spans,
           scores,
         })
-      }
-
-      // Return span summaries for lazy loading (default)
-      const result = await getTraceWithSpanSummaries(projectId, traceId)
-
-      if (!result) {
+      } catch (error) {
+        logger.error({ err: error }, 'Error getting trace')
         return NextResponse.json(
-          { error: 'Trace not found' },
-          { status: 404 },
+          { error: 'Failed to get trace', details: String(error) },
+          { status: 500 },
         )
       }
-
-      // Get scores for trace
-      const scores = await getScoresForTrace(projectId, traceId)
-
-      // Build span tree from summaries
-      const spanTree = buildSpanTree<SpanSummary>(result.spans)
-
-      return NextResponse.json({
-        trace: result.trace,
-        spans: spanTree,
-        flatSpans: result.spans,
-        scores,
-      })
-    } catch (error) {
-      logger.error({ err: error }, 'Error getting trace')
-      return NextResponse.json(
-        { error: 'Failed to get trace', details: String(error) },
-        { status: 500 },
-      )
-    }
-  },
-))
+    },
+  ),
+)

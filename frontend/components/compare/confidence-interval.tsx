@@ -78,10 +78,7 @@ export function ConfidenceIntervalBar({
       {label && (
         <div className="text-xs text-gray-500 font-medium">{label}</div>
       )}
-      <div
-        className="relative bg-gray-100 rounded h-8"
-        style={{ width }}
-      >
+      <div className="relative bg-gray-100 rounded h-8" style={{ width }}>
         {/* Baseline CI range */}
         {baselineCI && (
           <div

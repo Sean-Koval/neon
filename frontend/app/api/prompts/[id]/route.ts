@@ -7,20 +7,13 @@
 
 import { type NextRequest, NextResponse } from 'next/server'
 import { v4 as uuidv4 } from 'uuid'
-import {
-  getLatestPromptVersion,
-  getPromptById,
-  getPromptByName,
-  getPromptVersionHistory,
-  insertPrompt,
-  type PromptRecord,
-} from '@/lib/clickhouse'
-import type { Prompt, PromptUpdate, PromptVersionEntry } from '@/lib/types'
-import { updatePromptSchema } from '@/lib/validation/schemas'
-import { validateBody } from '@/lib/validation/middleware'
-import { withRateLimit } from '@/lib/middleware/rate-limit'
-import { WRITE_LIMIT, READ_LIMIT } from '@/lib/rate-limit'
+import { type PromptRecord, prompts } from '@/lib/db/clickhouse'
 import { logger } from '@/lib/logger'
+import { withRateLimit } from '@/lib/middleware/rate-limit'
+import { READ_LIMIT, WRITE_LIMIT } from '@/lib/rate-limit'
+import type { Prompt, PromptVersionEntry } from '@/lib/types'
+import { validateBody } from '@/lib/validation/middleware'
+import { updatePromptSchema } from '@/lib/validation/schemas'
 
 interface RouteParams {
   params: Promise<{ id: string }>
@@ -62,7 +55,10 @@ function transformPrompt(record: PromptRecord): Prompt {
  * - version: Specific version number (optional)
  * - history: If 'true', return version history instead of single prompt
  */
-export const GET = withRateLimit(async function GET(request: NextRequest, { params }: RouteParams) {
+export const GET = withRateLimit(async function GET(
+  request: NextRequest,
+  { params }: RouteParams,
+) {
   try {
     const { id } = await params
     const searchParams = request.nextUrl.searchParams
@@ -72,7 +68,7 @@ export const GET = withRateLimit(async function GET(request: NextRequest, { para
 
     // If history is requested, return version history
     if (historyParam === 'true') {
-      const records = await getPromptVersionHistory(projectId, id)
+      const { data: records } = await prompts.getVersionHistory(projectId, id)
       if (records.length === 0) {
         return NextResponse.json(
           { error: `Prompt "${id}" not found` },
@@ -97,10 +93,12 @@ export const GET = withRateLimit(async function GET(request: NextRequest, { para
 
     let record: PromptRecord | null
     if (isUuid) {
-      record = await getPromptById(projectId, id)
+      const result = await prompts.getById(projectId, id)
+      record = result.data
     } else {
       const version = versionParam ? parseInt(versionParam, 10) : undefined
-      record = await getPromptByName(projectId, id, version)
+      const result = await prompts.getByName(projectId, id, version)
+      record = result.data
     }
 
     if (!record) {
@@ -148,7 +146,10 @@ export const GET = withRateLimit(async function GET(request: NextRequest, { para
  *   commit_message?: string;
  * }
  */
-export const PATCH = withRateLimit(async function PATCH(request: NextRequest, { params }: RouteParams) {
+export const PATCH = withRateLimit(async function PATCH(
+  request: NextRequest,
+  { params }: RouteParams,
+) {
   try {
     const { id } = await params
     const rawBody = await request.json()
@@ -165,9 +166,11 @@ export const PATCH = withRateLimit(async function PATCH(request: NextRequest, { 
 
     let existing: PromptRecord | null
     if (isUuid) {
-      existing = await getPromptById(projectId, id)
+      const result = await prompts.getById(projectId, id)
+      existing = result.data
     } else {
-      existing = await getPromptByName(projectId, id)
+      const result = await prompts.getByName(projectId, id)
+      existing = result.data
     }
 
     if (!existing) {
@@ -178,8 +181,11 @@ export const PATCH = withRateLimit(async function PATCH(request: NextRequest, { 
     }
 
     // Get next version number
-    const newVersion =
-      (await getLatestPromptVersion(projectId, existing.name)) + 1
+    const { data: latestVersion } = await prompts.getLatestVersion(
+      projectId,
+      existing.name,
+    )
+    const newVersion = latestVersion + 1
     const now = new Date().toISOString()
 
     // Create new version with updates
@@ -219,7 +225,7 @@ export const PATCH = withRateLimit(async function PATCH(request: NextRequest, { 
       variant: existing.variant,
     }
 
-    await insertPrompt(record)
+    await prompts.insert(record)
 
     return NextResponse.json(transformPrompt(record))
   } catch (error) {

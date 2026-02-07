@@ -19,7 +19,10 @@ export function StepInfo({ data, onChange }: StepInfoProps) {
 
       <div className="space-y-4">
         <div>
-          <label htmlFor="suite-name" className="block text-sm font-medium text-zinc-300">
+          <label
+            htmlFor="suite-name"
+            className="block text-sm font-medium text-zinc-300"
+          >
             Suite Name <span className="text-red-400">*</span>
           </label>
           <input
@@ -33,7 +36,10 @@ export function StepInfo({ data, onChange }: StepInfoProps) {
         </div>
 
         <div>
-          <label htmlFor="suite-agent" className="block text-sm font-medium text-zinc-300">
+          <label
+            htmlFor="suite-agent"
+            className="block text-sm font-medium text-zinc-300"
+          >
             Agent ID <span className="text-red-400">*</span>
           </label>
           <input
@@ -47,7 +53,10 @@ export function StepInfo({ data, onChange }: StepInfoProps) {
         </div>
 
         <div>
-          <label htmlFor="suite-description" className="block text-sm font-medium text-zinc-300">
+          <label
+            htmlFor="suite-description"
+            className="block text-sm font-medium text-zinc-300"
+          >
             Description
           </label>
           <textarea

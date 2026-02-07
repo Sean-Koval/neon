@@ -7,18 +7,13 @@
 
 import { type NextRequest, NextResponse } from 'next/server'
 import { v4 as uuidv4 } from 'uuid'
-import {
-  getLatestPromptVersion,
-  insertPrompt,
-  listPrompts,
-  type PromptRecord,
-} from '@/lib/clickhouse'
-import type { Prompt, PromptCreate, PromptList } from '@/lib/types'
-import { createPromptSchema } from '@/lib/validation/schemas'
-import { validateBody } from '@/lib/validation/middleware'
-import { withRateLimit } from '@/lib/middleware/rate-limit'
-import { WRITE_LIMIT, READ_LIMIT } from '@/lib/rate-limit'
+import { type PromptRecord, prompts } from '@/lib/db/clickhouse'
 import { logger } from '@/lib/logger'
+import { withRateLimit } from '@/lib/middleware/rate-limit'
+import { READ_LIMIT, WRITE_LIMIT } from '@/lib/rate-limit'
+import type { Prompt, PromptList } from '@/lib/types'
+import { validateBody } from '@/lib/validation/middleware'
+import { createPromptSchema } from '@/lib/validation/schemas'
 
 /**
  * Transform ClickHouse record to API response
@@ -75,7 +70,7 @@ export const GET = withRateLimit(async function GET(request: NextRequest) {
           ? false
           : undefined
 
-    const records = await listPrompts({
+    const { data: records } = await prompts.list({
       projectId,
       tags,
       isProduction,
@@ -139,7 +134,10 @@ export const POST = withRateLimit(async function POST(request: NextRequest) {
     const projectId = body.projectId || 'default'
 
     // Check if prompt with this name already exists and get next version
-    const existingVersion = await getLatestPromptVersion(projectId, body.name)
+    const { data: existingVersion } = await prompts.getLatestVersion(
+      projectId,
+      body.name,
+    )
     const version = existingVersion + 1
     const now = new Date().toISOString()
 
@@ -165,7 +163,7 @@ export const POST = withRateLimit(async function POST(request: NextRequest) {
       variant: 'control',
     }
 
-    await insertPrompt(record)
+    await prompts.insert(record)
 
     return NextResponse.json(transformPrompt(record), { status: 201 })
   } catch (error) {

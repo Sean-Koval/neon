@@ -42,7 +42,11 @@ import {
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ConnectionStatus } from '@/lib/types'
 import { ConnectionStatusIndicator } from '../realtime/connection-status'
-import { getSpanTypeConfig, SpanTypeBadge, type SpanType } from './span-type-badge'
+import {
+  getSpanTypeConfig,
+  type SpanType,
+  SpanTypeBadge,
+} from './span-type-badge'
 
 // ============================================================================
 // Types
@@ -163,13 +167,14 @@ export function LiveDebugger({
   const [eventLog, setEventLog] = useState<DebugEvent[]>([])
 
   // Breakpoints
-  const [breakpoints, setBreakpoints] = useState<Breakpoint[]>(initialBreakpoints)
+  const [breakpoints, setBreakpoints] =
+    useState<Breakpoint[]>(initialBreakpoints)
   const [showAddBreakpoint, setShowAddBreakpoint] = useState(false)
 
   // UI state
-  const [activeTab, setActiveTab] = useState<'stack' | 'breakpoints' | 'events'>(
-    'stack',
-  )
+  const [activeTab, setActiveTab] = useState<
+    'stack' | 'breakpoints' | 'events'
+  >('stack')
   const [expandedEvents, setExpandedEvents] = useState<Set<number>>(new Set())
 
   // ===========================================================================
@@ -261,8 +266,8 @@ export function LiveDebugger({
       case 'spanExit':
         if (event.payload.span) {
           setSpanStack((prev: DebugSpan[]) => prev.slice(0, -1))
-          setCurrentSpan(
-            (prev: DebugSpan | null) => (prev?.spanId === event.payload.span?.spanId ? null : prev),
+          setCurrentSpan((prev: DebugSpan | null) =>
+            prev?.spanId === event.payload.span?.spanId ? null : prev,
           )
         }
         break
@@ -350,13 +355,17 @@ export function LiveDebugger({
   }
 
   const removeBreakpoint = (id: string) => {
-    setBreakpoints((prev: Breakpoint[]) => prev.filter((bp: Breakpoint) => bp.id !== id))
+    setBreakpoints((prev: Breakpoint[]) =>
+      prev.filter((bp: Breakpoint) => bp.id !== id),
+    )
     sendCommand('removeBreakpoint', { breakpointId: id })
   }
 
   const toggleBreakpoint = (id: string) => {
     setBreakpoints((prev: Breakpoint[]) =>
-      prev.map((bp: Breakpoint) => (bp.id === id ? { ...bp, enabled: !bp.enabled } : bp)),
+      prev.map((bp: Breakpoint) =>
+        bp.id === id ? { ...bp, enabled: !bp.enabled } : bp,
+      ),
     )
     const bp = breakpoints.find((b: Breakpoint) => b.id === id)
     if (bp) {
@@ -527,9 +536,7 @@ export function LiveDebugger({
       </div>
 
       {/* Current Span Preview */}
-      {currentSpan && isPaused && (
-        <CurrentSpanPreview span={currentSpan} />
-      )}
+      {currentSpan && isPaused && <CurrentSpanPreview span={currentSpan} />}
 
       {/* Add Breakpoint Modal */}
       {showAddBreakpoint && (
@@ -561,7 +568,10 @@ function DebugStateBanner({
 }) {
   if (state === 'idle') return null
 
-  const configs: Record<DebugState, { bg: string; text: string; label: string }> = {
+  const configs: Record<
+    DebugState,
+    { bg: string; text: string; label: string }
+  > = {
     idle: { bg: 'bg-gray-100', text: 'text-gray-600', label: 'Idle' },
     running: { bg: 'bg-green-50', text: 'text-green-700', label: 'Running' },
     paused: { bg: 'bg-amber-50', text: 'text-amber-700', label: 'Paused' },
@@ -882,7 +892,10 @@ function BreakpointsPanel({
                 <div className="text-xs text-gray-500 flex items-center gap-2">
                   {bp.spanType && (
                     <span>
-                      type: {Array.isArray(bp.spanType) ? bp.spanType.join(', ') : bp.spanType}
+                      type:{' '}
+                      {Array.isArray(bp.spanType)
+                        ? bp.spanType.join(', ')
+                        : bp.spanType}
                     </span>
                   )}
                   {bp.spanName && <span>name: {bp.spanName}</span>}
@@ -923,9 +936,7 @@ function EventLogPanel({
       <div className="flex flex-col items-center justify-center py-12 text-gray-500">
         <Timer className="w-8 h-8 mb-2 opacity-50" />
         <p className="text-sm">No events yet</p>
-        <p className="text-xs text-gray-400">
-          Debug events will appear here
-        </p>
+        <p className="text-xs text-gray-400">Debug events will appear here</p>
       </div>
     )
   }
@@ -992,7 +1003,11 @@ function EventTypeBadge({ type }: { type: DebugEvent['type'] }) {
 
   return (
     <span
-      className={clsx('px-1.5 py-0.5 rounded text-xs font-medium', config.bg, config.text)}
+      className={clsx(
+        'px-1.5 py-0.5 rounded text-xs font-medium',
+        config.bg,
+        config.text,
+      )}
     >
       {type}
     </span>
@@ -1106,7 +1121,9 @@ function AddBreakpointModal({
   const [spanType, setSpanType] = useState<SpanType | ''>('')
   const [spanName, setSpanName] = useState('')
   const [toolName, setToolName] = useState('')
-  const [trigger, setTrigger] = useState<'onEnter' | 'onExit' | 'onError'>('onExit')
+  const [trigger, setTrigger] = useState<'onEnter' | 'onExit' | 'onError'>(
+    'onExit',
+  )
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -1125,10 +1142,7 @@ function AddBreakpointModal({
       <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
         <div className="flex items-center justify-between px-4 py-3 border-b">
           <h3 className="font-semibold">Add Breakpoint</h3>
-          <button
-            onClick={onClose}
-            className="p-1 hover:bg-gray-100 rounded"
-          >
+          <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded">
             <X className="w-5 h-5" />
           </button>
         </div>

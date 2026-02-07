@@ -6,7 +6,12 @@ import { StepCases } from './step-cases'
 import { StepConfig } from './step-config'
 import { StepInfo } from './step-info'
 import { StepReview } from './step-review'
-import { DEFAULT_FORM_DATA, WIZARD_STEPS, type SuiteFormData, type WizardStep } from './types'
+import {
+  DEFAULT_FORM_DATA,
+  type SuiteFormData,
+  WIZARD_STEPS,
+  type WizardStep,
+} from './types'
 
 interface SuiteEditorProps {
   initialData?: Partial<SuiteFormData>
@@ -97,8 +102,12 @@ export function SuiteEditor({
       {/* Step content */}
       <div className="min-h-[400px]">
         {currentStep === 'info' && <StepInfo data={data} onChange={onChange} />}
-        {currentStep === 'config' && <StepConfig data={data} onChange={onChange} />}
-        {currentStep === 'cases' && <StepCases data={data} onChange={onChange} />}
+        {currentStep === 'config' && (
+          <StepConfig data={data} onChange={onChange} />
+        )}
+        {currentStep === 'cases' && (
+          <StepCases data={data} onChange={onChange} />
+        )}
         {currentStep === 'review' && <StepReview data={data} />}
       </div>
 

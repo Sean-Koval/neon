@@ -10,7 +10,7 @@ import { type ClickHouseClient, createClient } from '@clickhouse/client'
 let client: ClickHouseClient | null = null
 
 /**
- * Get or create ClickHouse client
+ * Get or create ClickHouse client (singleton with connection reuse).
  */
 export function getClickHouseClient(): ClickHouseClient {
   if (!client) {
@@ -19,9 +19,36 @@ export function getClickHouseClient(): ClickHouseClient {
       username: process.env.CLICKHOUSE_USER || 'default',
       password: process.env.CLICKHOUSE_PASSWORD || '',
       database: process.env.CLICKHOUSE_DATABASE || 'neon',
+      request_timeout: 30_000,
+      max_open_connections: 10,
+      keep_alive: { enabled: true },
     })
   }
   return client
+}
+
+/**
+ * Check ClickHouse connectivity. Returns true if the server responds.
+ */
+export async function healthCheck(): Promise<boolean> {
+  try {
+    const ch = getClickHouseClient()
+    const result = await ch.query({ query: 'SELECT 1', format: 'JSON' })
+    await result.json()
+    return true
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Gracefully close the ClickHouse client connection.
+ */
+export async function closeClickHouseClient(): Promise<void> {
+  if (client) {
+    await client.close()
+    client = null
+  }
 }
 
 /**

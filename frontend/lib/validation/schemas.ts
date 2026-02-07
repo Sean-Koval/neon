@@ -285,8 +285,12 @@ const spanRecordSchema = z.object({
   span_id: nonEmpty,
   parent_span_id: z.string().nullable().optional(),
   name: z.string(),
-  kind: z.enum(['internal', 'server', 'client', 'producer', 'consumer']).optional(),
-  span_type: z.enum(['span', 'generation', 'tool', 'retrieval', 'event']).optional(),
+  kind: z
+    .enum(['internal', 'server', 'client', 'producer', 'consumer'])
+    .optional(),
+  span_type: z
+    .enum(['span', 'generation', 'tool', 'retrieval', 'event'])
+    .optional(),
   timestamp: z.string(),
   end_time: z.string().nullable().optional(),
   duration_ms: z.number().optional(),

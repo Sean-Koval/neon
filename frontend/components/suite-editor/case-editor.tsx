@@ -12,10 +12,18 @@ interface CaseEditorProps {
   onRemove: () => void
 }
 
-export function CaseEditor({ caseData, index, onChange, onRemove }: CaseEditorProps) {
+export function CaseEditor({
+  caseData,
+  index,
+  onChange,
+  onRemove,
+}: CaseEditorProps) {
   const [expanded, setExpanded] = useState(true)
 
-  const updateField = <K extends keyof EvalCaseCreate>(key: K, value: EvalCaseCreate[K]) => {
+  const updateField = <K extends keyof EvalCaseCreate>(
+    key: K,
+    value: EvalCaseCreate[K],
+  ) => {
     onChange({ ...caseData, [key]: value })
   }
 
@@ -109,7 +117,9 @@ export function CaseEditor({ caseData, index, onChange, onRemove }: CaseEditorPr
               onChange={(e) =>
                 updateField(
                   'expected_tools',
-                  e.target.value ? e.target.value.split(',').map((s) => s.trim()) : [],
+                  e.target.value
+                    ? e.target.value.split(',').map((s) => s.trim())
+                    : [],
                 )
               }
               placeholder="lookup_order, process_refund"
@@ -128,7 +138,9 @@ export function CaseEditor({ caseData, index, onChange, onRemove }: CaseEditorPr
               onChange={(e) =>
                 updateField(
                   'expected_output_contains',
-                  e.target.value ? e.target.value.split(',').map((s) => s.trim()) : [],
+                  e.target.value
+                    ? e.target.value.split(',').map((s) => s.trim())
+                    : [],
                 )
               }
               placeholder="refund processed, confirmation"
@@ -138,7 +150,9 @@ export function CaseEditor({ caseData, index, onChange, onRemove }: CaseEditorPr
 
           {/* Scorers */}
           <div>
-            <label className="block text-sm font-medium text-zinc-300 mb-2">Scorers</label>
+            <label className="block text-sm font-medium text-zinc-300 mb-2">
+              Scorers
+            </label>
             <div className="flex flex-wrap gap-2">
               {ALL_SCORERS.map((scorer) => {
                 const active = caseData.scorers.includes(scorer.value)
@@ -163,25 +177,39 @@ export function CaseEditor({ caseData, index, onChange, onRemove }: CaseEditorPr
           {/* Min score + timeout row */}
           <div className="flex gap-4">
             <div>
-              <label className="block text-sm font-medium text-zinc-300">Min Score</label>
+              <label className="block text-sm font-medium text-zinc-300">
+                Min Score
+              </label>
               <input
                 type="number"
                 min={0}
                 max={1}
                 step={0.05}
                 value={caseData.min_score}
-                onChange={(e) => updateField('min_score', Number.parseFloat(e.target.value) || 0.7)}
+                onChange={(e) =>
+                  updateField(
+                    'min_score',
+                    Number.parseFloat(e.target.value) || 0.7,
+                  )
+                }
                 className="mt-1 block w-24 rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-zinc-300">Timeout (s)</label>
+              <label className="block text-sm font-medium text-zinc-300">
+                Timeout (s)
+              </label>
               <input
                 type="number"
                 min={1}
                 max={3600}
                 value={caseData.timeout_seconds}
-                onChange={(e) => updateField('timeout_seconds', Number.parseInt(e.target.value, 10) || 60)}
+                onChange={(e) =>
+                  updateField(
+                    'timeout_seconds',
+                    Number.parseInt(e.target.value, 10) || 60,
+                  )
+                }
                 className="mt-1 block w-24 rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
               />
             </div>
@@ -189,14 +217,18 @@ export function CaseEditor({ caseData, index, onChange, onRemove }: CaseEditorPr
 
           {/* Tags */}
           <div>
-            <label className="block text-sm font-medium text-zinc-300">Tags (comma-separated)</label>
+            <label className="block text-sm font-medium text-zinc-300">
+              Tags (comma-separated)
+            </label>
             <input
               type="text"
               value={caseData.tags.join(', ')}
               onChange={(e) =>
                 updateField(
                   'tags',
-                  e.target.value ? e.target.value.split(',').map((s) => s.trim()) : [],
+                  e.target.value
+                    ? e.target.value.split(',').map((s) => s.trim())
+                    : [],
                 )
               }
               placeholder="refund, happy-path"

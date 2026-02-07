@@ -2,7 +2,6 @@
 
 import { clsx } from 'clsx'
 import { format } from 'date-fns'
-import { safeFormatDistance } from '@/lib/format-date'
 import {
   Calendar,
   CheckCircle,
@@ -12,9 +11,10 @@ import {
   X,
 } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { groupRunsBySuite } from '@/hooks/use-runs'
-import type { EvalRun } from '@/lib/types'
 import { HelpTooltip } from '@/components/ui/help-tooltip'
+import { groupRunsBySuite } from '@/hooks/use-runs'
+import { safeFormatDistance } from '@/lib/format-date'
+import type { EvalRun } from '@/lib/types'
 
 interface RunSelectorProps {
   label: string

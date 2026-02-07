@@ -8,12 +8,12 @@
 
 import { type NextRequest, NextResponse } from 'next/server'
 import { Pool } from 'pg'
-import type { EvalSuite, ScorerType } from '@/lib/types'
-import { withAuth, type AuthResult } from '@/lib/middleware/auth'
-import { updateSuiteSchema } from '@/lib/validation/schemas'
-import { validateBody } from '@/lib/validation/middleware'
-import { withRateLimit } from '@/lib/middleware/rate-limit'
 import { logger } from '@/lib/logger'
+import { type AuthResult, withAuth } from '@/lib/middleware/auth'
+import { withRateLimit } from '@/lib/middleware/rate-limit'
+import type { EvalSuite, ScorerType } from '@/lib/types'
+import { validateBody } from '@/lib/validation/middleware'
+import { updateSuiteSchema } from '@/lib/validation/schemas'
 
 // Connection pool (shared with main suites route via process-level singleton)
 let pool: Pool | null = null
@@ -49,7 +49,8 @@ function mapRowToSuite(row: Record<string, unknown>): EvalSuite {
     name: row.name as string,
     description: (row.description as string) || null,
     agent_id: (row.agent_module_path as string) || '',
-    default_scorers: ((config.default_scorers as string[]) || []) as ScorerType[],
+    default_scorers: ((config.default_scorers as string[]) ||
+      []) as ScorerType[],
     default_min_score: (config.default_min_score as number) ?? 0.7,
     default_timeout_seconds: (config.default_timeout_seconds as number) ?? 300,
     parallel: (config.parallel as boolean) ?? false,
@@ -84,67 +85,77 @@ function isConnectionError(error: unknown): boolean {
  * Get a single evaluation suite by ID.
  * Verifies ownership against authenticated workspace.
  */
-export const GET = withRateLimit(withAuth(
-  async (
-    _request: NextRequest,
-    auth: AuthResult,
-    context: { params: Promise<{ id: string }> },
-  ) => {
-    const projectId = auth.workspaceId
-    if (!projectId) {
-      return NextResponse.json(
-        { error: 'Workspace context required' },
-        { status: 400 },
-      )
-    }
-
-    const { id } = await context.params
-
-    // Validate UUID format
-    const uuidRegex =
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-    if (!uuidRegex.test(id)) {
-      return NextResponse.json(
-        { error: 'Invalid suite ID format' },
-        { status: 400 },
-      )
-    }
-
-    try {
-      const pool = getPool()
-      const result = await pool.query('SELECT * FROM suites WHERE id = $1', [id])
-
-      if (result.rows.length === 0) {
-        return NextResponse.json({ error: 'Suite not found' }, { status: 404 })
-      }
-
-      // Verify ownership - return 404 to prevent enumeration
-      if (result.rows[0].project_id !== projectId) {
-        return NextResponse.json({ error: 'Suite not found' }, { status: 404 })
-      }
-
-      const suite = mapRowToSuite(result.rows[0])
-      return NextResponse.json(suite)
-    } catch (error) {
-      logger.error({ err: error }, 'Error fetching suite')
-
-      if (isConnectionError(error)) {
+export const GET = withRateLimit(
+  withAuth(
+    async (
+      _request: NextRequest,
+      auth: AuthResult,
+      context: { params: Promise<{ id: string }> },
+    ) => {
+      const projectId = auth.workspaceId
+      if (!projectId) {
         return NextResponse.json(
-          {
-            error: 'Database not available',
-            details: 'PostgreSQL is not reachable.',
-          },
-          { status: 503 },
+          { error: 'Workspace context required' },
+          { status: 400 },
         )
       }
 
-      return NextResponse.json(
-        { error: 'Failed to fetch suite', details: String(error) },
-        { status: 500 },
-      )
-    }
-  },
-))
+      const { id } = await context.params
+
+      // Validate UUID format
+      const uuidRegex =
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+      if (!uuidRegex.test(id)) {
+        return NextResponse.json(
+          { error: 'Invalid suite ID format' },
+          { status: 400 },
+        )
+      }
+
+      try {
+        const pool = getPool()
+        const result = await pool.query('SELECT * FROM suites WHERE id = $1', [
+          id,
+        ])
+
+        if (result.rows.length === 0) {
+          return NextResponse.json(
+            { error: 'Suite not found' },
+            { status: 404 },
+          )
+        }
+
+        // Verify ownership - return 404 to prevent enumeration
+        if (result.rows[0].project_id !== projectId) {
+          return NextResponse.json(
+            { error: 'Suite not found' },
+            { status: 404 },
+          )
+        }
+
+        const suite = mapRowToSuite(result.rows[0])
+        return NextResponse.json(suite)
+      } catch (error) {
+        logger.error({ err: error }, 'Error fetching suite')
+
+        if (isConnectionError(error)) {
+          return NextResponse.json(
+            {
+              error: 'Database not available',
+              details: 'PostgreSQL is not reachable.',
+            },
+            { status: 503 },
+          )
+        }
+
+        return NextResponse.json(
+          { error: 'Failed to fetch suite', details: String(error) },
+          { status: 500 },
+        )
+      }
+    },
+  ),
+)
 
 /**
  * PATCH /api/suites/:id
@@ -163,145 +174,154 @@ export const GET = withRateLimit(withAuth(
  *   default_config?: object;
  * }
  */
-export const PATCH = withRateLimit(withAuth(
-  async (
-    request: NextRequest,
-    auth: AuthResult,
-    context: { params: Promise<{ id: string }> },
-  ) => {
-    const projectId = auth.workspaceId
-    if (!projectId) {
-      return NextResponse.json(
-        { error: 'Workspace context required' },
-        { status: 400 },
-      )
-    }
-
-    const { id } = await context.params
-
-    // Validate UUID format
-    const uuidRegex =
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-    if (!uuidRegex.test(id)) {
-      return NextResponse.json(
-        { error: 'Invalid suite ID format' },
-        { status: 400 },
-      )
-    }
-
-    try {
-      const body = await request.json()
-
-      // Validate request body
-      const validation = validateBody(updateSuiteSchema, body)
-      if (!validation.success) return validation.response
-
-      const pool = getPool()
-
-      // First, fetch current suite to merge config
-      const currentResult = await pool.query(
-        'SELECT * FROM suites WHERE id = $1',
-        [id],
-      )
-
-      if (currentResult.rows.length === 0) {
-        return NextResponse.json({ error: 'Suite not found' }, { status: 404 })
+export const PATCH = withRateLimit(
+  withAuth(
+    async (
+      request: NextRequest,
+      auth: AuthResult,
+      context: { params: Promise<{ id: string }> },
+    ) => {
+      const projectId = auth.workspaceId
+      if (!projectId) {
+        return NextResponse.json(
+          { error: 'Workspace context required' },
+          { status: 400 },
+        )
       }
 
-      // Verify ownership - return 404 to prevent enumeration
-      if (currentResult.rows[0].project_id !== projectId) {
-        return NextResponse.json({ error: 'Suite not found' }, { status: 404 })
+      const { id } = await context.params
+
+      // Validate UUID format
+      const uuidRegex =
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+      if (!uuidRegex.test(id)) {
+        return NextResponse.json(
+          { error: 'Invalid suite ID format' },
+          { status: 400 },
+        )
       }
 
-      const currentRow = currentResult.rows[0]
-      const currentConfig = (currentRow.config as Record<string, unknown>) || {}
+      try {
+        const body = await request.json()
 
-      // Build update fields
-      const updates: string[] = []
-      const params: unknown[] = []
-      let paramIndex = 1
+        // Validate request body
+        const validation = validateBody(updateSuiteSchema, body)
+        if (!validation.success) return validation.response
 
-      if (body.name !== undefined) {
-        updates.push(`name = $${paramIndex++}`)
-        params.push(body.name)
-      }
+        const pool = getPool()
 
-      if (body.description !== undefined) {
-        updates.push(`description = $${paramIndex++}`)
-        params.push(body.description)
-      }
+        // First, fetch current suite to merge config
+        const currentResult = await pool.query(
+          'SELECT * FROM suites WHERE id = $1',
+          [id],
+        )
 
-      if (body.agent_id !== undefined) {
-        updates.push(`agent_module_path = $${paramIndex++}`)
-        params.push(body.agent_id)
-      }
+        if (currentResult.rows.length === 0) {
+          return NextResponse.json(
+            { error: 'Suite not found' },
+            { status: 404 },
+          )
+        }
 
-      // Merge config fields
-      const newConfig = { ...currentConfig }
-      if (body.default_scorers !== undefined) {
-        newConfig.default_scorers = body.default_scorers
-      }
-      if (body.default_min_score !== undefined) {
-        newConfig.default_min_score = body.default_min_score
-      }
-      if (body.default_timeout_seconds !== undefined) {
-        newConfig.default_timeout_seconds = body.default_timeout_seconds
-      }
-      if (body.default_config !== undefined) {
-        newConfig.default_config = body.default_config
-      }
+        // Verify ownership - return 404 to prevent enumeration
+        if (currentResult.rows[0].project_id !== projectId) {
+          return NextResponse.json(
+            { error: 'Suite not found' },
+            { status: 404 },
+          )
+        }
 
-      // Always update config if any config fields changed
-      if (
-        body.default_scorers !== undefined ||
-        body.default_min_score !== undefined ||
-        body.default_timeout_seconds !== undefined ||
-        body.default_config !== undefined
-      ) {
-        updates.push(`config = $${paramIndex++}`)
-        params.push(JSON.stringify(newConfig))
-      }
+        const currentRow = currentResult.rows[0]
+        const currentConfig =
+          (currentRow.config as Record<string, unknown>) || {}
 
-      // Always update updated_at
-      updates.push(`updated_at = NOW()`)
+        // Build update fields
+        const updates: string[] = []
+        const params: unknown[] = []
+        let paramIndex = 1
 
-      if (updates.length === 1) {
-        // Only updated_at, no actual changes
-        return NextResponse.json(mapRowToSuite(currentRow))
-      }
+        if (body.name !== undefined) {
+          updates.push(`name = $${paramIndex++}`)
+          params.push(body.name)
+        }
 
-      params.push(id)
-      const updateQuery = `
+        if (body.description !== undefined) {
+          updates.push(`description = $${paramIndex++}`)
+          params.push(body.description)
+        }
+
+        if (body.agent_id !== undefined) {
+          updates.push(`agent_module_path = $${paramIndex++}`)
+          params.push(body.agent_id)
+        }
+
+        // Merge config fields
+        const newConfig = { ...currentConfig }
+        if (body.default_scorers !== undefined) {
+          newConfig.default_scorers = body.default_scorers
+        }
+        if (body.default_min_score !== undefined) {
+          newConfig.default_min_score = body.default_min_score
+        }
+        if (body.default_timeout_seconds !== undefined) {
+          newConfig.default_timeout_seconds = body.default_timeout_seconds
+        }
+        if (body.default_config !== undefined) {
+          newConfig.default_config = body.default_config
+        }
+
+        // Always update config if any config fields changed
+        if (
+          body.default_scorers !== undefined ||
+          body.default_min_score !== undefined ||
+          body.default_timeout_seconds !== undefined ||
+          body.default_config !== undefined
+        ) {
+          updates.push(`config = $${paramIndex++}`)
+          params.push(JSON.stringify(newConfig))
+        }
+
+        // Always update updated_at
+        updates.push(`updated_at = NOW()`)
+
+        if (updates.length === 1) {
+          // Only updated_at, no actual changes
+          return NextResponse.json(mapRowToSuite(currentRow))
+        }
+
+        params.push(id)
+        const updateQuery = `
       UPDATE suites
       SET ${updates.join(', ')}
       WHERE id = $${paramIndex}
       RETURNING *
     `
 
-      const result = await pool.query(updateQuery, params)
-      const suite = mapRowToSuite(result.rows[0])
+        const result = await pool.query(updateQuery, params)
+        const suite = mapRowToSuite(result.rows[0])
 
-      return NextResponse.json(suite)
-    } catch (error) {
-      logger.error({ err: error }, 'Error updating suite')
+        return NextResponse.json(suite)
+      } catch (error) {
+        logger.error({ err: error }, 'Error updating suite')
 
-      if (isConnectionError(error)) {
+        if (isConnectionError(error)) {
+          return NextResponse.json(
+            {
+              error: 'Database not available',
+              details: 'PostgreSQL is not reachable.',
+            },
+            { status: 503 },
+          )
+        }
+
         return NextResponse.json(
-          {
-            error: 'Database not available',
-            details: 'PostgreSQL is not reachable.',
-          },
-          { status: 503 },
+          { error: 'Failed to update suite', details: String(error) },
+          { status: 500 },
         )
       }
-
-      return NextResponse.json(
-        { error: 'Failed to update suite', details: String(error) },
-        { status: 500 },
-      )
-    }
-  },
-))
+    },
+  ),
+)
 
 /**
  * DELETE /api/suites/:id
@@ -309,71 +329,79 @@ export const PATCH = withRateLimit(withAuth(
  * Delete an evaluation suite and all associated cases.
  * Verifies ownership against authenticated workspace.
  */
-export const DELETE = withRateLimit(withAuth(
-  async (
-    _request: NextRequest,
-    auth: AuthResult,
-    context: { params: Promise<{ id: string }> },
-  ) => {
-    const projectId = auth.workspaceId
-    if (!projectId) {
-      return NextResponse.json(
-        { error: 'Workspace context required' },
-        { status: 400 },
-      )
-    }
-
-    const { id } = await context.params
-
-    // Validate UUID format
-    const uuidRegex =
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-    if (!uuidRegex.test(id)) {
-      return NextResponse.json(
-        { error: 'Invalid suite ID format' },
-        { status: 400 },
-      )
-    }
-
-    try {
-      const pool = getPool()
-
-      // Check if suite exists
-      const existsResult = await pool.query(
-        'SELECT id, project_id FROM suites WHERE id = $1',
-        [id],
-      )
-
-      if (existsResult.rows.length === 0) {
-        return NextResponse.json({ error: 'Suite not found' }, { status: 404 })
-      }
-
-      // Verify ownership - return 404 to prevent enumeration
-      if (existsResult.rows[0].project_id !== projectId) {
-        return NextResponse.json({ error: 'Suite not found' }, { status: 404 })
-      }
-
-      // Delete suite (cases will cascade due to ON DELETE CASCADE)
-      await pool.query('DELETE FROM suites WHERE id = $1', [id])
-
-      return new NextResponse(null, { status: 204 })
-    } catch (error) {
-      logger.error({ err: error }, 'Error deleting suite')
-
-      if (isConnectionError(error)) {
+export const DELETE = withRateLimit(
+  withAuth(
+    async (
+      _request: NextRequest,
+      auth: AuthResult,
+      context: { params: Promise<{ id: string }> },
+    ) => {
+      const projectId = auth.workspaceId
+      if (!projectId) {
         return NextResponse.json(
-          {
-            error: 'Database not available',
-            details: 'PostgreSQL is not reachable.',
-          },
-          { status: 503 },
+          { error: 'Workspace context required' },
+          { status: 400 },
         )
       }
 
-      return NextResponse.json(
-        { error: 'Failed to delete suite', details: String(error) },
-        { status: 500 },
-      )
-    }
-  },
-))
+      const { id } = await context.params
+
+      // Validate UUID format
+      const uuidRegex =
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+      if (!uuidRegex.test(id)) {
+        return NextResponse.json(
+          { error: 'Invalid suite ID format' },
+          { status: 400 },
+        )
+      }
+
+      try {
+        const pool = getPool()
+
+        // Check if suite exists
+        const existsResult = await pool.query(
+          'SELECT id, project_id FROM suites WHERE id = $1',
+          [id],
+        )
+
+        if (existsResult.rows.length === 0) {
+          return NextResponse.json(
+            { error: 'Suite not found' },
+            { status: 404 },
+          )
+        }
+
+        // Verify ownership - return 404 to prevent enumeration
+        if (existsResult.rows[0].project_id !== projectId) {
+          return NextResponse.json(
+            { error: 'Suite not found' },
+            { status: 404 },
+          )
+        }
+
+        // Delete suite (cases will cascade due to ON DELETE CASCADE)
+        await pool.query('DELETE FROM suites WHERE id = $1', [id])
+
+        return new NextResponse(null, { status: 204 })
+      } catch (error) {
+        logger.error({ err: error }, 'Error deleting suite')
+
+        if (isConnectionError(error)) {
+          return NextResponse.json(
+            {
+              error: 'Database not available',
+              details: 'PostgreSQL is not reachable.',
+            },
+            { status: 503 },
+          )
+        }
+
+        return NextResponse.json(
+          { error: 'Failed to delete suite', details: String(error) },
+          { status: 500 },
+        )
+      }
+    },
+  ),
+)

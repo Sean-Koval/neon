@@ -1,87 +1,18 @@
 /**
  * React Query hooks for human feedback/RLHF operations.
+ * Uses tRPC for type-safe API calls.
  */
 
-import {
-  type UseQueryOptions,
-  useMutation,
-  useQuery,
-  useQueryClient,
-} from '@tanstack/react-query'
+'use client'
+
 import { useCallback, useState } from 'react'
-import type {
-  ComparisonPair,
-  ComparisonPairList,
-  FeedbackCreate,
-  FeedbackFilter,
-  FeedbackItem,
-  FeedbackList,
-  PreferenceChoice,
-} from '@/lib/types'
+import { trpc } from '@/lib/trpc'
+import type { ComparisonPair, FeedbackFilter, FeedbackItem } from '@/lib/types'
+
+type PreferenceChoice = 'A' | 'B' | 'tie' | 'both_bad'
 
 // =============================================================================
-// API Functions
-// =============================================================================
-
-async function getFeedback(filter?: FeedbackFilter): Promise<FeedbackList> {
-  const params = new URLSearchParams()
-  if (filter?.type) params.set('type', filter.type)
-  if (filter?.user_id) params.set('user_id', filter.user_id)
-  if (filter?.session_id) params.set('session_id', filter.session_id)
-  if (filter?.limit) params.set('limit', String(filter.limit))
-  if (filter?.offset) params.set('offset', String(filter.offset))
-
-  const query = params.toString()
-  const response = await fetch(`/api/feedback${query ? `?${query}` : ''}`)
-
-  if (!response.ok) {
-    throw new Error('Failed to fetch feedback')
-  }
-
-  return response.json()
-}
-
-async function submitFeedback(
-  data: FeedbackCreate,
-): Promise<{ id: string; item: FeedbackItem }> {
-  const response = await fetch('/api/feedback', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
-  })
-
-  if (!response.ok) {
-    const error = await response.json()
-    throw new Error(error.error || 'Failed to submit feedback')
-  }
-
-  return response.json()
-}
-
-async function getComparisons(options?: {
-  limit?: number
-  offset?: number
-  tag?: string
-}): Promise<ComparisonPairList> {
-  const params = new URLSearchParams()
-  if (options?.limit) params.set('limit', String(options.limit))
-  if (options?.offset) params.set('offset', String(options.offset))
-  if (options?.tag) params.set('tag', options.tag)
-
-  const query = params.toString()
-  const response = await fetch(
-    `/api/feedback/comparisons${query ? `?${query}` : ''}`,
-  )
-
-  if (!response.ok) {
-    throw new Error('Failed to fetch comparisons')
-  }
-
-  return response.json()
-}
-
-// =============================================================================
-// Query Keys
+// Query Keys (kept for backward compatibility)
 // =============================================================================
 
 export const feedbackQueryKeys = {
@@ -102,22 +33,29 @@ export const feedbackQueryKeys = {
 // =============================================================================
 
 /**
- * Fetch feedback items with optional filters.
+ * Fetch feedback items with optional filters via tRPC.
  */
 export function useFeedback(
   filter?: FeedbackFilter,
-  options?: Omit<UseQueryOptions<FeedbackList, Error>, 'queryKey' | 'queryFn'>,
+  options?: { enabled?: boolean },
 ) {
-  return useQuery({
-    queryKey: feedbackQueryKeys.list(filter),
-    queryFn: () => getFeedback(filter),
-    staleTime: 30 * 1000, // 30 seconds
-    ...options,
-  })
+  return trpc.feedback.list.useQuery(
+    {
+      type: filter?.type as 'preference' | 'correction' | undefined,
+      user_id: filter?.user_id,
+      session_id: filter?.session_id,
+      limit: filter?.limit,
+      offset: filter?.offset,
+    },
+    {
+      staleTime: 30 * 1000, // 30 seconds
+      ...options,
+    },
+  )
 }
 
 /**
- * Fetch comparison pairs for feedback collection.
+ * Fetch comparison pairs for feedback collection via tRPC.
  */
 export function useComparisons(
   options?: {
@@ -125,17 +63,19 @@ export function useComparisons(
     offset?: number
     tag?: string
   },
-  queryOptions?: Omit<
-    UseQueryOptions<ComparisonPairList, Error>,
-    'queryKey' | 'queryFn'
-  >,
+  queryOptions?: { enabled?: boolean },
 ) {
-  return useQuery({
-    queryKey: feedbackQueryKeys.comparisons.list(options),
-    queryFn: () => getComparisons(options),
-    staleTime: 60 * 1000, // 1 minute
-    ...queryOptions,
-  })
+  return trpc.feedback.comparisons.useQuery(
+    {
+      tag: options?.tag,
+      limit: options?.limit || 10,
+      offset: options?.offset,
+    },
+    {
+      staleTime: 60 * 1000, // 1 minute
+      ...queryOptions,
+    },
+  )
 }
 
 // =============================================================================
@@ -148,20 +88,19 @@ interface UseSubmitFeedbackOptions {
 }
 
 /**
- * Submit human feedback (preference or correction).
+ * Submit human feedback (preference or correction) via tRPC.
  */
 export function useSubmitFeedback(options?: UseSubmitFeedbackOptions) {
-  const queryClient = useQueryClient()
+  const utils = trpc.useUtils()
 
-  return useMutation({
-    mutationFn: submitFeedback,
+  return trpc.feedback.create.useMutation({
     onSuccess: (data) => {
       // Invalidate feedback list to include the new feedback
-      queryClient.invalidateQueries({ queryKey: feedbackQueryKeys.lists() })
-      options?.onSuccess?.(data)
+      utils.feedback.list.invalidate()
+      options?.onSuccess?.(data as { id: string; item: FeedbackItem })
     },
     onError: (error) => {
-      options?.onError?.(error)
+      options?.onError?.(new Error(error.message))
     },
   })
 }
@@ -226,7 +165,7 @@ export function usePreferenceSession(options?: {
 
   const submitFeedbackMutation = useSubmitFeedback()
 
-  const comparisons = data?.items ?? []
+  const comparisons = (data?.items ?? []) as ComparisonPair[]
   const currentComparison = comparisons[currentIndex] ?? null
 
   const resetTimer = useCallback(() => {
@@ -308,7 +247,7 @@ export function usePreferenceSession(options?: {
     completedCount,
     sessionId,
     isLoading,
-    error: error ?? null,
+    error: error ? new Error(error.message) : null,
     submitPreference,
     skip,
     next,

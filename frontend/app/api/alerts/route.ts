@@ -10,13 +10,13 @@
 
 import { type NextRequest, NextResponse } from 'next/server'
 import { Pool } from 'pg'
-import { withAuth, type AuthResult } from '@/lib/middleware/auth'
-import type { EvalRun } from '@/lib/types'
+import { type AuthResult, withAuth } from '@/lib/middleware/auth'
 import {
   type AlertThreshold,
   DEFAULT_THRESHOLD,
   detectRegressions,
 } from '@/lib/regression'
+import type { EvalRun } from '@/lib/types'
 
 // In-memory threshold storage per workspace
 const thresholdStore = new Map<string, AlertThreshold[]>()
@@ -95,12 +95,10 @@ export const GET = withAuth(async (_request: NextRequest, auth: AuthResult) => {
       thresholds:
         thresholds.length > 0
           ? thresholds
-          : Array.from(new Set(runs.map((r) => r.suite_id))).map(
-              (suiteId) => ({
-                suiteId,
-                ...DEFAULT_THRESHOLD,
-              }),
-            ),
+          : Array.from(new Set(runs.map((r) => r.suite_id))).map((suiteId) => ({
+              suiteId,
+              ...DEFAULT_THRESHOLD,
+            })),
     })
   } catch (error) {
     console.error('Error fetching alerts:', error)
@@ -140,54 +138,52 @@ export const GET = withAuth(async (_request: NextRequest, auth: AuthResult) => {
  *   windowSize: number;
  * }
  */
-export const POST = withAuth(
-  async (request: NextRequest, auth: AuthResult) => {
-    const projectId = auth.workspaceId
-    if (!projectId) {
+export const POST = withAuth(async (request: NextRequest, auth: AuthResult) => {
+  const projectId = auth.workspaceId
+  if (!projectId) {
+    return NextResponse.json(
+      { error: 'Workspace context required' },
+      { status: 400 },
+    )
+  }
+
+  try {
+    const body = await request.json()
+
+    if (!body.suiteId) {
       return NextResponse.json(
-        { error: 'Workspace context required' },
+        { error: 'suiteId is required' },
         { status: 400 },
       )
     }
 
-    try {
-      const body = await request.json()
-
-      if (!body.suiteId) {
-        return NextResponse.json(
-          { error: 'suiteId is required' },
-          { status: 400 },
-        )
-      }
-
-      const threshold: AlertThreshold = {
-        suiteId: body.suiteId,
-        absoluteMin: Math.max(
-          0,
-          Math.min(1, body.absoluteMin ?? DEFAULT_THRESHOLD.absoluteMin),
-        ),
-        dropPercent: Math.max(
-          0,
-          Math.min(1, body.dropPercent ?? DEFAULT_THRESHOLD.dropPercent),
-        ),
-        windowSize: Math.max(
-          1,
-          Math.min(50, body.windowSize ?? DEFAULT_THRESHOLD.windowSize),
-        ),
-      }
-
-      const existing = thresholdStore.get(projectId) ?? []
-      const updated = existing.filter((t) => t.suiteId !== threshold.suiteId)
-      updated.push(threshold)
-      thresholdStore.set(projectId, updated)
-
-      return NextResponse.json({ threshold }, { status: 200 })
-    } catch (error) {
-      console.error('Error saving threshold:', error)
-      return NextResponse.json(
-        { error: 'Failed to save threshold', details: String(error) },
-        { status: 500 },
-      )
+    const threshold: AlertThreshold = {
+      suiteId: body.suiteId,
+      absoluteMin: Math.max(
+        0,
+        Math.min(1, body.absoluteMin ?? DEFAULT_THRESHOLD.absoluteMin),
+      ),
+      dropPercent: Math.max(
+        0,
+        Math.min(1, body.dropPercent ?? DEFAULT_THRESHOLD.dropPercent),
+      ),
+      windowSize: Math.max(
+        1,
+        Math.min(50, body.windowSize ?? DEFAULT_THRESHOLD.windowSize),
+      ),
     }
-  },
-)
+
+    const existing = thresholdStore.get(projectId) ?? []
+    const updated = existing.filter((t) => t.suiteId !== threshold.suiteId)
+    updated.push(threshold)
+    thresholdStore.set(projectId, updated)
+
+    return NextResponse.json({ threshold }, { status: 200 })
+  } catch (error) {
+    console.error('Error saving threshold:', error)
+    return NextResponse.json(
+      { error: 'Failed to save threshold', details: String(error) },
+      { status: 500 },
+    )
+  }
+})

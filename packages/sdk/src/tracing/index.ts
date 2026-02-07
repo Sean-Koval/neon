@@ -308,3 +308,10 @@ export {
   type FlushResult,
   type BufferStats,
 } from "./offline-buffer.js";
+
+// NeonExporter for OTLP span export
+export {
+  NeonExporter,
+  createNeonExporter,
+  type NeonExporterConfig,
+} from "./exporter.js";

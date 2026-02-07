@@ -7,16 +7,16 @@
 export {
   // Types
   type AuthenticatedUser,
-  type AuthResult,
   type AuthOptions,
+  type AuthResult,
   // Authentication
   authenticate,
-  withAuth,
-  requireAuth,
-  getUserFromRequest,
-  toAuthContext,
   // Request context
   getRequestContext,
+  getUserFromRequest,
+  requireAuth,
+  toAuthContext,
+  withAuth,
 } from './auth'
 
 export { withLogging } from './logging'

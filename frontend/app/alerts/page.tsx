@@ -1,9 +1,9 @@
 'use client'
 
 import { Bell, RefreshCw } from 'lucide-react'
-import { useAlerts } from '@/hooks/use-alerts'
 import { AlertConfig } from '@/components/alerts/alert-config'
 import { AlertHistory } from '@/components/alerts/alert-history'
+import { useAlerts } from '@/hooks/use-alerts'
 
 export default function AlertsPage() {
   const { data, isLoading, refetch } = useAlerts()
@@ -14,8 +14,7 @@ export default function AlertsPage() {
   // Build a unique suite list from thresholds
   const suites = thresholds.map((t) => ({
     id: t.suiteId,
-    name:
-      alerts.find((a) => a.suiteId === t.suiteId)?.suiteName ?? t.suiteId,
+    name: alerts.find((a) => a.suiteId === t.suiteId)?.suiteName ?? t.suiteId,
   }))
   // Deduplicate suites by id
   const uniqueSuites = Array.from(

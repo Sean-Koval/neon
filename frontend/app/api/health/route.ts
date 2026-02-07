@@ -5,7 +5,7 @@
  */
 
 import { type NextRequest, NextResponse } from 'next/server'
-import { getClickHouseClient } from '@/lib/clickhouse'
+import { healthCheck } from '@/lib/db/clickhouse'
 
 interface HealthStatus {
   status: 'healthy' | 'degraded' | 'unhealthy'
@@ -22,20 +22,7 @@ export async function GET(
 ): Promise<NextResponse<HealthStatus>> {
   const checks = {
     api: true, // If we're running, API is working
-    clickhouse: false,
-  }
-
-  // Check ClickHouse connectivity
-  try {
-    const client = getClickHouseClient()
-    const result = await client.query({
-      query: 'SELECT 1',
-      format: 'JSON',
-    })
-    await result.json()
-    checks.clickhouse = true
-  } catch {
-    checks.clickhouse = false
+    clickhouse: await healthCheck(),
   }
 
   // Determine overall status

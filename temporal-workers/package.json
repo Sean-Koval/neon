@@ -21,7 +21,13 @@
     "@temporalio/activity": "^1.11.0",
     "@temporalio/client": "^1.11.0",
     "@temporalio/worker": "^1.11.0",
-    "@temporalio/workflow": "^1.11.0"
+    "@temporalio/workflow": "^1.11.0",
+    "@opentelemetry/sdk-node": "^0.211.0",
+    "@opentelemetry/exporter-trace-otlp-http": "^0.211.0",
+    "@opentelemetry/auto-instrumentations-node": "^0.61.0",
+    "@opentelemetry/resources": "^2.5.0",
+    "@opentelemetry/semantic-conventions": "^1.29.0",
+    "@opentelemetry/sdk-trace-base": "^2.5.0"
   },
   "devDependencies": {
     "@neon/shared": "workspace:*",

@@ -6,7 +6,6 @@
  * Lists all Temporal-based eval runs with real-time status updates.
  */
 
-import { safeFormatDistance } from '@/lib/format-date'
 import {
   AlertCircle,
   CheckCircle,
@@ -23,6 +22,7 @@ import Link from 'next/link'
 import { useState } from 'react'
 import { StartEvalRunDialog } from '@/components/eval-runs'
 import { useStartWorkflowRun, useWorkflowRuns } from '@/hooks/use-workflow-runs'
+import { safeFormatDistance } from '@/lib/format-date'
 import type { WorkflowStatus, WorkflowStatusResponse } from '@/lib/types'
 
 /**
@@ -266,9 +266,12 @@ export default function EvalRunsPage() {
         {!isLoading && isError && (
           <div className="flex flex-col items-center justify-center py-12">
             <AlertCircle className="w-12 h-12 text-red-400 mb-3" />
-            <p className="text-gray-700 font-medium">Failed to load eval runs</p>
+            <p className="text-gray-700 font-medium">
+              Failed to load eval runs
+            </p>
             <p className="text-sm text-gray-500 mt-1 max-w-md text-center">
-              {error?.message || 'Temporal service may be unavailable. Please ensure the workflow engine is running.'}
+              {error?.message ||
+                'Temporal service may be unavailable. Please ensure the workflow engine is running.'}
             </p>
             <button
               onClick={() => refetch()}

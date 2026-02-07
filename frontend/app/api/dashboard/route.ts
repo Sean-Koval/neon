@@ -6,21 +6,17 @@
  */
 
 import { type NextRequest, NextResponse } from 'next/server'
-import { withRateLimit } from '@/lib/middleware/rate-limit'
-
-import { logger } from '@/lib/logger'
 import {
   type DailyRunSummary,
   type DashboardSummary,
   type DurationStats,
-  getDailyRunSummary,
-  getDashboardSummary,
-  getDurationStats,
-  getScorerStats,
-  getScoreTrends,
+  evals,
   type ScorerStats,
   type ScoreTrendPoint,
-} from '@/lib/clickhouse'
+} from '@/lib/db/clickhouse'
+
+import { logger } from '@/lib/logger'
+import { withRateLimit } from '@/lib/middleware/rate-limit'
 
 // =============================================================================
 // Types
@@ -104,14 +100,19 @@ export const GET = withRateLimit(async function GET(request: NextRequest) {
     const { projectId, startDate, endDate, scorerName } = parseRequest(request)
 
     // Run all queries in parallel for maximum performance
-    const [summary, scoreTrends, durationStats, dailySummary, scorerStats] =
-      await Promise.all([
-        getDashboardSummary(projectId, startDate, endDate),
-        getScoreTrends(projectId, startDate, endDate, scorerName),
-        getDurationStats(projectId, startDate, endDate),
-        getDailyRunSummary(projectId, startDate, endDate),
-        getScorerStats(projectId, startDate, endDate),
-      ])
+    const [
+      { data: summary },
+      { data: scoreTrends },
+      { data: durationStats },
+      { data: dailySummary },
+      { data: scorerStats },
+    ] = await Promise.all([
+      evals.getDashboard({ projectId, startDate, endDate }),
+      evals.getScoreTrendData({ projectId, startDate, endDate, scorerName }),
+      evals.getDurationStatsData({ projectId, startDate, endDate }),
+      evals.getDailyRunSummaryData({ projectId, startDate, endDate }),
+      evals.getScorerStatsData({ projectId, startDate, endDate }),
+    ])
 
     const queryTimeMs = Math.round(performance.now() - startTime)
 
@@ -161,7 +162,11 @@ export async function getSummaryOnly(request: NextRequest) {
 
   try {
     const { projectId, startDate, endDate } = parseRequest(request)
-    const summary = await getDashboardSummary(projectId, startDate, endDate)
+    const { data: summary } = await evals.getDashboard({
+      projectId,
+      startDate,
+      endDate,
+    })
 
     const queryTimeMs = Math.round(performance.now() - startTime)
 

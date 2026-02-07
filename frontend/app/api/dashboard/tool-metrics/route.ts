@@ -7,7 +7,7 @@
 
 import { type NextRequest, NextResponse } from 'next/server'
 
-import { getToolMetrics } from '@/lib/clickhouse'
+import { metrics } from '@/lib/db/clickhouse'
 import { logger } from '@/lib/logger'
 
 function getDateRange(days: number): { startDate: string; endDate: string } {
@@ -42,11 +42,13 @@ export async function GET(request: NextRequest) {
     const days = Number.parseInt(searchParams.get('days') || '7', 10)
 
     const { startDate, endDate } = getDateRange(days)
-    const { tools, summary } = await getToolMetrics(
+    const {
+      data: { tools, summary },
+    } = await metrics.getToolMetricsData({
       projectId,
       startDate,
       endDate,
-    )
+    })
 
     const queryTimeMs = Math.round(performance.now() - startTime)
 

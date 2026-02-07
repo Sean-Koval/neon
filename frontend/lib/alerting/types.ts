@@ -71,7 +71,9 @@ export interface AlertRule {
 
 export type AlertRuleCreate = Omit<AlertRule, 'id' | 'createdAt' | 'updatedAt'>
 
-export type AlertRuleUpdate = Partial<Omit<AlertRule, 'id' | 'createdAt' | 'updatedAt'>>
+export type AlertRuleUpdate = Partial<
+  Omit<AlertRule, 'id' | 'createdAt' | 'updatedAt'>
+>
 
 // =============================================================================
 // Metric Data

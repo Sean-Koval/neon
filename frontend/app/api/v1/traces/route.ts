@@ -8,14 +8,14 @@
  */
 
 import { type NextRequest, NextResponse } from 'next/server'
-import type { SpanRecord, TraceRecord } from '@/lib/clickhouse'
 import { insertSpans, insertTraces } from '@/lib/clickhouse'
-import { withAuth, type AuthResult } from '@/lib/middleware/auth'
-import { createTracesSchema } from '@/lib/validation/schemas'
-import { validateBody } from '@/lib/validation/middleware'
+import type { SpanRecord, TraceRecord } from '@/lib/db/clickhouse'
+import { logger } from '@/lib/logger'
+import { type AuthResult, withAuth } from '@/lib/middleware/auth'
 import { withRateLimit } from '@/lib/middleware/rate-limit'
 import { BATCH_LIMIT } from '@/lib/rate-limit'
-import { logger } from '@/lib/logger'
+import { validateBody } from '@/lib/validation/middleware'
+import { createTracesSchema } from '@/lib/validation/schemas'
 
 /**
  * OTel OTLP Span format (simplified)
@@ -239,8 +239,8 @@ function aggregateTrace(spans: SpanRecord[], projectId: string): TraceRecord {
  *
  * Ingest OTel traces
  */
-export const POST = withRateLimit(withAuth(
-  async (request: NextRequest, auth: AuthResult) => {
+export const POST = withRateLimit(
+  withAuth(async (request: NextRequest, auth: AuthResult) => {
     try {
       const projectId = auth.workspaceId
       if (!projectId) {
@@ -299,5 +299,6 @@ export const POST = withRateLimit(withAuth(
         { status: 500 },
       )
     }
-  },
-), BATCH_LIMIT)
+  }),
+  BATCH_LIMIT,
+)

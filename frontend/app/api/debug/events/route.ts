@@ -9,8 +9,8 @@
  */
 
 import { type NextRequest, NextResponse } from 'next/server'
-import { broadcastToTrace, sessionStates } from '../stream/route'
 import { logger } from '@/lib/logger'
+import { broadcastToTrace, sessionStates } from '../stream/route'
 
 // ============================================================================
 // Types
@@ -68,7 +68,9 @@ export async function POST(request: NextRequest) {
 
     // In development without INTERNAL_API_KEY set, log a warning
     if (isDev && !expectedKey) {
-      logger.warn('Running without INTERNAL_API_KEY. Set INTERNAL_API_KEY env var for production security.')
+      logger.warn(
+        'Running without INTERNAL_API_KEY. Set INTERNAL_API_KEY env var for production security.',
+      )
     }
 
     const event: DebugEvent = await request.json()

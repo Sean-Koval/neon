@@ -17,6 +17,7 @@
 
 import { Worker, NativeConnection } from "@temporalio/worker";
 import * as activities from "./activities";
+import { initInstrumentation, shutdownInstrumentation } from "./instrumentation";
 
 /**
  * Worker configuration from environment
@@ -91,6 +92,10 @@ async function run(): Promise<void> {
     maxConcurrentWorkflows: config.maxConcurrentWorkflowTaskExecutions,
   });
 
+  // Initialize OpenTelemetry instrumentation
+  initInstrumentation();
+  log("info", "OpenTelemetry instrumentation initialized");
+
   // Validate required environment variables
   if (!process.env.ANTHROPIC_API_KEY) {
     log("warn", "ANTHROPIC_API_KEY not set - LLM calls will fail");
@@ -130,6 +135,8 @@ async function run(): Promise<void> {
     try {
       await worker.shutdown();
       log("info", "Worker shut down successfully");
+      await shutdownInstrumentation();
+      log("info", "OpenTelemetry instrumentation shut down");
       await connection.close();
       log("info", "Connection closed");
       process.exit(0);

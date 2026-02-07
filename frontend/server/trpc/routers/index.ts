@@ -15,6 +15,10 @@ import { orgAnalyticsRouter } from "./orgAnalytics";
 import { evalsRouter } from "./evals";
 import { suitesRouter } from "./suites";
 import { skillsRouter } from "./skills";
+import { dashboardRouter } from "./dashboard";
+import { feedbackRouter } from "./feedback";
+import { promptsRouter } from "./prompts";
+import { compareRouter } from "./compare";
 
 /**
  * Main app router
@@ -35,6 +39,12 @@ export const appRouter = router({
   organizations: organizationsRouter,
   workspaces: workspacesRouter,
   orgAnalytics: orgAnalyticsRouter,
+
+  // Dashboard, feedback, prompts, compare
+  dashboard: dashboardRouter,
+  feedback: feedbackRouter,
+  prompts: promptsRouter,
+  compare: compareRouter,
 });
 
 /**

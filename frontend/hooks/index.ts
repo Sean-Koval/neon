@@ -18,6 +18,8 @@ export {
 } from './use-component-correlation'
 // Dashboard hooks
 export { useDashboard } from './use-dashboard'
+// Eval progress hooks (SSE-based real-time)
+export { useEvalProgress } from './use-eval-progress'
 // Feedback hooks (RLHF)
 export {
   feedbackQueryKeys,
@@ -38,8 +40,6 @@ export {
   useLazySpan,
   usePrefetchSpanDetails,
 } from './use-lazy-span'
-// Eval progress hooks (SSE-based real-time)
-export { useEvalProgress } from './use-eval-progress'
 // Real-time hooks (WebSocket + polling)
 export { useRealtime, useRealtimeRun } from './use-realtime'
 // Run hooks

@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING, Any, ParamSpec, TypeVar
 if TYPE_CHECKING:
     pass  # Keep TYPE_CHECKING for potential future use
 
+from neon_sdk.tracing.exporter import ExportSpan, NeonExporter, create_neon_exporter
 from neon_sdk.types import ComponentType
 
 # =============================================================================
@@ -544,4 +545,8 @@ __all__ = [
     "traced_retrieval",
     "traced_reasoning",
     "traced_planning",
+    # Exporter
+    "NeonExporter",
+    "ExportSpan",
+    "create_neon_exporter",
 ]

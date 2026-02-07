@@ -5,9 +5,9 @@
  */
 
 import { type NextRequest, NextResponse } from 'next/server'
-import { getSpanDetails } from '@/lib/clickhouse'
-import { withRateLimit } from '@/lib/middleware/rate-limit'
+import { traces } from '@/lib/db/clickhouse'
 import { logger } from '@/lib/logger'
+import { withRateLimit } from '@/lib/middleware/rate-limit'
 
 export const GET = withRateLimit(async function GET(
   request: NextRequest,
@@ -22,7 +22,7 @@ export const GET = withRateLimit(async function GET(
       request.nextUrl.searchParams.get('project_id') ||
       '00000000-0000-0000-0000-000000000001'
 
-    const details = await getSpanDetails(projectId, spanId)
+    const { data: details } = await traces.getSpanDetail(projectId, spanId)
 
     if (!details) {
       return NextResponse.json({ error: 'Span not found' }, { status: 404 })
