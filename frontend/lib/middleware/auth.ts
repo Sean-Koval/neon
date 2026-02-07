@@ -11,13 +11,13 @@
  * @module lib/middleware/auth
  */
 
-import { type NextRequest, NextResponse } from 'next/server'
 import { eq } from 'drizzle-orm'
-import { db, apiKeys } from '@/lib/db'
+import { type NextRequest, NextResponse } from 'next/server'
+import { apiKeys, db } from '@/lib/db'
 import {
   type AuthContext,
-  type WorkspacePermission,
   hasWorkspacePermission,
+  type WorkspacePermission,
 } from '@/lib/db/permissions'
 import { logger } from '@/lib/logger'
 
@@ -216,7 +216,7 @@ async function verifyApiKey(apiKey: string): Promise<AuthResult | null> {
  */
 export async function authenticate(
   request: NextRequest,
-  options: AuthOptions = {}
+  options: AuthOptions = {},
 ): Promise<AuthResult | null> {
   const opts = { ...DEFAULT_OPTIONS, ...options }
 
@@ -285,10 +285,17 @@ export async function authenticate(
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- route context varies by route
 export function withAuth<T extends AuthResult | null>(
-  handler: (request: NextRequest, auth: T, ...args: any[]) => Promise<NextResponse>,
-  options: AuthOptions = {}
+  handler: (
+    request: NextRequest,
+    auth: T,
+    ...args: any[]
+  ) => Promise<NextResponse>,
+  options: AuthOptions = {},
 ): (request: NextRequest, ...args: any[]) => Promise<NextResponse> {
-  return async (request: NextRequest, ...args: any[]): Promise<NextResponse> => {
+  return async (
+    request: NextRequest,
+    ...args: any[]
+  ): Promise<NextResponse> => {
     const auth = await authenticate(request, options)
 
     // If auth is required but not present, return 401
@@ -299,7 +306,7 @@ export function withAuth<T extends AuthResult | null>(
           message: 'Valid authentication required',
           hint: 'Provide a valid Bearer token or X-API-Key header',
         },
-        { status: 401 }
+        { status: 401 },
       )
     }
 
@@ -312,14 +319,14 @@ export function withAuth<T extends AuthResult | null>(
             message: 'Workspace context required for this operation',
             hint: 'Provide workspace_id via header or query parameter',
           },
-          { status: 403 }
+          { status: 403 },
         )
       }
 
       const hasPermission = await hasWorkspacePermission(
         auth.user.id,
         auth.workspaceId,
-        options.requiredPermission
+        options.requiredPermission,
       )
 
       if (!hasPermission) {
@@ -328,7 +335,7 @@ export function withAuth<T extends AuthResult | null>(
             error: 'Forbidden',
             message: `Missing permission: ${options.requiredPermission}`,
           },
-          { status: 403 }
+          { status: 403 },
         )
       }
     }
@@ -347,7 +354,7 @@ export function withAuth<T extends AuthResult | null>(
  * Returns null if not authenticated or on error.
  */
 export async function getUserFromRequest(
-  request: NextRequest
+  request: NextRequest,
 ): Promise<AuthenticatedUser | null> {
   const auth = await authenticate(request, { optional: true })
   return auth?.user || null
@@ -358,7 +365,7 @@ export async function getUserFromRequest(
  * Use withAuth wrapper instead for cleaner code.
  */
 export async function requireAuth(
-  request: NextRequest
+  request: NextRequest,
 ): Promise<AuthResult | NextResponse> {
   const auth = await authenticate(request)
 
@@ -368,7 +375,7 @@ export async function requireAuth(
         error: 'Unauthorized',
         message: 'Valid authentication required',
       },
-      { status: 401 }
+      { status: 401 },
     )
   }
 
@@ -401,9 +408,7 @@ export function getRequestContext(request: NextRequest): {
   ip?: string
 } {
   return {
-    requestId:
-      request.headers.get('x-request-id') ||
-      crypto.randomUUID(),
+    requestId: request.headers.get('x-request-id') || crypto.randomUUID(),
     method: request.method,
     path: request.nextUrl.pathname,
     userAgent: request.headers.get('user-agent') || undefined,

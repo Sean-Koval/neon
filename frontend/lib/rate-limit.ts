@@ -129,8 +129,7 @@ const globalForRateLimit = globalThis as unknown as {
   __rateLimiter?: RateLimiter
 }
 
-export const rateLimiter =
-  globalForRateLimit.__rateLimiter ?? new RateLimiter()
+export const rateLimiter = globalForRateLimit.__rateLimiter ?? new RateLimiter()
 
 if (process.env.NODE_ENV !== 'production') {
   globalForRateLimit.__rateLimiter = rateLimiter

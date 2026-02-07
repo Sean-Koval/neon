@@ -25,9 +25,11 @@ import { createLogger } from '@/lib/logger'
 export function withLogging(
   handler: (request: NextRequest, ...args: unknown[]) => Promise<NextResponse>,
 ): (request: NextRequest, ...args: unknown[]) => Promise<NextResponse> {
-  return async (request: NextRequest, ...args: unknown[]): Promise<NextResponse> => {
-    const requestId =
-      request.headers.get('x-request-id') || crypto.randomUUID()
+  return async (
+    request: NextRequest,
+    ...args: unknown[]
+  ): Promise<NextResponse> => {
+    const requestId = request.headers.get('x-request-id') || crypto.randomUUID()
     const method = request.method
     const path = request.nextUrl.pathname
     const query = request.nextUrl.search || undefined
@@ -55,7 +57,10 @@ export function withLogging(
 
       log.error(
         {
-          err: error instanceof Error ? { message: error.message, stack: error.stack } : String(error),
+          err:
+            error instanceof Error
+              ? { message: error.message, stack: error.stack }
+              : String(error),
           durationMs: duration,
         },
         'Request failed with unhandled error',

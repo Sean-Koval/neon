@@ -8,7 +8,7 @@
  * @module lib/middleware/metrics
  */
 
-import { type NextRequest, NextResponse } from 'next/server'
+import type { NextRequest, NextResponse } from 'next/server'
 import { apiRequestDuration, apiRequestsTotal } from '@/lib/metrics'
 
 /**
@@ -35,7 +35,10 @@ function normalizePath(path: string): string {
 export function withMetrics(
   handler: (request: NextRequest, ...args: unknown[]) => Promise<NextResponse>,
 ): (request: NextRequest, ...args: unknown[]) => Promise<NextResponse> {
-  return async (request: NextRequest, ...args: unknown[]): Promise<NextResponse> => {
+  return async (
+    request: NextRequest,
+    ...args: unknown[]
+  ): Promise<NextResponse> => {
     const method = request.method
     const path = normalizePath(request.nextUrl.pathname)
     const end = apiRequestDuration.startTimer({ method, path })

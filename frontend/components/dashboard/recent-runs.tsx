@@ -1,10 +1,10 @@
 'use client'
 
-import { safeFormatDistance } from '@/lib/format-date'
 import { FileText } from 'lucide-react'
 import Link from 'next/link'
 import { PassRatioBadge, ScoreBadge, StatusBadge } from '@/components/ui/badge'
 import { useRecentRuns } from '@/hooks/use-runs'
+import { safeFormatDistance } from '@/lib/format-date'
 import type { EvalRun } from '@/lib/types'
 
 interface RecentRunsProps {

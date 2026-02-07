@@ -14,8 +14,8 @@ import { type NextRequest, NextResponse } from 'next/server'
 import {
   type RateLimitConfig,
   READ_LIMIT,
-  WRITE_LIMIT,
   rateLimiter,
+  WRITE_LIMIT,
 } from '@/lib/rate-limit'
 
 /**
@@ -56,10 +56,7 @@ export function withRateLimit<Args extends unknown[]>(
   handler: (request: NextRequest, ...args: Args) => Promise<NextResponse>,
   config?: RateLimitConfig,
 ): (request: NextRequest, ...args: Args) => Promise<NextResponse> {
-  return async (
-    request: NextRequest,
-    ...args: Args
-  ): Promise<NextResponse> => {
+  return async (request: NextRequest, ...args: Args): Promise<NextResponse> => {
     // Skip rate limiting if disabled via env
     if (process.env.RATE_LIMIT_DISABLED === 'true') {
       return handler(request, ...args)
@@ -84,7 +81,10 @@ export function withRateLimit<Args extends unknown[]>(
     }
 
     if (!result.success) {
-      const retryAfter = Math.max(1, result.reset - Math.floor(Date.now() / 1000))
+      const retryAfter = Math.max(
+        1,
+        result.reset - Math.floor(Date.now() / 1000),
+      )
       return NextResponse.json(
         {
           error: 'Too many requests',

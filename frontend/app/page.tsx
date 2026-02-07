@@ -1,7 +1,5 @@
 'use client'
 
-import { CONFIG } from '@/lib/config'
-import { safeFormatDistance } from '@/lib/format-date'
 import {
   AlertCircle,
   CheckCircle,
@@ -27,6 +25,8 @@ import {
 } from '@/components/dashboard/lazy-components'
 import { useAlerts } from '@/hooks/use-alerts'
 import { useDashboard } from '@/hooks/use-dashboard'
+import { CONFIG } from '@/lib/config'
+import { safeFormatDistance } from '@/lib/format-date'
 import type { EvalRun, EvalRunStatus } from '@/lib/types'
 
 export default function Dashboard() {

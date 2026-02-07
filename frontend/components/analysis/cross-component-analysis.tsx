@@ -26,11 +26,11 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
+import { HelpTooltip } from '@/components/ui/help-tooltip'
 import type {
   ComponentMetrics,
   CorrelationPair,
 } from '@/hooks/use-component-correlation'
-import { HelpTooltip } from '@/components/ui/help-tooltip'
 
 // =============================================================================
 // Types

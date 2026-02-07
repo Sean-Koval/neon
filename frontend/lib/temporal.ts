@@ -353,9 +353,7 @@ export async function listEvalRuns(options?: {
   const timeoutPromise = new Promise<never>((_, reject) => {
     setTimeout(
       () =>
-        reject(
-          new Error('Temporal list timeout - service may be unavailable'),
-        ),
+        reject(new Error('Temporal list timeout - service may be unavailable')),
       timeoutMs,
     )
   })

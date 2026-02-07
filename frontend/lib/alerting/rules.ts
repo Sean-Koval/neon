@@ -45,7 +45,8 @@ export const DEFAULT_ALERT_RULES: AlertRule[] = [
   {
     id: 'eval-score-low',
     name: 'Low Eval Score',
-    description: 'Fires when average eval score drops below configured threshold',
+    description:
+      'Fires when average eval score drops below configured threshold',
     severity: 'warning',
     enabled: true,
     metric: 'eval.avg_score',

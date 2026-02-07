@@ -12,13 +12,13 @@ import {
   ComparisonHeaderError,
   ComparisonHeaderSkeleton,
 } from '@/components/compare/comparison-header'
-import { StatisticalGuidance } from '@/components/compare/statistical-guidance'
 import {
   RunSelector,
   RunSummaryCard,
   SuiteFilter,
   ThresholdSelector,
 } from '@/components/compare/run-selector'
+import { StatisticalGuidance } from '@/components/compare/statistical-guidance'
 import { THRESHOLD_OPTIONS, useCompare } from '@/hooks/use-compare'
 import { getUniqueSuites, useRuns } from '@/hooks/use-runs'
 

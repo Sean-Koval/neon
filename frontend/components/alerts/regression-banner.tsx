@@ -18,9 +18,7 @@ export function RegressionBanner({ alerts }: RegressionBannerProps) {
   return (
     <div
       className={`rounded-lg border px-4 py-3 ${
-        isCritical
-          ? 'bg-red-50 border-red-200'
-          : 'bg-amber-50 border-amber-200'
+        isCritical ? 'bg-red-50 border-red-200' : 'bg-amber-50 border-amber-200'
       }`}
       role="alert"
     >
@@ -48,8 +46,7 @@ export function RegressionBanner({ alerts }: RegressionBannerProps) {
               className={`text-xs mt-0.5 ${isCritical ? 'text-red-600' : 'text-amber-600'}`}
             >
               {alerts[0].suiteName}: {alerts[0].details}
-              {alerts.length > 1 &&
-                ` and ${alerts.length - 1} more`}
+              {alerts.length > 1 && ` and ${alerts.length - 1} more`}
             </p>
           </div>
         </div>

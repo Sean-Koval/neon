@@ -5,11 +5,7 @@
  * Supports webhook (POST to URL) and console logging.
  */
 
-import type {
-  AlertNotification,
-  AlertRule,
-  WebhookPayload,
-} from './types'
+import type { AlertNotification, AlertRule, WebhookPayload } from './types'
 
 /** Format a human-readable alert message */
 function formatAlertMessage(notification: AlertNotification): string {
@@ -65,7 +61,8 @@ export class AlertNotifier {
   private fetchFn: typeof fetch
 
   constructor(options: NotifierOptions = {}) {
-    this.webhookUrl = options.webhookUrl ?? process.env.ALERT_WEBHOOK_URL ?? null
+    this.webhookUrl =
+      options.webhookUrl ?? process.env.ALERT_WEBHOOK_URL ?? null
     this.consoleEnabled = options.consoleEnabled ?? true
     this.fetchFn = options.fetchFn ?? fetch
   }
@@ -139,7 +136,9 @@ export class AlertNotifier {
       })
 
       if (!response.ok) {
-        console.error(`Webhook delivery failed: ${response.status} ${response.statusText}`)
+        console.error(
+          `Webhook delivery failed: ${response.status} ${response.statusText}`,
+        )
         return false
       }
 

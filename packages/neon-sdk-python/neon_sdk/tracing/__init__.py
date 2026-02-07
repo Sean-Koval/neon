@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING, Any, ParamSpec, TypeVar
 if TYPE_CHECKING:
     pass  # Keep TYPE_CHECKING for potential future use
 
+from neon_sdk.tracing.exporter import ExportSpan, NeonExporter, create_neon_exporter
 from neon_sdk.types import ComponentType
 
 # =============================================================================
@@ -517,8 +518,6 @@ def traced_planning(
     """Decorator for planning spans."""
     return traced(name, span_type="span", component_type=ComponentType.PLANNING)
 
-
-from neon_sdk.tracing.exporter import ExportSpan, NeonExporter, create_neon_exporter
 
 __all__ = [
     # Context

@@ -12,12 +12,12 @@ import {
   TrendingUp,
 } from 'lucide-react'
 import { useState } from 'react'
-import type { CompareResponse, RegressionItem } from '@/lib/types'
 import { HelpTooltip } from '@/components/ui/help-tooltip'
+import type { CompareResponse, RegressionItem } from '@/lib/types'
 import {
   ConfidenceIntervalBar,
-  SignificanceIndicator,
   formatConfidenceInterval,
+  SignificanceIndicator,
 } from './confidence-interval'
 
 interface CompareResultsProps {

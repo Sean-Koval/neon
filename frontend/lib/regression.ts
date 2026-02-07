@@ -70,10 +70,7 @@ function computeHistoricalAvg(
 
   if (suiteRuns.length === 0) return null
 
-  const sum = suiteRuns.reduce(
-    (acc, r) => acc + (r.summary?.avg_score ?? 0),
-    0,
-  )
+  const sum = suiteRuns.reduce((acc, r) => acc + (r.summary?.avg_score ?? 0), 0)
   return sum / suiteRuns.length
 }
 
@@ -177,9 +174,7 @@ export function detectRegressions(
     if (a.severity !== b.severity) {
       return a.severity === 'critical' ? -1 : 1
     }
-    return (
-      new Date(b.detectedAt).getTime() - new Date(a.detectedAt).getTime()
-    )
+    return new Date(b.detectedAt).getTime() - new Date(a.detectedAt).getTime()
   })
 
   return alerts

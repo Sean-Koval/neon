@@ -1,2 +1,2 @@
 export { SuiteEditor } from './suite-editor'
-export { type SuiteFormData, DEFAULT_FORM_DATA } from './types'
+export { DEFAULT_FORM_DATA, type SuiteFormData } from './types'

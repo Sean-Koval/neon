@@ -98,8 +98,8 @@ export function StatisticalGuidance() {
               Confidence Intervals
             </h4>
             <p className="text-gray-600">
-              A 95% CI shows the range where the true value likely falls. If
-              two CIs don&apos;t overlap, the difference is likely significant.
+              A 95% CI shows the range where the true value likely falls. If two
+              CIs don&apos;t overlap, the difference is likely significant.
             </p>
           </div>
         </div>

@@ -11,14 +11,17 @@ export function StepReview({ data }: StepReviewProps) {
   const issues: string[] = []
   if (!data.name.trim()) issues.push('Suite name is required')
   if (!data.agent_id.trim()) issues.push('Agent ID is required')
-  if (data.default_scorers.length === 0) issues.push('At least one default scorer is required')
+  if (data.default_scorers.length === 0)
+    issues.push('At least one default scorer is required')
   if (data.cases.length === 0) issues.push('At least one test case is required')
 
   for (let i = 0; i < data.cases.length; i++) {
     const c = data.cases[i]
     if (!c.name.trim()) issues.push(`Case ${i + 1} is missing a name`)
-    if (Object.keys(c.input).length === 0) issues.push(`Case ${i + 1} has empty input`)
-    if (c.scorers.length === 0) issues.push(`Case ${i + 1} has no scorers selected`)
+    if (Object.keys(c.input).length === 0)
+      issues.push(`Case ${i + 1} has empty input`)
+    if (c.scorers.length === 0)
+      issues.push(`Case ${i + 1} has no scorers selected`)
   }
 
   const isValid = issues.length === 0
@@ -41,7 +44,10 @@ export function StepReview({ data }: StepReviewProps) {
           </div>
           <ul className="space-y-1">
             {issues.map((issue) => (
-              <li key={issue} className="text-sm text-amber-300/80 ml-6 list-disc">
+              <li
+                key={issue}
+                className="text-sm text-amber-300/80 ml-6 list-disc"
+              >
                 {issue}
               </li>
             ))}
@@ -73,7 +79,9 @@ export function StepReview({ data }: StepReviewProps) {
         </div>
 
         <div className="p-4">
-          <h4 className="text-sm font-medium text-zinc-400 mb-2">Configuration</h4>
+          <h4 className="text-sm font-medium text-zinc-400 mb-2">
+            Configuration
+          </h4>
           <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
             <dt className="text-zinc-500">Scorers</dt>
             <dd className="text-zinc-200">
@@ -88,7 +96,9 @@ export function StepReview({ data }: StepReviewProps) {
             <dt className="text-zinc-500">Parallel</dt>
             <dd className="text-zinc-200">{data.parallel ? 'Yes' : 'No'}</dd>
             <dt className="text-zinc-500">Stop on Failure</dt>
-            <dd className="text-zinc-200">{data.stop_on_failure ? 'Yes' : 'No'}</dd>
+            <dd className="text-zinc-200">
+              {data.stop_on_failure ? 'Yes' : 'No'}
+            </dd>
           </dl>
         </div>
 
@@ -101,13 +111,18 @@ export function StepReview({ data }: StepReviewProps) {
           ) : (
             <ul className="space-y-2">
               {data.cases.map((c, i) => (
-                <li key={`review-${i}`} className="flex items-start gap-2 text-sm">
+                <li
+                  key={`review-${i}`}
+                  className="flex items-start gap-2 text-sm"
+                >
                   <span className="text-zinc-500 shrink-0">{i + 1}.</span>
                   <div>
-                    <span className="text-zinc-200">{c.name || '(untitled)'}</span>
+                    <span className="text-zinc-200">
+                      {c.name || '(untitled)'}
+                    </span>
                     <span className="text-zinc-500 ml-2">
-                      {c.scorers.length} scorer{c.scorers.length !== 1 ? 's' : ''},
-                      min {c.min_score}
+                      {c.scorers.length} scorer
+                      {c.scorers.length !== 1 ? 's' : ''}, min {c.min_score}
                     </span>
                   </div>
                 </li>

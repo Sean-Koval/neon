@@ -8,7 +8,6 @@
  */
 
 import { format } from 'date-fns'
-import { safeFormatDistance } from '@/lib/format-date'
 import {
   ArrowLeft,
   Download,
@@ -30,6 +29,7 @@ import {
   useWorkflowRun,
   useWorkflowRunStatus,
 } from '@/hooks/use-workflow-runs'
+import { safeFormatDistance } from '@/lib/format-date'
 
 interface RunResultSummary {
   total: number

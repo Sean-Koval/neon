@@ -7,12 +7,12 @@
 
 import { type NextRequest, NextResponse } from 'next/server'
 import { v4 as uuidv4 } from 'uuid'
-import type { ComparisonPair } from '@/lib/types'
-import { createComparisonSchema } from '@/lib/validation/schemas'
-import { validateBody } from '@/lib/validation/middleware'
-import { withRateLimit } from '@/lib/middleware/rate-limit'
-import { WRITE_LIMIT, READ_LIMIT } from '@/lib/rate-limit'
 import { logger } from '@/lib/logger'
+import { withRateLimit } from '@/lib/middleware/rate-limit'
+import { READ_LIMIT, WRITE_LIMIT } from '@/lib/rate-limit'
+import type { ComparisonPair } from '@/lib/types'
+import { validateBody } from '@/lib/validation/middleware'
+import { createComparisonSchema } from '@/lib/validation/schemas'
 
 // In-memory store for comparison pairs (will be replaced with ClickHouse)
 const comparisonStore = new Map<string, ComparisonPair>()

@@ -22,9 +22,8 @@ Example:
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
-import time
-import uuid
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -214,10 +213,8 @@ class NeonExporter:
 
         if self._flush_task:
             self._flush_task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await self._flush_task
-            except asyncio.CancelledError:
-                pass
 
         await self.flush()
 

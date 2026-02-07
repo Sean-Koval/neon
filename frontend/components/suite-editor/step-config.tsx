@@ -20,7 +20,9 @@ export function StepConfig({ data, onChange }: StepConfigProps) {
   return (
     <div className="space-y-6">
       <div>
-        <h3 className="text-lg font-medium text-zinc-100">Default Configuration</h3>
+        <h3 className="text-lg font-medium text-zinc-100">
+          Default Configuration
+        </h3>
         <p className="text-sm text-zinc-400 mt-1">
           Set defaults that apply to all test cases unless overridden.
         </p>
@@ -54,7 +56,10 @@ export function StepConfig({ data, onChange }: StepConfigProps) {
 
       {/* Min score */}
       <div>
-        <label htmlFor="min-score" className="block text-sm font-medium text-zinc-300">
+        <label
+          htmlFor="min-score"
+          className="block text-sm font-medium text-zinc-300"
+        >
           Minimum Pass Score: {data.default_min_score}
         </label>
         <input
@@ -64,7 +69,9 @@ export function StepConfig({ data, onChange }: StepConfigProps) {
           max={1}
           step={0.05}
           value={data.default_min_score}
-          onChange={(e) => onChange({ default_min_score: Number.parseFloat(e.target.value) })}
+          onChange={(e) =>
+            onChange({ default_min_score: Number.parseFloat(e.target.value) })
+          }
           className="mt-2 w-full accent-blue-500"
         />
         <div className="flex justify-between text-xs text-zinc-500 mt-1">
@@ -75,7 +82,10 @@ export function StepConfig({ data, onChange }: StepConfigProps) {
 
       {/* Timeout */}
       <div>
-        <label htmlFor="timeout" className="block text-sm font-medium text-zinc-300">
+        <label
+          htmlFor="timeout"
+          className="block text-sm font-medium text-zinc-300"
+        >
           Default Timeout (seconds)
         </label>
         <input
@@ -84,7 +94,12 @@ export function StepConfig({ data, onChange }: StepConfigProps) {
           min={1}
           max={3600}
           value={data.default_timeout_seconds}
-          onChange={(e) => onChange({ default_timeout_seconds: Number.parseInt(e.target.value, 10) || 120 })}
+          onChange={(e) =>
+            onChange({
+              default_timeout_seconds:
+                Number.parseInt(e.target.value, 10) || 120,
+            })
+          }
           className="mt-1 block w-32 rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
         />
       </div>
@@ -99,8 +114,12 @@ export function StepConfig({ data, onChange }: StepConfigProps) {
             className="h-4 w-4 rounded border-zinc-600 bg-zinc-800 text-blue-500 focus:ring-blue-500"
           />
           <div>
-            <span className="text-sm font-medium text-zinc-200">Run cases in parallel</span>
-            <p className="text-xs text-zinc-500">Execute test cases concurrently for faster results</p>
+            <span className="text-sm font-medium text-zinc-200">
+              Run cases in parallel
+            </span>
+            <p className="text-xs text-zinc-500">
+              Execute test cases concurrently for faster results
+            </p>
           </div>
         </label>
 
@@ -112,8 +131,12 @@ export function StepConfig({ data, onChange }: StepConfigProps) {
             className="h-4 w-4 rounded border-zinc-600 bg-zinc-800 text-blue-500 focus:ring-blue-500"
           />
           <div>
-            <span className="text-sm font-medium text-zinc-200">Stop on first failure</span>
-            <p className="text-xs text-zinc-500">Halt execution immediately when a case fails</p>
+            <span className="text-sm font-medium text-zinc-200">
+              Stop on first failure
+            </span>
+            <p className="text-xs text-zinc-500">
+              Halt execution immediately when a case fails
+            </p>
           </div>
         </label>
       </div>
