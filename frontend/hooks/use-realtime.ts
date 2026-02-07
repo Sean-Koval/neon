@@ -1,12 +1,17 @@
 /**
  * Real-time Updates Hook
  *
- * Provides real-time eval run updates via WebSocket with automatic
- * polling fallback when WebSocket is unavailable.
+ * Provides real-time eval run updates via Server-Sent Events (SSE) with
+ * automatic polling fallback when SSE is unavailable.
+ *
+ * Architecture: Uses the /api/eval-progress SSE endpoint for each subscribed
+ * run ID. Each subscription opens its own EventSource connection that receives
+ * progress, complete, and error events from the server. Falls back to batch
+ * polling via the REST API when SSE connections fail.
  *
  * Features:
- * - WebSocket connection with auto-reconnection
- * - Polling fallback for environments without WebSocket support
+ * - SSE connection per subscription with auto-reconnection
+ * - Polling fallback for environments without SSE support
  * - Subscribe to specific run IDs for targeted updates
  * - Connection status tracking
  * - Automatic cleanup on unmount
@@ -14,14 +19,11 @@
 
 import { useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { v4 as uuidv4 } from 'uuid'
 
 import { api } from '@/lib/api'
 import { CONFIG } from '@/lib/config'
 import type {
   ConnectionStatus,
-  IncomingWebSocketMessage,
-  OutgoingWebSocketMessage,
   RunStatusUpdate,
   UseRealtimeOptions,
   UseRealtimeReturn,
@@ -31,31 +33,21 @@ import { workflowQueryKeys } from './use-workflow-runs'
 
 // Default configuration
 const DEFAULT_OPTIONS: Required<
-  Omit<UseRealtimeOptions, 'onConnectionChange' | 'onError' | 'wsUrl'>
+  Omit<UseRealtimeOptions, 'onConnectionChange' | 'onError'>
 > = {
-  enableWebSocket: true,
   pollingInterval: CONFIG.REALTIME_POLLING_INTERVAL_MS,
   maxReconnectAttempts: CONFIG.REALTIME_MAX_RECONNECT_ATTEMPTS,
   reconnectDelay: CONFIG.REALTIME_RECONNECT_DELAY_MS,
-  pingInterval: CONFIG.REALTIME_PING_INTERVAL_MS,
 }
 
 /**
- * Detect WebSocket URL from current location.
+ * State for a single SSE subscription.
  */
-function getDefaultWsUrl(): string {
-  if (typeof window === 'undefined') {
-    return 'ws://localhost:3000/api/ws'
-  }
-  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-  return `${protocol}//${window.location.host}/api/ws`
-}
-
-/**
- * Check if WebSocket is supported in the current environment.
- */
-function isWebSocketSupported(): boolean {
-  return typeof WebSocket !== 'undefined'
+interface SseSubscription {
+  runId: string
+  eventSource: EventSource
+  reconnectAttempts: number
+  reconnectTimeout: ReturnType<typeof setTimeout> | null
 }
 
 /**
@@ -77,7 +69,7 @@ function pollToUpdate(
 /**
  * Hook for real-time eval run updates.
  *
- * Provides WebSocket-based real-time updates with automatic polling fallback.
+ * Provides SSE-based real-time updates with automatic polling fallback.
  * Manages subscriptions to specific run IDs and handles reconnection logic.
  *
  * @example
@@ -100,12 +92,9 @@ export function useRealtime(
   options: UseRealtimeOptions = {},
 ): UseRealtimeReturn {
   const {
-    wsUrl = getDefaultWsUrl(),
-    enableWebSocket = DEFAULT_OPTIONS.enableWebSocket,
     pollingInterval = DEFAULT_OPTIONS.pollingInterval,
     maxReconnectAttempts = DEFAULT_OPTIONS.maxReconnectAttempts,
     reconnectDelay = DEFAULT_OPTIONS.reconnectDelay,
-    pingInterval = DEFAULT_OPTIONS.pingInterval,
     onConnectionChange,
     onError,
   } = options
@@ -115,24 +104,18 @@ export function useRealtime(
   // State
   const [connectionStatus, setConnectionStatus] =
     useState<ConnectionStatus>('disconnected')
-  const [isWebSocket, setIsWebSocket] = useState(false)
+  const [isStreaming, setIsStreaming] = useState(false)
   const [runStatuses, setRunStatuses] = useState<Map<string, RunStatusUpdate>>(
     () => new Map(),
   )
 
   // Refs for mutable state that doesn't trigger re-renders
-  const wsRef = useRef<WebSocket | null>(null)
-  const subscriptionsRef = useRef<Set<string>>(new Set())
-  const reconnectAttemptsRef = useRef(0)
-  const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const pingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const sseConnectionsRef = useRef<Map<string, SseSubscription>>(new Map())
   const batchPollingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(
     null,
   )
   const pollingRunIdsRef = useRef<Set<string>>(new Set())
   const mountedRef = useRef(true)
-  // Track isWebSocket via ref so subscribe/unsubscribe have stable identities
-  const isWebSocketRef = useRef(false)
   // Generation counter to discard stale poll results after disconnect
   const pollGenerationRef = useRef(0)
 
@@ -149,11 +132,6 @@ export function useRealtime(
     onErrorRef.current = onError
   }, [onError])
 
-  // Keep isWebSocketRef in sync with state
-  useEffect(() => {
-    isWebSocketRef.current = isWebSocket
-  }, [isWebSocket])
-
   /**
    * Update connection status and notify callback.
    */
@@ -167,120 +145,99 @@ export function useRealtime(
   )
 
   /**
-   * Handle incoming WebSocket message.
+   * Recompute aggregate connection status from all SSE connections.
    */
-  const handleMessage = useCallback(
-    (message: IncomingWebSocketMessage) => {
-      if (!mountedRef.current) return
+  const recomputeConnectionStatus = useCallback(() => {
+    if (!mountedRef.current) return
 
-      switch (message.type) {
-        case 'update':
-          if (message.payload) {
-            const update = message.payload
-            setRunStatuses((prev) => {
-              const next = new Map(prev)
-              next.set(update.runId, update)
-              return next
-            })
+    const connections = sseConnectionsRef.current
+    const pollingIds = pollingRunIdsRef.current
 
-            // Also update React Query cache for consistency
-            queryClient.setQueryData<WorkflowStatusPoll>(
-              workflowQueryKeys.status(update.runId),
-              {
-                id: update.runId,
-                status: update.status,
-                isRunning: update.status === 'RUNNING',
-                isComplete: update.status === 'COMPLETED',
-                isFailed:
-                  update.status === 'FAILED' ||
-                  update.status === 'CANCELLED' ||
-                  update.status === 'TERMINATED',
-                progress: update.progress,
-                summary: update.summary,
-                error: update.error,
-              },
-            )
-          }
-          break
+    if (connections.size === 0 && pollingIds.size === 0) {
+      updateConnectionStatus('disconnected')
+      setIsStreaming(false)
+      return
+    }
 
-        case 'error':
-          if (message.payload) {
-            onErrorRef.current?.(message.payload)
-          }
-          break
+    // If any SSE connections are active, we're streaming
+    if (connections.size > 0) {
+      setIsStreaming(true)
+      updateConnectionStatus('connected')
+      return
+    }
 
-        case 'pong':
-          // Connection is alive, nothing to do
-          break
-
-        case 'ack':
-          // Subscription acknowledged, nothing to do
-          break
-      }
-    },
-    [queryClient], // Removed onError - uses ref instead
-  )
+    // Only polling — connected but not streaming
+    if (pollingIds.size > 0) {
+      setIsStreaming(false)
+      updateConnectionStatus('connected')
+    }
+  }, [updateConnectionStatus])
 
   /**
-   * Send a message via WebSocket.
+   * Handle an SSE progress update for a run.
    */
-  const sendMessage = useCallback((message: OutgoingWebSocketMessage) => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify(message))
-      return true
-    }
-    return false
-  }, [])
+  const handleRunUpdate = useCallback(
+    (runId: string, data: RunStatusUpdate) => {
+      if (!mountedRef.current) return
+
+      setRunStatuses((prev) => {
+        const next = new Map(prev)
+        next.set(runId, data)
+        return next
+      })
+
+      // Update React Query cache for consistency
+      queryClient.setQueryData<WorkflowStatusPoll>(
+        workflowQueryKeys.status(runId),
+        {
+          id: runId,
+          status: data.status,
+          isRunning: data.status === 'RUNNING',
+          isComplete: data.status === 'COMPLETED',
+          isFailed:
+            data.status === 'FAILED' ||
+            data.status === 'CANCELLED' ||
+            data.status === 'TERMINATED',
+          progress: data.progress,
+          summary: data.summary,
+          error: data.error,
+        },
+      )
+    },
+    [queryClient],
+  )
+
+  // =========================================================================
+  // Polling Fallback
+  // =========================================================================
 
   /**
    * Execute a single batch poll for all active polling run IDs.
-   * Fetches status for all runs concurrently and removes completed runs.
    * Uses a generation counter to discard results from stale polls.
    */
   const executeBatchPoll = useCallback(async () => {
     if (!mountedRef.current) return
-    const runIds = Array.from(pollingRunIdsRef.current) as string[]
+    const runIds = Array.from(pollingRunIdsRef.current)
     if (runIds.length === 0) return
 
-    const activeRunIds = runIds.filter((id) => subscriptionsRef.current.has(id))
-    if (activeRunIds.length === 0) return
-
-    // Capture generation at start of poll to detect staleness
     const generation = pollGenerationRef.current
 
     const results = await Promise.allSettled(
-      activeRunIds.map(async (runId) => {
+      runIds.map(async (runId) => {
         const status = await api.getWorkflowRunStatus(runId)
         return { runId, status }
       }),
     )
 
-    // Discard results if component unmounted or a disconnect invalidated this poll
     if (!mountedRef.current) return
     if (generation !== pollGenerationRef.current) return
 
     const completedRunIds: string[] = []
-    const updates = new Map<string, RunStatusUpdate>()
 
     for (const result of results) {
       if (result.status === 'fulfilled') {
         const { runId, status } = result.value
-        updates.set(runId, pollToUpdate(runId, status))
-
-        // Update React Query cache for consistency
-        queryClient.setQueryData<WorkflowStatusPoll>(
-          workflowQueryKeys.status(runId),
-          {
-            id: runId,
-            status: status.status,
-            isRunning: status.isRunning,
-            isComplete: status.isComplete,
-            isFailed: status.isFailed,
-            progress: status.progress,
-            summary: status.summary,
-            error: status.error,
-          },
-        )
+        handleRunUpdate(runId, pollToUpdate(runId, status))
 
         if (!status.isRunning) {
           completedRunIds.push(runId)
@@ -290,23 +247,10 @@ export function useRealtime(
       }
     }
 
-    // Batch state update
-    if (updates.size > 0) {
-      setRunStatuses((prev) => {
-        const next = new Map(prev)
-        for (const [runId, update] of updates) {
-          next.set(runId, update)
-        }
-        return next
-      })
-    }
-
-    // Remove completed runs from polling set
     for (const runId of completedRunIds) {
       pollingRunIdsRef.current.delete(runId)
     }
 
-    // Stop the interval if no more runs to poll
     if (
       pollingRunIdsRef.current.size === 0 &&
       batchPollingIntervalRef.current
@@ -314,7 +258,7 @@ export function useRealtime(
       clearInterval(batchPollingIntervalRef.current)
       batchPollingIntervalRef.current = null
     }
-  }, [queryClient])
+  }, [handleRunUpdate])
 
   /**
    * Ensure the batch polling interval is running.
@@ -335,34 +279,38 @@ export function useRealtime(
   const startPolling = useCallback(
     (runId: string) => {
       pollingRunIdsRef.current.add(runId)
-      // Fire an immediate poll, then the interval takes over
       executeBatchPoll()
       ensureBatchPollingStarted()
+      recomputeConnectionStatus()
     },
-    [executeBatchPoll, ensureBatchPollingStarted],
+    [executeBatchPoll, ensureBatchPollingStarted, recomputeConnectionStatus],
   )
 
   /**
    * Stop polling for a specific run ID.
    */
-  const stopPolling = useCallback((runId: string) => {
-    pollingRunIdsRef.current.delete(runId)
+  const stopPolling = useCallback(
+    (runId: string) => {
+      pollingRunIdsRef.current.delete(runId)
 
-    if (
-      pollingRunIdsRef.current.size === 0 &&
-      batchPollingIntervalRef.current
-    ) {
-      clearInterval(batchPollingIntervalRef.current)
-      batchPollingIntervalRef.current = null
-    }
-  }, [])
+      if (
+        pollingRunIdsRef.current.size === 0 &&
+        batchPollingIntervalRef.current
+      ) {
+        clearInterval(batchPollingIntervalRef.current)
+        batchPollingIntervalRef.current = null
+      }
+
+      recomputeConnectionStatus()
+    },
+    [recomputeConnectionStatus],
+  )
 
   /**
    * Stop all polling and invalidate in-flight poll results.
    */
   const stopAllPolling = useCallback(() => {
     pollingRunIdsRef.current.clear()
-    // Bump generation to invalidate any in-flight poll results
     pollGenerationRef.current++
     if (batchPollingIntervalRef.current) {
       clearInterval(batchPollingIntervalRef.current)
@@ -370,240 +318,196 @@ export function useRealtime(
     }
   }, [])
 
-  /**
-   * Start ping interval to keep WebSocket alive.
-   */
-  const startPingInterval = useCallback(() => {
-    if (pingIntervalRef.current) {
-      clearInterval(pingIntervalRef.current)
-    }
-
-    pingIntervalRef.current = setInterval(() => {
-      // Access wsRef directly instead of through sendMessage to avoid dependency
-      if (wsRef.current?.readyState === WebSocket.OPEN) {
-        wsRef.current.send(
-          JSON.stringify({
-            type: 'ping',
-            timestamp: new Date().toISOString(),
-          }),
-        )
-      }
-    }, pingInterval)
-  }, [pingInterval])
+  // =========================================================================
+  // SSE Connection Management
+  // =========================================================================
 
   /**
-   * Stop ping interval.
+   * Close an SSE connection for a run and clean up its state.
    */
-  const stopPingInterval = useCallback(() => {
-    if (pingIntervalRef.current) {
-      clearInterval(pingIntervalRef.current)
-      pingIntervalRef.current = null
+  const closeSseConnection = useCallback((runId: string) => {
+    const sub = sseConnectionsRef.current.get(runId)
+    if (!sub) return
+
+    if (sub.reconnectTimeout) {
+      clearTimeout(sub.reconnectTimeout)
     }
+    sub.eventSource.close()
+    sseConnectionsRef.current.delete(runId)
   }, [])
 
   /**
-   * Connect to WebSocket server.
-   * Uses refs for callbacks to avoid dependency chain issues that cause memory leaks.
+   * Open an SSE connection for a specific run ID.
+   * Falls back to polling on failure after max reconnect attempts.
    */
-  const connect = useCallback(() => {
-    if (!mountedRef.current) return
-    if (!enableWebSocket || !isWebSocketSupported()) {
-      setIsWebSocket(false)
-      updateConnectionStatus('disconnected')
-      return
-    }
-
-    // Close existing connection and clear its event handlers
-    if (wsRef.current) {
-      // Clear event handlers to prevent memory leaks
-      wsRef.current.onopen = null
-      wsRef.current.onmessage = null
-      wsRef.current.onerror = null
-      wsRef.current.onclose = null
-      wsRef.current.close()
-      wsRef.current = null
-    }
-
-    updateConnectionStatus('connecting')
-
-    try {
-      const ws = new WebSocket(wsUrl)
-      wsRef.current = ws
-
-      ws.onopen = () => {
-        if (!mountedRef.current) {
-          ws.close()
-          return
-        }
-
-        reconnectAttemptsRef.current = 0
-        setIsWebSocket(true)
-        updateConnectionStatus('connected')
-        startPingInterval()
-
-        // Stop polling since WebSocket is connected
-        stopAllPolling()
-
-        // Re-subscribe to all current subscriptions
-        for (const runId of subscriptionsRef.current) {
-          if (wsRef.current?.readyState === WebSocket.OPEN) {
-            wsRef.current.send(
-              JSON.stringify({
-                type: 'subscribe',
-                id: uuidv4(),
-                timestamp: new Date().toISOString(),
-                payload: { runId },
-              }),
-            )
-          }
-        }
-      }
-
-      ws.onmessage = (event) => {
-        try {
-          const message = JSON.parse(event.data) as IncomingWebSocketMessage
-          handleMessage(message)
-        } catch (error) {
-          console.error('Failed to parse WebSocket message:', error)
-        }
-      }
-
-      ws.onerror = (event) => {
-        console.error('WebSocket error:', event)
-        updateConnectionStatus('error')
-        onErrorRef.current?.({
-          code: 'WS_ERROR',
-          message: 'WebSocket connection error',
-        })
-      }
-
-      ws.onclose = (event) => {
-        if (!mountedRef.current) return
-
-        wsRef.current = null
-        stopPingInterval()
-
-        // Don't reconnect if closed cleanly or max attempts reached
-        if (
-          event.wasClean ||
-          reconnectAttemptsRef.current >= maxReconnectAttempts
-        ) {
-          setIsWebSocket(false)
-          updateConnectionStatus('disconnected')
-
-          // Fall back to polling for active subscriptions
-          for (const runId of subscriptionsRef.current) {
-            startPolling(runId)
-          }
-          return
-        }
-
-        // Attempt reconnection with exponential backoff
-        reconnectAttemptsRef.current++
-        const delay = reconnectDelay * 2 ** (reconnectAttemptsRef.current - 1)
-
-        updateConnectionStatus('reconnecting')
-
-        reconnectTimeoutRef.current = setTimeout(() => {
-          if (mountedRef.current) {
-            connect()
-          }
-        }, delay)
-      }
-    } catch (error) {
-      console.error('Failed to create WebSocket:', error)
-      setIsWebSocket(false)
-      updateConnectionStatus('error')
-
-      // Fall back to polling
-      for (const runId of subscriptionsRef.current) {
-        startPolling(runId)
-      }
-    }
-  }, [
-    wsUrl,
-    enableWebSocket,
-    maxReconnectAttempts,
-    reconnectDelay,
-    updateConnectionStatus,
-    handleMessage,
-    startPingInterval,
-    stopPingInterval,
-    stopAllPolling,
-    startPolling,
-  ])
-
-  /**
-   * Disconnect from WebSocket server.
-   * Clears all event handlers and invalidates in-flight polls to prevent memory leaks.
-   */
-  const disconnect = useCallback(() => {
-    if (reconnectTimeoutRef.current) {
-      clearTimeout(reconnectTimeoutRef.current)
-      reconnectTimeoutRef.current = null
-    }
-
-    stopPingInterval()
-    stopAllPolling()
-
-    if (wsRef.current) {
-      // Clear event handlers before closing to prevent memory leaks
-      wsRef.current.onopen = null
-      wsRef.current.onmessage = null
-      wsRef.current.onerror = null
-      wsRef.current.onclose = null
-      wsRef.current.close(1000, 'Client disconnecting')
-      wsRef.current = null
-    }
-
-    // Clear subscriptions to release references
-    subscriptionsRef.current.clear()
-
-    // Only update state if still mounted to prevent React warnings
-    if (mountedRef.current) {
-      setIsWebSocket(false)
-      setRunStatuses(new Map())
-      updateConnectionStatus('disconnected')
-    }
-  }, [stopPingInterval, stopAllPolling, updateConnectionStatus])
-
-  /**
-   * Subscribe to updates for a specific run.
-   * Uses isWebSocketRef for stable callback identity.
-   */
-  const subscribe = useCallback(
+  const openSseConnection = useCallback(
     (runId: string) => {
-      if (subscriptionsRef.current.has(runId)) return
+      if (!mountedRef.current) return
 
-      subscriptionsRef.current.add(runId)
+      // Close existing connection for this run if any
+      closeSseConnection(runId)
 
-      if (
-        isWebSocketRef.current &&
-        wsRef.current?.readyState === WebSocket.OPEN
-      ) {
-        sendMessage({
-          type: 'subscribe',
-          id: uuidv4(),
-          timestamp: new Date().toISOString(),
-          payload: { runId },
+      const projectId =
+        typeof window !== 'undefined'
+          ? localStorage.getItem('neon-project-id') || 'default'
+          : 'default'
+      const url = `/api/eval-progress?runId=${encodeURIComponent(runId)}&projectId=${encodeURIComponent(projectId)}`
+
+      try {
+        const es = new EventSource(url)
+
+        const subscription: SseSubscription = {
+          runId,
+          eventSource: es,
+          reconnectAttempts: 0,
+          reconnectTimeout: null,
+        }
+        sseConnectionsRef.current.set(runId, subscription)
+
+        es.onopen = () => {
+          if (!mountedRef.current) {
+            es.close()
+            return
+          }
+          subscription.reconnectAttempts = 0
+          recomputeConnectionStatus()
+        }
+
+        // Listen for progress events
+        es.addEventListener('progress', (event) => {
+          try {
+            const parsed = JSON.parse(event.data)
+            if (parsed.data) {
+              handleRunUpdate(runId, {
+                runId,
+                status: parsed.data.status,
+                progress: parsed.data.progress,
+                summary: parsed.data.summary,
+                error: parsed.data.error,
+                latestResult: parsed.data.latestResult,
+              })
+            }
+          } catch {
+            console.error('Failed to parse SSE progress event')
+          }
         })
-      } else {
-        // Use polling if WebSocket not available
+
+        // Listen for completion events
+        es.addEventListener('complete', (event) => {
+          try {
+            const parsed = JSON.parse(event.data)
+            if (parsed.data) {
+              handleRunUpdate(runId, {
+                runId,
+                status: parsed.data.status,
+                progress: parsed.data.progress,
+                summary: parsed.data.summary,
+                error: parsed.data.error,
+              })
+            }
+          } catch {
+            console.error('Failed to parse SSE complete event')
+          }
+          // Close on completion — run is done
+          closeSseConnection(runId)
+          recomputeConnectionStatus()
+        })
+
+        // Listen for error events (both SSE data errors and connection errors)
+        es.addEventListener('error', (event) => {
+          // Check if it's an SSE error event with data
+          if (event instanceof MessageEvent && event.data) {
+            try {
+              const parsed = JSON.parse(event.data)
+              if (parsed.data?.error) {
+                onErrorRef.current?.({
+                  code: 'SSE_ERROR',
+                  message: parsed.data.error,
+                })
+              }
+              if (parsed.data) {
+                handleRunUpdate(runId, {
+                  runId,
+                  status: parsed.data.status,
+                  progress: parsed.data.progress,
+                  summary: parsed.data.summary,
+                  error: parsed.data.error,
+                })
+              }
+            } catch {
+              // Not a data event
+            }
+            closeSseConnection(runId)
+            recomputeConnectionStatus()
+            return
+          }
+
+          // Connection error — attempt reconnection
+          if (!mountedRef.current) return
+
+          es.close()
+
+          if (subscription.reconnectAttempts >= maxReconnectAttempts) {
+            // Give up on SSE, fall back to polling for this run
+            sseConnectionsRef.current.delete(runId)
+            startPolling(runId)
+            return
+          }
+
+          subscription.reconnectAttempts++
+          const delay =
+            reconnectDelay * 2 ** (subscription.reconnectAttempts - 1)
+
+          subscription.reconnectTimeout = setTimeout(() => {
+            if (mountedRef.current) {
+              openSseConnection(runId)
+            }
+          }, delay)
+        })
+
+        // Handle generic message events (initial connection, heartbeats)
+        es.onmessage = () => {
+          // Heartbeats and connection confirmations — no action needed
+        }
+      } catch {
+        // EventSource creation failed — fall back to polling
         startPolling(runId)
       }
     },
-    [sendMessage, startPolling],
+    [
+      closeSseConnection,
+      handleRunUpdate,
+      maxReconnectAttempts,
+      reconnectDelay,
+      recomputeConnectionStatus,
+      startPolling,
+    ],
+  )
+
+  // =========================================================================
+  // Public API
+  // =========================================================================
+
+  /**
+   * Subscribe to updates for a specific run.
+   */
+  const subscribe = useCallback(
+    (runId: string) => {
+      // Already subscribed via SSE or polling
+      if (sseConnectionsRef.current.has(runId)) return
+      if (pollingRunIdsRef.current.has(runId)) return
+
+      openSseConnection(runId)
+    },
+    [openSseConnection],
   )
 
   /**
    * Unsubscribe from updates for a specific run.
-   * Uses isWebSocketRef for stable callback identity.
    */
   const unsubscribe = useCallback(
     (runId: string) => {
-      if (!subscriptionsRef.current.has(runId)) return
-
-      subscriptionsRef.current.delete(runId)
+      closeSseConnection(runId)
       stopPolling(runId)
 
       // Remove from local state
@@ -613,19 +517,9 @@ export function useRealtime(
         return next
       })
 
-      if (
-        isWebSocketRef.current &&
-        wsRef.current?.readyState === WebSocket.OPEN
-      ) {
-        sendMessage({
-          type: 'unsubscribe',
-          id: uuidv4(),
-          timestamp: new Date().toISOString(),
-          payload: { runId },
-        })
-      }
+      recomputeConnectionStatus()
     },
-    [sendMessage, stopPolling],
+    [closeSseConnection, stopPolling, recomputeConnectionStatus],
   )
 
   /**
@@ -639,42 +533,66 @@ export function useRealtime(
   )
 
   /**
-   * Manually trigger reconnection.
+   * Manually trigger reconnection for all subscriptions.
    */
   const reconnect = useCallback(() => {
-    reconnectAttemptsRef.current = 0
-    disconnect()
-    connect()
-  }, [disconnect, connect])
+    // Collect current run IDs before clearing
+    const runIds = [
+      ...Array.from(sseConnectionsRef.current.keys()),
+      ...Array.from(pollingRunIdsRef.current),
+    ]
 
-  // Store connect/disconnect in refs to avoid effect dependency issues
-  const connectRef = useRef(connect)
-  const disconnectRef = useRef(disconnect)
+    // Close all existing connections
+    for (const runId of sseConnectionsRef.current.keys()) {
+      closeSseConnection(runId)
+    }
+    stopAllPolling()
 
-  // Keep refs updated
+    // Re-open SSE connections for all runs
+    for (const runId of runIds) {
+      openSseConnection(runId)
+    }
+  }, [closeSseConnection, stopAllPolling, openSseConnection])
+
+  /**
+   * Disconnect all connections and clean up.
+   */
+  const disconnectAll = useCallback(() => {
+    // Close all SSE connections
+    for (const runId of Array.from(sseConnectionsRef.current.keys())) {
+      closeSseConnection(runId)
+    }
+
+    // Stop all polling
+    stopAllPolling()
+
+    // Only update state if still mounted
+    if (mountedRef.current) {
+      setIsStreaming(false)
+      setRunStatuses(new Map())
+      updateConnectionStatus('disconnected')
+    }
+  }, [closeSseConnection, stopAllPolling, updateConnectionStatus])
+
+  // Store disconnectAll in ref for cleanup effect
+  const disconnectAllRef = useRef(disconnectAll)
   useEffect(() => {
-    connectRef.current = connect
-  }, [connect])
+    disconnectAllRef.current = disconnectAll
+  }, [disconnectAll])
 
-  useEffect(() => {
-    disconnectRef.current = disconnect
-  }, [disconnect])
-
-  // Initialize connection on mount - uses refs to avoid dependency issues
-  // that cause memory leaks from repeated connect/disconnect cycles
+  // Cleanup on unmount
   useEffect(() => {
     mountedRef.current = true
-    connectRef.current()
 
     return () => {
       mountedRef.current = false
-      disconnectRef.current()
+      disconnectAllRef.current()
     }
-  }, []) // Empty deps - only run on mount/unmount
+  }, [])
 
   return {
     connectionStatus,
-    isWebSocket,
+    isWebSocket: isStreaming,
     subscribe,
     unsubscribe,
     getRunStatus,
