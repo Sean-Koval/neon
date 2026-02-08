@@ -36,7 +36,7 @@ NC='\033[0m'
 
 # Default values
 MODE="docker"         # docker | local
-AGENT_MODEL="gpt-4o-mini"
+AGENT_MODEL="gemini-2.5-flash"
 AGENT_QUERIES=6
 SKIP_AGENT=false
 

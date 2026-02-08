@@ -4,7 +4,7 @@
 # - Uses bun for fast dependency installation and builds
 # - Produces minimal production image with standalone output
 #
-# IMPORTANT: Build from repo root with context set to frontend:
+# IMPORTANT: Build from repo root:
 #   docker build -f frontend/Dockerfile -t neon-web .
 #
 # Or use docker-compose which handles this automatically.
@@ -18,26 +18,28 @@ FROM base AS deps
 WORKDIR /app
 
 # Copy root workspace files
-COPY package.json bun.lock ./
+COPY bun.lock ./
 
 # Copy workspace package.json files
 COPY frontend/package.json ./frontend/
 COPY packages/shared/package.json ./packages/shared/
 
+# Create a minimal root package.json that only includes needed workspaces
+RUN echo '{"name":"neon","private":true,"workspaces":["frontend","packages/shared"]}' > package.json
+
 # Install all dependencies
-RUN cd frontend && bun install --frozen-lockfile || bun install
+RUN bun install || true
 
 # =============================================================================
-# Build Stage
+# Build Stage - copy everything from deps, then add source
 # =============================================================================
 FROM base AS builder
 WORKDIR /app
 
-# Copy dependencies from deps stage
-COPY --from=deps /app/node_modules ./node_modules
-COPY --from=deps /app/frontend/node_modules ./frontend/node_modules
+# Copy entire deps workspace (includes node_modules, package.json, etc.)
+COPY --from=deps /app ./
 
-# Copy source code
+# Copy source code on top (node_modules excluded by .dockerignore)
 COPY packages/shared ./packages/shared
 COPY frontend ./frontend
 
@@ -65,7 +67,6 @@ RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs
 
 # Copy standalone build output (Next.js creates a self-contained bundle)
-COPY --from=builder /app/frontend/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/frontend/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/frontend/.next/static ./.next/static
 

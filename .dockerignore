@@ -20,9 +20,9 @@ venv/
 .coverage
 
 # Node
-node_modules/
-.next/
-.turbo/
+**/node_modules/
+**/.next/
+**/.turbo/
 
 # IDE
 .idea/
@@ -47,3 +47,6 @@ examples/
 
 # Archive
 archive/
+
+# Worktrees
+neon-*/

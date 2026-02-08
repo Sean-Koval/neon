@@ -77,7 +77,7 @@ def wait_for_api(api_url: str, max_retries: int = 30, delay: float = 2.0) -> boo
 
 def main():
     parser = argparse.ArgumentParser(description="Run demo queries with tracing")
-    parser.add_argument("--model", default="gpt-4o-mini", help="Model to use")
+    parser.add_argument("--model", default="gemini-2.5-flash", help="Model to use")
     parser.add_argument("--count", type=int, default=0, help="Number of queries (0=all)")
     parser.add_argument("--delay", type=float, default=2.0, help="Delay between queries (seconds)")
     parser.add_argument("--no-wait", action="store_true", help="Don't wait for API")
