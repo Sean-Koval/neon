@@ -1,4 +1,4 @@
-import { formatDistanceToNow } from 'date-fns'
+import { format, formatDistanceToNow } from 'date-fns'
 
 /**
  * Safely format a date string as a relative distance (e.g., "3 minutes ago").
@@ -13,6 +13,24 @@ export function safeFormatDistance(
     const date = new Date(dateStr)
     if (Number.isNaN(date.getTime())) return 'Invalid date'
     return formatDistanceToNow(date, { addSuffix: true, ...options })
+  } catch {
+    return 'Invalid date'
+  }
+}
+
+/**
+ * Safely format a date string with a date-fns format pattern.
+ * Returns a fallback string if the date is null, undefined, empty, or invalid.
+ */
+export function safeFormat(
+  dateStr: string | Date | null | undefined,
+  formatStr: string,
+): string {
+  if (!dateStr) return 'Unknown'
+  try {
+    const date = typeof dateStr === 'string' ? new Date(dateStr) : dateStr
+    if (Number.isNaN(date.getTime())) return 'Invalid date'
+    return format(date, formatStr)
   } catch {
     return 'Invalid date'
   }

@@ -20,6 +20,7 @@ import { feedbackRouter } from "./feedback";
 import { promptsRouter } from "./prompts";
 import { compareRouter } from "./compare";
 import { agentsRouter } from "./agents";
+import { alertRulesRouter } from "./alertRules";
 
 /**
  * Main app router
@@ -49,6 +50,9 @@ export const appRouter = router({
 
   // Agent registry
   agents: agentsRouter,
+
+  // Alert rules
+  alertRules: alertRulesRouter,
 });
 
 /**

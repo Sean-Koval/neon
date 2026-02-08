@@ -22,7 +22,7 @@ import {
   type CIOutput,
 } from "../cli/reporters/json-reporter.js";
 import { EXIT_CODES } from "../cli/commands/eval.js";
-import type { Suite, Test, TestResult, SuiteResult } from "../test.js";
+import type { Suite, Test, TestResult, SuiteResult } from "../test/index.js";
 
 describe("CLI Reporter", () => {
   let consoleSpy: ReturnType<typeof vi.spyOn>;

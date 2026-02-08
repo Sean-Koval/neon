@@ -1,7 +1,6 @@
 'use client'
 
 import { clsx } from 'clsx'
-import { format } from 'date-fns'
 import {
   Calendar,
   CheckCircle,
@@ -13,7 +12,7 @@ import {
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { HelpTooltip } from '@/components/ui/help-tooltip'
 import { groupRunsBySuite } from '@/hooks/use-runs'
-import { safeFormatDistance } from '@/lib/format-date'
+import { safeFormat, safeFormatDistance } from '@/lib/format-date'
 import type { EvalRun } from '@/lib/types'
 
 interface RunSelectorProps {
@@ -269,7 +268,7 @@ function RunOption({ run, isSelected, onSelect }: RunOptionProps) {
       <div className="flex items-center gap-2 mt-0.5 text-xs text-gray-500">
         <Calendar className="w-3 h-3" />
         <span>
-          {format(new Date(run.created_at), 'MMM d, yyyy')} (
+          {safeFormat(run.created_at, 'MMM d, yyyy')} (
           {safeFormatDistance(run.created_at)})
         </span>
       </div>
@@ -347,7 +346,7 @@ export function RunSummaryCard({ run, label }: RunSummaryCardProps) {
         <div className="flex items-center justify-between text-sm">
           <span className="text-gray-500">Date</span>
           <span className="text-gray-900">
-            {format(new Date(run.created_at), 'MMM d, yyyy h:mm a')}
+            {safeFormat(run.created_at, 'MMM d, yyyy h:mm a')}
           </span>
         </div>
       </div>

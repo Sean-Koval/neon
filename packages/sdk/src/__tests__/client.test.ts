@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { Neon, createNeonClient, type NeonConfig } from "../client";
+import { Neon, createNeonClient, type NeonConfig } from "../client/index";
 
 // ==================== Helpers ====================
 

@@ -6,7 +6,7 @@
  */
 
 import pc from "picocolors";
-import type { Test, TestResult, SuiteResult, Suite } from "../test.js";
+import type { Test, TestResult, SuiteResult, Suite } from "../test/index.js";
 import type { Reporter } from "../runner/index.js";
 
 /**

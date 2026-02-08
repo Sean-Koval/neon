@@ -9,7 +9,7 @@ import { glob } from "glob";
 import { pathToFileURL } from "node:url";
 import path from "node:path";
 import pc from "picocolors";
-import type { Suite, SuiteResult } from "../../test.js";
+import type { Suite, SuiteResult } from "../../test/index.js";
 import { TestRunner } from "../../runner/index.js";
 import {
   createCLIReporter,
@@ -28,7 +28,7 @@ import {
   parseThreshold,
   DEFAULT_THRESHOLD,
   type ThresholdConfig,
-} from "../../threshold.js";
+} from "../../threshold/index.js";
 import {
   generateCIOutput,
   formatCIOutput,

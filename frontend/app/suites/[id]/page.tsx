@@ -13,8 +13,9 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
-import { trpc } from '@/lib/trpc'
+import { CONFIG } from '@/lib/config'
 import { safeFormatDistance } from '@/lib/format-date'
+import { trpc } from '@/lib/trpc'
 
 interface SuiteData {
   id: string
@@ -136,7 +137,7 @@ export default function SuiteDetailPage() {
         </div>
         <div className="bg-white border rounded-lg p-4">
           <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Min Score</p>
-          <p className="text-sm font-medium">{suite.default_min_score ?? 0.7}</p>
+          <p className="text-sm font-medium">{suite.default_min_score ?? CONFIG.DEFAULT_MIN_SCORE}</p>
         </div>
         <div className="bg-white border rounded-lg p-4">
           <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Timeout</p>

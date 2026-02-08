@@ -7,7 +7,6 @@
  * Uses WebSocket for live updates with polling fallback.
  */
 
-import { format } from 'date-fns'
 import {
   ArrowLeft,
   Download,
@@ -29,7 +28,7 @@ import {
   useWorkflowRun,
   useWorkflowRunStatus,
 } from '@/hooks/use-workflow-runs'
-import { safeFormatDistance } from '@/lib/format-date'
+import { safeFormat, safeFormatDistance } from '@/lib/format-date'
 
 interface RunResultSummary {
   total: number
@@ -231,7 +230,7 @@ export default function EvalRunDetailPage() {
             Started
           </p>
           <p className="text-sm">
-            {format(new Date(run.startTime), 'MMM d, yyyy h:mm a')}
+            {safeFormat(run.startTime, 'MMM d, yyyy h:mm a')}
           </p>
         </div>
         <div className="bg-white border rounded-lg p-4">

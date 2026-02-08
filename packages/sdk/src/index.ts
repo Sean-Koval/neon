@@ -6,6 +6,9 @@
  * This is the main barrel export. For smaller bundle sizes, import from submodules:
  *
  * ```typescript
+ * import { Neon, createNeonClient } from '@neon/sdk/client';
+ * import { defineTest, defineSuite } from '@neon/sdk/test';
+ * import { parseThreshold } from '@neon/sdk/threshold';
  * import { exactMatch, llmJudge } from '@neon/sdk/scorers';
  * import { exportToAgentLightning } from '@neon/sdk/export';
  * import { detectPatterns } from '@neon/sdk/analysis';
@@ -61,7 +64,7 @@
  */
 
 // Client
-export { Neon, createNeonClient, type NeonConfig } from "./client.js";
+export { Neon, createNeonClient, type NeonConfig } from "./client/index.js";
 
 // Test definitions
 export {
@@ -80,7 +83,7 @@ export {
   type InlineScorer,
   type RunOptions,
   type AgentOutput,
-} from "./test.js";
+} from "./test/index.js";
 
 // Scorers
 export {
@@ -237,7 +240,7 @@ export {
   DEFAULT_THRESHOLD,
   type ThresholdConfig,
   type ThresholdResult,
-} from "./threshold.js";
+} from "./threshold/index.js";
 
 // CI/CD JSON output
 export {

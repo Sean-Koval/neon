@@ -4,7 +4,7 @@
  * Types for defining experiments, variants, and statistical comparisons.
  */
 
-import type { Suite, SuiteResult, TestResult } from "../test.js";
+import type { Suite, SuiteResult, TestResult } from "../test/index.js";
 import type { Scorer } from "../scorers/base.js";
 
 /**

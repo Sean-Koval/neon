@@ -13,6 +13,18 @@
       "import": "./dist/index.js",
       "types": "./dist/index.d.ts"
     },
+    "./client": {
+      "import": "./dist/client/index.js",
+      "types": "./dist/client/index.d.ts"
+    },
+    "./test": {
+      "import": "./dist/test/index.js",
+      "types": "./dist/test/index.d.ts"
+    },
+    "./threshold": {
+      "import": "./dist/threshold/index.js",
+      "types": "./dist/threshold/index.d.ts"
+    },
     "./scorers": {
       "import": "./dist/scorers/index.js",
       "types": "./dist/scorers/index.d.ts"

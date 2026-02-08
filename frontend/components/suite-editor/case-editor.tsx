@@ -2,6 +2,7 @@
 
 import { ChevronDown, ChevronRight, Trash2 } from 'lucide-react'
 import { useState } from 'react'
+import { CONFIG } from '@/lib/config'
 import type { EvalCaseCreate, ScorerType } from '@/lib/types'
 import { ALL_SCORERS } from './types'
 
@@ -189,7 +190,7 @@ export function CaseEditor({
                 onChange={(e) =>
                   updateField(
                     'min_score',
-                    Number.parseFloat(e.target.value) || 0.7,
+                    Number.parseFloat(e.target.value) || CONFIG.DEFAULT_MIN_SCORE,
                   )
                 }
                 className="mt-1 block w-24 rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-100 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"

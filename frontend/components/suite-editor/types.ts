@@ -2,6 +2,7 @@
  * Types for the Suite Editor wizard.
  */
 
+import { CONFIG } from '@/lib/config'
 import type { EvalCaseCreate, ScorerType } from '@/lib/types'
 
 export interface SuiteFormData {
@@ -30,7 +31,7 @@ export const EMPTY_CASE: EvalCaseCreate = {
   expected_output_pattern: null,
   scorers: ['tool_selection'],
   scorer_config: null,
-  min_score: 0.7,
+  min_score: CONFIG.DEFAULT_MIN_SCORE,
   tags: [],
   timeout_seconds: 60,
 }
@@ -40,7 +41,7 @@ export const DEFAULT_FORM_DATA: SuiteFormData = {
   description: '',
   agent_id: '',
   default_scorers: ['tool_selection', 'reasoning'],
-  default_min_score: 0.7,
+  default_min_score: CONFIG.DEFAULT_MIN_SCORE,
   default_timeout_seconds: 120,
   parallel: true,
   stop_on_failure: false,

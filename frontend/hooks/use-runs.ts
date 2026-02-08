@@ -11,6 +11,7 @@ import {
 import { useMemo } from 'react'
 
 import { api } from '@/lib/api'
+import { CONFIG } from '@/lib/config'
 import { queryKeys } from '@/lib/query-keys'
 import type {
   EvalResult,
@@ -20,7 +21,7 @@ import type {
 } from '@/lib/types'
 
 // Polling interval for active runs (in milliseconds)
-const ACTIVE_RUN_POLL_INTERVAL = 3000 // 3 seconds
+const ACTIVE_RUN_POLL_INTERVAL = CONFIG.ACTIVE_RUN_POLL_INTERVAL_MS
 
 /**
  * Check if a run is in an active (non-terminal) state.
@@ -220,7 +221,7 @@ export function useRecentRuns(limit = 5) {
       const response = await api.getRuns({ limit })
       return response.items
     },
-    refetchInterval: 30000, // Refresh every 30 seconds
+    refetchInterval: CONFIG.REALTIME_PING_INTERVAL_MS, // Refresh periodically
   })
 }
 

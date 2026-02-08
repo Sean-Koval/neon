@@ -23,6 +23,8 @@ import {
   LazyScoreTrends,
   LazyToolMetricsCard,
 } from '@/components/dashboard/lazy-components'
+import { StatisticalGuidance } from '@/components/statistical-guidance'
+import { HelpTooltip } from '@/components/ui/help-tooltip'
 import { useAlerts } from '@/hooks/use-alerts'
 import { useDashboard } from '@/hooks/use-dashboard'
 import { CONFIG } from '@/lib/config'
@@ -73,6 +75,9 @@ export default function Dashboard() {
         </button>
       </div>
 
+      {/* Statistical Guidance */}
+      <StatisticalGuidance />
+
       {/* Filters */}
       <DashboardFiltersBar
         filters={filters}
@@ -91,6 +96,7 @@ export default function Dashboard() {
       </div>
 
       {/* Score Trends - Full Width, lazy loaded with recharts */}
+      {/* Score Trends show daily average scores over the selected period */}
       <LazyScoreTrends
         defaultTimeRange={
           filters.dateRange === '7d'
@@ -370,9 +376,11 @@ const RunRow = memo(function RunRow({ run }: RunRowProps) {
                   <span className={passedColor}>{passedCount}</span>
                   <span className="text-gray-400">/</span>
                   <span className="text-gray-600">{totalCount}</span>
+                  <HelpTooltip content="Passed / total test cases in this evaluation run" />
                 </p>
                 <p className="text-sm text-gray-500">
                   <ScoreValue score={score ?? 0} />
+                  <HelpTooltip content="Average score across all scorers (0–1 scale)" />
                 </p>
               </>
             ) : (
