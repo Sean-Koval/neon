@@ -14,7 +14,7 @@ from typing import Any
 import httpx
 
 # Configuration
-NEON_API_URL = os.getenv("NEON_API_URL", "http://localhost:3001")
+NEON_API_URL = os.getenv("NEON_API_URL", "http://localhost:3000")
 NEON_PROJECT_ID = os.getenv("NEON_PROJECT_ID", "00000000-0000-0000-0000-000000000001")
 
 
