@@ -19,6 +19,7 @@ import { dashboardRouter } from "./dashboard";
 import { feedbackRouter } from "./feedback";
 import { promptsRouter } from "./prompts";
 import { compareRouter } from "./compare";
+import { agentsRouter } from "./agents";
 
 /**
  * Main app router
@@ -45,6 +46,9 @@ export const appRouter = router({
   feedback: feedbackRouter,
   prompts: promptsRouter,
   compare: compareRouter,
+
+  // Agent registry
+  agents: agentsRouter,
 });
 
 /**

@@ -267,6 +267,34 @@ export const invitations = pgTable(
 )
 
 // =============================================================================
+// Agents Table (auto-discovered from traces, enriched by users)
+// =============================================================================
+
+export const agents = pgTable(
+  'agents',
+  {
+    id: text('id').primaryKey(), // matches agent_id from ClickHouse traces
+    displayName: text('display_name'),
+    description: text('description'),
+    team: text('team'),
+    environments: text('environments').array(),
+    associatedSuites: text('associated_suites').array(),
+    mcpServers: text('mcp_servers').array(),
+    metadata: jsonb('metadata').default({}),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    workspaceId: text('workspace_id').notNull(),
+  },
+  (table) => [
+    index('agents_workspace_id_idx').on(table.workspaceId),
+  ],
+)
+
+// =============================================================================
 // Relations
 // =============================================================================
 
@@ -371,6 +399,9 @@ export type NewApiKey = typeof apiKeys.$inferInsert
 
 export type Invitation = typeof invitations.$inferSelect
 export type NewInvitation = typeof invitations.$inferInsert
+
+export type Agent = typeof agents.$inferSelect
+export type NewAgent = typeof agents.$inferInsert
 
 export type OrgRole = 'owner' | 'admin' | 'member'
 export type WorkspaceRole = 'admin' | 'member' | 'viewer'

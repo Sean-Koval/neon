@@ -3,14 +3,12 @@
 import { clsx } from 'clsx'
 import {
   Activity,
-  BarChart3,
   Bell,
-  GitCompare,
+  Bot,
+  Cpu,
   LayoutDashboard,
-  MessageSquare,
   Settings,
-  Target,
-  Workflow,
+  TrendingUp,
   Zap,
 } from 'lucide-react'
 import Link from 'next/link'
@@ -18,14 +16,13 @@ import { usePathname } from 'next/navigation'
 import { PreloadLink } from './ui/preload-link'
 
 const navigation = [
-  { name: 'Dashboard', href: '/', icon: LayoutDashboard },
-  { name: 'Eval Runs', href: '/eval-runs', icon: Workflow },
+  { name: 'Overview', href: '/', icon: LayoutDashboard },
+  { name: 'Agents', href: '/agents', icon: Bot },
+  { name: 'Eval Runs', href: '/eval-runs', icon: Zap },
   { name: 'Traces', href: '/traces', icon: Activity },
-  { name: 'Skills', href: '/skills', icon: Target },
-  { name: 'Analysis', href: '/analysis', icon: BarChart3 },
-  { name: 'Compare', href: '/compare', icon: GitCompare },
+  { name: 'Optimization', href: '/optimization', icon: TrendingUp },
   { name: 'Alerts', href: '/alerts', icon: Bell },
-  { name: 'Feedback', href: '/feedback', icon: MessageSquare },
+  { name: 'Workers', href: '/workers', icon: Cpu },
   { name: 'Settings', href: '/settings', icon: Settings },
 ]
 
