@@ -88,3 +88,22 @@ export {
   type PreferenceSignalConfig,
   type ComprehensiveSignalConfig,
 } from "./signals.js";
+
+// Test Generation
+export {
+  generateTestCases,
+  type GeneratedTestCase,
+  type FailedTrace,
+  type ScorerConfig as TestScorerConfig,
+  type TestGenerationConfig,
+  type TestCaseLineage,
+} from "./test-generation.js";
+
+// Prompt Optimizer
+export {
+  optimizePrompt,
+  type OptimizationConfig,
+  type OptimizationResult,
+  type OptimizationEvidence,
+  type IterationRecord,
+} from "./prompt-optimizer.js";
