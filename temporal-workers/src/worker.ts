@@ -18,6 +18,11 @@
 import { Worker, NativeConnection } from "@temporalio/worker";
 import * as activities from "./activities";
 import { initInstrumentation, shutdownInstrumentation } from "./instrumentation";
+import {
+  getWorkflowInterceptorModules,
+  getActivityInterceptorFactory,
+  getWorkflowSinks,
+} from "./interceptors/tracing";
 
 /**
  * Worker configuration from environment
@@ -104,7 +109,7 @@ async function run(): Promise<void> {
   // Connect to Temporal server with retry
   const connection = await connectWithRetry();
 
-  // Create worker
+  // Create worker with OTel interceptors
   log("info", "Creating worker...");
   const worker = await Worker.create({
     connection,
@@ -116,6 +121,12 @@ async function run(): Promise<void> {
     maxConcurrentWorkflowTaskExecutions: config.maxConcurrentWorkflowTaskExecutions,
     // Enable sticky execution for better performance
     stickyQueueScheduleToStartTimeout: "10s",
+    // OTel tracing interceptors for workflow and activity spans
+    interceptors: {
+      workflowModules: getWorkflowInterceptorModules(),
+      activity: [getActivityInterceptorFactory()],
+    },
+    sinks: getWorkflowSinks(),
   });
 
   log("info", "Worker created successfully");

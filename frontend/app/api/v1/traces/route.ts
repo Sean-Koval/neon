@@ -13,9 +13,32 @@ import type { SpanRecord, TraceRecord } from '@/lib/db/clickhouse'
 import { logger } from '@/lib/logger'
 import { type AuthResult, withAuth } from '@/lib/middleware/auth'
 import { withRateLimit } from '@/lib/middleware/rate-limit'
-import { BATCH_LIMIT } from '@/lib/rate-limit'
+import { BATCH_LIMIT, rateLimiter } from '@/lib/rate-limit'
 import { validateBody } from '@/lib/validation/middleware'
 import { createTracesSchema } from '@/lib/validation/schemas'
+
+/** Maximum request body size: 5MB */
+const MAX_BODY_SIZE = 5 * 1024 * 1024
+
+/** Maximum spans per request */
+const MAX_SPANS_PER_REQUEST = 1000
+
+/** Maximum size for text fields (input/output/tool_input/tool_output): 100KB */
+const MAX_FIELD_SIZE = 100 * 1024
+
+/** Per-project rate limit for trace ingestion */
+const PROJECT_INGESTION_LIMIT = {
+  limit: 100,
+  windowMs: 60_000,
+}
+
+/**
+ * Truncate a string field to the maximum allowed size.
+ */
+function truncateField(value: string, maxSize: number = MAX_FIELD_SIZE): string {
+  if (value.length <= maxSize) return value
+  return value.slice(0, maxSize)
+}
 
 /**
  * OTel OTLP Span format (simplified)
@@ -245,8 +268,50 @@ export const POST = withRateLimit(
       const projectId = auth.workspaceId
       if (!projectId) {
         return NextResponse.json(
-          { error: 'Workspace context required' },
+          { error: 'Workspace context required', code: 'MISSING_WORKSPACE' },
           { status: 400 },
+        )
+      }
+
+      // Per-project rate limiting
+      const projectRateKey = `project:traces:${projectId}`
+      const projectRate = rateLimiter.check(
+        projectRateKey,
+        PROJECT_INGESTION_LIMIT,
+      )
+      if (!projectRate.success) {
+        const retryAfter = Math.max(
+          1,
+          projectRate.reset - Math.floor(Date.now() / 1000),
+        )
+        return NextResponse.json(
+          {
+            error: 'Project rate limit exceeded',
+            code: 'PROJECT_RATE_LIMIT',
+            retryAfter,
+          },
+          {
+            status: 429,
+            headers: {
+              'Retry-After': String(retryAfter),
+              'X-RateLimit-Limit': String(projectRate.limit),
+              'X-RateLimit-Remaining': '0',
+              'X-RateLimit-Reset': String(projectRate.reset),
+            },
+          },
+        )
+      }
+
+      // Check Content-Length before parsing body
+      const contentLength = request.headers.get('content-length')
+      if (contentLength && parseInt(contentLength, 10) > MAX_BODY_SIZE) {
+        return NextResponse.json(
+          {
+            error: 'Request body too large',
+            code: 'BODY_TOO_LARGE',
+            maxBytes: MAX_BODY_SIZE,
+          },
+          { status: 413 },
         )
       }
 
@@ -256,6 +321,25 @@ export const POST = withRateLimit(
       if (!validation.success) return validation.response
       const otlpRequest: OTLPRequest = validation.data
 
+      // Count total spans and enforce limit
+      let spanCount = 0
+      for (const resourceSpan of otlpRequest.resourceSpans) {
+        for (const scopeSpan of resourceSpan.scopeSpans) {
+          spanCount += scopeSpan.spans.length
+        }
+      }
+      if (spanCount > MAX_SPANS_PER_REQUEST) {
+        return NextResponse.json(
+          {
+            error: `Too many spans: ${spanCount} exceeds limit of ${MAX_SPANS_PER_REQUEST}`,
+            code: 'TOO_MANY_SPANS',
+            maxSpans: MAX_SPANS_PER_REQUEST,
+            receivedSpans: spanCount,
+          },
+          { status: 400 },
+        )
+      }
+
       // Transform all spans
       const allSpans: SpanRecord[] = []
       const traceIds = new Set<string>()
@@ -264,6 +348,11 @@ export const POST = withRateLimit(
         for (const scopeSpan of resourceSpan.scopeSpans) {
           for (const span of scopeSpan.spans) {
             const transformed = transformSpan(span, projectId)
+            // Truncate oversized text fields
+            transformed.input = truncateField(transformed.input)
+            transformed.output = truncateField(transformed.output)
+            transformed.tool_input = truncateField(transformed.tool_input)
+            transformed.tool_output = truncateField(transformed.tool_output)
             allSpans.push(transformed)
             traceIds.add(span.traceId)
           }
@@ -272,7 +361,7 @@ export const POST = withRateLimit(
 
       if (allSpans.length === 0) {
         return NextResponse.json(
-          { error: 'No spans to ingest' },
+          { error: 'No spans to ingest', code: 'NO_SPANS' },
           { status: 400 },
         )
       }
@@ -295,7 +384,12 @@ export const POST = withRateLimit(
     } catch (error) {
       logger.error({ err: error }, 'Error ingesting traces')
       return NextResponse.json(
-        { error: 'Failed to ingest traces', details: String(error) },
+        {
+          error: 'Failed to ingest traces',
+          code: 'INTERNAL_ERROR',
+          details:
+            process.env.NODE_ENV === 'development' ? String(error) : undefined,
+        },
         { status: 500 },
       )
     }

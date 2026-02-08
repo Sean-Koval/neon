@@ -10,6 +10,8 @@
 #   - Dashboard:     http://localhost:3000
 #   - Temporal UI:   http://localhost:8080
 #   - ClickHouse:    http://localhost:8123
+#   - OTel gRPC:     http://localhost:4317
+#   - OTel HTTP:     http://localhost:4318
 #
 # Profiles (for partial deployments):
 #   docker compose --profile infra-only up -d  # Just databases (no app)
@@ -116,6 +118,37 @@ services:
     restart: unless-stopped
 
   # ===========================================================================
+  # OBSERVABILITY
+  # ===========================================================================
+
+  # OpenTelemetry Collector - Receives traces and exports to ClickHouse + API
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.96.0
+    container_name: neon-otel-collector
+    command: ["--config=/etc/otel-collector.yaml"]
+    volumes:
+      - ./config/otel-collector.yaml:/etc/otel-collector.yaml:ro
+    ports:
+      - "4317:4317"   # gRPC
+      - "4318:4318"   # HTTP
+      - "13133:13133" # Health check
+    environment:
+      - DEPLOYMENT_ENV=${DEPLOYMENT_ENV:-development}
+      - NEON_API_KEY=${NEON_API_KEY:-neon-internal}
+      - DEFAULT_PROJECT_ID=${DEFAULT_PROJECT_ID:-00000000-0000-0000-0000-000000000001}
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+      redpanda:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:13133"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ===========================================================================
   # APPLICATION
   # ===========================================================================
 
@@ -130,11 +163,14 @@ services:
       - TEMPORAL_NAMESPACE=default
       - TEMPORAL_TASK_QUEUE=agent-workers
       - NEON_API_URL=http://web:3000
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
       - DEFAULT_PROJECT_ID=00000000-0000-0000-0000-000000000001
     depends_on:
       temporal:
+        condition: service_healthy
+      otel-collector:
         condition: service_healthy
     restart: unless-stopped
 
@@ -151,6 +187,7 @@ services:
       - TEMPORAL_ADDRESS=temporal:7233
       - TEMPORAL_NAMESPACE=default
       - TEMPORAL_TASK_QUEUE=agent-workers
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
     depends_on:
       clickhouse:
         condition: service_healthy
@@ -163,10 +200,10 @@ services:
     restart: unless-stopped
 
   # ===========================================================================
-  # OPTIONAL SERVICES (use profiles)
+  # STREAMING (Redpanda - high-throughput trace ingestion)
   # ===========================================================================
 
-  # Redpanda - Event streaming (optional)
+  # Redpanda - Kafka-compatible event streaming for trace pipeline
   redpanda:
     image: redpandadata/redpanda:v24.1.1
     container_name: neon-redpanda
@@ -181,9 +218,16 @@ services:
       - "9092:9092"
     volumes:
       - redpanda_data:/var/lib/redpanda/data
-    profiles:
-      - streaming
-      - debug
+    healthcheck:
+      test: ["CMD", "rpk", "cluster", "health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ===========================================================================
+  # OPTIONAL SERVICES (use profiles)
+  # ===========================================================================
 
   # Redpanda Console
   redpanda-console:

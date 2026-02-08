@@ -113,6 +113,34 @@ services:
         limits:
           memory: 256M
 
+  # ===== OTel Collector (Trace Pipeline) =====
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.96.0
+    container_name: neon-dev-otel-collector
+    command: ["--config=/etc/otel-collector.yaml"]
+    volumes:
+      - ./config/otel-collector.yaml:/etc/otel-collector.yaml:ro
+    ports:
+      - "4317:4317"   # gRPC
+      - "4318:4318"   # HTTP
+      - "13133:13133" # Health check
+    environment:
+      - DEPLOYMENT_ENV=development
+      - NEON_API_KEY=neon-dev
+      - DEFAULT_PROJECT_ID=00000000-0000-0000-0000-000000000001
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:13133"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
   # ===== Temporal Worker (Development) =====
   # For development, prefer running the worker locally with hot reload:
   #   cd temporal-workers && bun dev
@@ -126,6 +154,7 @@ services:
       - TEMPORAL_NAMESPACE=default
       - TEMPORAL_TASK_QUEUE=agent-workers
       - NEON_API_URL=http://host.docker.internal:3000
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - DEFAULT_PROJECT_ID=00000000-0000-0000-0000-000000000001
