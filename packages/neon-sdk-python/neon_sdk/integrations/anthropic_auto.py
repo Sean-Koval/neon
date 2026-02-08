@@ -22,6 +22,7 @@ Example:
 
 from __future__ import annotations
 
+import contextlib
 import json
 import time
 from typing import Any
@@ -50,17 +51,13 @@ def instrument_anthropic(client: Any, *, capture_content: bool = True) -> None:
         attrs: dict[str, str] = {"gen_ai.system": "anthropic"}
 
         if capture_content and messages:
-            try:
+            with contextlib.suppress(TypeError, ValueError):
                 attrs["gen_ai.prompt"] = json.dumps(messages, default=str)[:10000]
-            except (TypeError, ValueError):
-                pass
 
         system = kwargs.get("system")
         if capture_content and system:
-            try:
+            with contextlib.suppress(TypeError, ValueError):
                 attrs["gen_ai.system_prompt"] = str(system)[:5000]
-            except (TypeError, ValueError):
-                pass
 
         with generation(f"anthropic:{model}", model=model, attributes=attrs):
             start = time.monotonic()

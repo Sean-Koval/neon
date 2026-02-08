@@ -16,7 +16,6 @@ Example:
 
 from __future__ import annotations
 
-import json
 import time
 import uuid
 from typing import Any
@@ -45,8 +44,6 @@ class NeonCallbackHandler:
         **kwargs: Any,
     ) -> None:
         """Called when an LLM starts generating."""
-        from neon_sdk.tracing import get_current_context
-
         span_id = str(run_id) if run_id else str(uuid.uuid4())
         model_name = serialized.get("name", serialized.get("id", ["unknown"])[-1])
 
@@ -65,8 +62,6 @@ class NeonCallbackHandler:
         **kwargs: Any,
     ) -> None:
         """Called when an LLM finishes generating."""
-        from neon_sdk.tracing import generation
-
         span_id = str(run_id) if run_id else None
         if not span_id or span_id not in self._spans:
             return
@@ -128,8 +123,6 @@ class NeonCallbackHandler:
         **kwargs: Any,
     ) -> None:
         """Called when a tool finishes running."""
-        from neon_sdk.tracing import tool
-
         span_id = str(run_id) if run_id else None
         if not span_id or span_id not in self._spans:
             return

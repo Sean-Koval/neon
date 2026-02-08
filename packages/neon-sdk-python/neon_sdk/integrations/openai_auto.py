@@ -21,9 +21,9 @@ Example:
 
 from __future__ import annotations
 
+import contextlib
 import json
 import time
-import uuid
 from typing import Any
 
 
@@ -36,7 +36,7 @@ def instrument_openai(client: Any, *, capture_content: bool = True) -> None:
         client: An OpenAI client instance.
         capture_content: Whether to capture message content in span attributes.
     """
-    from neon_sdk.tracing import get_current_context, generation
+    from neon_sdk.tracing import generation
 
     if not hasattr(client, "chat") or not hasattr(client.chat, "completions"):
         raise ValueError("Expected an OpenAI client with chat.completions")
@@ -50,10 +50,8 @@ def instrument_openai(client: Any, *, capture_content: bool = True) -> None:
         attrs: dict[str, str] = {"gen_ai.system": "openai"}
 
         if capture_content and messages:
-            try:
+            with contextlib.suppress(TypeError, ValueError):
                 attrs["gen_ai.prompt"] = json.dumps(messages, default=str)[:10000]
-            except (TypeError, ValueError):
-                pass
 
         with generation(f"openai:{model}", model=model, attributes=attrs):
             start = time.monotonic()

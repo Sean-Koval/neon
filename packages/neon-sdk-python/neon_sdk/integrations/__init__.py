@@ -95,6 +95,7 @@ from neon_sdk.integrations.trl import (
     to_huggingface_dataset,
 )
 
+
 # Auto-instrumentation (lazy imports to avoid requiring optional deps)
 def instrument_openai(client: object, *, capture_content: bool = True) -> None:
     """Instrument an OpenAI client for automatic tracing."""

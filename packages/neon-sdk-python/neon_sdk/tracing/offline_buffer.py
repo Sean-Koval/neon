@@ -23,6 +23,7 @@ Example:
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 import logging
 import os
@@ -160,7 +161,9 @@ class BufferStats:
 class FlushCallback(Protocol):
     """Protocol for flush callbacks."""
 
-    async def __call__(self, spans: list[BufferedSpan]) -> FlushResult: ...
+    async def __call__(self, spans: list[BufferedSpan]) -> FlushResult:
+        """Flush the given spans, returning a result with success/failure counts."""
+        ...
 
 
 class OfflineBuffer:
@@ -376,10 +379,8 @@ class OfflineBuffer:
 
         if self._flush_task:
             self._flush_task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await self._flush_task
-            except asyncio.CancelledError:
-                pass
 
         # Flush pending writes
         if self._pending_writes:

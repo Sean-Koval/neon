@@ -6,6 +6,8 @@ Provides decorators, context managers, and async-local style context.
 
 from __future__ import annotations
 
+import contextlib
+import json
 import uuid
 from collections.abc import Callable
 from contextvars import ContextVar
@@ -386,15 +388,11 @@ def retrieval(
     if top_k:
         attrs["top_k"] = str(top_k)
     if chunks:
-        import json
-
         attrs["retrieval.chunk_count"] = str(len(chunks))
-        try:
+        with contextlib.suppress(TypeError, ValueError):
             attrs["retrieval.chunks"] = json.dumps(
                 [c.to_dict() for c in chunks]
             )[:50000]
-        except (TypeError, ValueError):
-            pass
     return SpanContextManager(
         name=name,
         span_type="span",
@@ -558,14 +556,15 @@ def traced_planning(
     return traced(name, span_type="span", component_type=ComponentType.PLANNING)
 
 
-from neon_sdk.tracing.offline_buffer import (
+# Re-exports from submodules (must be after class definitions to avoid circular imports)
+from neon_sdk.tracing.offline_buffer import (  # noqa: E402
     BufferedSpan,
     BufferStats,
     FlushResult,
     OfflineBuffer,
     is_buffer_healthy,
 )
-from neon_sdk.tracing.propagation import (
+from neon_sdk.tracing.propagation import (  # noqa: E402
     extract_trace_context,
     format_traceparent,
     inject_trace_context,
