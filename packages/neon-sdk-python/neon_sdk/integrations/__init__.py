@@ -6,6 +6,7 @@ Native Python integrations for ML frameworks including:
 - DSPy integration for prompt optimization
 - OpenAI fine-tuning export
 - HuggingFace TRL export
+- Auto-instrumentation for OpenAI, Anthropic, LangChain
 """
 
 from neon_sdk.integrations.agent_lightning import (
@@ -94,7 +95,23 @@ from neon_sdk.integrations.trl import (
     to_huggingface_dataset,
 )
 
+# Auto-instrumentation (lazy imports to avoid requiring optional deps)
+def instrument_openai(client: object, *, capture_content: bool = True) -> None:
+    """Instrument an OpenAI client for automatic tracing."""
+    from neon_sdk.integrations.openai_auto import instrument_openai as _impl
+    _impl(client, capture_content=capture_content)
+
+
+def instrument_anthropic(client: object, *, capture_content: bool = True) -> None:
+    """Instrument an Anthropic client for automatic tracing."""
+    from neon_sdk.integrations.anthropic_auto import instrument_anthropic as _impl
+    _impl(client, capture_content=capture_content)
+
+
 __all__ = [
+    # Auto-instrumentation
+    "instrument_openai",
+    "instrument_anthropic",
     # Optimization types
     "SignalType",
     "SignalSource",

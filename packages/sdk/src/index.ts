@@ -173,6 +173,10 @@ export {
   withContext,
   getCurrentContext,
   setCurrentContext,
+  // Global exporter
+  setGlobalExporter,
+  getGlobalExporter,
+  resetGlobalExporter,
   // MCP tracing
   withMCPTracing,
   mcpToolCall,
@@ -180,6 +184,7 @@ export {
   type TraceContext,
   type SpanOptions,
   type ComponentType,
+  type RetrievalChunk,
   type MCPClient,
   type MCPTracingConfig,
   type MCPToolCallResult,
@@ -198,6 +203,15 @@ export {
   type OfflineBufferConfig,
   type FlushResult,
   type BufferStats,
+  // NeonExporter
+  NeonExporter,
+  createNeonExporter,
+  type NeonExporterConfig,
+  // W3C Trace Context propagation
+  injectTraceContext,
+  extractTraceContext,
+  formatTraceparent,
+  parseTraceparent,
 } from "./tracing/index.js";
 
 // Runner

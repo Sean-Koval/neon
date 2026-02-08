@@ -336,11 +336,34 @@ def tool(
     )
 
 
+@dataclass
+class RetrievalChunk:
+    """Retrieval chunk for structured RAG context."""
+
+    content: str
+    source: str
+    relevance_score: float | None = None
+    position: int | None = None
+    metadata: dict[str, str] | None = None
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to dict for serialization."""
+        d: dict[str, Any] = {"content": self.content, "source": self.source}
+        if self.relevance_score is not None:
+            d["relevance_score"] = self.relevance_score
+        if self.position is not None:
+            d["position"] = self.position
+        if self.metadata:
+            d["metadata"] = self.metadata
+        return d
+
+
 def retrieval(
     name: str,
     *,
     query: str | None = None,
     top_k: int | None = None,
+    chunks: list[RetrievalChunk] | None = None,
     attributes: dict[str, str] | None = None,
 ) -> SpanContextManager:
     """Create a retrieval span (for RAG operations).
@@ -349,6 +372,12 @@ def retrieval(
         ```python
         with retrieval("doc-search", query="user question"):
             docs = vector_store.search(query)
+
+        # With structured chunks
+        with retrieval("doc-search", query="question", chunks=[
+            RetrievalChunk(content="...", source="doc.pdf", relevance_score=0.95),
+        ]):
+            ...
         ```
     """
     attrs = dict(attributes or {})
@@ -356,6 +385,16 @@ def retrieval(
         attrs["query"] = query
     if top_k:
         attrs["top_k"] = str(top_k)
+    if chunks:
+        import json
+
+        attrs["retrieval.chunk_count"] = str(len(chunks))
+        try:
+            attrs["retrieval.chunks"] = json.dumps(
+                [c.to_dict() for c in chunks]
+            )[:50000]
+        except (TypeError, ValueError):
+            pass
     return SpanContextManager(
         name=name,
         span_type="span",
@@ -519,6 +558,20 @@ def traced_planning(
     return traced(name, span_type="span", component_type=ComponentType.PLANNING)
 
 
+from neon_sdk.tracing.offline_buffer import (
+    BufferedSpan,
+    BufferStats,
+    FlushResult,
+    OfflineBuffer,
+    is_buffer_healthy,
+)
+from neon_sdk.tracing.propagation import (
+    extract_trace_context,
+    format_traceparent,
+    inject_trace_context,
+    parse_traceparent,
+)
+
 __all__ = [
     # Context
     "TraceContext",
@@ -530,6 +583,8 @@ __all__ = [
     "trace",
     "span",
     "traced",
+    # Retrieval
+    "RetrievalChunk",
     # Specialized context managers
     "generation",
     "tool",
@@ -549,4 +604,15 @@ __all__ = [
     "NeonExporter",
     "ExportSpan",
     "create_neon_exporter",
+    # Propagation
+    "inject_trace_context",
+    "extract_trace_context",
+    "format_traceparent",
+    "parse_traceparent",
+    # Offline buffer
+    "OfflineBuffer",
+    "BufferedSpan",
+    "FlushResult",
+    "BufferStats",
+    "is_buffer_healthy",
 ]

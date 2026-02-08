@@ -68,8 +68,16 @@ docs = [
     "myst-parser>=2.0.0",
 ]
 
+openai = [
+    "openai>=1.0.0",
+]
+
+langchain = [
+    "langchain-core>=0.1.0",
+]
+
 all = [
-    "neon-sdk[temporal,clickhouse]",
+    "neon-sdk[temporal,clickhouse,openai,langchain]",
 ]
 
 [project.urls]

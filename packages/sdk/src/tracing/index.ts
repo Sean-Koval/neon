@@ -2,8 +2,13 @@
  * Tracing Utilities
  *
  * Local context management for structuring async evaluation code.
- * For production tracing to Neon API, use the full @neon/tracing package.
+ * Uses AsyncLocalStorage for proper async context isolation.
  */
+
+import { AsyncLocalStorage } from "node:async_hooks";
+
+import type { NeonExporter } from "./exporter.js";
+import type { BufferedSpan } from "./offline-buffer.js";
 
 /**
  * Trace context for span tracking
@@ -13,21 +18,26 @@ export interface TraceContext {
   parentSpanId?: string;
 }
 
-// Global trace context (async-local style)
-let currentContext: TraceContext | null = null;
+// AsyncLocalStorage for proper async context isolation
+const asyncLocalStorage = new AsyncLocalStorage<TraceContext>();
 
 /**
  * Get the current trace context
  */
 export function getCurrentContext(): TraceContext | null {
-  return currentContext;
+  return asyncLocalStorage.getStore() ?? null;
 }
 
 /**
  * Set the current trace context
+ *
+ * Note: Prefer withContext() for scoped context. This uses enterWith()
+ * which affects the current async context going forward.
  */
 export function setCurrentContext(context: TraceContext | null): void {
-  currentContext = context;
+  if (context) {
+    asyncLocalStorage.enterWith(context);
+  }
 }
 
 /**
@@ -37,13 +47,34 @@ export async function withContext<T>(
   context: TraceContext,
   fn: () => Promise<T>
 ): Promise<T> {
-  const previous = currentContext;
-  currentContext = context;
-  try {
-    return await fn();
-  } finally {
-    currentContext = previous;
-  }
+  return asyncLocalStorage.run(context, fn);
+}
+
+// =============================================================================
+// Global Exporter Registry
+// =============================================================================
+
+let globalExporter: NeonExporter | null = null;
+
+/**
+ * Set the global exporter for span data
+ */
+export function setGlobalExporter(exporter: NeonExporter): void {
+  globalExporter = exporter;
+}
+
+/**
+ * Get the global exporter
+ */
+export function getGlobalExporter(): NeonExporter | null {
+  return globalExporter;
+}
+
+/**
+ * Reset the global exporter (useful for testing)
+ */
+export function resetGlobalExporter(): void {
+  globalExporter = null;
 }
 
 /**
@@ -83,11 +114,54 @@ export interface SpanOptions {
 export async function span<T>(
   name: string,
   fn: () => Promise<T>,
-  _options?: SpanOptions
+  options?: SpanOptions
 ): Promise<T> {
-  // For local eval, just execute the function
-  // The span name and options can be used for debugging/logging
-  return fn();
+  const ctx = getCurrentContext();
+  const spanId = crypto.randomUUID();
+  const startTime = new Date().toISOString();
+
+  const newCtx: TraceContext = ctx
+    ? { traceId: ctx.traceId, parentSpanId: spanId }
+    : { traceId: `trace-${crypto.randomUUID()}`, parentSpanId: spanId };
+
+  return withContext(newCtx, async () => {
+    try {
+      const result = await fn();
+      if (globalExporter) {
+        globalExporter.addSpan({
+          traceId: newCtx.traceId,
+          spanId,
+          parentSpanId: ctx?.parentSpanId,
+          name,
+          startTime,
+          endTime: new Date().toISOString(),
+          status: "ok",
+          type: options?.type || "span",
+          componentType: options?.componentType,
+          attributes: options?.attributes || {},
+        } satisfies Omit<BufferedSpan, "bufferedAt" | "flushAttempts">);
+      }
+      return result;
+    } catch (error) {
+      if (globalExporter) {
+        globalExporter.addSpan({
+          traceId: newCtx.traceId,
+          spanId,
+          parentSpanId: ctx?.parentSpanId,
+          name,
+          startTime,
+          endTime: new Date().toISOString(),
+          status: "error",
+          statusMessage:
+            error instanceof Error ? error.message : String(error),
+          type: options?.type || "span",
+          componentType: options?.componentType,
+          attributes: options?.attributes || {},
+        } satisfies Omit<BufferedSpan, "bufferedAt" | "flushAttempts">);
+      }
+      throw error;
+    }
+  });
 }
 
 /**
@@ -103,12 +177,47 @@ export async function span<T>(
 export async function trace<T>(
   name: string,
   fn: () => Promise<T>,
-  _metadata?: Record<string, string>
+  metadata?: Record<string, string>
 ): Promise<T> {
   const traceId = `trace-${crypto.randomUUID()}`;
-  const context: TraceContext = { traceId };
+  const spanId = crypto.randomUUID();
+  const startTime = new Date().toISOString();
+  const context: TraceContext = { traceId, parentSpanId: spanId };
 
-  return withContext(context, fn);
+  return withContext(context, async () => {
+    try {
+      const result = await fn();
+      if (globalExporter) {
+        globalExporter.addSpan({
+          traceId,
+          spanId,
+          name,
+          startTime,
+          endTime: new Date().toISOString(),
+          status: "ok",
+          type: "span",
+          attributes: metadata || {},
+        } satisfies Omit<BufferedSpan, "bufferedAt" | "flushAttempts">);
+      }
+      return result;
+    } catch (error) {
+      if (globalExporter) {
+        globalExporter.addSpan({
+          traceId,
+          spanId,
+          name,
+          startTime,
+          endTime: new Date().toISOString(),
+          status: "error",
+          statusMessage:
+            error instanceof Error ? error.message : String(error),
+          type: "span",
+          attributes: metadata || {},
+        } satisfies Omit<BufferedSpan, "bufferedAt" | "flushAttempts">);
+      }
+      throw error;
+    }
+  });
 }
 
 /**
@@ -117,17 +226,20 @@ export async function trace<T>(
 export async function generation<T>(
   name: string,
   fn: () => Promise<T>,
-  _options?: {
+  options?: {
     model?: string;
     input?: string;
     componentType?: ComponentType;
     attributes?: Record<string, string>;
   }
 ): Promise<T> {
+  const attrs: Record<string, string> = { ...(options?.attributes || {}) };
+  if (options?.model) attrs["gen_ai.request.model"] = options.model;
+  if (options?.input) attrs["gen_ai.prompt"] = options.input;
   return span(name, fn, {
     type: "generation",
-    componentType: _options?.componentType,
-    attributes: _options?.attributes,
+    componentType: options?.componentType,
+    attributes: attrs,
   });
 }
 
@@ -137,18 +249,32 @@ export async function generation<T>(
 export async function tool<T>(
   name: string,
   fn: () => Promise<T>,
-  _options?: {
+  options?: {
     toolName?: string;
     toolInput?: string;
     componentType?: ComponentType;
     attributes?: Record<string, string>;
   }
 ): Promise<T> {
+  const attrs: Record<string, string> = { ...(options?.attributes || {}) };
+  if (options?.toolName) attrs["tool.name"] = options.toolName;
+  if (options?.toolInput) attrs["tool.input"] = options.toolInput;
   return span(name, fn, {
     type: "tool",
-    componentType: _options?.componentType ?? "tool",
-    attributes: _options?.attributes,
+    componentType: options?.componentType ?? "tool",
+    attributes: attrs,
   });
+}
+
+/**
+ * Retrieval chunk for structured RAG context
+ */
+export interface RetrievalChunk {
+  content: string;
+  source: string;
+  relevance_score?: number;
+  position?: number;
+  metadata?: Record<string, string>;
 }
 
 /**
@@ -157,16 +283,28 @@ export async function tool<T>(
 export async function retrieval<T>(
   name: string,
   fn: () => Promise<T>,
-  _options?: {
+  options?: {
     query?: string;
     topK?: number;
+    chunks?: RetrievalChunk[];
     attributes?: Record<string, string>;
   }
 ): Promise<T> {
+  const attrs: Record<string, string> = { ...(options?.attributes || {}) };
+  if (options?.query) attrs["retrieval.query"] = options.query;
+  if (options?.topK != null) attrs["retrieval.top_k"] = String(options.topK);
+  if (options?.chunks) {
+    attrs["retrieval.chunk_count"] = String(options.chunks.length);
+    try {
+      attrs["retrieval.chunks"] = JSON.stringify(options.chunks).slice(0, 50000);
+    } catch {
+      // Ignore serialization errors
+    }
+  }
   return span(name, fn, {
     type: "span",
     componentType: "retrieval",
-    attributes: _options?.attributes,
+    attributes: attrs,
   });
 }
 
@@ -176,14 +314,14 @@ export async function retrieval<T>(
 export async function reasoning<T>(
   name: string,
   fn: () => Promise<T>,
-  _options?: {
+  options?: {
     attributes?: Record<string, string>;
   }
 ): Promise<T> {
   return span(name, fn, {
     type: "span",
     componentType: "reasoning",
-    attributes: _options?.attributes,
+    attributes: options?.attributes,
   });
 }
 
@@ -193,14 +331,14 @@ export async function reasoning<T>(
 export async function planning<T>(
   name: string,
   fn: () => Promise<T>,
-  _options?: {
+  options?: {
     attributes?: Record<string, string>;
   }
 ): Promise<T> {
   return span(name, fn, {
     type: "span",
     componentType: "planning",
-    attributes: _options?.attributes,
+    attributes: options?.attributes,
   });
 }
 
@@ -210,15 +348,17 @@ export async function planning<T>(
 export async function prompt<T>(
   name: string,
   fn: () => Promise<T>,
-  _options?: {
+  options?: {
     template?: string;
     attributes?: Record<string, string>;
   }
 ): Promise<T> {
+  const attrs: Record<string, string> = { ...(options?.attributes || {}) };
+  if (options?.template) attrs["prompt.template"] = options.template;
   return span(name, fn, {
     type: "span",
     componentType: "prompt",
-    attributes: _options?.attributes,
+    attributes: attrs,
   });
 }
 
@@ -228,14 +368,14 @@ export async function prompt<T>(
 export async function routing<T>(
   name: string,
   fn: () => Promise<T>,
-  _options?: {
+  options?: {
     attributes?: Record<string, string>;
   }
 ): Promise<T> {
   return span(name, fn, {
     type: "span",
     componentType: "routing",
-    attributes: _options?.attributes,
+    attributes: options?.attributes,
   });
 }
 
@@ -245,14 +385,14 @@ export async function routing<T>(
 export async function memory<T>(
   name: string,
   fn: () => Promise<T>,
-  _options?: {
+  options?: {
     attributes?: Record<string, string>;
   }
 ): Promise<T> {
   return span(name, fn, {
     type: "span",
     componentType: "memory",
-    attributes: _options?.attributes,
+    attributes: options?.attributes,
   });
 }
 
@@ -262,7 +402,7 @@ export async function memory<T>(
 export async function mcp<T>(
   name: string,
   fn: () => Promise<T>,
-  _options?: {
+  options?: {
     serverId?: string;
     toolId?: string;
     transport?: "stdio" | "http" | "websocket";
@@ -273,10 +413,10 @@ export async function mcp<T>(
     type: "tool",
     componentType: "mcp",
     attributes: {
-      ...(_options?.attributes || {}),
-      ...(_options?.serverId ? { "mcp.server_id": _options.serverId } : {}),
-      ...(_options?.toolId ? { "mcp.tool_id": _options.toolId } : {}),
-      ...(_options?.transport ? { "mcp.transport": _options.transport } : {}),
+      ...(options?.attributes || {}),
+      ...(options?.serverId ? { "mcp.server_id": options.serverId } : {}),
+      ...(options?.toolId ? { "mcp.tool_id": options.toolId } : {}),
+      ...(options?.transport ? { "mcp.transport": options.transport } : {}),
     },
   });
 }
@@ -315,3 +455,11 @@ export {
   createNeonExporter,
   type NeonExporterConfig,
 } from "./exporter.js";
+
+// W3C Trace Context propagation
+export {
+  injectTraceContext,
+  extractTraceContext,
+  formatTraceparent,
+  parseTraceparent,
+} from "./propagation.js";
