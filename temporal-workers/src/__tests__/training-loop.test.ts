@@ -20,7 +20,7 @@ const {
 } = vi.hoisted(() => ({
   handlers: {} as Record<string, (...args: unknown[]) => unknown>,
   mockExecuteChild: vi.fn(),
-  mockCondition: vi.fn(async () => true),
+  mockCondition: vi.fn(async (_fn?: () => boolean) => true),
   mockProxyActivities: {
     collectSignals: vi.fn().mockResolvedValue({ signals: [], count: 50 }),
     curateTrainingData: vi.fn().mockResolvedValue({
@@ -49,7 +49,7 @@ vi.mock("@temporalio/workflow", () => ({
   setHandler: vi.fn((name: string, handler: (...args: unknown[]) => unknown) => {
     handlers[name] = handler;
   }),
-  condition: vi.fn((..._args: unknown[]) => mockCondition()),
+  condition: vi.fn((fn?: () => boolean, _timeout?: string) => mockCondition(fn)),
   workflowInfo: vi.fn(() => ({
     workflowId: "test-loop-1",
     runId: "run-1",
