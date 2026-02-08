@@ -20,7 +20,7 @@ import * as activities from "./activities";
 import { initInstrumentation, shutdownInstrumentation } from "./instrumentation";
 import {
   getWorkflowInterceptorModules,
-  getActivityInterceptors,
+  getActivityInterceptorFactory,
   getWorkflowSinks,
 } from "./interceptors/tracing";
 
@@ -124,7 +124,7 @@ async function run(): Promise<void> {
     // OTel tracing interceptors for workflow and activity spans
     interceptors: {
       workflowModules: getWorkflowInterceptorModules(),
-      activity: getActivityInterceptors(),
+      activity: [getActivityInterceptorFactory()],
     },
     sinks: getWorkflowSinks(),
   });
