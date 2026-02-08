@@ -2,6 +2,7 @@
 
 import { TrendingUp } from 'lucide-react'
 import { LazyScoreTrendChart } from '@/components/charts/lazy-charts'
+import { CONFIG } from '@/lib/config'
 import type { DateRangeOption } from './filters'
 
 interface TrendCardProps {
@@ -29,7 +30,7 @@ export function TrendCard({ dateRange }: TrendCardProps) {
         </div>
       </div>
       <div className="p-6">
-        <LazyScoreTrendChart days={days} maxRuns={100} threshold={0.7} />
+        <LazyScoreTrendChart days={days} maxRuns={100} threshold={CONFIG.DASHBOARD_SCORE_THRESHOLD} />
       </div>
     </div>
   )

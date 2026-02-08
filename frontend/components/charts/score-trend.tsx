@@ -12,6 +12,7 @@ import {
   YAxis,
 } from 'recharts'
 import { type ScoreTrendPoint, useScoreTrend } from '@/hooks/use-runs'
+import { CONFIG } from '@/lib/config'
 
 interface ScoreTrendChartProps {
   days?: number
@@ -99,7 +100,7 @@ function CustomTooltip({
 export function ScoreTrendChart({
   days = 7,
   maxRuns = 10,
-  threshold = 0.7,
+  threshold = CONFIG.DASHBOARD_SCORE_THRESHOLD,
   className = '',
 }: ScoreTrendChartProps) {
   const { data, isLoading, isError, error } = useScoreTrend({ days, maxRuns })

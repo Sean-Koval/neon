@@ -20,6 +20,7 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import { useState } from 'react'
+import { usePersistedFilters } from '@/hooks/use-persisted-filters'
 import { type TraceFilters, useTraces } from '@/hooks/use-traces'
 
 /**
@@ -46,10 +47,10 @@ function formatRelativeTime(timestamp: string): string {
 }
 
 export default function TracesPage() {
-  const [filters, setFilters] = useState<TraceFilters>({
+  const [filters, setFilters] = usePersistedFilters<TraceFilters>('neon-traces-filters', {
     limit: 50,
   })
-  const [searchQuery, setSearchQuery] = useState('')
+  const [searchQuery, setSearchQuery] = useState(filters.search || '')
 
   const { data: traces, isLoading, refetch } = useTraces(filters)
 

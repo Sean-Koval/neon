@@ -8,6 +8,7 @@
  */
 
 import { useMemo } from 'react'
+import { CONFIG } from '@/lib/config'
 import { useRuns } from './use-runs'
 
 // =============================================================================
@@ -184,7 +185,7 @@ function getCorrelationStrength(
   r: number,
 ): 'strong' | 'moderate' | 'weak' | 'none' {
   const abs = Math.abs(r)
-  if (abs >= 0.7) return 'strong'
+  if (abs >= CONFIG.CORRELATION_STRONG_THRESHOLD) return 'strong'
   if (abs >= 0.4) return 'moderate'
   if (abs >= 0.2) return 'weak'
   return 'none'
@@ -261,7 +262,7 @@ export function useComponentCorrelation(
     days = 30,
     minSampleSize = 5,
     significanceThreshold = 0.05,
-    healthThresholds = { warning: 0.7, critical: 0.5 },
+    healthThresholds = { warning: CONFIG.HEALTH_WARNING_THRESHOLD, critical: CONFIG.HEALTH_CRITICAL_THRESHOLD },
   } = options
 
   // Fetch runs data

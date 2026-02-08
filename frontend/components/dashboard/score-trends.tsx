@@ -22,6 +22,7 @@ import {
   ChartSkeleton,
   LazyTrendChart,
 } from '@/components/charts/lazy-charts'
+import { CONFIG } from '@/lib/config'
 import {
   downloadData,
   exportToCSV,
@@ -546,7 +547,7 @@ function DrillDownModal({ point, onClose }: DrillDownModalProps) {
 export function ScoreTrends({
   defaultTimeRange = '30d',
   showSuiteFilter = true,
-  threshold = 0.7,
+  threshold = CONFIG.DASHBOARD_SCORE_THRESHOLD,
   compact = false,
   className = '',
 }: ScoreTrendsProps) {
