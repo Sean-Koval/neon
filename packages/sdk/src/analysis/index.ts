@@ -67,3 +67,13 @@ export {
   type IdentifySystemicIssuesOptions,
   type ComponentHealthOptions,
 } from "./correlation.js";
+
+// Root Cause Synthesis
+export {
+  synthesizeRootCause,
+  type RCAHypothesis,
+  type EvidenceLink,
+  type RemediationSuggestion,
+  type RCASynthesizerConfig,
+  type RCASynthesisResult,
+} from "./root-cause-synthesizer.js";
