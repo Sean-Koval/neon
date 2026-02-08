@@ -42,14 +42,14 @@ const {
 
 vi.mock("@temporalio/workflow", () => ({
   proxyActivities: vi.fn(() => mockProxyActivities),
-  executeChild: (...args: unknown[]) => mockExecuteChild(...args),
+  executeChild: vi.fn((...args: unknown[]) => mockExecuteChild(args[0], args[1])),
   ParentClosePolicy: { PARENT_CLOSE_POLICY_TERMINATE: 1 },
   defineQuery: vi.fn((name: string) => name),
   defineSignal: vi.fn((name: string) => name),
   setHandler: vi.fn((name: string, handler: (...args: unknown[]) => unknown) => {
     handlers[name] = handler;
   }),
-  condition: (...args: unknown[]) => mockCondition(...args),
+  condition: vi.fn((..._args: unknown[]) => mockCondition()),
   workflowInfo: vi.fn(() => ({
     workflowId: "test-loop-1",
     runId: "run-1",
