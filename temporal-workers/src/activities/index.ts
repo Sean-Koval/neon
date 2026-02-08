@@ -50,3 +50,12 @@ export {
   waitForResume,
   debugActivities,
 } from "./debug-handler";
+
+// Training loop
+export {
+  collectSignals,
+  curateTrainingData,
+  runOptimization,
+  checkRegressionStatus,
+  recordLoopIteration,
+} from "./training-activities";

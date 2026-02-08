@@ -34,3 +34,14 @@ export {
   abTestProgressQuery,
   rolloutProgressQuery,
 } from "./optimization";
+
+export {
+  trainingLoopWorkflow,
+  getLoopStatusQuery,
+  pauseSignal as trainingPauseSignal,
+  resumeSignal as trainingResumeSignal,
+  abortSignal as trainingAbortSignal,
+  approveSignal as trainingApproveSignal,
+  rejectSignal as trainingRejectSignal,
+  skipStageSignal as trainingSkipStageSignal,
+} from "./training-loop";
