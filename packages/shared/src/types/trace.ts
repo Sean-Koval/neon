@@ -102,6 +102,22 @@ export interface MCPContext {
 }
 
 /**
+ * Retrieval chunk for structured RAG context
+ */
+export interface RetrievalChunk {
+  /** The retrieved text content */
+  content: string;
+  /** Source identifier (document path, URL, collection name, etc.) */
+  source: string;
+  /** Relevance/similarity score from the retrieval system (0-1) */
+  relevance_score?: number;
+  /** Position/rank in the result set (0-indexed) */
+  position?: number;
+  /** Optional metadata about the chunk */
+  metadata?: Record<string, string>;
+}
+
+/**
  * Decision metadata for span execution
  */
 export interface DecisionMetadata {
