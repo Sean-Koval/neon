@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import type { SuiteResult } from "../test.js";
+import type { SuiteResult } from "../test/index.js";
 import {
   NeonCloudClient,
   CloudSyncError,

@@ -5,7 +5,7 @@
  * Designed to work silently without blocking local evaluation execution.
  */
 
-import type { SuiteResult } from "../test.js";
+import type { SuiteResult } from "../test/index.js";
 import {
   NeonCloudClient,
   createCloudClientFromEnv,

@@ -15,7 +15,7 @@ import type {
   EvalRun,
   EvalRunResult,
 } from "@neon/shared";
-import type { Suite, Test } from "./test.js";
+import type { Suite, Test } from "../test/index.js";
 
 /**
  * Client configuration

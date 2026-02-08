@@ -5,7 +5,7 @@
  * Configured via NEON_API_URL and NEON_API_KEY environment variables.
  */
 
-import type { SuiteResult } from "../test.js";
+import type { SuiteResult } from "../test/index.js";
 
 /**
  * Cloud client configuration
