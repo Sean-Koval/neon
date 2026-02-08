@@ -386,3 +386,100 @@ For specific error messages, see the [Error Reference Guide](./error-reference.m
 - **401 errors**: Authentication is missing or expired. Check your API key or JWT token.
 - **Eval run stuck**: Check that the Temporal worker is running (`bun run workers`). You can cancel stuck runs via the API.
 - **Scores are all zero**: Verify the scorer configuration and that the agent produces output. For LLM judges, ensure `ANTHROPIC_API_KEY` is set.
+
+---
+
+## Advanced Usage
+
+### 21. How do I use the TypeScript SDK CLI?
+
+The `@neon/sdk` package includes a CLI for running evaluations:
+
+```bash
+# Run all eval files
+npx neon eval
+
+# Run specific patterns
+npx neon eval "tests/**/*.eval.js"
+
+# With options
+npx neon eval --filter "weather" --parallel 5 --timeout 120000
+
+# JSON output for CI/CD
+npx neon eval --format json
+
+# CI mode: JSON output + non-zero exit on failure
+npx neon eval --ci --threshold 0.8
+```
+
+See the [CLI Reference](./sdk.md) for all options.
+
+### 22. How do I create custom scorers?
+
+**TypeScript:**
+
+```typescript
+import { defineScorer, ScorerConfig } from '@neon/sdk'
+
+const wordCount = defineScorer({
+  name: 'word_count',
+  evaluate: async (context) => ({
+    value: Math.min(context.output.split(/\s+/).length / 100, 1.0),
+    reason: `Word count: ${context.output.split(/\s+/).length}`,
+  }),
+})
+```
+
+**Python:**
+
+```python
+from neon_sdk.scorers import define_scorer, ScorerConfig, ScoreResult
+
+custom = define_scorer(ScorerConfig(
+    name='word_count',
+    evaluate=lambda ctx: ScoreResult(
+        value=min(len(ctx.output.split()) / 100, 1.0),
+        reason=f"Word count: {len(ctx.output.split())}",
+    ),
+))
+```
+
+### 23. What LLM providers are supported for LLM judge scorers?
+
+Neon supports multiple LLM providers for evaluation scoring:
+
+| Provider | Environment Variable | Package Required |
+|----------|---------------------|-----------------|
+| Anthropic | `ANTHROPIC_API_KEY` | `@anthropic-ai/sdk` |
+| OpenAI | `OPENAI_API_KEY` | `openai` |
+| Google Vertex AI | `GOOGLE_CLOUD_PROJECT` | `@google-cloud/vertexai` |
+| Vertex Claude | `GOOGLE_CLOUD_PROJECT` | `@anthropic-ai/vertex-sdk` |
+
+### 24. Can I export evaluation data for fine-tuning?
+
+Yes. The SDK supports exporting results in formats compatible with popular training frameworks:
+
+- **OpenAI fine-tuning** format
+- **HuggingFace TRL** (SFT, DPO, KTO)
+- **DSPy** optimization format
+- **Agent Lightning** format
+
+Use the export utilities in `@neon/sdk` to convert evaluation traces into training data.
+
+### 25. How do I set up alerts for score regressions?
+
+Create alert rules via the API or dashboard:
+
+```bash
+curl -X POST /api/alerts/rules \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Score regression",
+    "metric": "avg_score",
+    "operator": "lt",
+    "threshold": 0.7,
+    "severity": "critical"
+  }'
+```
+
+Supported operators: `gt`, `gte`, `lt`, `lte`, `eq`. Supported severities: `critical`, `warning`, `info`.
