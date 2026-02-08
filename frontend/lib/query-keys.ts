@@ -5,6 +5,12 @@
 
 import type { RunsFilter } from './types'
 
+export interface AgentFilter {
+  environment?: string
+  status?: string
+  search?: string
+}
+
 export const queryKeys = {
   // =============================================================================
   // Suites
@@ -40,6 +46,18 @@ export const queryKeys = {
         ...queryKeys.compare.all,
         { baseline: baselineId, candidate: candidateId, threshold },
       ] as const,
+  },
+
+  // =============================================================================
+  // Agents
+  // =============================================================================
+  agents: {
+    all: ['agents'] as const,
+    lists: () => [...queryKeys.agents.all, 'list'] as const,
+    list: (filters?: AgentFilter) =>
+      [...queryKeys.agents.lists(), filters ?? {}] as const,
+    details: () => [...queryKeys.agents.all, 'detail'] as const,
+    detail: (id: string) => [...queryKeys.agents.details(), id] as const,
   },
 } as const
 
