@@ -1,0 +1,65 @@
+================================================================================
+KEYBOARD SHORTCUTS OVERLAY — components/keyboard-shortcuts.tsx
+================================================================================
+Full-screen overlay showing all available keyboard shortcuts.
+Triggered by pressing ? key (when not in an input field).
+
+POSITION: Centered modal overlay with backdrop
+SIZE: max-w-xl (576px)
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                          (backdrop: bg-black/50)                             │
+│                                                                              │
+│       ┌──────────────────────────────────────────────────────┐              │
+│       │                                                      │              │
+│       │  Keyboard Shortcuts                         [ESC]   │              │
+│       │                                                      │              │
+│       │  ─── NAVIGATION ─────────────────────────────────── │              │
+│       │                                                      │              │
+│       │  g then c     Go to Command Center                  │              │
+│       │  g then a     Go to Agents                          │              │
+│       │  g then t     Go to Traces                          │              │
+│       │  g then s     Go to Suites                          │              │
+│       │  g then e     Go to Eval Runs                       │              │
+│       │  g then p     Go to Prompts                         │              │
+│       │  g then x     Go to Experiments                     │              │
+│       │  g then r     Go to Training                        │              │
+│       │                                                      │              │
+│       │  ─── GLOBAL ─────────────────────────────────────── │              │
+│       │                                                      │              │
+│       │  ⌘ K          Open command palette                  │              │
+│       │  /             Focus search (on current page)       │              │
+│       │  ?             Show this help                        │              │
+│       │  Escape        Close modal / deselect               │              │
+│       │                                                      │              │
+│       │  ─── ACTIONS ────────────────────────────────────── │              │
+│       │                                                      │              │
+│       │  ⌘ E          Start new eval run                    │              │
+│       │  ⌘ X          Create experiment                     │              │
+│       │  ⌘ D          Compare runs                          │              │
+│       │  r             Refresh current page data             │              │
+│       │                                                      │              │
+│       │  ─── TABLE / LIST ───────────────────────────────── │              │
+│       │                                                      │              │
+│       │  j / k         Move down / up in list               │              │
+│       │  Enter         Open selected item                   │              │
+│       │  x             Select / deselect item               │              │
+│       │                                                      │              │
+│       └──────────────────────────────────────────────────────┘              │
+│                                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+STYLING:
+  - Container: bg-surface-card, border border-border, rounded-xl, shadow-2xl
+  - Title: text-lg font-semibold text-content-primary
+  - Section headers: text-[11px] uppercase tracking-wider text-content-muted
+  - Shortcut keys: inline-flex, bg-surface-overlay, border border-border,
+    rounded-md, px-2 py-0.5, text-xs font-mono text-content-secondary
+  - Description: text-sm text-content-secondary
+  - "then" connector: text-content-muted text-xs
+
+BEHAVIOR:
+  - Press ? to open (only when no input/textarea is focused)
+  - Press Escape or click backdrop to close
+  - "g then X" shortcuts use a two-key chord: press g, then the letter
+    within 500ms

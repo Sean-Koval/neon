@@ -1,0 +1,362 @@
+================================================================================
+TRAINING — Export Tab — app/training?tab=export
+================================================================================
+Export curated datasets in training-ready formats for external fine-tuning
+and optimization tools.
+Route: /training?tab=export
+
+PARENT: Training page (see index.txt for header + tab bar + pipeline stats)
+DATA: trpc.training.datasets.list()
+      trpc.training.datasets.getById(id)
+      trpc.training.export(input)
+LAYOUT: space-y-6 within tab content area
+
+DESIGN NOTES:
+
+1. Export is the bridge between Neon's data and external training
+   pipelines. The design prioritizes clarity about WHAT you're
+   exporting, in WHICH format, and a PREVIEW before download.
+   Three-step flow: select dataset → choose format → preview & export.
+
+2. Format cards use radio selection, not a dropdown, because format
+   choice has significant implications. Each card shows the format
+   name, a one-line description, the output file extension, and
+   which training frameworks consume it. Users need this context
+   to make the right choice.
+
+3. The preview panel is critical. Users MUST see what the exported
+   data looks like before downloading. For DPO, this means showing
+   the chosen/rejected structure. For SFT, the messages array.
+   Preview shows 2-3 examples in the exact JSON/JSONL structure.
+
+4. File size estimation shown before download. Calculated from
+   example count + avg example size. Users need this to know if
+   they're about to download 10KB or 10GB.
+
+5. Export history tracks past exports so users can re-download
+   without re-configuring. Each export is a point-in-time snapshot
+   of the dataset in a specific format.
+
+6. The page works without any datasets — it shows a clear empty
+   state directing users to the Datasets tab first. The pipeline
+   flow (Feedback → Datasets → Export) is reinforced.
+
+7. Custom JSON schema mode supports advanced users who need a
+   non-standard format. They define a Handlebars-style template
+   and see live preview. This replaces building a separate
+   export pipeline.
+
+---
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  (Training Header + Tab Bar — see index.txt)                                │
+│                                                                             │
+│  Feedback  |  Datasets  |  Export*  |  Auto-Improve                        │
+│                           ════════                                          │
+│                                                                             │
+│  ┌─ TAB: Export ──────────────────────────────────────────────────────────┐  │
+│  │                                                                         │  │
+│  │  ┌─ Step 1: Select Dataset ─────────────────────────────────────────┐  │  │
+│  │  │                                                                     │  │  │
+│  │  │  Dataset *                                                         │  │  │
+│  │  │  ┌─────────────────────────────────────────────────────────────┐  │  │  │
+│  │  │  │ booking-agent-sft-v3                                    ▾ │  │  │  │
+│  │  │  └─────────────────────────────────────────────────────────────┘  │  │  │
+│  │  │  dropdown: h-9, text-sm, border border-border, rounded-md        │  │  │
+│  │  │  Options: all datasets (name + example count + format badge)     │  │  │
+│  │  │  e.g. "booking-agent-sft-v3 · 1,240 examples · SFT"            │  │  │
+│  │  │  Pre-selected if arriving from Datasets tab "Export This Dataset"│  │  │
+│  │  │                                                                     │  │  │
+│  │  │  Selected dataset summary:                                        │  │  │
+│  │  │  ┌───────────────────────────────────────────────────────────┐   │  │  │
+│  │  │  │                                                             │   │  │  │
+│  │  │  │  1,240 examples · 80/20 split · booking-agent              │   │  │  │
+│  │  │  │  Sources: Corrections (62%) · Preferences (28%) ·          │   │  │  │
+│  │  │  │           Traces (10%)                                      │   │  │  │
+│  │  │  │                                                             │   │  │  │
+│  │  │  │  text-sm text-content-muted. bg-surface-overlay/20         │   │  │  │
+│  │  │  │  rounded-md p-3. Only visible when a dataset is selected.  │   │  │  │
+│  │  │  │                                                             │   │  │  │
+│  │  │  └───────────────────────────────────────────────────────────┘   │  │  │
+│  │  │                                                                     │  │  │
+│  │  └─────────────────────────────────────────────────────────────────────┘  │  │
+│  │                                                                         │  │
+│  │  ┌─ Step 2: Choose Format ──────────────────────────────────────────┐  │  │
+│  │  │                                                                     │  │  │
+│  │  │  Export Format *                                                   │  │  │
+│  │  │                                                                     │  │  │
+│  │  │  ┌─ Format Cards (grid-cols-2 lg:grid-cols-3 gap-3) ─────────┐  │  │  │
+│  │  │  │                                                               │  │  │  │
+│  │  │  │  ┌─────────────────────┐  ┌─────────────────────┐           │  │  │  │
+│  │  │  │  │ ● OpenAI Fine-Tune  │  │ ○ HuggingFace TRL   │           │  │  │  │
+│  │  │  │  │                     │  │                     │           │  │  │  │
+│  │  │  │  │   SFT format for    │  │   SFT / DPO / KTO  │           │  │  │  │
+│  │  │  │  │   OpenAI fine-      │  │   formats for TRL   │           │  │  │  │
+│  │  │  │  │   tuning API        │  │   Trainer classes   │           │  │  │  │
+│  │  │  │  │                     │  │                     │           │  │  │  │
+│  │  │  │  │   .jsonl            │  │   .jsonl            │           │  │  │  │
+│  │  │  │  └─────────────────────┘  └─────────────────────┘           │  │  │  │
+│  │  │  │                                                               │  │  │  │
+│  │  │  │  ┌─────────────────────┐  ┌─────────────────────┐           │  │  │  │
+│  │  │  │  │ ○ DSPy             │  │ ○ Agent Lightning    │           │  │  │  │
+│  │  │  │  │                     │  │                     │           │  │  │  │
+│  │  │  │  │   Prompt/completion │  │   AgentOps training │           │  │  │  │
+│  │  │  │  │   pairs for DSPy    │  │   format             │           │  │  │  │
+│  │  │  │  │   optimization      │  │                     │           │  │  │  │
+│  │  │  │  │                     │  │                     │           │  │  │  │
+│  │  │  │  │   .json             │  │   .jsonl            │           │  │  │  │
+│  │  │  │  └─────────────────────┘  └─────────────────────┘           │  │  │  │
+│  │  │  │                                                               │  │  │  │
+│  │  │  │  ┌─────────────────────┐                                     │  │  │  │
+│  │  │  │  │ ○ Custom JSON       │                                     │  │  │  │
+│  │  │  │  │                     │                                     │  │  │  │
+│  │  │  │  │   Define your own   │                                     │  │  │  │
+│  │  │  │  │   JSON template     │                                     │  │  │  │
+│  │  │  │  │                     │                                     │  │  │  │
+│  │  │  │  │   .json / .jsonl    │                                     │  │  │  │
+│  │  │  │  └─────────────────────┘                                     │  │  │  │
+│  │  │  │                                                               │  │  │  │
+│  │  │  │  card class per format. Radio selection (one active).        │  │  │  │
+│  │  │  │  Selected: border-primary ring-1 ring-primary/30            │  │  │  │
+│  │  │  │  Unselected: border-border hover:border-content-muted       │  │  │  │
+│  │  │  │  Radio dot: top-left corner of card                         │  │  │  │
+│  │  │  │  Name: text-sm font-semibold text-content-primary           │  │  │  │
+│  │  │  │  Description: text-xs text-content-muted                    │  │  │  │
+│  │  │  │  Extension: text-[10px] text-content-muted mt-auto          │  │  │  │
+│  │  │  │    (pinned to bottom of card)                                │  │  │  │
+│  │  │  │                                                               │  │  │  │
+│  │  │  │  Incompatible format warning (inline on card):              │  │  │  │
+│  │  │  │  If dataset format is SFT but user selects DPO:            │  │  │  │
+│  │  │  │    "⚠ Dataset has no paired data for DPO"                  │  │  │  │
+│  │  │  │    text-[10px] text-status-warning                          │  │  │  │
+│  │  │  │    Card still selectable but export will warn again.       │  │  │  │
+│  │  │  │                                                               │  │  │  │
+│  │  │  └───────────────────────────────────────────────────────────────┘  │  │  │
+│  │  │                                                                     │  │  │
+│  │  │  ── Custom JSON Template (shown only when "Custom JSON" selected) ─│  │  │
+│  │  │                                                                     │  │  │
+│  │  │  Template *                                                         │  │  │
+│  │  │  ┌─────────────────────────────────────────────────────────────┐  │  │  │
+│  │  │  │ {                                                            │  │  │  │
+│  │  │  │   "instruction": "{{input}}",                               │  │  │  │
+│  │  │  │   "response": "{{output}}",                                 │  │  │  │
+│  │  │  │   "source": "{{source_type}}",                              │  │  │  │
+│  │  │  │   "agent": "{{agent_name}}"                                 │  │  │  │
+│  │  │  │ }                                                            │  │  │  │
+│  │  │  └─────────────────────────────────────────────────────────────┘  │  │  │
+│  │  │  textarea: font-mono text-xs, min-h-[120px], resize-y           │  │  │
+│  │  │  border border-border, focus:border-primary                      │  │  │
+│  │  │                                                                     │  │  │
+│  │  │  Available variables:                                              │  │  │
+│  │  │  {{input}} {{output}} {{chosen}} {{rejected}} {{source_type}}    │  │  │
+│  │  │  {{agent_name}} {{score}} {{trace_id}} {{created_at}}            │  │  │
+│  │  │  text-xs text-content-muted, each variable in font-mono          │  │  │
+│  │  │  bg-surface-overlay/30 px-1 rounded                               │  │  │
+│  │  │                                                                     │  │  │
+│  │  │  Output: [● JSONL (one per line)] [○ JSON (array)]              │  │  │
+│  │  │  radio group, text-sm                                              │  │  │
+│  │  │                                                                     │  │  │
+│  │  └─────────────────────────────────────────────────────────────────────┘  │  │
+│  │                                                                         │  │
+│  │  ┌─ Step 3: Preview & Export ───────────────────────────────────────┐  │  │
+│  │  │                                                                     │  │  │
+│  │  │  Preview                                                           │  │  │
+│  │  │  text-sm font-medium text-content-primary                          │  │  │
+│  │  │                                                                     │  │  │
+│  │  │  ┌─────────────────────────────────────────────────────────────┐  │  │  │
+│  │  │  │ 1│ {"messages": [                                            │  │  │  │
+│  │  │  │  │   {"role": "user", "content": "What is the refund       │  │  │  │
+│  │  │  │  │    policy for premium users?"},                           │  │  │  │
+│  │  │  │  │   {"role": "assistant", "content": "Premium users can   │  │  │  │
+│  │  │  │  │    request a full refund within 30 days..."}             │  │  │  │
+│  │  │  │  │ ]}                                                        │  │  │  │
+│  │  │  │ 2│ {"messages": [                                            │  │  │  │
+│  │  │  │  │   {"role": "user", "content": "How do I cancel?"},      │  │  │  │
+│  │  │  │  │   {"role": "assistant", "content": "You can cancel      │  │  │  │
+│  │  │  │  │    your subscription by..."}                              │  │  │  │
+│  │  │  │  │ ]}                                                        │  │  │  │
+│  │  │  └─────────────────────────────────────────────────────────────┘  │  │  │
+│  │  │  bg-surface-overlay/20 rounded-lg p-4, overflow-x-auto           │  │  │
+│  │  │  font-mono text-xs text-content-secondary                        │  │  │
+│  │  │  Line numbers: text-content-muted/50 select-none mr-3            │  │  │
+│  │  │  JSON syntax highlighted:                                         │  │  │
+│  │  │    keys: text-blue-400  strings: text-emerald-400                │  │  │
+│  │  │    numbers: text-amber-400  brackets: text-content-muted         │  │  │
+│  │  │  Shows first 2-3 examples. "... and 1,238 more" below.          │  │  │
+│  │  │  Updates live when format selection changes.                      │  │  │
+│  │  │                                                                     │  │  │
+│  │  │  ┌─ Export Info ─────────────────────────────────────────────┐   │  │  │
+│  │  │  │                                                             │   │  │  │
+│  │  │  │  Format        OpenAI Fine-Tuning (.jsonl)                │   │  │  │
+│  │  │  │  Examples      1,240 (Train: 992 / Test: 248)             │   │  │  │
+│  │  │  │  Est. Size     ~2.4 MB                                     │   │  │  │
+│  │  │  │  Files         2 (train.jsonl + test.jsonl)                │   │  │  │
+│  │  │  │                                                             │   │  │  │
+│  │  │  │  2-col grid, text-sm                                       │   │  │  │
+│  │  │  │  Label: text-content-muted  Value: text-content-primary    │   │  │  │
+│  │  │  │                                                             │   │  │  │
+│  │  │  └─────────────────────────────────────────────────────────────┘   │  │  │
+│  │  │                                                                     │  │  │
+│  │  │  ┌─ Export Options ──────────────────────────────────────────┐   │  │  │
+│  │  │  │                                                             │   │  │  │
+│  │  │  │  [✓] Include test split as separate file                  │   │  │  │
+│  │  │  │  [✓] Add metadata header (format, date, dataset name)     │   │  │  │
+│  │  │  │  [ ] Shuffle examples before export                        │   │  │  │
+│  │  │  │                                                             │   │  │  │
+│  │  │  │  checkboxes: text-sm, gap-2 vertically                    │   │  │  │
+│  │  │  │  Default: test split + metadata on, shuffle off            │   │  │  │
+│  │  │  │                                                             │   │  │  │
+│  │  │  └─────────────────────────────────────────────────────────────┘   │  │  │
+│  │  │                                                                     │  │  │
+│  │  │  [Download Export]                        Est. ~2.4 MB             │  │  │
+│  │  │  btn btn-primary, w-full                  text-xs text-content-muted│  │  │
+│  │  │                                                                     │  │  │
+│  │  │  On click: triggers server-side export generation.                │  │  │
+│  │  │  Button shows spinner + "Generating..." while processing.        │  │  │
+│  │  │  On complete: browser downloads file. Toast: "Export downloaded". │  │  │
+│  │  │  If test split enabled: downloads .zip with train + test files.  │  │  │
+│  │  │                                                                     │  │  │
+│  │  └─────────────────────────────────────────────────────────────────────┘  │  │
+│  │                                                                         │  │
+│  │  ┌─ Export History ─────────────────────────────────────────────────┐  │  │
+│  │  │                                                                     │  │  │
+│  │  │  Recent Exports                                                   │  │  │
+│  │  │  text-sm font-medium text-content-primary mb-3                    │  │  │
+│  │  │                                                                     │  │  │
+│  │  │  ┌──────────────────┬──────────────┬────────┬─────┬──────────┐  │  │  │
+│  │  │  │ Dataset          │ Format       │ Size   │ Date│          │  │  │  │
+│  │  │  ├──────────────────┼──────────────┼────────┼─────┼──────────┤  │  │  │
+│  │  │  │ booking-sft-v3   │ OpenAI FT    │ 2.4 MB │ 1d  │ [↓]     │  │  │  │
+│  │  │  │ search-dpo-v1    │ HF TRL (DPO) │ 1.1 MB │ 3d  │ [↓]     │  │  │  │
+│  │  │  │ booking-sft-v2   │ OpenAI FT    │ 1.8 MB │ 7d  │ [↓]     │  │  │  │
+│  │  │  └──────────────────┴──────────────┴────────┴─────┴──────────┘  │  │  │
+│  │  │                                                                     │  │  │
+│  │  │  Table: text-sm, full-width                                       │  │  │
+│  │  │  Dataset: text-content-primary font-medium                        │  │  │
+│  │  │  Format: badge style — same as datasets tab                       │  │  │
+│  │  │  Size: text-content-muted                                          │  │  │
+│  │  │  Date: relative timestamp, text-content-muted                     │  │  │
+│  │  │  [↓]: download button, btn btn-ghost btn-sm, Download icon       │  │  │
+│  │  │    Re-downloads the cached export file.                            │  │  │
+│  │  │  Row hover: bg-surface-overlay/50                                  │  │  │
+│  │  │                                                                     │  │  │
+│  │  │  Exports cached for 30 days. After that, must re-export.          │  │  │
+│  │  │  text-xs text-content-muted mt-2                                   │  │  │
+│  │  │                                                                     │  │  │
+│  │  └─────────────────────────────────────────────────────────────────────┘  │  │
+│  │                                                                         │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+
+===============================================================================
+LOADING STATE
+===============================================================================
+
+  ┌──────────────────────────────────────────────────────────────────────┐
+  │  ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ (dropdown skeleton)          │
+  │                                                                      │
+  │  ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐  │
+  │  │ ░░░░░░░░░░░░░░░░ │  │ ░░░░░░░░░░░░░░░░ │  │ ░░░░░░░░░░░░░░░░ │  │
+  │  │ ░░░░░░░░░░       │  │ ░░░░░░░░░░       │  │ ░░░░░░░░░░       │  │
+  │  │ ░░░░░░░░░░░░     │  │ ░░░░░░░░░░░░     │  │ ░░░░░░░░░░░░     │  │
+  │  └──────────────────┘  └──────────────────┘  └──────────────────┘  │
+  │                                                                      │
+  │  ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ (preview skeleton)            │
+  │  ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░                               │
+  │  ░░░░░░░░░░░░░░░░░░░░░░░░░░                                        │
+  └──────────────────────────────────────────────────────────────────────┘
+  animate-pulse. Dropdown skeleton + 3 format card skeletons + preview block.
+
+
+===============================================================================
+EMPTY STATE — No datasets
+===============================================================================
+
+  ┌──────────────────────────────────────────────────────────┐
+  │                                                          │
+  │        (Download icon, w-12 h-12, text-content-muted)  │
+  │                                                          │
+  │        No datasets to export                            │
+  │        text-lg font-medium text-content-primary          │
+  │                                                          │
+  │        Create a dataset first to prepare data for       │
+  │        export. Go to the Datasets tab to get started.   │
+  │        text-sm text-content-muted, max-w-sm mx-auto      │
+  │                                                          │
+  │        [Go to Datasets]                                  │
+  │        btn btn-primary                                   │
+  │        onClick: switches to Datasets tab                │
+  │                                                          │
+  └──────────────────────────────────────────────────────────┘
+
+EMPTY STATE — No export history:
+  Export history section simply not rendered if no past exports.
+  No empty state needed — the export form is always present.
+
+
+===============================================================================
+ERROR STATE
+===============================================================================
+
+Export generation error (inline, above download button):
+  ┌──────────────────────────────────────────────────────────┐
+  │                                                          │
+  │  ⚠ Export failed: {error.message}                       │
+  │  text-sm text-status-error                               │
+  │                                                          │
+  │  bg-status-error/10 border border-status-error/20       │
+  │  rounded-md p-3                                          │
+  │                                                          │
+  │  [Retry Export]                                          │
+  │  btn btn-secondary btn-sm                                │
+  │                                                          │
+  └──────────────────────────────────────────────────────────┘
+
+
+===============================================================================
+BEHAVIORAL NOTES
+===============================================================================
+
+1. The three steps (Select Dataset → Choose Format → Preview) are
+   laid out vertically on a single page, not as a wizard dialog.
+   This lets users see the full context without modal fatigue.
+   Steps 2-3 are visually de-emphasized (lower opacity) until
+   Step 1 (dataset) is selected.
+
+2. Dataset dropdown pre-selects if arriving from Datasets tab
+   "Export This Dataset" action. URL param: &dataset=name.
+
+3. Format selection auto-detects compatibility with the selected
+   dataset. If the dataset has DPO-format data, DPO card is
+   recommended (subtle "(Recommended)" label). Incompatible
+   formats show a warning but remain selectable.
+
+4. Preview updates live when format or dataset changes. Server
+   generates 2-3 sample rows in the target format. This is a
+   separate lightweight endpoint, not the full export.
+
+5. Custom JSON template validates on blur. Invalid Handlebars
+   syntax shows inline error below textarea. Unknown variables
+   show warning: "{{unknown_var}} is not a recognized variable".
+
+6. Download triggers a server-side export that streams the file.
+   For large datasets (>10k examples), shows a progress bar
+   instead of a spinner. Export is async — user can navigate
+   away and the export appears in Export History when ready.
+
+7. Export History table is sorted newest first. Max 10 entries
+   shown. No pagination needed — old exports expire after 30d.
+
+8. File size estimation: calculated as (example count * avg bytes
+   per example * format overhead). Shown as "~X MB". Accurate
+   to within ~20% of actual file size.
+
+9. When "Include test split" is checked, export produces a .zip
+   containing train.jsonl + test.jsonl (or .json depending on
+   format). When unchecked, exports only the train split.
+
+10. The page remembers last-used format and options in localStorage.
+    On return, format cards and checkboxes restore previous state.
+    Dataset selection is NOT remembered (explicit choice each time).

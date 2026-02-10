@@ -61,16 +61,16 @@ export function ErrorFallback({
     return (
       <div
         className={clsx(
-          'flex items-center gap-3 p-4 bg-rose-50 border border-rose-200 rounded-lg',
+          'flex items-center gap-3 p-4 bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/25 rounded-lg',
           className,
         )}
       >
         <AlertCircle className="w-5 h-5 text-rose-500 flex-shrink-0" />
-        <p className="text-sm text-rose-700 flex-1">{userFriendlyMessage}</p>
+        <p className="text-sm text-rose-700 dark:text-rose-400 flex-1">{userFriendlyMessage}</p>
         {reset && (
           <button
             onClick={reset}
-            className="text-sm font-medium text-rose-600 hover:text-rose-800 flex items-center gap-1"
+            className="text-sm font-medium text-rose-600 dark:text-rose-400 hover:text-rose-800 dark:hover:text-rose-300 flex items-center gap-1"
           >
             <RefreshCw className="w-4 h-4" />
             Retry
@@ -83,15 +83,15 @@ export function ErrorFallback({
   if (variant === 'card') {
     return (
       <div className={clsx('card p-6 text-center', className)}>
-        <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-rose-100 mb-4">
-          <AlertCircle className="w-6 h-6 text-rose-600" />
+        <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-rose-100 dark:bg-rose-500/20 mb-4">
+          <AlertCircle className="w-6 h-6 text-rose-600 dark:text-rose-400" />
         </div>
-        <h3 className="text-lg font-semibold text-gray-900 mb-2">{title}</h3>
-        <p className="text-sm text-gray-600 mb-4">{userFriendlyMessage}</p>
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">{title}</h3>
+        <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">{userFriendlyMessage}</p>
         {reset && (
           <button
             onClick={reset}
-            className="btn btn-secondary inline-flex items-center gap-2"
+            className="btn btn-secondary"
           >
             <RefreshCw className="w-4 h-4" />
             Try again
@@ -111,15 +111,15 @@ export function ErrorFallback({
     >
       <div className="text-center max-w-md">
         {/* Icon */}
-        <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-rose-100 mb-6">
-          <AlertCircle className="w-8 h-8 text-rose-600" />
+        <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-rose-100 dark:bg-rose-500/20 mb-6">
+          <AlertCircle className="w-8 h-8 text-rose-600 dark:text-rose-400" />
         </div>
 
         {/* Title */}
-        <h1 className="text-2xl font-bold text-gray-900 mb-3">{title}</h1>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-3">{title}</h1>
 
         {/* Message */}
-        <p className="text-gray-600 mb-8">{userFriendlyMessage}</p>
+        <p className="text-gray-600 dark:text-gray-300 mb-8">{userFriendlyMessage}</p>
 
         {/* Actions */}
         <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
@@ -128,7 +128,7 @@ export function ErrorFallback({
               {reset && (
                 <button
                   onClick={reset}
-                  className="btn btn-primary inline-flex items-center gap-2 w-full sm:w-auto"
+                  className="btn btn-primary w-full sm:w-auto"
                 >
                   <RefreshCw className="w-4 h-4" />
                   Try again
@@ -137,7 +137,7 @@ export function ErrorFallback({
               {showBack && (
                 <button
                   onClick={() => router.back()}
-                  className="btn btn-secondary inline-flex items-center gap-2 w-full sm:w-auto"
+                  className="btn btn-secondary w-full sm:w-auto"
                 >
                   <ChevronLeft className="w-4 h-4" />
                   Go back
@@ -146,7 +146,7 @@ export function ErrorFallback({
               {showHome && (
                 <button
                   onClick={() => router.push('/')}
-                  className="btn btn-ghost inline-flex items-center gap-2 w-full sm:w-auto"
+                  className="btn btn-ghost w-full sm:w-auto"
                 >
                   <Home className="w-4 h-4" />
                   Dashboard
@@ -161,10 +161,10 @@ export function ErrorFallback({
           error instanceof Error &&
           error.stack && (
             <details className="mt-8 text-left">
-              <summary className="text-sm text-gray-500 cursor-pointer hover:text-gray-700">
+              <summary className="text-sm text-gray-500 dark:text-gray-400 cursor-pointer hover:text-gray-700 dark:hover:text-gray-300">
                 Error details
               </summary>
-              <pre className="mt-2 p-4 bg-gray-100 rounded-lg text-xs text-gray-700 overflow-auto max-h-48">
+              <pre className="mt-2 p-4 bg-gray-100 dark:bg-dark-800 rounded-lg text-xs text-gray-700 dark:text-gray-300 overflow-auto max-h-48">
                 {error.stack}
               </pre>
             </details>
@@ -215,16 +215,16 @@ export function NotFoundFallback({
       )}
     >
       <div className="text-center max-w-md">
-        <div className="text-6xl font-bold text-gray-200 mb-4">404</div>
-        <h1 className="text-2xl font-bold text-gray-900 mb-3">
+        <div className="text-6xl font-bold text-gray-200 dark:text-dark-700 mb-4">404</div>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-3">
           {resource.charAt(0).toUpperCase() + resource.slice(1)} not found
         </h1>
-        <p className="text-gray-600 mb-8">
+        <p className="text-gray-600 dark:text-gray-300 mb-8">
           The {resource} you're looking for doesn't exist or has been removed.
         </p>
         <button
           onClick={() => router.push('/')}
-          className="btn btn-primary inline-flex items-center gap-2"
+          className="btn btn-primary"
         >
           <Home className="w-4 h-4" />
           Back to Dashboard

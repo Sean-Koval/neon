@@ -51,13 +51,13 @@ function StatusBadge({ status }: { status: string }) {
     <span
       className={clsx(
         'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium',
-        isOk ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700',
+        isOk ? 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400' : 'bg-rose-100 dark:bg-rose-500/20 text-rose-700 dark:text-rose-400',
       )}
     >
       {isOk ? (
-        <CheckCircle className="w-3 h-3" />
+        <CheckCircle className="w-3 h-3 text-emerald-500" />
       ) : (
-        <XCircle className="w-3 h-3" />
+        <XCircle className="w-3 h-3 text-rose-500" />
       )}
       {isOk ? 'Success' : 'Error'}
     </span>
@@ -81,20 +81,21 @@ function StatCard({
   deltaColor?: 'green' | 'red' | 'gray'
 }) {
   return (
-    <div className="bg-white rounded-lg border px-4 py-3">
-      <div className="flex items-center gap-2 text-sm text-gray-500 mb-1">
+    <div className="group relative overflow-hidden rounded-xl border border-border bg-surface-card px-4 py-3 shadow-sm">
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-primary-400/65 via-accent-400/55 to-primary-400/65" />
+      <div className="flex items-center gap-2 text-sm text-content-secondary mb-1">
         {Icon && <Icon className="w-4 h-4" />}
         {label}
       </div>
       <div className="flex items-center gap-2">
-        <span className="text-lg font-semibold text-gray-900">{value}</span>
+        <span className="text-lg font-semibold text-content-primary">{value}</span>
         {delta && (
           <span
             className={clsx(
               'text-sm font-medium',
-              deltaColor === 'green' && 'text-green-600',
-              deltaColor === 'red' && 'text-red-600',
-              deltaColor === 'gray' && 'text-gray-500',
+              deltaColor === 'green' && 'text-emerald-600 dark:text-emerald-400',
+              deltaColor === 'red' && 'text-rose-600 dark:text-rose-400',
+              deltaColor === 'gray' && 'text-gray-500 dark:text-gray-400',
             )}
           >
             {delta}
@@ -120,10 +121,10 @@ function ChangeBadge({
   if (count === 0) return null
 
   const styles = {
-    added: 'bg-green-100 text-green-700 border-green-200',
-    removed: 'bg-red-100 text-red-700 border-red-200',
-    modified: 'bg-amber-100 text-amber-700 border-amber-200',
-    unchanged: 'bg-gray-100 text-gray-600 border-gray-200',
+    added: 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/25',
+    removed: 'bg-rose-100 dark:bg-rose-500/20 text-rose-700 dark:text-rose-400 border-rose-200 dark:border-rose-500/25',
+    modified: 'bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-500/25',
+    unchanged: 'bg-gray-100 dark:bg-dark-800 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-dark-700',
   }
 
   const icons = {
@@ -166,22 +167,22 @@ export function DiffSummary({ diff }: DiffSummaryProps) {
   return (
     <div className="space-y-4">
       {/* Trace comparison header */}
-      <div className="bg-white rounded-lg border overflow-hidden">
-        <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x">
+      <div className="rounded-xl border border-border bg-surface-card overflow-hidden shadow-sm">
+        <div className="grid grid-cols-1 md:grid-cols-2 divide-y divide-border md:divide-y-0 md:divide-x">
           {/* Baseline */}
           <div className="p-4">
-            <div className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">
+            <div className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
               Baseline
             </div>
-            <div className="font-medium text-gray-900 truncate mb-1">
+            <div className="font-medium text-gray-900 dark:text-gray-100 truncate mb-1">
               {baseline.name}
             </div>
             <div className="flex items-center gap-3 text-sm">
               <StatusBadge status={baseline.status} />
-              <span className="text-gray-500">
+              <span className="text-gray-500 dark:text-gray-400">
                 {formatDuration(baseline.duration_ms)}
               </span>
-              <span className="text-gray-400 text-xs font-mono truncate">
+              <span className="text-gray-400 dark:text-gray-500 text-xs font-mono truncate">
                 {baseline.traceId.slice(0, 8)}
               </span>
             </div>
@@ -189,18 +190,18 @@ export function DiffSummary({ diff }: DiffSummaryProps) {
 
           {/* Candidate */}
           <div className="p-4">
-            <div className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">
+            <div className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
               Candidate
             </div>
-            <div className="font-medium text-gray-900 truncate mb-1">
+            <div className="font-medium text-gray-900 dark:text-gray-100 truncate mb-1">
               {candidate.name}
             </div>
             <div className="flex items-center gap-3 text-sm">
               <StatusBadge status={candidate.status} />
-              <span className="text-gray-500">
+              <span className="text-gray-500 dark:text-gray-400">
                 {formatDuration(candidate.duration_ms)}
               </span>
-              <span className="text-gray-400 text-xs font-mono truncate">
+              <span className="text-gray-400 dark:text-gray-500 text-xs font-mono truncate">
                 {candidate.traceId.slice(0, 8)}
               </span>
             </div>
@@ -233,8 +234,8 @@ export function DiffSummary({ diff }: DiffSummaryProps) {
       </div>
 
       {/* Change summary */}
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="text-sm font-medium text-gray-700 mr-2">
+      <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-surface-card px-3 py-2 shadow-sm">
+        <span className="text-sm font-medium text-content-secondary mr-2">
           Span Changes:
         </span>
         <ChangeBadge count={summary.added} label="added" variant="added" />
@@ -257,27 +258,27 @@ export function DiffSummary({ diff }: DiffSummaryProps) {
 
       {/* Score changes */}
       {summary.scoreDiffs.length > 0 && (
-        <div className="bg-white rounded-lg border overflow-hidden">
-          <div className="px-4 py-3 border-b bg-gray-50">
-            <h3 className="text-sm font-semibold text-gray-700">
+        <div className="rounded-xl border border-border bg-surface-card overflow-hidden shadow-sm">
+          <div className="px-4 py-3 border-b border-border bg-surface-raised/70">
+            <h3 className="text-sm font-semibold text-content-primary">
               Score Changes
             </h3>
           </div>
-          <div className="divide-y">
+          <div className="divide-y divide-border">
             {summary.scoreDiffs.map((score) => (
               <div
                 key={score.name}
                 className="flex items-center justify-between px-4 py-3"
               >
-                <span className="font-medium text-gray-900">{score.name}</span>
+                <span className="font-medium text-gray-900 dark:text-gray-100">{score.name}</span>
                 <div className="flex items-center gap-4">
-                  <span className="text-gray-500 text-sm">
+                  <span className="text-gray-500 dark:text-gray-400 text-sm">
                     {score.baselineValue !== null
                       ? `${Math.round(score.baselineValue * 100)}%`
                       : '-'}
                   </span>
-                  <ArrowRight className="w-4 h-4 text-gray-400" />
-                  <span className="text-gray-900 font-medium">
+                  <ArrowRight className="w-4 h-4 text-gray-400 dark:text-gray-500" />
+                  <span className="text-gray-900 dark:text-gray-100 font-medium">
                     {score.candidateValue !== null
                       ? `${Math.round(score.candidateValue * 100)}%`
                       : '-'}
@@ -285,11 +286,11 @@ export function DiffSummary({ diff }: DiffSummaryProps) {
                   <span
                     className={clsx(
                       'text-sm font-semibold min-w-[60px] text-right',
-                      score.status === 'improved' && 'text-green-600',
-                      score.status === 'regressed' && 'text-red-600',
-                      score.status === 'unchanged' && 'text-gray-500',
-                      score.status === 'added' && 'text-blue-600',
-                      score.status === 'removed' && 'text-orange-600',
+                      score.status === 'improved' && 'text-emerald-600 dark:text-emerald-400',
+                      score.status === 'regressed' && 'text-rose-600 dark:text-rose-400',
+                      score.status === 'unchanged' && 'text-gray-500 dark:text-gray-400',
+                      score.status === 'added' && 'text-blue-600 dark:text-blue-400',
+                      score.status === 'removed' && 'text-orange-600 dark:text-orange-400',
                     )}
                   >
                     {score.status === 'added' ? (

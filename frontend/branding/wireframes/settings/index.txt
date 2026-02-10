@@ -1,0 +1,666 @@
+================================================================================
+SETTINGS — app/settings/page.tsx
+================================================================================
+Central configuration for project, authentication, LLM providers, and
+infrastructure health. The only page in the sidebar not grouped under
+Monitor/Evaluate/Improve — sits below the divider as a utility page.
+Route: /settings
+
+PARENT: Root layout with sidebar
+DATA: useProjectSettings() → GET /api/settings
+      useAuth() → sessionStorage + NEXT_PUBLIC_API_KEY
+      useLlmProviders() → GET /api/settings/llm-providers
+      useInfrastructureHealth() → GET /api/settings/health (30s auto-refresh)
+LAYOUT: p-6, max-w-4xl, space-y-6
+
+DESIGN NOTES:
+
+1. Settings is a low-traffic, high-trust page. Users visit to configure
+   once and check infrastructure health occasionally. The design
+   prioritizes clarity and confidence — every action is explicit,
+   every state is visible, and destructive actions have confirmation.
+
+2. max-w-4xl constraint is intentional. Forms and configuration
+   panels don't benefit from full-width layouts — they become
+   harder to scan. The constrained width keeps label-value pairs
+   readable and gives the page a focused, professional feel.
+
+3. Four tabs map to four concerns:
+   - Project: identity + defaults (who am I, what are my baselines)
+   - API Keys: authentication (how do SDKs connect to me)
+   - LLM Providers: model access (which models can I use)
+   - Infrastructure: system health (are my services running)
+
+4. Project tab splits into two cards: read-only System Info (env-
+   driven, can't change in UI) and editable Project Defaults
+   (score thresholds, SLA targets, default model). This separation
+   makes it clear which values are configurable vs fixed.
+
+5. API Keys uses a client-side sessionStorage model (not server-
+   managed key lifecycle) because Neon's auth is workspace-scoped
+   via the withAuth middleware. The key format ae_<env>_<key>
+   encodes environment in the prefix. The wireframe documents
+   the current model faithfully — server-managed CRUD would
+   require backend changes not in scope.
+
+6. LLM Providers are read-only status checks (env var existence).
+   This is intentional for security — API keys for LLM providers
+   are server-side secrets, not client-configurable. The UI shows
+   what's available, not how to configure it.
+
+7. Infrastructure auto-refreshes every 30 seconds. The Refresh
+   button provides manual override. The overall status badge
+   (healthy/degraded/unhealthy) answers "is my system OK?" in
+   one glance. Service cards drill into specifics.
+
+8. No Danger Zone in this version. Project deletion and data
+   export are admin operations that belong in a future admin
+   panel, not in per-project settings. Avoids scope creep.
+
+9. Tab icons provide quick visual scanning without reading labels.
+   Building2 (project), Key (auth), Server (providers), Database
+   (infrastructure) — all from lucide-react, consistent with
+   the rest of the application.
+
+10. The page uses standard form patterns: labels above inputs,
+    helper text below, inline validation errors, success feedback
+    that auto-clears. Nothing novel — Settings should feel
+    familiar and trustworthy.
+
+---
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                                                                             │
+│  ┌─ Header ─────────────────────────────────────────────────────────────┐  │
+│  │                                                                       │  │
+│  │  Settings                                                            │  │
+│  │  text-2xl font-bold text-content-primary                              │  │
+│  │                                                                       │  │
+│  │  Configure your project, API keys, and infrastructure connections   │  │
+│  │  text-sm text-content-muted                                           │  │
+│  │                                                                       │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+│  ┌─ Tab Bar ───────────────────────────────────────────────────────────┐  │
+│  │                                                                       │  │
+│  │  (Building2) Project*  |  (Key) API Keys  |  (Server) LLM Providers│  │
+│  │  ═══════════════════                                                │  │
+│  │                         |  (Database) Infrastructure                │  │
+│  │                                                                       │  │
+│  │  tab bar: border-b border-border                                    │  │
+│  │  Active: text-content-primary font-medium border-b-2 border-primary │  │
+│  │  Inactive: text-content-muted hover:text-content-secondary          │  │
+│  │    hover:border-content-muted/30 border-b-2 border-transparent     │  │
+│  │  Icons: w-4 h-4, inline with label, gap-2                          │  │
+│  │  URL-synced: &tab=project (default) / api-keys / llm / infrastructure│  │
+│  │  flex gap-6, text-sm                                                 │  │
+│  │                                                                       │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+│                                                                             │
+│  ══════════════════════════════════════════════════════════════════════    │
+│  TAB: Project                                                              │
+│  ══════════════════════════════════════════════════════════════════════    │
+│                                                                             │
+│  ┌─ Card: System Information ──────────────────────────────────────────┐  │
+│  │                                                                       │  │
+│  │  (Building2 icon, w-5 h-5, text-content-muted)                     │  │
+│  │  Project Information                                                 │  │
+│  │  text-lg font-medium text-content-primary                            │  │
+│  │                                                                       │  │
+│  │  ┌─ Project ID ────────────────────────────────────────────────┐   │  │
+│  │  │                                                                │   │  │
+│  │  │  Project ID                                                   │   │  │
+│  │  │  text-sm font-medium text-content-secondary mb-1              │   │  │
+│  │  │                                                                │   │  │
+│  │  │  ┌────────────────────────────────────────────────────┐ [📋] │   │  │
+│  │  │  │ 00000000-0000-0000-0000-000000000001              │       │   │  │
+│  │  │  └────────────────────────────────────────────────────┘       │   │  │
+│  │  │  code display: bg-surface-overlay/30 border border-border    │   │  │
+│  │  │    rounded-lg px-3 py-2 text-sm font-mono text-content-primary│   │  │
+│  │  │  Copy button: p-2 hover:bg-surface-overlay rounded-lg        │   │  │
+│  │  │    Copy icon → Check icon (text-status-success) for 2s       │   │  │
+│  │  │                                                                │   │  │
+│  │  └────────────────────────────────────────────────────────────────┘   │  │
+│  │                                                                       │  │
+│  │  ┌─ Project Name ─────────────────────────────────────────────┐   │  │
+│  │  │                                                                │   │  │
+│  │  │  Project Name                                                 │   │  │
+│  │  │  text-sm font-medium text-content-secondary mb-1              │   │  │
+│  │  │                                                                │   │  │
+│  │  │  ┌────────────────────────────────────────────────────────┐  │   │  │
+│  │  │  │ Default Project                                         │  │   │  │
+│  │  │  └────────────────────────────────────────────────────────┘  │   │  │
+│  │  │  read-only display: bg-surface-overlay/30 border border-border│   │  │
+│  │  │    rounded-lg px-3 py-2 text-sm text-content-primary          │   │  │
+│  │  │                                                                │   │  │
+│  │  └────────────────────────────────────────────────────────────────┘   │  │
+│  │                                                                       │  │
+│  │  ┌─ Environment ──────────────────────────────────────────────┐   │  │
+│  │  │                                                                │   │  │
+│  │  │  Environment                                                  │   │  │
+│  │  │  text-sm font-medium text-content-secondary mb-1              │   │  │
+│  │  │                                                                │   │  │
+│  │  │  [production]                                                  │   │  │
+│  │  │                                                                │   │  │
+│  │  │  Badge, rounded-full, px-2.5 py-0.5, text-xs font-medium:   │   │  │
+│  │  │    production: bg-status-success/15 text-status-success       │   │  │
+│  │  │    staging:    bg-status-warning/15 text-status-warning       │   │  │
+│  │  │    development: bg-surface-overlay text-content-secondary     │   │  │
+│  │  │                                                                │   │  │
+│  │  └────────────────────────────────────────────────────────────────┘   │  │
+│  │                                                                       │  │
+│  │  Project settings are configured via environment variables.          │  │
+│  │  Contact your administrator to make changes.                        │  │
+│  │  text-sm text-content-muted mt-4                                     │  │
+│  │                                                                       │  │
+│  │  card class p-6                                                      │  │
+│  │                                                                       │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+│  ┌─ Card: Evaluation Defaults ─────────────────────────────────────────┐  │
+│  │                                                                       │  │
+│  │  (SlidersHorizontal icon, w-5 h-5, text-content-muted)             │  │
+│  │  Evaluation Defaults                                                 │  │
+│  │  text-lg font-medium text-content-primary                            │  │
+│  │                                                                       │  │
+│  │  Default thresholds used when agents or suites don't define        │  │
+│  │  their own. These apply project-wide.                               │  │
+│  │  text-sm text-content-muted mb-4                                     │  │
+│  │                                                                       │  │
+│  │  ┌─ Default Model ────────────────────────────────────────────┐   │  │
+│  │  │                                                                │   │  │
+│  │  │  Default Model                                                │   │  │
+│  │  │  text-sm font-medium text-content-secondary mb-1              │   │  │
+│  │  │                                                                │   │  │
+│  │  │  ┌────────────────────────────────────────────────────────┐  │   │  │
+│  │  │  │ gemini-2.5-flash                                    ▾ │  │   │  │
+│  │  │  └────────────────────────────────────────────────────────┘  │   │  │
+│  │  │  dropdown: h-9, text-sm, border border-border, rounded-md   │   │  │
+│  │  │  Options: models from configured LLM providers               │   │  │
+│  │  │  Used as fallback when agents don't specify a model.         │   │  │
+│  │  │  text-xs text-content-muted                                   │   │  │
+│  │  │                                                                │   │  │
+│  │  └────────────────────────────────────────────────────────────────┘   │  │
+│  │                                                                       │  │
+│  │  ┌─ Score Threshold ──────────────────────────────────────────┐   │  │
+│  │  │                                                                │   │  │
+│  │  │  Minimum Pass Score                                           │   │  │
+│  │  │  text-sm font-medium text-content-secondary mb-1              │   │  │
+│  │  │                                                                │   │  │
+│  │  │  ┌────────────────────────────────────────────────────────┐  │   │  │
+│  │  │  │ 0.7                                                     │  │   │  │
+│  │  │  └────────────────────────────────────────────────────────┘  │   │  │
+│  │  │  input: h-9, w-24, type=number, step=0.05, min=0, max=1    │   │  │
+│  │  │  Traces scoring below this are flagged as "low-score."      │   │  │
+│  │  │  text-xs text-content-muted                                   │   │  │
+│  │  │                                                                │   │  │
+│  │  └────────────────────────────────────────────────────────────────┘   │  │
+│  │                                                                       │  │
+│  │  ┌─ Latency Threshold ────────────────────────────────────────┐   │  │
+│  │  │                                                                │   │  │
+│  │  │  Max P50 Latency (ms)                                         │   │  │
+│  │  │  text-sm font-medium text-content-secondary mb-1              │   │  │
+│  │  │                                                                │   │  │
+│  │  │  ┌────────────────────────────────────────────────────────┐  │   │  │
+│  │  │  │ 5000                                                    │  │   │  │
+│  │  │  └────────────────────────────────────────────────────────┘  │   │  │
+│  │  │  input: h-9, w-24, type=number, step=100, min=100           │   │  │
+│  │  │  Traces exceeding this latency are flagged in trace views.  │   │  │
+│  │  │  text-xs text-content-muted                                   │   │  │
+│  │  │                                                                │   │  │
+│  │  └────────────────────────────────────────────────────────────────┘   │  │
+│  │                                                                       │  │
+│  │  ┌─ Data Retention ───────────────────────────────────────────┐   │  │
+│  │  │                                                                │   │  │
+│  │  │  Trace Retention Period                                       │   │  │
+│  │  │  text-sm font-medium text-content-secondary mb-1              │   │  │
+│  │  │                                                                │   │  │
+│  │  │  ┌────────────────────────────────────────────────────────┐  │   │  │
+│  │  │  │ 90 days                                             ▾ │  │   │  │
+│  │  │  └────────────────────────────────────────────────────────┘  │   │  │
+│  │  │  dropdown: h-9, text-sm                                      │   │  │
+│  │  │  Options: 30 days / 60 days / 90 days / 180 days / 1 year   │   │  │
+│  │  │  How long trace data is retained in ClickHouse before        │   │  │
+│  │  │  automatic expiry.                                            │   │  │
+│  │  │  text-xs text-content-muted                                   │   │  │
+│  │  │                                                                │   │  │
+│  │  └────────────────────────────────────────────────────────────────┘   │  │
+│  │                                                                       │  │
+│  │  [Save Defaults]                                                     │  │
+│  │  btn btn-primary, disabled until a value changes.                    │  │
+│  │  On save: POST /api/settings/defaults                               │  │
+│  │  Success: toast "Defaults saved"                                     │  │
+│  │  Error: inline error below button                                    │  │
+│  │  Button shows spinner while saving.                                  │  │
+│  │                                                                       │  │
+│  │  card class p-6                                                      │  │
+│  │                                                                       │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+│                                                                             │
+│  ══════════════════════════════════════════════════════════════════════    │
+│  TAB: API Keys                                                             │
+│  ══════════════════════════════════════════════════════════════════════    │
+│                                                                             │
+│  ┌─ Card: Current API Key ─────────────────────────────────────────────┐  │
+│  │                                                                       │  │
+│  │  (Key icon, w-5 h-5, text-content-muted)                            │  │
+│  │  API Key                                                              │  │
+│  │  text-lg font-medium text-content-primary                            │  │
+│  │                                                                       │  │
+│  │  ── When authenticated (key is set) ──────────────────────────────  │  │
+│  │                                                                       │  │
+│  │  (Check icon, w-4 h-4, text-status-success)                        │  │
+│  │  API key configured                                                  │  │
+│  │  text-sm text-status-success                                         │  │
+│  │                                                                       │  │
+│  │  [Clear API key]                                                     │  │
+│  │  text-sm text-status-error hover:text-status-error/80               │  │
+│  │  no button styling — inline text link, destructive color            │  │
+│  │                                                                       │  │
+│  │  ── When not authenticated (no key) ──────────────────────────────  │  │
+│  │                                                                       │  │
+│  │  Enter your API key                                                  │  │
+│  │  text-sm font-medium text-content-secondary mb-1                     │  │
+│  │                                                                       │  │
+│  │  ┌────────────────────────────────────────────────────────────────┐ │  │
+│  │  │ ae_live_...                                                     │ │  │
+│  │  └────────────────────────────────────────────────────────────────┘ │  │
+│  │  input: type=password, h-9, text-sm, w-full                        │  │
+│  │  border border-border, rounded-md, focus:ring-2 focus:ring-primary │  │
+│  │  placeholder: ae_live_...                                           │  │
+│  │  autocomplete=off, spellcheck=false                                 │  │
+│  │                                                                       │  │
+│  │  Format: ae_<environment>_<key>                                     │  │
+│  │  text-xs text-content-muted                                          │  │
+│  │                                                                       │  │
+│  │  ┌─ Validation States ─────────────────────────────────────────┐  │  │
+│  │  │                                                                │  │  │
+│  │  │  Error (format invalid or validation failed):                 │  │  │
+│  │  │  (AlertCircle w-4 h-4) Invalid format. Expected: ae_<env>_<key>│  │  │
+│  │  │  text-sm text-status-error, flex items-center gap-2           │  │  │
+│  │  │                                                                │  │  │
+│  │  │  Success (key validated):                                      │  │  │
+│  │  │  (Check w-4 h-4) API key saved successfully                   │  │  │
+│  │  │  text-sm text-status-success, auto-clears after 3s            │  │  │
+│  │  │                                                                │  │  │
+│  │  └────────────────────────────────────────────────────────────────┘  │  │
+│  │                                                                       │  │
+│  │  [Save API Key]                                                      │  │
+│  │  btn btn-primary w-full                                              │  │
+│  │  disabled: !inputValue.trim() || isValidating                       │  │
+│  │  Loading text: "Validating..."                                      │  │
+│  │                                                                       │  │
+│  │  Validation flow:                                                    │  │
+│  │  1. Format check: must be ae_<env>_<key> (3 parts, prefix "ae")   │  │
+│  │  2. Set key in sessionStorage                                       │  │
+│  │  3. Test by calling api.getSuites()                                 │  │
+│  │  4. If fails: clear key, show error                                 │  │
+│  │  5. If succeeds: show success, clear input                          │  │
+│  │                                                                       │  │
+│  │  card class p-6                                                      │  │
+│  │                                                                       │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+│  ┌─ Card: About API Keys ──────────────────────────────────────────────┐  │
+│  │                                                                       │  │
+│  │  (Key icon, w-5 h-5, text-content-muted)                            │  │
+│  │  About API Keys                                                      │  │
+│  │  text-lg font-medium text-content-primary                            │  │
+│  │                                                                       │  │
+│  │  API keys are used to authenticate requests to the Neon             │  │
+│  │  evaluation platform. They allow your agents and SDK                │  │
+│  │  integrations to submit traces and scores.                          │  │
+│  │  text-sm text-content-secondary                                      │  │
+│  │                                                                       │  │
+│  │  ┌─ Info: Key Format ──────────────────────────────────────────┐  │  │
+│  │  │                                                                │  │  │
+│  │  │  (AlertCircle w-5 h-5, text-blue-500, mt-0.5)                │  │  │
+│  │  │                                                                │  │  │
+│  │  │  Key Format                                                    │  │  │
+│  │  │  text-sm font-medium text-blue-700 dark:text-blue-300         │  │  │
+│  │  │                                                                │  │  │
+│  │  │  API keys follow the format: ae_<env>_<key>                   │  │  │
+│  │  │                                                                │  │  │
+│  │  │  · ae_live_...  — Production keys                             │  │  │
+│  │  │  · ae_test_...  — Test/development keys                       │  │  │
+│  │  │                                                                │  │  │
+│  │  │  bg-blue-500/10 border border-blue-500/20 rounded-lg p-4     │  │  │
+│  │  │  Code snippets: bg-blue-500/15 px-1 rounded, font-mono       │  │  │
+│  │  │                                                                │  │  │
+│  │  └────────────────────────────────────────────────────────────────┘  │  │
+│  │                                                                       │  │
+│  │  ┌─ Warning: Security Notice ──────────────────────────────────┐  │  │
+│  │  │                                                                │  │  │
+│  │  │  (AlertCircle w-5 h-5, text-status-warning, mt-0.5)          │  │  │
+│  │  │                                                                │  │  │
+│  │  │  Security Notice                                               │  │  │
+│  │  │  text-sm font-medium text-amber-700 dark:text-amber-300       │  │  │
+│  │  │                                                                │  │  │
+│  │  │  Keep your API keys secure. Never commit them to version      │  │  │
+│  │  │  control or share them publicly. You can also set keys via    │  │  │
+│  │  │  the NEXT_PUBLIC_API_KEY environment variable.                │  │  │
+│  │  │                                                                │  │  │
+│  │  │  bg-status-warning/10 border border-status-warning/20         │  │  │
+│  │  │  rounded-lg p-4                                                │  │  │
+│  │  │  Code snippet: bg-amber-500/15 px-1 rounded, font-mono       │  │  │
+│  │  │                                                                │  │  │
+│  │  └────────────────────────────────────────────────────────────────┘  │  │
+│  │                                                                       │  │
+│  │  card class p-6                                                      │  │
+│  │                                                                       │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+│                                                                             │
+│  ══════════════════════════════════════════════════════════════════════    │
+│  TAB: LLM Providers                                                        │
+│  ══════════════════════════════════════════════════════════════════════    │
+│                                                                             │
+│  ┌─ Card: LLM Provider Configuration ─────────────────────────────────┐  │
+│  │                                                                       │  │
+│  │  (Server icon, w-5 h-5, text-content-muted)                         │  │
+│  │  LLM Provider Configuration                                         │  │
+│  │  text-lg font-medium text-content-primary                            │  │
+│  │                                                                       │  │
+│  │  Configure your LLM provider API keys to enable agent evaluations  │  │
+│  │  with different models.                                              │  │
+│  │  text-sm text-content-muted mb-4                                     │  │
+│  │                                                                       │  │
+│  │  ┌─ Provider Cards (grid grid-cols-1 md:grid-cols-2 gap-4) ─────┐ │  │
+│  │  │                                                                   │ │  │
+│  │  │  ┌─ Provider Card ─────────────────────────────────────────┐  │ │  │
+│  │  │  │                                                            │  │ │  │
+│  │  │  │  Anthropic                                                │  │ │  │
+│  │  │  │  text-sm font-medium text-content-primary                  │  │ │  │
+│  │  │  │                                                            │  │ │  │
+│  │  │  │  Claude models for agent tasks                            │  │ │  │
+│  │  │  │  text-sm text-content-muted mt-1                           │  │ │  │
+│  │  │  │                                                            │  │ │  │
+│  │  │  │                         (CheckCircle w-4 h-4) Configured  │  │ │  │
+│  │  │  │                         text-status-success text-sm       │  │ │  │
+│  │  │  │                                                            │  │ │  │
+│  │  │  │  Environment variable: ANTHROPIC_API_KEY                  │  │ │  │
+│  │  │  │  text-xs text-content-muted mt-3                           │  │ │  │
+│  │  │  │  env var name: bg-surface-overlay px-1 rounded font-mono  │  │ │  │
+│  │  │  │                                                            │  │ │  │
+│  │  │  │  border border-border rounded-lg p-4                      │  │ │  │
+│  │  │  │                                                            │  │ │  │
+│  │  │  └────────────────────────────────────────────────────────────┘  │ │  │
+│  │  │                                                                   │ │  │
+│  │  │  ┌─ Provider Card ─────────────────────────────────────────┐  │ │  │
+│  │  │  │                                                            │  │ │  │
+│  │  │  │  OpenAI                                                   │  │ │  │
+│  │  │  │  GPT models for agent tasks                               │  │ │  │
+│  │  │  │                                                            │  │ │  │
+│  │  │  │                         (XCircle w-4 h-4) Not configured  │  │ │  │
+│  │  │  │                         text-content-muted text-sm        │  │ │  │
+│  │  │  │                                                            │  │ │  │
+│  │  │  │  Environment variable: OPENAI_API_KEY                     │  │ │  │
+│  │  │  │                                                            │  │ │  │
+│  │  │  │  border border-border rounded-lg p-4                      │  │ │  │
+│  │  │  │                                                            │  │ │  │
+│  │  │  └────────────────────────────────────────────────────────────┘  │ │  │
+│  │  │                                                                   │ │  │
+│  │  │  Provider card layout:                                           │ │  │
+│  │  │    flex items-start justify-between for name/status alignment   │ │  │
+│  │  │    Status right-aligned:                                        │ │  │
+│  │  │      Configured: CheckCircle text-status-success               │ │  │
+│  │  │      Not configured: XCircle text-content-muted                │ │  │
+│  │  │    Env var row: full-width at bottom of card                   │ │  │
+│  │  │                                                                   │ │  │
+│  │  └───────────────────────────────────────────────────────────────────┘ │  │
+│  │                                                                       │  │
+│  │  LLM provider keys are configured via server-side environment        │  │
+│  │  variables for security. Contact your administrator to add or        │  │
+│  │  update provider keys.                                               │  │
+│  │  text-sm text-content-muted mt-4                                     │  │
+│  │                                                                       │  │
+│  │  card class p-6                                                      │  │
+│  │                                                                       │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+│                                                                             │
+│  ══════════════════════════════════════════════════════════════════════    │
+│  TAB: Infrastructure                                                       │
+│  ══════════════════════════════════════════════════════════════════════    │
+│                                                                             │
+│  ┌─ Card: Infrastructure Health ───────────────────────────────────────┐  │
+│  │                                                                       │  │
+│  │  ┌─ Card Header ───────────────────────────────────────────────┐  │  │
+│  │  │                                                                │  │  │
+│  │  │  (Database icon, w-5 h-5, text-content-muted)                 │  │  │
+│  │  │  Infrastructure Health                                         │  │  │
+│  │  │  text-lg font-medium text-content-primary                      │  │  │
+│  │  │                                                                │  │  │
+│  │  │                                             [Refresh]         │  │  │
+│  │  │                                             btn btn-secondary  │  │  │
+│  │  │                                             btn-sm, h-8       │  │  │
+│  │  │                                             (RefreshCw w-4 h-4)│  │  │
+│  │  │                                             + "Refresh" text  │  │  │
+│  │  │                                             disabled when     │  │  │
+│  │  │                                             isFetching        │  │  │
+│  │  │                                             RefreshCw:        │  │  │
+│  │  │                                             animate-spin      │  │  │
+│  │  │                                             when fetching     │  │  │
+│  │  │                                                                │  │  │
+│  │  │  flex items-center justify-between                             │  │  │
+│  │  │                                                                │  │  │
+│  │  └────────────────────────────────────────────────────────────────┘  │  │
+│  │                                                                       │  │
+│  │  ┌─ Service Cards (space-y-4) ──────────────────────────────────┐ │  │
+│  │  │                                                                   │ │  │
+│  │  │  ┌─ Service: ClickHouse ───────────────────────────────────┐ │ │  │
+│  │  │  │                                                            │ │ │  │
+│  │  │  │  ┌──────┐                                                 │ │ │  │
+│  │  │  │  │(DB)  │  ClickHouse          (CheckCircle) Connected   │ │ │  │
+│  │  │  │  │icon  │  Trace and score storage                       │ │ │  │
+│  │  │  │  └──────┘                                                 │ │ │  │
+│  │  │  │                                                            │ │ │  │
+│  │  │  │  http://localhost:8123                                    │ │ │  │
+│  │  │  │  text-xs text-content-muted font-mono                     │ │ │  │
+│  │  │  │                                                            │ │ │  │
+│  │  │  │  Icon container: p-2 bg-surface-overlay rounded-lg        │ │ │  │
+│  │  │  │  Name: text-sm font-medium text-content-primary           │ │ │  │
+│  │  │  │  Description: text-sm text-content-muted                  │ │ │  │
+│  │  │  │  Connected: text-status-success, CheckCircle w-4 h-4     │ │ │  │
+│  │  │  │  Disconnected: text-status-error, XCircle w-4 h-4        │ │ │  │
+│  │  │  │  URL: font-mono text-xs text-content-muted mt-2          │ │ │  │
+│  │  │  │    Only shown if connection URL is available.             │ │ │  │
+│  │  │  │  border border-border rounded-lg p-4                      │ │ │  │
+│  │  │  │                                                            │ │ │  │
+│  │  │  └────────────────────────────────────────────────────────────┘ │ │  │
+│  │  │                                                                   │ │  │
+│  │  │  ┌─ Service: Temporal ─────────────────────────────────────┐ │ │  │
+│  │  │  │                                                            │ │ │  │
+│  │  │  │  ┌──────┐                                                 │ │ │  │
+│  │  │  │  │(Zap) │  Temporal            (CheckCircle) Connected   │ │ │  │
+│  │  │  │  │icon  │  Durable workflow execution                    │ │ │  │
+│  │  │  │  └──────┘                                                 │ │ │  │
+│  │  │  │                                                            │ │ │  │
+│  │  │  │  localhost:7233                                           │ │ │  │
+│  │  │  │  text-xs text-content-muted font-mono                     │ │ │  │
+│  │  │  │                                                            │ │ │  │
+│  │  │  │  border border-border rounded-lg p-4                      │ │ │  │
+│  │  │  │                                                            │ │ │  │
+│  │  │  └────────────────────────────────────────────────────────────┘ │ │  │
+│  │  │                                                                   │ │  │
+│  │  └───────────────────────────────────────────────────────────────────┘ │  │
+│  │                                                                       │  │
+│  │  ┌─ Overall Status ────────────────────────────────────────────┐   │  │
+│  │  │                                                                │   │  │
+│  │  │  border-t border-border pt-4 mt-6                             │   │  │
+│  │  │                                                                │   │  │
+│  │  │  Overall Status                    [healthy]                  │   │  │
+│  │  │  text-sm font-medium               badge, rounded-full       │   │  │
+│  │  │  text-content-secondary            px-2.5 py-0.5 text-xs     │   │  │
+│  │  │                                                                │   │  │
+│  │  │  Status badge colors:                                         │   │  │
+│  │  │    healthy:  bg-status-success/15 text-status-success         │   │  │
+│  │  │    degraded: bg-status-warning/15 text-status-warning         │   │  │
+│  │  │    unhealthy: bg-status-error/15 text-status-error            │   │  │
+│  │  │                                                                │   │  │
+│  │  │  Status logic (from API):                                     │   │  │
+│  │  │    healthy = both services connected                          │   │  │
+│  │  │    degraded = one service connected                           │   │  │
+│  │  │    unhealthy = no services connected                          │   │  │
+│  │  │                                                                │   │  │
+│  │  │  Last checked: Jan 18, 2025 3:42:15 PM                       │   │  │
+│  │  │  text-xs text-content-muted mt-2                               │   │  │
+│  │  │  Timestamp from health.timestamp, formatted toLocaleString()  │   │  │
+│  │  │                                                                │   │  │
+│  │  └────────────────────────────────────────────────────────────────┘   │  │
+│  │                                                                       │  │
+│  │  Infrastructure connections refresh automatically every 30 seconds. │  │
+│  │  text-sm text-content-muted mt-4                                     │  │
+│  │                                                                       │  │
+│  │  card class p-6                                                      │  │
+│  │                                                                       │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+
+===============================================================================
+LOADING STATES
+===============================================================================
+
+Page-level loading (app/settings/loading.tsx):
+  ┌──────────────────────────────────────────────────────────────────────┐
+  │                                                                      │
+  │  ░░░░░░░░░░ (h-8 w-32)                                             │
+  │  ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ (h-5 w-80)                 │
+  │                                                                      │
+  │  ░░░░░░░░  ░░░░░░░  ░░░░░░░░░░░  ░░░░░░░░░░░ (tab bar)           │
+  │  ──────────────────────────────────────────────                      │
+  │                                                                      │
+  │  ┌────────────────────────────────────────────────────────────────┐ │
+  │  │ ░░░░░░░░░░░░░░░░ (h-6 w-48)                                   │ │
+  │  │ ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ (h-4 full)           │ │
+  │  │ ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ (h-4 w-3/4)                  │ │
+  │  └────────────────────────────────────────────────────────────────┘ │
+  │                                                                      │
+  │  ┌────────────────────────────────────────────────────────────────┐ │
+  │  │ ░░░░░░░░░░░░░░░░ (h-6 w-48)                                   │ │
+  │  │ ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ (h-4 full)           │ │
+  │  │ ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ (h-4 w-3/4)                  │ │
+  │  └────────────────────────────────────────────────────────────────┘ │
+  │                                                                      │
+  └──────────────────────────────────────────────────────────────────────┘
+  animate-pulse on all ░ blocks.
+  Header + tab bar skeleton renders immediately.
+  Two card skeletons in space-y-6.
+
+Project tab loading:
+  Card with 3 skeleton lines (same as current: h-6 w-32, h-4 full, h-4 w-3/4)
+
+LLM Providers loading:
+  Card with title skeleton + 2-col grid of h-24 skeleton boxes.
+
+Infrastructure loading:
+  Card with title skeleton + 2 service card skeletons (h-24 each).
+
+API Keys: no loading state — renders immediately from sessionStorage/env.
+
+
+===============================================================================
+ERROR STATES
+===============================================================================
+
+Project settings fetch error:
+  ┌──────────────────────────────────────────────────────────┐
+  │                                                          │
+  │  (AlertCircle icon, w-10 h-10, text-status-error)      │
+  │                                                          │
+  │  Failed to load project settings                        │
+  │  text-lg font-medium text-content-primary                │
+  │                                                          │
+  │  {error.message}                                         │
+  │  text-sm text-content-muted                              │
+  │                                                          │
+  │  [Retry]                                                 │
+  │  btn btn-secondary btn-sm, onClick: refetch()           │
+  │                                                          │
+  └──────────────────────────────────────────────────────────┘
+  Shown inside the Project tab card area.
+  Same pattern for LLM Providers error.
+
+Infrastructure error: falls back gracefully — shows service cards
+with "Disconnected" status for both services. The overall status
+badge shows "unhealthy". No separate error state needed since
+the data model itself encodes the error (health.status).
+
+API key validation error: shown inline below the input field
+(see validation states in API Keys tab above). Not a full-page error.
+
+Save defaults error (Project tab):
+  Inline error below Save Defaults button:
+  ┌──────────────────────────────────────────────────────────┐
+  │  (AlertCircle w-4 h-4) Failed to save: {error.message}  │
+  │  text-sm text-status-error, flex items-center gap-2     │
+  └──────────────────────────────────────────────────────────┘
+
+
+===============================================================================
+BEHAVIORAL NOTES
+===============================================================================
+
+1. Tab state stored in URL: &tab=project (default) / api-keys / llm /
+   infrastructure. Shallow routing via router.replace so the page
+   doesn't fully re-render on tab switch.
+
+2. Project tab System Information is fully read-only. Values come
+   from environment variables at server startup. The "Contact your
+   administrator" note sets correct expectations about mutability.
+
+3. Evaluation Defaults card tracks dirty state. Save button is
+   disabled until at least one value differs from the server state.
+   On save, button shows spinner. On success, toast notification.
+   On error, inline error message below button.
+
+4. API key is stored in sessionStorage (not localStorage) for
+   security. It can also be set via NEXT_PUBLIC_API_KEY env var.
+   Environment variable takes priority on initial load.
+
+5. API key validation is functional, not just format-based. After
+   format check (ae_<env>_<key>), the key is tested by calling
+   api.getSuites(). If the call fails, the key is cleared and an
+   error is shown. This catches expired or revoked keys.
+
+6. "Clear API key" is not a button — it's a text link styled in
+   red. This de-emphasizes the destructive action while keeping
+   it accessible. No confirmation dialog needed — re-entering
+   the key is trivial.
+
+7. LLM Providers tab is informational only. The server checks
+   env var existence (!!process.env.ANTHROPIC_API_KEY) and
+   returns boolean status. No secrets are transmitted to the
+   client. The cards show whether providers are available, not
+   their configuration.
+
+8. Infrastructure health auto-refreshes every 30 seconds via
+   React Query's refetchInterval. The Refresh button provides
+   manual override. The RefreshCw icon spins (animate-spin)
+   while isFetching is true.
+
+9. Infrastructure Overall Status uses a 3-tier model:
+   healthy (all services connected), degraded (partial),
+   unhealthy (none). Badge color matches the tier. The
+   "Last checked" timestamp uses health.timestamp formatted
+   via toLocaleString().
+
+10. Connection URLs (ClickHouse URL, Temporal address) are shown
+    as font-mono text below the service name. They're only
+    rendered if the health response includes them (conditional).
+    These help administrators verify they're connecting to the
+    right endpoints.
+
+11. The max-w-4xl constraint on the page means Settings doesn't
+    stretch to full width on large screens. This is intentional
+    for form readability. All other pages (Command Center, Agents,
+    Traces, etc.) use full width.
+
+12. Success feedback auto-clears: API key save confirmation
+    disappears after 3 seconds (CONFIG.SUCCESS_FEEDBACK_MS).
+    Project defaults save uses a toast that auto-dismisses.
+    No persistent success states.

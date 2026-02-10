@@ -1,0 +1,548 @@
+================================================================================
+PROMPTS LIST — app/prompts/page.tsx
+================================================================================
+Prompt versioning and management hub. Version-controlled prompt artifacts
+with performance tracking, production deployment status, and auto-
+optimization history.
+Route: /prompts
+
+PARENT: Root layout with sidebar (IMPROVE group)
+DATA: trpc.prompts.list({ tags?, isProduction?, limit, offset })
+      trpc.prompts.create(input)
+      trpc.prompts.delete(id)
+LAYOUT: p-6, space-y-6
+
+DESIGN NOTES:
+
+1. Prompts are deployable artifacts, not documents. The list page
+   surfaces version count, production status, authorship (human vs
+   auto-optimizer), and last-change recency so operators can assess
+   prompt health at a glance without drilling into each one.
+
+2. Type uses the API's actual schema values: "text" (single template
+   string with {{variable}} interpolation) and "chat" (structured
+   message array with role/content pairs). Earlier drafts used
+   "system/user/template/function" which conflated prompt structure
+   with conversation role — the role is visible inside the detail
+   page's message list, not at the list level.
+
+3. Cards over table. Other list pages (suites, experiments, agents)
+   use cards. Prompts follow the same pattern for visual consistency
+   and because cards accommodate variable-length metadata (description,
+   tags, performance) better than fixed-width table columns.
+
+4. Agent association is tag-based. The prompts schema does not have
+   an agent_id foreign key. Prompts are linked to agents via tags
+   (e.g., "booking-agent") or naming convention. The Tag filter
+   serves double duty — filtering by functional tag (qa, prod) and
+   by agent name. A future schema migration may add a proper
+   agent_id field.
+
+5. Auto-optimized vs human-authored distinction is surfaced via the
+   attribution line on each card. The created_by field contains
+   "auto-opt" for machine-generated versions and a username for
+   human-authored versions. This distinction matters because auto-
+   optimized prompts may need human review before production
+   promotion.
+
+6. Score on cards comes from the most recent eval run that used this
+   prompt version (joined via prompt name + version in eval run
+   metadata). If no eval has run against this prompt, score shows
+   "—" with text-content-muted. This connects prompts to the
+   platform's core evaluation loop — prompts aren't just text,
+   they have measurable performance.
+
+7. Production badge: only one version per prompt name can be
+   production at a time. Promoting a new version via the overflow
+   menu automatically demotes the previous production version.
+
+8. URL-synced filters. All filter state (search, type, tag, sort,
+   status) stored in searchParams for shareability. Shallow routing
+   via router.replace with scroll: false.
+
+---
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                                                                             │
+│  ┌─ Header ─────────────────────────────────────────────────────────────┐  │
+│  │                                                                       │  │
+│  │  Prompts                                         [+ Create Prompt]   │  │
+│  │  text-2xl font-bold text-content-primary          btn btn-primary    │  │
+│  │                                                                       │  │
+│  │  Version, manage, and deploy prompts for your agents                 │  │
+│  │  text-sm text-content-muted                                          │  │
+│  │                                                                       │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+│  ┌─ Summary Stats (grid-cols-4 gap-4) ─────────────────────────────────┐  │
+│  │                                                                       │  │
+│  │  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐ ┌──────────────┐│  │
+│  │  │ Total        │ │ In           │ │ Changes      │ │ Auto-        ││  │
+│  │  │ Prompts      │ │ Production   │ │ (7d)         │ │ Optimized    ││  │
+│  │  │ 14           │ │ 9            │ │ 7            │ │ 4            ││  │
+│  │  └──────────────┘ └──────────────┘ └──────────────┘ └──────────────┘│  │
+│  │                                                                       │  │
+│  │  stat-card class                                                      │  │
+│  │  "Total Prompts": count of distinct prompt names                     │  │
+│  │  "In Production": count where is_production = true                   │  │
+│  │  "Changes (7d)": new versions created in last 7 days                 │  │
+│  │  "Auto-Optimized": versions where created_by = "auto-opt"           │  │
+│  │    in last 7d. Colored amber if >50% of Changes are auto-opt        │  │
+│  │    (signals high volume of unreviewed machine changes)               │  │
+│  │                                                                       │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+│  ┌─ Filters ────────────────────────────────────────────────────────────┐  │
+│  │                                                                       │  │
+│  │  ┌──────────────────────────────┐ ┌────────────┐ ┌────────────────┐ │  │
+│  │  │ (SearchIcon) Search prompts..│ │ Type    ▾  │ │ Tag         ▾  │ │  │
+│  │  └──────────────────────────────┘ └────────────┘ └────────────────┘ │  │
+│  │                                                                       │  │
+│  │  ┌────────────┐  ┌────────────┐                                     │  │
+│  │  │ Sort     ▾  │  │ Status  ▾  │                                    │  │
+│  │  └────────────┘  └────────────┘                                     │  │
+│  │                                                                       │  │
+│  │  Search: matches prompt name and description (case-insensitive       │  │
+│  │    substring). Debounced 300ms.                                      │  │
+│  │    input: h-9, border border-border, rounded-md, pl-9 (icon inset)  │  │
+│  │  Type: All / Text / Chat                                             │  │
+│  │  Tag: All / (distinct tags from prompts) — multi-select checkboxes  │  │
+│  │  Sort: Newest (default) / Oldest / Name A-Z / Most Versions         │  │
+│  │  Status: All / Production / Draft                                    │  │
+│  │    "Production" = is_production true, "Draft" = is_production false  │  │
+│  │                                                                       │  │
+│  │  All filters URL-synced: &search=X&type=text&tag=qa&sort=newest     │  │
+│  │                                                                       │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+│  ┌─ Prompt Cards (space-y-3) ───────────────────────────────────────────┐  │
+│  │                                                                       │  │
+│  │  ┌─ booking-system ──────────────────── [text] [✓ production] ─────┐│  │
+│  │  │                                                         [⋯]     ││  │
+│  │  │  System prompt for the booking agent                             ││  │
+│  │  │  text-sm text-content-secondary, line-clamp-1                    ││  │
+│  │  │                                                                   ││  │
+│  │  │  v7 (latest) · 12 versions · (SparklesIcon) auto-opt · 2h ago  ││  │
+│  │  │  text-xs text-content-muted                                      ││  │
+│  │  │                                                                   ││  │
+│  │  │  Score: 0.94  ·  Tokens: ~340  ·  4 variables                   ││  │
+│  │  │  text-xs                                                         ││  │
+│  │  │  Score colored: >=0.85 emerald, >=0.7 amber, <0.7 rose         ││  │
+│  │  │                                                                   ││  │
+│  │  │  Tags: [qa] [prod]                                               ││  │
+│  │  │  badge badge-secondary text-[10px]                               ││  │
+│  │  │                                                                   ││  │
+│  │  └───────────────────────────────────────────────────────────────────┘│  │
+│  │                                                                       │  │
+│  │  ┌─ booking-user ────────────────────── [chat] [✓ production] ─────┐│  │
+│  │  │                                                         [⋯]     ││  │
+│  │  │  User-facing conversation template for booking flow              ││  │
+│  │  │                                                                   ││  │
+│  │  │  v3 (latest) · 3 versions · (UserIcon) sean · 1d ago           ││  │
+│  │  │                                                                   ││  │
+│  │  │  Score: 0.91  ·  Tokens: ~180  ·  2 variables                   ││  │
+│  │  │  Tags: [prod]                                                    ││  │
+│  │  │                                                                   ││  │
+│  │  └───────────────────────────────────────────────────────────────────┘│  │
+│  │                                                                       │  │
+│  │  ┌─ research-system ─────────────────── [text] [✓ production] ─────┐│  │
+│  │  │                                                         [⋯]     ││  │
+│  │  │  Core system prompt for research agent                           ││  │
+│  │  │                                                                   ││  │
+│  │  │  v5 (latest) · 5 versions · (UserIcon) sean · 3d ago           ││  │
+│  │  │                                                                   ││  │
+│  │  │  Score: 0.98  ·  Tokens: ~520  ·  1 variable                    ││  │
+│  │  │  Tags: [new]                                                     ││  │
+│  │  │                                                                   ││  │
+│  │  └───────────────────────────────────────────────────────────────────┘│  │
+│  │                                                                       │  │
+│  │  ┌─ search-function ─────────────────────────────── [text] ────────┐│  │
+│  │  │                                                         [⋯]     ││  │
+│  │  │  Function-call template for web search tool                      ││  │
+│  │  │                                                                   ││  │
+│  │  │  v2 (latest) · 2 versions · (UserIcon) sean · 1w ago           ││  │
+│  │  │                                                                   ││  │
+│  │  │  Score: —  ·  Tokens: ~90  ·  3 variables                       ││  │
+│  │  │  Score "—" (text-content-muted) = no eval data for this prompt  ││  │
+│  │  │                                                                   ││  │
+│  │  └───────────────────────────────────────────────────────────────────┘│  │
+│  │                                                                       │  │
+│  │  Card anatomy:                                                        │  │
+│  │                                                                       │  │
+│  │  card class, cursor-pointer                                          │  │
+│  │  Hover: bg-surface-overlay/50 transition-colors                      │  │
+│  │  Click card → navigate to /prompts/[id]                              │  │
+│  │                                                                       │  │
+│  │  Header row: prompt name (text-sm font-semibold font-mono            │  │
+│  │    text-content-primary), right-aligned type badge + prod badge      │  │
+│  │  Type badge: "text" = badge-secondary, "chat" = badge-info          │  │
+│  │  Production badge: badge-success text-[10px] "✓ production"          │  │
+│  │    Only shown when is_production = true                               │  │
+│  │    No badge = draft (implicit — avoids visual noise)                 │  │
+│  │                                                                       │  │
+│  │  Description: text-sm text-content-secondary, line-clamp-1           │  │
+│  │    Shows prompt.description field. If empty, omit line entirely.     │  │
+│  │                                                                       │  │
+│  │  Attribution: version · count · author icon + name · relative time  │  │
+│  │    (SparklesIcon w-3 h-3) for created_by = "auto-opt"              │  │
+│  │    (UserIcon w-3 h-3) for human authors                             │  │
+│  │    text-xs text-content-muted                                        │  │
+│  │                                                                       │  │
+│  │  Metrics: Score · Tokens · Variables count                           │  │
+│  │    Score from latest eval run using this prompt version              │  │
+│  │    Score colored: >=0.85 text-status-success, >=0.7 text-status-    │  │
+│  │      warning, <0.7 text-status-error                                │  │
+│  │    "—" when no eval data (text-content-muted)                       │  │
+│  │    Tokens: estimated via tiktoken cl100k_base                        │  │
+│  │    Variables: count of {{variable}} occurrences in template         │  │
+│  │    text-xs text-content-muted (except score which is colored)       │  │
+│  │                                                                       │  │
+│  │  Tags: badge badge-secondary text-[10px] per tag                    │  │
+│  │    Omit row if no tags                                               │  │
+│  │                                                                       │  │
+│  │  Overflow menu [⋯] — visible on hover (top-right corner):           │  │
+│  │    position: absolute, top-3 right-3                                │  │
+│  │    btn btn-ghost btn-sm p-1, opacity-0 group-hover:opacity-100     │  │
+│  │    onClick: e.stopPropagation() to prevent card navigation          │  │
+│  │                                                                       │  │
+│  │    Menu items:                                                        │  │
+│  │      Duplicate         → opens Create dialog pre-filled             │  │
+│  │      Set as Production → only if not already production             │  │
+│  │      ─────────────                                                   │  │
+│  │      Delete            → confirmation dialog (see below)            │  │
+│  │                          text-status-error                           │  │
+│  │                          disabled if is_production (opacity-50)     │  │
+│  │                          tooltip: "Remove from production first"    │  │
+│  │                                                                       │  │
+│  │    Menu: bg-surface-card border border-border rounded-md            │  │
+│  │      shadow-lg py-1, min-w-[160px]                                  │  │
+│  │    Items: px-3 py-1.5 text-sm hover:bg-surface-overlay/50          │  │
+│  │                                                                       │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+│  ┌─ Load More ──────────────────────────────────────────────────────────┐  │
+│  │                                                                       │  │
+│  │  Showing 4 of 14 prompts                                            │  │
+│  │  text-sm text-content-muted, text-center                             │  │
+│  │                                                                       │  │
+│  │                       [Load More]                                    │  │
+│  │                       btn btn-secondary btn-sm                       │  │
+│  │                                                                       │  │
+│  │  Offset-based pagination, 20 per batch.                              │  │
+│  │  Hidden when all prompts loaded.                                     │  │
+│  │  Button text changes to (Loader2 animate-spin w-4) while fetching.  │  │
+│  │  Prompts are a low-volume entity (tens, not thousands) so offset    │  │
+│  │  pagination is appropriate over cursor-based.                        │  │
+│  │                                                                       │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+
+═══════════════════════════════════════════════════════════════════════════════
+CREATE PROMPT DIALOG
+═══════════════════════════════════════════════════════════════════════════════
+
+Triggered by [+ Create Prompt] button (or Duplicate from overflow menu).
+Modal: max-w-lg, bg-surface-card, border border-border, rounded-lg,
+  shadow-xl, p-6, space-y-5
+Duplicate mode: same dialog, pre-filled with source prompt content,
+  name field appended with "-copy", title reads "Duplicate Prompt".
+
+┌─ Create Prompt ──────────────────────────────────────────── (X) ────────┐
+│                                                                          │
+│  Name *                                                                  │
+│  ┌────────────────────────────────────────────────────────────────────┐ │
+│  │ e.g. booking-system                                                │ │
+│  └────────────────────────────────────────────────────────────────────┘ │
+│  input: h-9, font-mono, border border-border, rounded-md              │
+│  Validation: /^[a-z0-9][a-z0-9-]*$/, max 64 chars, unique per project │
+│  Error shown inline: text-xs text-status-error mt-1                    │
+│  "A prompt with this name already exists" if duplicate name            │
+│                                                                          │
+│  Description                                                             │
+│  ┌────────────────────────────────────────────────────────────────────┐ │
+│  │ e.g. System prompt for the booking agent                           │ │
+│  └────────────────────────────────────────────────────────────────────┘ │
+│  input: h-9, text-sm. Optional.                                        │
+│                                                                          │
+│  Type *                                                                  │
+│  ┌─────────────────────────────────────────────────────────────────┐   │
+│  │  (●) Text    Single template string with {{variable}} syntax    │   │
+│  │  ( ) Chat    Structured message array (role + content pairs)    │   │
+│  └─────────────────────────────────────────────────────────────────┘   │
+│  RadioGroup, vertical stack, gap-2, default: Text                      │
+│  Each option: flex items-start gap-3                                   │
+│    Radio circle + label (text-sm font-medium) + description            │
+│    (text-xs text-content-muted)                                        │
+│  Selection changes the content editor section below                    │
+│                                                                          │
+│  ── Content ──────────────────────────────────────────────────────────  │
+│                                                                          │
+│  (Shown when Type = Text):                                              │
+│                                                                          │
+│  Template *                                                              │
+│  ┌────────────────────────────────────────────────────────────────────┐ │
+│  │ Enter your prompt template...                                      │ │
+│  │                                                                    │ │
+│  │ Use {{variable_name}} for dynamic values.                         │ │
+│  │                                                                    │ │
+│  └────────────────────────────────────────────────────────────────────┘ │
+│  textarea, font-mono, text-sm, min-h-[200px], resize-y                 │
+│  border border-border, rounded-md, p-3                                 │
+│                                                                          │
+│  Variables detected: (none yet)                                         │
+│  text-xs text-content-muted. Updates in real-time as user types.       │
+│  When variables found: "Variables detected: user_name, currency"       │
+│  each variable shown as badge badge-secondary                          │
+│                                                                          │
+│  (Shown when Type = Chat):                                              │
+│                                                                          │
+│  Messages *                                                              │
+│  ┌─ Message 1 ──────────────────────────────────────────── (grip) ──┐ │
+│  │  Role: [system ▾]                                                 │ │
+│  │  ┌────────────────────────────────────────────────────────────┐   │ │
+│  │  │ Enter message content...                                    │   │ │
+│  │  │                                                             │   │ │
+│  │  └────────────────────────────────────────────────────────────┘   │ │
+│  │  textarea, font-mono, text-sm, min-h-[100px], resize-y          │ │
+│  └──────────────────────────────────────────────────────────────────┘ │
+│  [+ Add Message]                                                       │
+│  btn btn-ghost btn-sm, adds a new role/content pair                    │
+│  Roles dropdown: system / user / assistant                             │
+│  At least one message required.                                        │
+│  (grip) = drag handle for reorder (GripVertical icon, cursor-grab)    │
+│  Each message has a (Trash2 w-4) remove button (hidden on last msg)   │
+│                                                                          │
+│  ── Configuration (collapsible, default collapsed) ───────────────── │
+│                                                                          │
+│  ▸ Model Configuration                                                 │
+│    (click to expand)                                                    │
+│                                                                          │
+│  Expanded:                                                               │
+│  ▾ Model Configuration                                                 │
+│                                                                          │
+│  Model                          Temperature                             │
+│  ┌────────────────────────┐    ┌──────────────┐                        │
+│  │ e.g. gemini-2.5-flash  │    │ 0.7          │                        │
+│  └────────────────────────┘    └──────────────┘                        │
+│  input: h-9, text-sm           number: h-9, w-24, step 0.1, 0-2       │
+│  Hint: "Suggested model.                                                │
+│  Agent runtime may               Max Tokens                             │
+│  override this value."           ┌──────────────┐                      │
+│  text-xs text-content-muted      │ 2048          │                      │
+│                                  └──────────────┘                      │
+│                                  number: h-9, w-24, min 1              │
+│                                                                          │
+│  Tags                                                                    │
+│  ┌────────────────────────────────────────────────────────────────────┐ │
+│  │ Type to add tags...  [qa ×] [booking-agent ×]                     │ │
+│  └────────────────────────────────────────────────────────────────────┘ │
+│  Combobox with existing tags as auto-complete suggestions.             │
+│  Free-text entry allowed (press Enter to add). Tags rendered as       │
+│  badge with × remove button.                                           │
+│                                                                          │
+│  ┌──────────────┐  ┌──────────────┐                                   │
+│  │   Cancel      │  │   Create      │                                  │
+│  │ btn-secondary │  │ btn-primary   │                                  │
+│  └──────────────┘  └──────────────┘                                   │
+│  flex justify-end gap-3                                                │
+│                                                                          │
+│  Create: disabled until name + content provided.                       │
+│  On success: navigate to /prompts/[new-id], toast "Prompt created"    │
+│  On error: inline error banner (text-status-error) above buttons      │
+│                                                                          │
+└──────────────────────────────────────────────────────────────────────────┘
+
+
+═══════════════════════════════════════════════════════════════════════════════
+DELETE CONFIRMATION DIALOG
+═══════════════════════════════════════════════════════════════════════════════
+
+Triggered by overflow menu → Delete.
+Modal: max-w-sm, bg-surface-card, border border-border, rounded-lg, p-6
+
+┌─ Delete Prompt ──────────────────────────────────────────── (X) ────────┐
+│                                                                          │
+│  (AlertTriangle icon, w-10 h-10, text-status-error, mx-auto)          │
+│                                                                          │
+│  Are you sure you want to delete "booking-system"?                     │
+│  text-sm font-medium text-content-primary, text-center                 │
+│                                                                          │
+│  This will delete all 12 versions of this prompt.                      │
+│  This action cannot be undone.                                          │
+│  text-sm text-content-muted, text-center                                │
+│                                                                          │
+│  ┌──────────────┐  ┌──────────────────┐                                │
+│  │   Cancel      │  │   Delete Prompt   │                              │
+│  │ btn-secondary │  │ btn-destructive   │                              │
+│  └──────────────┘  └──────────────────┘                                │
+│  flex justify-end gap-3                                                │
+│                                                                          │
+│  Not shown for production prompts — overflow menu disables Delete      │
+│  with tooltip "Remove from production before deleting."                │
+│                                                                          │
+└──────────────────────────────────────────────────────────────────────────┘
+
+
+═══════════════════════════════════════════════════════════════════════════════
+LOADING STATE
+═══════════════════════════════════════════════════════════════════════════════
+
+  ┌─ Stats skeleton (grid-cols-4 gap-4) ──────────────────────────────┐
+  │ ┌──────────────┐ ┌──────────────┐ ┌──────────────┐ ┌──────────────┐│
+  │ │ ░░░░░░       │ │ ░░░░░░       │ │ ░░░░░░       │ │ ░░░░░░       ││
+  │ │ ░░░░         │ │ ░░░░         │ │ ░░░░         │ │ ░░░░         ││
+  │ └──────────────┘ └──────────────┘ └──────────────┘ └──────────────┘│
+  └────────────────────────────────────────────────────────────────────┘
+
+  ┌─ Card skeletons (space-y-3, 3 cards) ──────────────────────────────┐
+  │ ┌──────────────────────────────────────────────────────────────────┐│
+  │ │ ░░░░░░░░░░░░░░░   ░░░░░░                                        ││
+  │ │ ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░                                  ││
+  │ │ ░░░░░░░░░░░░░░░░░░░░░                                           ││
+  │ │ ░░░░░░░░░░░░░░░                                                 ││
+  │ └──────────────────────────────────────────────────────────────────┘│
+  │ ┌──────────────────────────────────────────────────────────────────┐│
+  │ │ ░░░░░░░░░░░░   ░░░░░░                                           ││
+  │ │ ░░░░░░░░░░░░░░░░░░░░░░░░░░                                      ││
+  │ │ ░░░░░░░░░░░░░░░░░░░                                             ││
+  │ └──────────────────────────────────────────────────────────────────┘│
+  │ ┌──────────────────────────────────────────────────────────────────┐│
+  │ │ ░░░░░░░░░░░   ░░░░░░░░                                          ││
+  │ │ ░░░░░░░░░░░░░░░░░░░░░░░░░░░░                                    ││
+  │ │ ░░░░░░░░░░░░░░░░░                                               ││
+  │ │ ░░░░░░░░                                                        ││
+  │ └──────────────────────────────────────────────────────────────────┘│
+  └────────────────────────────────────────────────────────────────────┘
+
+  animate-pulse on all ░ blocks.
+  Skeleton cards match card height proportions (4 lines per card).
+  Show 3 skeleton cards.
+  Filter bar renders immediately (not skeletonized).
+
+
+═══════════════════════════════════════════════════════════════════════════════
+EMPTY STATE (no prompts exist)
+═══════════════════════════════════════════════════════════════════════════════
+
+  ┌──────────────────────────────────────────────────────────┐
+  │                                                          │
+  │        (FileText icon, w-12 h-12, text-content-muted)   │
+  │                                                          │
+  │        No prompts yet                                    │
+  │        text-lg font-medium text-content-primary          │
+  │                                                          │
+  │        Create prompts to version-control your agent      │
+  │        system messages and conversation templates.       │
+  │        text-sm text-content-muted, max-w-sm mx-auto      │
+  │        text-center                                        │
+  │                                                          │
+  │        [+ Create First Prompt]                           │
+  │        btn btn-primary                                   │
+  │                                                          │
+  └──────────────────────────────────────────────────────────┘
+
+  Centered: min-h-[400px] flex items-center justify-center.
+  Stat cards still render (all showing 0).
+  Filters hidden when empty (no data to filter).
+
+
+═══════════════════════════════════════════════════════════════════════════════
+FILTERED EMPTY STATE (filters match nothing)
+═══════════════════════════════════════════════════════════════════════════════
+
+  ┌──────────────────────────────────────────────────────────┐
+  │                                                          │
+  │        (Search icon, w-12 h-12, text-content-muted)     │
+  │                                                          │
+  │        No prompts match your filters                    │
+  │        text-lg font-medium text-content-primary          │
+  │                                                          │
+  │        Try adjusting your search or filter criteria.    │
+  │        text-sm text-content-muted                        │
+  │                                                          │
+  │        [Clear Filters]                                   │
+  │        btn btn-secondary btn-sm                          │
+  │        Resets all searchParams, triggers refetch          │
+  │                                                          │
+  └──────────────────────────────────────────────────────────┘
+
+
+═══════════════════════════════════════════════════════════════════════════════
+ERROR STATE
+═══════════════════════════════════════════════════════════════════════════════
+
+  ┌──────────────────────────────────────────────────────────┐
+  │                                                          │
+  │        (AlertCircle icon, w-12 h-12, text-status-error) │
+  │                                                          │
+  │        Failed to load prompts                            │
+  │        text-lg font-medium text-content-primary          │
+  │                                                          │
+  │        Something went wrong. Please try again.           │
+  │        text-sm text-content-muted                        │
+  │                                                          │
+  │        [Retry]                                           │
+  │        btn btn-secondary btn-sm                          │
+  │        onClick: refetch()                                │
+  │                                                          │
+  └──────────────────────────────────────────────────────────┘
+
+
+═══════════════════════════════════════════════════════════════════════════════
+BEHAVIORAL NOTES
+═══════════════════════════════════════════════════════════════════════════════
+
+1. All filters stored in URL searchParams for shareability.
+   Shallow routing via router.replace({ scroll: false }).
+   Filters persist across page navigations and browser back.
+
+2. Search is debounced (300ms) and matches prompt name and
+   description (case-insensitive substring match via API).
+
+3. Offset-based pagination, 20 per batch. Prompts are a low-
+   volume entity (tens to low hundreds) so offset pagination
+   is appropriate. trpc.prompts.list returns { items, total }.
+
+4. Card click navigates to /prompts/[id]. Overflow menu uses
+   e.stopPropagation() on the [⋯] button click to prevent
+   card navigation when interacting with the menu.
+
+5. "Score" on each card is the mean score from the most recent
+   eval run that used this prompt version. Joined via prompt
+   name + version stored in eval run metadata. If no eval run
+   exists, score shows "—" in text-content-muted.
+
+6. Production badge only shown on production versions. Draft
+   status is implicit (no badge). This avoids visual noise.
+
+7. Create dialog resets form state when closed (not when opened,
+   to prevent accidental data loss on mis-click). Content
+   editor switches between textarea (text) and message builder
+   (chat) based on selected type radio button.
+
+8. Delete disabled for production prompts. The overflow menu
+   renders "Delete" as opacity-50 cursor-not-allowed with
+   title tooltip "Remove from production before deleting."
+
+9. Auto-optimized prompts (created_by = "auto-opt") show a
+   SparklesIcon (w-3 h-3, inline) before the author name.
+   Human-authored prompts show a UserIcon (w-3 h-3, inline).
+   This visual cue helps operators spot machine-generated
+   content that may need review.
+
+10. Tag filter dropdown uses multi-select checkboxes. Selected
+    tags are AND-filtered (prompt must have ALL selected tags).
+    Tag options derived from distinct tags across all prompts.
+
+11. "Duplicate" from overflow menu opens the Create dialog with
+    all fields pre-filled from the source prompt. Name field
+    appends "-copy" suffix. Title changes to "Duplicate Prompt".
+    The new prompt gets version 1 (independent version history).
+
+12. "Set as Production" from overflow menu immediately calls
+    trpc.prompts.update with { is_production: true }. The
+    previously-production version is automatically demoted.
+    Toast: "booking-system v7 set as production". No modal
+    confirmation (action is easily reversible).

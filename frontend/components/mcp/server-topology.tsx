@@ -208,10 +208,10 @@ export function MCPServerTopology({
   if (topology.nodes.length === 0) {
     return (
       <div
-        className="flex items-center justify-center bg-gray-50 rounded-lg border"
+        className="flex items-center justify-center bg-gray-50 dark:bg-dark-900 rounded-lg border dark:border-dark-700"
         style={{ height }}
       >
-        <p className="text-gray-500">No MCP topology data available</p>
+        <p className="text-gray-500 dark:text-gray-400">No MCP topology data available</p>
       </div>
     )
   }
@@ -221,7 +221,7 @@ export function MCPServerTopology({
       <svg
         width={dimensions.width}
         height={dimensions.height}
-        className="bg-gray-50 rounded-lg border"
+        className="bg-gray-50 dark:bg-dark-900 rounded-lg border dark:border-dark-700"
       >
         {/* Edges */}
         <g className="edges">
@@ -331,41 +331,41 @@ export function MCPServerTopology({
       </svg>
 
       {/* Legend */}
-      <div className="absolute bottom-3 left-3 bg-white/90 backdrop-blur-sm rounded-lg px-3 py-2 border shadow-sm">
+      <div className="absolute bottom-3 left-3 bg-white/90 dark:bg-dark-800/90 backdrop-blur-sm rounded-lg px-3 py-2 border dark:border-dark-700 shadow-sm">
         <div className="flex items-center gap-4 text-xs">
           <div className="flex items-center gap-1.5">
             <span className="w-3 h-3 rounded-full bg-emerald-500" />
-            <span className="text-gray-600">Healthy</span>
+            <span className="text-gray-600 dark:text-gray-300">Healthy</span>
           </div>
           <div className="flex items-center gap-1.5">
             <span className="w-3 h-3 rounded-full bg-amber-500" />
-            <span className="text-gray-600">Degraded</span>
+            <span className="text-gray-600 dark:text-gray-300">Degraded</span>
           </div>
           <div className="flex items-center gap-1.5">
             <span className="w-3 h-3 rounded-full bg-rose-500" />
-            <span className="text-gray-600">Unhealthy</span>
+            <span className="text-gray-600 dark:text-gray-300">Unhealthy</span>
           </div>
         </div>
       </div>
 
       {/* Tooltip for selected node */}
       {selectedNode && (
-        <div className="absolute top-3 right-3 bg-white rounded-lg shadow-lg border p-3 max-w-xs">
+        <div className="absolute top-3 right-3 bg-white dark:bg-dark-800 rounded-lg shadow-lg border dark:border-dark-700 p-3 max-w-xs">
           {(() => {
             const node = nodeMap.get(selectedNode)
             if (!node) return null
             return (
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <h4 className="font-semibold text-gray-900">{node.label}</h4>
+                  <h4 className="font-semibold text-gray-900 dark:text-gray-100">{node.label}</h4>
                   <span
                     className={clsx(
                       'text-xs px-2 py-0.5 rounded',
                       node.status === 'healthy'
-                        ? 'bg-emerald-50 text-emerald-700'
+                        ? 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
                         : node.status === 'degraded'
-                          ? 'bg-amber-50 text-amber-700'
-                          : 'bg-rose-50 text-rose-700',
+                          ? 'bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400'
+                          : 'bg-rose-50 dark:bg-rose-500/10 text-rose-700 dark:text-rose-400',
                     )}
                   >
                     {node.status}
@@ -373,17 +373,17 @@ export function MCPServerTopology({
                 </div>
                 <div className="grid grid-cols-3 gap-2 text-sm">
                   <div>
-                    <p className="text-xs text-gray-500">Calls</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">Calls</p>
                     <p className="font-medium">{node.metrics.callCount}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-gray-500">Error Rate</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">Error Rate</p>
                     <p className="font-medium">
                       {(node.metrics.errorRate * 100).toFixed(1)}%
                     </p>
                   </div>
                   <div>
-                    <p className="text-xs text-gray-500">Latency</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">Latency</p>
                     <p className="font-medium">{node.metrics.avgLatencyMs}ms</p>
                   </div>
                 </div>
@@ -407,10 +407,10 @@ export function MCPServerTopologySkeleton({
 }) {
   return (
     <div
-      className="bg-gray-50 rounded-lg border animate-pulse flex items-center justify-center"
+      className="bg-gray-50 dark:bg-dark-900 rounded-lg border dark:border-dark-700 animate-pulse flex items-center justify-center"
       style={{ height }}
     >
-      <div className="text-gray-400">Loading topology...</div>
+      <div className="text-gray-400 dark:text-gray-500">Loading topology...</div>
     </div>
   )
 }

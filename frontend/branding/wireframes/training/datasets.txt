@@ -1,0 +1,603 @@
+================================================================================
+TRAINING — Datasets Tab — app/training?tab=datasets
+================================================================================
+Curate training datasets from collected feedback and trace data.
+Route: /training?tab=datasets
+
+PARENT: Training page (see index.txt for header + tab bar + pipeline stats)
+DATA: trpc.training.datasets.list(filters)
+      trpc.training.datasets.getById(id)
+      trpc.training.datasets.create(input)
+      trpc.training.datasets.delete(id)
+      trpc.feedback.list({ status: 'approved' })
+      trpc.traces.list({ minScore, maxScore })
+LAYOUT: space-y-6 within tab content area
+
+DESIGN NOTES:
+
+1. Datasets are the intermediate artifact between raw feedback and
+   training exports. A dataset is a curated collection of examples
+   from multiple sources: preference pairs, corrections, high/low-
+   scoring traces. The curation step adds quality control.
+
+2. Each dataset has a source composition breakdown showing where
+   examples came from. This matters because DPO training needs
+   paired data (preferences), SFT needs single examples (corrections
+   + high-scoring traces), and DSPy needs input/output pairs.
+
+3. Card layout over table — datasets have rich metadata (source
+   breakdown, split ratios, quality stats) that don't fit columns.
+   Cards show the key info at a glance with a progress-bar-style
+   composition breakdown.
+
+4. Create Dataset is a 4-step dialog because the configuration has
+   real complexity: naming/format → selecting sources with filters →
+   configuring train/test split → previewing examples. A single form
+   would be overwhelming; a wizard reduces cognitive load per step.
+
+5. Datasets are immutable after creation. To change a dataset, you
+   "Rebuild" which creates a new version with the same config but
+   fresh data. This ensures reproducibility — the dataset used for
+   a training run can always be referenced exactly.
+
+6. Train/test split is configured at dataset creation, not at export.
+   This ensures the same split is used consistently across exports
+   and prevents data leakage between experimentation rounds.
+
+7. Quality score threshold is the primary filter for trace-sourced
+   examples. High-scoring traces (>0.85) become positive SFT examples.
+   Low-scoring traces (<0.5) paired with high-scoring become DPO
+   negative examples. The threshold is configurable per dataset.
+
+8. Preview panel shows 3 randomly sampled examples from the dataset
+   before creation. Users can "Resample" to see different examples.
+   This catches obvious data quality issues before committing.
+
+---
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  (Training Header + Tab Bar — see index.txt)                                │
+│                                                                             │
+│  Feedback  |  Datasets*  |  Export  |  Auto-Improve                        │
+│              ═════════                                                      │
+│                                                                             │
+│  ┌─ TAB: Datasets ────────────────────────────────────────────────────────┐  │
+│  │                                                                         │  │
+│  │  ┌─ Header Row ─────────────────────────────────────────────────────┐  │  │
+│  │  │                                                                     │  │  │
+│  │  │  ┌───────────────────────────────────┐                             │  │  │
+│  │  │  │ (SearchIcon) Search datasets...   │  [+ Create Dataset]       │  │  │
+│  │  │  └───────────────────────────────────┘  btn btn-primary h-9      │  │  │
+│  │  │                                                                     │  │  │
+│  │  │  Search: filters by dataset name. Debounced 300ms.                │  │  │
+│  │  │  input: h-9, text-sm, border border-border, rounded-md,           │  │  │
+│  │  │    pl-9 (icon inside), w-64                                        │  │  │
+│  │  │                                                                     │  │  │
+│  │  └─────────────────────────────────────────────────────────────────────┘  │  │
+│  │                                                                         │  │
+│  │  ┌─ Dataset Cards (grid grid-cols-1 lg:grid-cols-2 gap-4) ──────────┐  │  │
+│  │  │                                                                     │  │  │
+│  │  │  ┌─ Dataset Card ─────────────────────────────────────────────┐   │  │  │
+│  │  │  │                                                               │   │  │  │
+│  │  │  │  ┌─ Card Header ──────────────────────────────────────────┐ │   │  │  │
+│  │  │  │  │                                                          │ │   │  │  │
+│  │  │  │  │  booking-agent-sft-v3                        [⋮]       │ │   │  │  │
+│  │  │  │  │  text-sm font-semibold text-content-primary   overflow  │ │   │  │  │
+│  │  │  │  │                                                          │ │   │  │  │
+│  │  │  │  │  booking-agent · SFT · 1,240 examples                  │ │   │  │  │
+│  │  │  │  │  text-xs text-content-muted                              │ │   │  │  │
+│  │  │  │  │                                                          │ │   │  │  │
+│  │  │  │  │  Agent: text-content-secondary                          │ │   │  │  │
+│  │  │  │  │  Format badge: SFT=badge-info, DPO=badge-warning,      │ │   │  │  │
+│  │  │  │  │    DSPy=badge-success, KTO=badge-muted                  │ │   │  │  │
+│  │  │  │  │                                                          │ │   │  │  │
+│  │  │  │  └──────────────────────────────────────────────────────────┘ │   │  │  │
+│  │  │  │                                                               │   │  │  │
+│  │  │  │  ┌─ Source Composition Bar ───────────────────────────────┐ │   │  │  │
+│  │  │  │  │                                                          │ │   │  │  │
+│  │  │  │  │  ┌══════════════╦═══════╦═══╗                          │ │   │  │  │
+│  │  │  │  │  ║ corrections  ║ prefs ║ tr║                          │ │   │  │  │
+│  │  │  │  │  ║ 62%          ║ 28%   ║10%║                          │ │   │  │  │
+│  │  │  │  │  └══════════════╩═══════╩═══╝                          │ │   │  │  │
+│  │  │  │  │                                                          │ │   │  │  │
+│  │  │  │  │  h-2 rounded-full overflow-hidden flex                 │ │   │  │  │
+│  │  │  │  │  Corrections: bg-purple-500                            │ │   │  │  │
+│  │  │  │  │  Preferences: bg-blue-500                              │ │   │  │  │
+│  │  │  │  │  Traces: bg-emerald-500                                │ │   │  │  │
+│  │  │  │  │  Below bar: legend with colored dots + label + %       │ │   │  │  │
+│  │  │  │  │  text-[10px] text-content-muted flex gap-3             │ │   │  │  │
+│  │  │  │  │                                                          │ │   │  │  │
+│  │  │  │  └──────────────────────────────────────────────────────────┘ │   │  │  │
+│  │  │  │                                                               │   │  │  │
+│  │  │  │  ┌─ Stats Row ───────────────────────────────────────────┐ │   │  │  │
+│  │  │  │  │                                                          │ │   │  │  │
+│  │  │  │  │  Train: 992  ·  Test: 248  ·  Split: 80/20            │ │   │  │  │
+│  │  │  │  │  text-xs text-content-muted                              │ │   │  │  │
+│  │  │  │  │                                                          │ │   │  │  │
+│  │  │  │  │  Created 3d ago  ·  Last rebuilt 1d ago                │ │   │  │  │
+│  │  │  │  │  text-xs text-content-muted                              │ │   │  │  │
+│  │  │  │  │                                                          │ │   │  │  │
+│  │  │  │  └──────────────────────────────────────────────────────────┘ │   │  │  │
+│  │  │  │                                                               │   │  │  │
+│  │  │  │  card class p-4                                               │   │  │  │
+│  │  │  │                                                               │   │  │  │
+│  │  │  │  Overflow menu [⋮]:                                          │   │  │  │
+│  │  │  │    View Details  → opens detail panel (slide-in from right)  │   │  │  │
+│  │  │  │    Rebuild       → re-generates with same config, fresh data │   │  │  │
+│  │  │  │    Edit Split    → change train/test ratio, regenerates      │   │  │  │
+│  │  │  │    Delete        → confirmation dialog (destructive)          │   │  │  │
+│  │  │  │                                                               │   │  │  │
+│  │  │  └───────────────────────────────────────────────────────────────┘   │  │  │
+│  │  │                                                                     │  │  │
+│  │  │  ┌─ Dataset Card ─────────────────────────────────────────────┐   │  │  │
+│  │  │  │                                                               │   │  │  │
+│  │  │  │  search-agent-dpo-v1                              [⋮]       │   │  │  │
+│  │  │  │  search-agent · DPO · 340 pairs                              │   │  │  │
+│  │  │  │                                                               │   │  │  │
+│  │  │  │  ┌══════════════════════════════╦══════╗                    │   │  │  │
+│  │  │  │  ║ preferences                  ║traces║                    │   │  │  │
+│  │  │  │  ║ 85%                          ║ 15%  ║                    │   │  │  │
+│  │  │  │  └══════════════════════════════╩══════╝                    │   │  │  │
+│  │  │  │                                                               │   │  │  │
+│  │  │  │  Train: 272  ·  Test: 68  ·  Split: 80/20                  │   │  │  │
+│  │  │  │  Created 7d ago                                               │   │  │  │
+│  │  │  │                                                               │   │  │  │
+│  │  │  └───────────────────────────────────────────────────────────────┘   │  │  │
+│  │  │                                                                     │  │  │
+│  │  └─────────────────────────────────────────────────────────────────────┘  │  │
+│  │                                                                         │  │
+│  │  ┌─ Dataset Detail Panel (slide-in from right) ─────────────────────┐  │  │
+│  │  │                                                                     │  │  │
+│  │  │  Triggered by: clicking card OR "View Details" from overflow     │  │  │
+│  │  │  Width: w-[480px], bg-surface-card, shadow-xl, border-l border-border│  │
+│  │  │  Close: [X] button top-right or click outside                     │  │  │
+│  │  │                                                                     │  │  │
+│  │  │  ┌─────────────────────────────────────────────────────────────┐  │  │  │
+│  │  │  │                                                               │  │  │  │
+│  │  │  │  booking-agent-sft-v3                            [X]        │  │  │  │
+│  │  │  │  text-lg font-semibold text-content-primary                  │  │  │  │
+│  │  │  │                                                               │  │  │  │
+│  │  │  │  ┌─ Config ────────────────────────────────────────────┐   │  │  │  │
+│  │  │  │  │                                                        │   │  │  │  │
+│  │  │  │  │  Agent         booking-agent                          │   │  │  │  │
+│  │  │  │  │  Format        SFT                                    │   │  │  │  │
+│  │  │  │  │  Examples      1,240                                  │   │  │  │  │
+│  │  │  │  │  Split         80/20 (Train: 992 / Test: 248)        │   │  │  │  │
+│  │  │  │  │  Score Filter  ≥ 0.85 (traces)                       │   │  │  │  │
+│  │  │  │  │  Created       Jan 15, 2025 3:42 PM                  │   │  │  │  │
+│  │  │  │  │  Last Rebuilt  Jan 17, 2025 10:15 AM                 │   │  │  │  │
+│  │  │  │  │                                                        │   │  │  │  │
+│  │  │  │  │  2-col grid, text-sm                                  │   │  │  │  │
+│  │  │  │  │  Label: text-content-muted  Value: text-content-primary│   │  │  │  │
+│  │  │  │  │                                                        │   │  │  │  │
+│  │  │  │  └────────────────────────────────────────────────────────┘   │  │  │  │
+│  │  │  │                                                               │  │  │  │
+│  │  │  │  ┌─ Source Breakdown ──────────────────────────────────┐   │  │  │  │
+│  │  │  │  │                                                        │   │  │  │  │
+│  │  │  │  │  Corrections     769 examples (62%)                  │   │  │  │  │
+│  │  │  │  │  ● ████████████████████████░░░░░░░░░░░               │   │  │  │  │
+│  │  │  │  │                                                        │   │  │  │  │
+│  │  │  │  │  Preferences     347 examples (28%)                  │   │  │  │  │
+│  │  │  │  │  ● ███████████░░░░░░░░░░░░░░░░░░░░░░░               │   │  │  │  │
+│  │  │  │  │                                                        │   │  │  │  │
+│  │  │  │  │  Traces          124 examples (10%)                  │   │  │  │  │
+│  │  │  │  │  ● ████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░               │   │  │  │  │
+│  │  │  │  │                                                        │   │  │  │  │
+│  │  │  │  │  Progress bars: h-1.5 rounded-full                   │   │  │  │  │
+│  │  │  │  │  Colors: purple(corrections) blue(prefs) emerald(tr) │   │  │  │  │
+│  │  │  │  │  text-sm for label+count, text-xs for bar            │   │  │  │  │
+│  │  │  │  │                                                        │   │  │  │  │
+│  │  │  │  └────────────────────────────────────────────────────────┘   │  │  │  │
+│  │  │  │                                                               │  │  │  │
+│  │  │  │  ┌─ Example Preview ───────────────────────────────────┐   │  │  │  │
+│  │  │  │  │                                                        │   │  │  │  │
+│  │  │  │  │  Example 1 of 3                      [Resample]      │   │  │  │  │
+│  │  │  │  │                                       btn btn-ghost   │   │  │  │  │
+│  │  │  │  │                                       btn-sm          │   │  │  │  │
+│  │  │  │  │                                                        │   │  │  │  │
+│  │  │  │  │  Input:                                               │   │  │  │  │
+│  │  │  │  │  ┌──────────────────────────────────────────────────┐│   │  │  │  │
+│  │  │  │  │  │ "What is the refund policy for premium users?"  ││   │  │  │  │
+│  │  │  │  │  └──────────────────────────────────────────────────┘│   │  │  │  │
+│  │  │  │  │  bg-surface-overlay/30 rounded-md p-2                │   │  │  │  │
+│  │  │  │  │  font-mono text-xs text-content-secondary            │   │  │  │  │
+│  │  │  │  │                                                        │   │  │  │  │
+│  │  │  │  │  Output:                                              │   │  │  │  │
+│  │  │  │  │  ┌──────────────────────────────────────────────────┐│   │  │  │  │
+│  │  │  │  │  │ "Premium users can request a full refund within ││   │  │  │  │
+│  │  │  │  │  │  30 days of purchase. Contact support..."        ││   │  │  │  │
+│  │  │  │  │  └──────────────────────────────────────────────────┘│   │  │  │  │
+│  │  │  │  │  bg-surface-overlay/30 rounded-md p-2                │   │  │  │  │
+│  │  │  │  │  font-mono text-xs text-content-secondary            │   │  │  │  │
+│  │  │  │  │                                                        │   │  │  │  │
+│  │  │  │  │  Source: correction (factual) · Score: 0.91          │   │  │  │  │
+│  │  │  │  │  text-[10px] text-content-muted                      │   │  │  │  │
+│  │  │  │  │                                                        │   │  │  │  │
+│  │  │  │  │  ┌──┐  ┌──┐  ┌──┐                                   │   │  │  │  │
+│  │  │  │  │  │ 1│  │ 2│  │ 3│  pagination dots                  │   │  │  │  │
+│  │  │  │  │  └──┘  └──┘  └──┘  click to view other samples      │   │  │  │  │
+│  │  │  │  │  Active: bg-primary  Inactive: bg-surface-overlay    │   │  │  │  │
+│  │  │  │  │  w-2 h-2 rounded-full                                │   │  │  │  │
+│  │  │  │  │                                                        │   │  │  │  │
+│  │  │  │  └────────────────────────────────────────────────────────┘   │  │  │  │
+│  │  │  │                                                               │  │  │  │
+│  │  │  │  ┌─ Actions ───────────────────────────────────────────┐   │  │  │  │
+│  │  │  │  │                                                        │   │  │  │  │
+│  │  │  │  │  [Export This Dataset]            [Rebuild]           │   │  │  │  │
+│  │  │  │  │  btn btn-primary                  btn btn-secondary  │   │  │  │  │
+│  │  │  │  │                                                        │   │  │  │  │
+│  │  │  │  │  "Export": switches to Export tab with dataset         │   │  │  │  │
+│  │  │  │  │    pre-selected.                                      │   │  │  │  │
+│  │  │  │  │  "Rebuild": re-runs curation with same config but    │   │  │  │  │
+│  │  │  │  │    fresh data. Spinner on button while rebuilding.   │   │  │  │  │
+│  │  │  │  │                                                        │   │  │  │  │
+│  │  │  │  └────────────────────────────────────────────────────────┘   │  │  │  │
+│  │  │  │                                                               │  │  │  │
+│  │  │  └─────────────────────────────────────────────────────────────┘  │  │  │
+│  │  │                                                                     │  │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │  │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+
+================================================================================
+CREATE DATASET DIALOG (4-step wizard)
+================================================================================
+Trigger: [+ Create Dataset] button
+Dialog: max-w-2xl, bg-surface-card, rounded-xl, shadow-xl
+        overlay: bg-black/50
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                                                                             │
+│  Create Dataset                                                   [X]     │
+│  text-lg font-semibold text-content-primary                                │
+│                                                                             │
+│  ┌─ Step Indicator ────────────────────────────────────────────────────┐  │
+│  │                                                                       │  │
+│  │  (1) Configure ── (2) Sources ── (3) Split ── (4) Preview          │  │
+│  │   ●━━━━━━━━━━━━━━━○──────────────○──────────────○                  │  │
+│  │                                                                       │  │
+│  │  Steps: flex items-center gap-2                                     │  │
+│  │  Completed: bg-primary text-white w-6 h-6 rounded-full             │  │
+│  │  Current: bg-primary text-white w-6 h-6 rounded-full ring-2       │  │
+│  │    ring-primary/30                                                  │  │
+│  │  Pending: bg-surface-overlay text-content-muted w-6 h-6 rounded-full│  │
+│  │  Connector done: bg-primary h-0.5  Pending: bg-border h-0.5       │  │
+│  │                                                                       │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+│  ══ STEP 1: Configure ══════════════════════════════════════════════════  │
+│                                                                             │
+│  Dataset Name *                                                            │
+│  ┌─────────────────────────────────────────────────────────────────────┐  │
+│  │ e.g. booking-agent-sft-v1                                           │  │
+│  └─────────────────────────────────────────────────────────────────────┘  │
+│  input: h-9, text-sm. Auto-suggested: {agent}-{format}-v{n}             │
+│                                                                             │
+│  Agent *                                                                   │
+│  ┌─────────────────────────────────────────────────────────────────────┐  │
+│  │ Select agent...                                                  ▾ │  │
+│  └─────────────────────────────────────────────────────────────────────┘  │
+│  dropdown: h-9. Options from trpc.agents.list()                          │
+│  Pre-filled if agent filter is active on Training page.                  │
+│                                                                             │
+│  Format *                                                                  │
+│  ┌─ Radio Group ───────────────────────────────────────────────────────┐  │
+│  │                                                                       │  │
+│  │  (●) SFT    Single-turn: input → corrected output                  │  │
+│  │  ( ) DPO    Paired: input → chosen output + rejected output         │  │
+│  │  ( ) KTO    Binary: input → output + good/bad label                 │  │
+│  │  ( ) DSPy   Prompt/completion pairs for DSPy optimization           │  │
+│  │                                                                       │  │
+│  │  Radio buttons: vertical stack, gap-3                               │  │
+│  │  Active: text-primary, ring-primary                                 │  │
+│  │  Label: text-sm font-medium text-content-primary                    │  │
+│  │  Description: text-xs text-content-muted ml-6                      │  │
+│  │  DPO requires preference data. DSPy requires trace data.           │  │
+│  │  If insufficient data for format: show inline warning               │  │
+│  │    "⚠ Only 12 preference pairs — DPO needs ≥50 for quality"       │  │
+│  │    text-xs text-status-warning                                      │  │
+│  │                                                                       │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+│                                            [Cancel]  [Next →]             │
+│                                            btn-ghost   btn-primary        │
+│                                                                             │
+│  ══ STEP 2: Sources ═══════════════════════════════════════════════════  │
+│                                                                             │
+│  Select which data sources to include. Each source can be independently  │
+│  filtered.                                                                 │
+│                                                                             │
+│  ┌─ Source: Corrections ───────────────────────────────────────────────┐  │
+│  │                                                                       │  │
+│  │  [✓] Include corrections                          Available: 769   │  │
+│  │                                                                       │  │
+│  │  Correction types:                                                  │  │
+│  │  [✓] factual  [✓] incomplete  [✓] tone                            │  │
+│  │  [✓] clarity  [✓] relevance   [✓] formatting                      │  │
+│  │  checkbox toggles, default all checked                              │  │
+│  │                                                                       │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+│  ┌─ Source: Preferences ───────────────────────────────────────────────┐  │
+│  │                                                                       │  │
+│  │  [✓] Include preference pairs                     Available: 340   │  │
+│  │                                                                       │  │
+│  │  Min confidence:  [3 ▾]  (1-5, filters low-confidence pairs)       │  │
+│  │  dropdown: h-8, text-sm                                              │  │
+│  │  "Excludes 23 pairs with confidence < 3"                            │  │
+│  │  text-xs text-content-muted                                          │  │
+│  │                                                                       │  │
+│  │  Only for DPO/KTO format. Disabled & grayed if SFT selected.       │  │
+│  │                                                                       │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+│  ┌─ Source: Traces ────────────────────────────────────────────────────┐  │
+│  │                                                                       │  │
+│  │  [✓] Include high-scoring traces                  Available: 2,100 │  │
+│  │                                                                       │  │
+│  │  Score threshold:                                                    │  │
+│  │  ┌─────────────────────────────────────────────────────────────┐    │  │
+│  │  │  0.5 ──────────────────●═══════════════════════════ 1.0    │    │  │
+│  │  │                        0.85                                  │    │  │
+│  │  └─────────────────────────────────────────────────────────────┘    │  │
+│  │  range slider: h-1.5, thumb w-4 h-4 bg-primary                    │  │
+│  │  "124 traces match (score ≥ 0.85)"                                 │  │
+│  │  text-xs text-content-muted, live-updating on slider change        │  │
+│  │                                                                       │  │
+│  │  Max examples: [500 ▾]                                              │  │
+│  │  dropdown: 100/250/500/1000/All. Randomly samples if more match.  │  │
+│  │                                                                       │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+│  Total: ~1,233 examples                                                   │
+│  text-sm font-medium text-content-primary, live-updating                  │
+│                                                                             │
+│                                  [← Back]  [Cancel]  [Next →]            │
+│                                                                             │
+│  ══ STEP 3: Split ═════════════════════════════════════════════════════  │
+│                                                                             │
+│  Train / Test Split                                                        │
+│                                                                             │
+│  ┌─ Split Ratio ───────────────────────────────────────────────────────┐  │
+│  │                                                                       │  │
+│  │  [  70/30  ]  [● 80/20  ]  [  90/10  ]  [  Custom  ]              │  │
+│  │                                                                       │  │
+│  │  pill buttons, same style as segmented control in Feedback tab      │  │
+│  │  Default: 80/20                                                     │  │
+│  │                                                                       │  │
+│  │  Custom mode: shows two inputs                                      │  │
+│  │  Train: [___]%   Test: [___]%   (must sum to 100)                  │  │
+│  │                                                                       │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+│  ┌─ Split Preview ─────────────────────────────────────────────────────┐  │
+│  │                                                                       │  │
+│  │  ┌════════════════════════════════════════╦══════════╗               │  │
+│  │  ║ Train: 986 examples                    ║ Test: 247║               │  │
+│  │  └════════════════════════════════════════╩══════════╝               │  │
+│  │                                                                       │  │
+│  │  h-3 rounded-full overflow-hidden flex                              │  │
+│  │  Train: bg-primary   Test: bg-primary/40                            │  │
+│  │  Numbers update live based on ratio selection.                      │  │
+│  │                                                                       │  │
+│  │  Stratified split: maintains source distribution in both sets.     │  │
+│  │  text-xs text-content-muted                                          │  │
+│  │                                                                       │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+│  Shuffle Seed                                                              │
+│  ┌─────────────────────────────────────────────────────────────────────┐  │
+│  │ 42                                                                   │  │
+│  └─────────────────────────────────────────────────────────────────────┘  │
+│  input: h-9, w-24, text-sm. Default 42. For reproducibility.            │
+│  text-xs text-content-muted: "Same seed = same split"                    │
+│                                                                             │
+│                                  [← Back]  [Cancel]  [Next →]            │
+│                                                                             │
+│  ══ STEP 4: Preview & Create ══════════════════════════════════════════  │
+│                                                                             │
+│  ┌─ Summary ───────────────────────────────────────────────────────────┐  │
+│  │                                                                       │  │
+│  │  Name           booking-agent-sft-v1                                │  │
+│  │  Agent          booking-agent                                       │  │
+│  │  Format         SFT                                                 │  │
+│  │  Total          1,233 examples                                      │  │
+│  │  Split          80/20 (Train: 986 / Test: 247)                     │  │
+│  │  Sources        Corrections (769) + Preferences (340) +            │  │
+│  │                 Traces (124, score ≥ 0.85)                          │  │
+│  │                                                                       │  │
+│  │  2-col grid, text-sm. bg-surface-overlay/30 rounded-lg p-4         │  │
+│  │                                                                       │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+│  ┌─ Sample Examples ───────────────────────────────────────────────────┐  │
+│  │                                                                       │  │
+│  │  Preview: 3 randomly sampled examples             [Resample]       │  │
+│  │  text-sm text-content-muted                        btn btn-ghost   │  │
+│  │                                                                       │  │
+│  │  ┌─ Example 1 ─────────────── Source: correction (factual) ─────┐ │  │
+│  │  │                                                                 │ │  │
+│  │  │  Input:  "What is the refund policy for premium users?"       │ │  │
+│  │  │  Output: "Premium users can request a full refund within     │ │  │
+│  │  │           30 days of purchase. Contact support at..."         │ │  │
+│  │  │                                                                 │ │  │
+│  │  └─────────────────────────────────────────────────────────────────┘ │  │
+│  │                                                                       │  │
+│  │  ┌─ Example 2 ─────────────── Source: preference (B chosen) ────┐ │  │
+│  │  │                                                                 │ │  │
+│  │  │  Input:  "Explain the checkout flow"                          │ │  │
+│  │  │  Output: "The checkout flow begins with..."                   │ │  │
+│  │  │                                                                 │ │  │
+│  │  └─────────────────────────────────────────────────────────────────┘ │  │
+│  │                                                                       │  │
+│  │  ┌─ Example 3 ─────────────── Source: trace (score: 0.93) ──────┐ │  │
+│  │  │                                                                 │ │  │
+│  │  │  Input:  "Cancel my subscription"                             │ │  │
+│  │  │  Output: "I've processed your cancellation request..."        │ │  │
+│  │  │                                                                 │ │  │
+│  │  └─────────────────────────────────────────────────────────────────┘ │  │
+│  │                                                                       │  │
+│  │  Each example: bg-surface-overlay/20 rounded-md p-3, text-xs       │  │
+│  │  font-mono. Source badge in card header: correction=purple,        │  │
+│  │  preference=blue, trace=emerald.                                    │  │
+│  │                                                                       │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+│                                  [← Back]  [Cancel]  [Create Dataset]    │
+│                                                      btn btn-primary       │
+│                                                                             │
+│  On submit: trpc.training.datasets.create(config)                         │
+│  Loading: spinner on button, disabled state                                │
+│  Success: dialog closes, toast "Dataset created", card appears in list    │
+│  Error: inline error banner above footer buttons                           │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+
+================================================================================
+DELETE DATASET CONFIRMATION
+================================================================================
+Trigger: "Delete" from overflow menu
+Dialog: max-w-sm, same modal pattern
+
+  ┌──────────────────────────────────────────────────────────┐
+  │                                                          │
+  │  Delete Dataset                                   [X]  │
+  │  text-lg font-semibold text-content-primary              │
+  │                                                          │
+  │  Are you sure you want to delete                        │
+  │  "booking-agent-sft-v3"?                                │
+  │  font-medium                                             │
+  │                                                          │
+  │  This will permanently remove the dataset and all its   │
+  │  examples. This cannot be undone.                        │
+  │  text-sm text-content-muted                              │
+  │                                                          │
+  │  [Cancel]              [Delete Dataset]                  │
+  │  btn btn-ghost          btn btn-danger                   │
+  │                                                          │
+  └──────────────────────────────────────────────────────────┘
+
+
+===============================================================================
+LOADING STATE
+===============================================================================
+
+Tab loading:
+  ┌──────────────────────────────────────────────────────────────────────┐
+  │ ┌───────────────────────────────────┐                               │
+  │ │ ░░░░░░░░░░░░░░░░░░░░             │  [░░░░░░░░░░░░]               │
+  │ └───────────────────────────────────┘                               │
+  │                                                                      │
+  │ ┌─────────────────────────────┐  ┌─────────────────────────────┐   │
+  │ │ ░░░░░░░░░░░░░░░░           │  │ ░░░░░░░░░░░░░░░░           │   │
+  │ │ ░░░░░░░░░░                 │  │ ░░░░░░░░░░                 │   │
+  │ │ ░░░░░░░░░░░░░░░░░░░░░░    │  │ ░░░░░░░░░░░░░░░░░░░░░░    │   │
+  │ │ ░░░░░░░░░░░░               │  │ ░░░░░░░░░░░░               │   │
+  │ └─────────────────────────────┘  └─────────────────────────────┘   │
+  └──────────────────────────────────────────────────────────────────────┘
+  animate-pulse. Search bar skeleton + 2 card skeletons in grid.
+
+Detail panel loading:
+  Same width, slide-in animation, with 4 skeleton blocks for each section.
+
+
+===============================================================================
+EMPTY STATE
+===============================================================================
+
+  ┌──────────────────────────────────────────────────────────┐
+  │                                                          │
+  │        (Database icon, w-12 h-12, text-content-muted)  │
+  │                                                          │
+  │        No datasets yet                                  │
+  │        text-lg font-medium text-content-primary          │
+  │                                                          │
+  │        Create a dataset from your collected feedback     │
+  │        and trace data to prepare for model training.     │
+  │        text-sm text-content-muted, max-w-sm mx-auto      │
+  │                                                          │
+  │        [+ Create Dataset]                                │
+  │        btn btn-primary                                   │
+  │                                                          │
+  └──────────────────────────────────────────────────────────┘
+
+
+===============================================================================
+ERROR STATE
+===============================================================================
+
+  ┌──────────────────────────────────────────────────────────┐
+  │                                                          │
+  │        (AlertCircle icon, w-12 h-12, text-status-error) │
+  │                                                          │
+  │        Failed to load datasets                          │
+  │        text-lg font-medium text-content-primary          │
+  │                                                          │
+  │        {error.message}                                   │
+  │        text-sm text-content-muted                        │
+  │                                                          │
+  │        [Retry]                                           │
+  │        btn btn-secondary btn-sm, onClick: refetch()     │
+  │                                                          │
+  └──────────────────────────────────────────────────────────┘
+
+
+===============================================================================
+BEHAVIORAL NOTES
+===============================================================================
+
+1. Card click opens the detail panel (slide-in from right). Panel
+   is outside the card grid — it overlays on top, not pushes content.
+   Click outside or [X] to close. Only one panel open at a time.
+
+2. "Rebuild" re-runs the curation pipeline with the same config but
+   pulls in any new feedback/traces since the last build. The card
+   shows a spinner overlay during rebuild (~5-15s). On completion,
+   card data refreshes in place.
+
+3. "Export This Dataset" in the detail panel switches to the Export
+   tab (&tab=export) with the dataset pre-selected in the dataset
+   dropdown. URL: &tab=export&dataset=booking-agent-sft-v3
+
+4. Source availability depends on format selection in Step 1:
+   - SFT: all sources available (corrections → output, prefs →
+     chosen output, traces → output)
+   - DPO: preferences required (chosen vs rejected), traces optional
+     (high vs low score pairs), corrections disabled
+   - KTO: preferences required (binary good/bad), corrections as
+     positive examples, traces optional
+   - DSPy: traces required (input→output), corrections optional,
+     preferences disabled
+
+5. The step indicator in Create Dataset dialog is clickable for
+   completed steps only. Cannot skip ahead to un-visited steps.
+   [Cancel] at any step closes without saving.
+
+6. Score threshold slider (Step 2, Traces source) updates the
+   "X traces match" count with a 200ms debounce. This is a
+   server-side count query, not client filtering.
+
+7. Stratified split in Step 3 ensures each source type maintains
+   its proportion in both train and test sets. The shuffle seed
+   makes the split reproducible.
+
+8. "Resample" in Step 4 preview fetches 3 new random examples
+   from the configured sources. No page number — always random.
+
+9. Dataset names must be unique within a project. The dialog
+   validates on blur and shows inline error if duplicate.
+
+10. Agent filter from Training page header pre-fills the Agent
+    dropdown in Create Dataset dialog. Search also respects the
+    agent filter (only shows datasets for selected agent).
+
+11. The Source Composition Bar on cards uses proportional segments.
+    Hover on a segment shows tooltip with exact count and %.
+    Colors are consistent: purple=corrections, blue=preferences,
+    emerald=traces.
+
+12. Datasets with 0 examples after filtering show a warning state
+    on the card: "Empty — rebuild with different filters". Badge:
+    badge-warning.

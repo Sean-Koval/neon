@@ -1,0 +1,701 @@
+================================================================================
+PROMPT DETAIL — app/prompts/[id]/page.tsx
+================================================================================
+Prompt detail with content viewer/editor, performance metrics, version
+history with diffs, and experiment linkage. This page treats prompts as
+deployable artifacts with measurable performance — not just text files.
+Route: /prompts/[id]
+
+PARENT: Root layout with sidebar (IMPROVE group)
+DATA: trpc.prompts.getById(id)
+      trpc.prompts.getById(name, { history: true })   → version list
+      trpc.prompts.update(input)                       → edit / promote
+      trpc.prompts.delete(id)
+      trpc.evals.getScoresByPrompt(name, version)      → performance
+      trpc.experiments.listByPrompt(name)               → experiment links
+LAYOUT: p-6, space-y-6
+
+DESIGN NOTES:
+
+1. Prompts are deployable artifacts with performance histories, not
+   documents. The detail page connects prompt content to eval scores,
+   latency, and cost — answering "is this prompt performing well?"
+   alongside "what does this prompt say?"
+
+2. Edit mode is inline, not modal. Clicking [Edit] transforms the
+   read-only content block into an editable textarea/message-builder
+   and reveals a commit message field. Saving always creates a new
+   version (immutable version history). This mirrors git's model:
+   you never edit a commit, you create a new one.
+
+3. [Edit] and [New Version] are the same operation. Every content
+   edit creates a new version via trpc.prompts.update, which auto-
+   increments the version number and sets parent_version_id. The
+   button is labeled [Edit] because that's the user's mental model,
+   even though the backend creates a new version.
+
+4. Human vs auto-optimizer distinction is prominent. Version history
+   rows show (SparklesIcon) for created_by = "auto-opt" and
+   (UserIcon) for human authors. Auto-optimized versions also get a
+   subtle "auto" badge. This distinction matters because auto-
+   generated content may need human review before production use.
+
+5. Performance metrics come from eval runs that reference this prompt
+   name + version. The join is via eval run metadata, not a direct
+   FK. If no eval data exists, the performance section shows a
+   placeholder directing the user to run an eval.
+
+6. Chat-type prompts use a message list UI with role labels, not a
+   single text block. Each message is visually distinct with its
+   role (system/user/assistant) as a colored label.
+
+7. Version history shows commit_message prominently — it's the "why"
+   behind each change. The API's commit_message field is an authored
+   description, distinct from auto-detected change summaries.
+
+8. Back navigation is context-aware. If the referrer is /agents/[id],
+   the label reads "← Back to {agent name}" (using document.referrer
+   to detect). Otherwise "← Back to Prompts" with fallback to
+   /prompts.
+
+9. "Set as Production" is a toggle switch, not a button. It's a
+   state change, not an action. The switch is ON for the production
+   version and OFF otherwise. Toggling ON automatically demotes the
+   previously-production version.
+
+10. Side-by-side diff is available as a toggle alongside inline diff.
+    For long prompts with scattered changes, side-by-side is faster
+    to scan. For short prompts, inline is more compact. Default is
+    inline.
+
+11. Model configuration shown as metadata is the prompt's *suggested*
+    config, not the agent's runtime config. A note clarifies:
+    "Agent runtime may override these values." This prevents
+    confusion when the agent uses different settings.
+
+12. "Used in Experiments" section closes the feedback loop: operators
+    can see which experiments tested this prompt version and what the
+    results were, directly from the prompt detail page.
+
+---
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                                                                             │
+│  ← Back to Prompts                                                         │
+│  text-sm text-content-muted hover:text-content-secondary                   │
+│  cursor-pointer, flex items-center gap-1                                   │
+│  (ChevronLeft w-4 h-4) + label text                                       │
+│  Context-aware: see design note 8                                          │
+│                                                                             │
+│  ┌─ Prompt Header ──────────────────────────────────────────────────────┐  │
+│  │                                                                       │  │
+│  │  booking-system                         [text]  [✓ production]      │  │
+│  │  text-2xl font-bold font-mono            type     status badge      │  │
+│  │  text-content-primary                    badge                       │  │
+│  │                                                                       │  │
+│  │  System prompt for the booking agent                                 │  │
+│  │  text-sm text-content-muted (prompt.description)                     │  │
+│  │  Omitted if description is empty                                     │  │
+│  │                                                                       │  │
+│  │  v7 · (SparklesIcon) auto-opt · Updated 2h ago                      │  │
+│  │  text-xs text-content-muted                                          │  │
+│  │  Version number · author with icon · relative timestamp              │  │
+│  │                                                                       │  │
+│  │  ── Actions ────────────────────────────────────────────────────── │  │
+│  │                                                                       │  │
+│  │  [Edit]              Primary action. Enters edit mode (see below).  │  │
+│  │  btn btn-primary      Toggles content to editable.                   │  │
+│  │                                                                       │  │
+│  │  [Duplicate]          Creates a copy via Create dialog (pre-filled).│  │
+│  │  btn btn-secondary    Opens Create Prompt dialog from index page.   │  │
+│  │                                                                       │  │
+│  │  [Delete]             Deletes all versions of this prompt.          │  │
+│  │  btn btn-ghost         Opens delete confirmation dialog.             │  │
+│  │  text-status-error    Disabled if is_production (opacity-50,        │  │
+│  │                        tooltip "Remove from production first").     │  │
+│  │                                                                       │  │
+│  │  Production toggle (right-aligned):                                  │  │
+│  │  ┌──────────────────────────────┐                                   │  │
+│  │  │  Production  [━━━●]         │  Switch component                 │  │
+│  │  └──────────────────────────────┘                                   │  │
+│  │  text-sm text-content-secondary + Switch                             │  │
+│  │  ON: bg-status-success for switch track                              │  │
+│  │  Toggling ON: toast "Set as production (v7)"                        │  │
+│  │  Toggling OFF: toast "Removed from production"                      │  │
+│  │  Calls trpc.prompts.update({ is_production: bool })                │  │
+│  │                                                                       │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+│  ┌─ Performance (grid-cols-3 gap-4) ────────────────────────────────────┐  │
+│  │                                                                       │  │
+│  │  ┌──────────────────┐ ┌──────────────────┐ ┌──────────────────┐    │  │
+│  │  │ Avg Score        │ │ Avg Latency      │ │ Cost / Call      │    │  │
+│  │  │ 0.94             │ │ 421ms            │ │ $0.12            │    │  │
+│  │  │ from 47 evals    │ │ p50              │ │ avg              │    │  │
+│  │  └──────────────────┘ └──────────────────┘ └──────────────────┘    │  │
+│  │                                                                       │  │
+│  │  stat-card class                                                      │  │
+│  │  Data from trpc.evals.getScoresByPrompt(name, version)              │  │
+│  │  "from N evals" = count of eval runs using this prompt version      │  │
+│  │                                                                       │  │
+│  │  Score colored: >=0.85 text-status-success, >=0.7 text-status-     │  │
+│  │    warning, <0.7 text-status-error                                  │  │
+│  │  Latency colored: <=500ms text-status-success, <=2000ms            │  │
+│  │    text-status-warning, >2000ms text-status-error                   │  │
+│  │  Cost: text-content-primary (no color threshold)                    │  │
+│  │                                                                       │  │
+│  │  No eval data state:                                                 │  │
+│  │  ┌──────────────────────────────────────────────────────────────┐  │  │
+│  │  │  No evaluation data for this version                         │  │  │
+│  │  │  Run an eval suite to see performance metrics.               │  │  │
+│  │  │  [Run Eval →]                                                │  │  │
+│  │  │  text-sm text-content-muted, link → /eval-runs (new run)    │  │  │
+│  │  └──────────────────────────────────────────────────────────────┘  │  │
+│  │  Single card spanning full width, text-center, py-6                │  │
+│  │                                                                       │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+│  ┌─ Prompt Content ─────────────────────────────────────────────────────┐  │
+│  │                                                                       │  │
+│  │  ── VIEW MODE (default) ──────────────────────────────────────────  │  │
+│  │                                                                       │  │
+│  │  (Shown when type = "text"):                                        │  │
+│  │  ┌─────────────────────────────────────────────────────────────────┐│  │
+│  │  │                                                                 ││  │
+│  │  │  You are a booking assistant that helps users find and book     ││  │
+│  │  │  travel accommodations. You should:                             ││  │
+│  │  │                                                                 ││  │
+│  │  │  1. Ask clarifying questions about travel dates and preferences ││  │
+│  │  │  2. Search available options using the {{tool_name}} tool       ││  │
+│  │  │  3. Present options in a clear, formatted way                   ││  │
+│  │  │  4. Help with booking confirmation and payment                  ││  │
+│  │  │                                                                 ││  │
+│  │  │  Rules:                                                         ││  │
+│  │  │  - Always confirm before making a booking                       ││  │
+│  │  │  - Show prices in {{currency}}                                  ││  │
+│  │  │  - Greet the user as {{user_name}}                              ││  │
+│  │  │                                                                 ││  │
+│  │  └─────────────────────────────────────────────────────────────────┘│  │
+│  │  font-mono, text-sm, bg-surface-card, border border-border,        │  │
+│  │  rounded-md, p-4, whitespace-pre-wrap                              │  │
+│  │  {{variables}} highlighted: text-amber-500 font-semibold           │  │
+│  │  (regex: /\{\{(\w+)\}\}/g → wrap in <span>)                       │  │
+│  │                                                                       │  │
+│  │  (Shown when type = "chat"):                                        │  │
+│  │  ┌─────────────────────────────────────────────────────────────────┐│  │
+│  │  │                                                                 ││  │
+│  │  │  ┌─ system ───────────────────────────────────────────────────┐││  │
+│  │  │  │ You are a booking assistant that helps users find and book │││  │
+│  │  │  │ travel accommodations...                                   │││  │
+│  │  │  └────────────────────────────────────────────────────────────┘││  │
+│  │  │                                                                 ││  │
+│  │  │  ┌─ user ─────────────────────────────────────────────────────┐││  │
+│  │  │  │ I'd like to book a hotel in {{destination}} for            │││  │
+│  │  │  │ {{num_nights}} nights starting {{check_in_date}}.          │││  │
+│  │  │  └────────────────────────────────────────────────────────────┘││  │
+│  │  │                                                                 ││  │
+│  │  │  ┌─ assistant ────────────────────────────────────────────────┐││  │
+│  │  │  │ I'd be happy to help you find a hotel! Let me search for  │││  │
+│  │  │  │ available options...                                       │││  │
+│  │  │  └────────────────────────────────────────────────────────────┘││  │
+│  │  │                                                                 ││  │
+│  │  └─────────────────────────────────────────────────────────────────┘│  │
+│  │  Each message: card class, space-y-3                                │  │
+│  │  Role label: text-xs font-semibold uppercase tracking-wider         │  │
+│  │    system = text-purple-500                                         │  │
+│  │    user = text-blue-500                                             │  │
+│  │    assistant = text-emerald-500                                     │  │
+│  │  Content: font-mono, text-sm, whitespace-pre-wrap                  │  │
+│  │  {{variables}} highlighted same as text type                        │  │
+│  │                                                                       │  │
+│  │  ── Token & Variable Summary ──────────────────────────────────── │  │
+│  │                                                                       │  │
+│  │  ~340 tokens (cl100k_base estimate)  ·  3 variables detected       │  │
+│  │  text-xs text-content-muted                                         │  │
+│  │  Token count: client-side estimate using tiktoken cl100k_base       │  │
+│  │  (OpenAI's tokenizer). Actual token count varies by model.         │  │
+│  │  Note shown on hover: "Estimate only. Actual count depends on      │  │
+│  │  the model's tokenizer."                                            │  │
+│  │                                                                       │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+│  ┌─ Variables ──────────────────────────────────────────────────────────┐  │
+│  │                                                                       │  │
+│  │  Variables (3)                                                       │  │
+│  │  text-sm font-semibold text-content-primary                         │  │
+│  │                                                                       │  │
+│  │  ┌────────────┬──────────┬──────────┬─────────────────────────────┐│  │
+│  │  │ Name       │ Type     │ Required │ Default                     ││  │
+│  │  ├────────────┼──────────┼──────────┼─────────────────────────────┤│  │
+│  │  │ user_name  │ string   │ ✓        │ —                           ││  │
+│  │  │ currency   │ string   │ ✓        │ "USD"                       ││  │
+│  │  │ tool_name  │ string   │          │ "booking_search"            ││  │
+│  │  └────────────┴──────────┴──────────┴─────────────────────────────┘│  │
+│  │                                                                       │  │
+│  │  table: text-sm, border-collapse                                    │  │
+│  │  Name: font-mono, text-content-primary                              │  │
+│  │  Type: text-content-muted (from PromptVariable.type schema)        │  │
+│  │  Required: ✓ (CheckIcon w-4 text-status-success) or blank          │  │
+│  │  Default: font-mono text-content-muted, "—" if none                │  │
+│  │                                                                       │  │
+│  │  Auto-detected from {{variable}} patterns in template.             │  │
+│  │  Extended metadata (type, required, default) from variables         │  │
+│  │  schema field. If variables schema is empty, auto-detect names     │  │
+│  │  only and show type/required/default as "—".                       │  │
+│  │                                                                       │  │
+│  │  Hidden if no variables detected.                                   │  │
+│  │                                                                       │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+│  ┌─ Metadata ──────────────────────────────────────────────────────────┐  │
+│  │                                                                       │  │
+│  │  ┌─ Prompt Info ─────────────────┐ ┌─ Model Config ──────────────┐│  │
+│  │  │                               │ │                              ││  │
+│  │  │  Type      text               │ │  Model    gemini-2.5-flash  ││  │
+│  │  │  Agent     booking-agent      │ │  Temp     0.7               ││  │
+│  │  │  Tags      [qa] [prod]        │ │  Max Tok  2048              ││  │
+│  │  │  Created   2024-12-20         │ │                              ││  │
+│  │  │  Updated   2h ago             │ │  text-xs text-content-muted:││  │
+│  │  │                               │ │  "Suggested config. Agent   ││  │
+│  │  │                               │ │  runtime may override."     ││  │
+│  │  │                               │ │                              ││  │
+│  │  └───────────────────────────────┘ └──────────────────────────────┘│  │
+│  │                                                                       │  │
+│  │  grid grid-cols-2 gap-4                                              │  │
+│  │  Each sub-card: card class, p-4, space-y-2                          │  │
+│  │  Labels: text-xs text-content-muted uppercase tracking-wider        │  │
+│  │  Values: text-sm text-content-primary                               │  │
+│  │  "Agent" derived from tags matching known agent names               │  │
+│  │  Tags: badge badge-secondary text-[10px] per tag, inline-flex      │  │
+│  │  Tags editable inline: click tag to remove, type to add (same      │  │
+│  │    combobox as Create dialog). Changes save immediately via         │  │
+│  │    trpc.prompts.update (does NOT create new version — tags are     │  │
+│  │    metadata, not content).                                          │  │
+│  │                                                                       │  │
+│  │  Model Config hidden if prompt.config is null/empty.               │  │
+│  │                                                                       │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+│  ┌─ Version History ────────────────────────────────────────────────────┐  │
+│  │                                                                       │  │
+│  │  Version History (12 versions)                                      │  │
+│  │  text-lg font-semibold text-content-primary                         │  │
+│  │                                                                       │  │
+│  │  ┌────────────────────────────────────────────────────────────────┐ │  │
+│  │  │ Ver │ Author         │ Date    │ Status │ Message    │       │ │  │
+│  │  ├─────┼────────────────┼─────────┼────────┼────────────┼───────┤ │  │
+│  │  │ v7  │ ✦ auto-opt     │ 2h ago  │ ✓ prod │ Improved   │ [⋯]  │ │  │
+│  │  │     │                │         │        │ edge case  │       │ │  │
+│  │  │     │                │         │        │ handling   │       │ │  │
+│  │  │ v6  │ 👤 sean        │ 1d ago  │        │ Added      │ [⋯]  │ │  │
+│  │  │     │                │         │        │ currency   │       │ │  │
+│  │  │     │                │         │        │ variable   │       │ │  │
+│  │  │ v5  │ 👤 sean        │ 3d ago  │        │ Refined    │ [⋯]  │ │  │
+│  │  │     │                │         │        │ rules      │       │ │  │
+│  │  │ v4  │ ✦ auto-opt     │ 1w ago  │        │ Auto-      │ [⋯]  │ │  │
+│  │  │     │                │         │        │ optimized  │       │ │  │
+│  │  │     │                │         │        │ from loop  │       │ │  │
+│  │  └────────────────────────────────────────────────────────────────┘ │  │
+│  │                                                                       │  │
+│  │  Table: text-sm, full-width                                          │  │
+│  │  Ver: font-mono, text-content-primary, font-semibold                │  │
+│  │  Author: (SparklesIcon w-3 text-amber-500) for auto-opt            │  │
+│  │          (UserIcon w-3 text-content-muted) for humans              │  │
+│  │  Date: relative timestamp, text-content-muted                       │  │
+│  │  Status: "✓ prod" badge-success text-[10px] when is_production     │  │
+│  │  Message: commit_message field, text-content-secondary,             │  │
+│  │    line-clamp-2. This is the authored "why" for the change.        │  │
+│  │  [⋯]: overflow menu per row (see below)                            │  │
+│  │                                                                       │  │
+│  │  Row overflow menu [⋯]:                                             │  │
+│  │    View Content     → expands inline content preview below row      │  │
+│  │    Compare to Current → shows diff against current (latest) ver    │  │
+│  │    Promote to Prod  → sets this version as production              │  │
+│  │                        (replaces current prod version)             │  │
+│  │    Restore          → enters edit mode pre-filled with this        │  │
+│  │                        version's content. User can review and      │  │
+│  │                        save as a new version. NOT a destructive    │  │
+│  │                        rollback — creates version v(N+1) with     │  │
+│  │                        the old content.                            │  │
+│  │  Menu styling: same as index page overflow menu                    │  │
+│  │                                                                       │  │
+│  │  Click row → toggles inline diff below (same row expansion)       │  │
+│  │  Active row: bg-surface-overlay/30, border-l-2 border-primary     │  │
+│  │                                                                       │  │
+│  │  ── Inline Diff (expanded, shown below clicked row) ────────────  │  │
+│  │                                                                       │  │
+│  │  Diff: v6 → v7                              [Inline | Side-by-Side]│  │
+│  │  text-xs text-content-muted                   toggle, default Inline│  │
+│  │                                                                       │  │
+│  │  (Inline mode):                                                     │  │
+│  │  ┌──────────────────────────────────────────────────────────────┐  │  │
+│  │  │                                                              │  │  │
+│  │  │    4. Help with booking confirmation                        │  │  │
+│  │  │  - 4. Help with booking confirmation                        │  │  │
+│  │  │  + 4. Help with booking confirmation and payment            │  │  │
+│  │  │                                                              │  │  │
+│  │  │  + Rules:                                                    │  │  │
+│  │  │  + - Always confirm before making a booking                  │  │  │
+│  │  │                                                              │  │  │
+│  │  └──────────────────────────────────────────────────────────────┘  │  │
+│  │  font-mono, text-xs, bg-surface-card, rounded-md                  │  │
+│  │  Added lines: bg-emerald-500/10, border-l-2 border-emerald-500   │  │
+│  │  Removed lines: bg-rose-500/10, border-l-2 border-rose-500       │  │
+│  │  Context lines: no background, text-content-muted                 │  │
+│  │  Line numbers: text-content-muted text-[10px] w-8 text-right     │  │
+│  │                                                                       │  │
+│  │  (Side-by-side mode):                                               │  │
+│  │  ┌─────────────────────────┬─────────────────────────┐             │  │
+│  │  │ v6 (previous)           │ v7 (current)            │             │  │
+│  │  ├─────────────────────────┼─────────────────────────┤             │  │
+│  │  │ 4. Help with booking    │ 4. Help with booking    │             │  │
+│  │  │    confirmation         │    confirmation and     │             │  │
+│  │  │                         │    payment              │             │  │
+│  │  │                         │                         │             │  │
+│  │  │                         │ Rules:                  │             │  │
+│  │  │                         │ - Always confirm before │             │  │
+│  │  │                         │   making a booking      │             │  │
+│  │  └─────────────────────────┴─────────────────────────┘             │  │
+│  │  grid grid-cols-2 gap-0, each side: font-mono text-xs             │  │
+│  │  Left column header: text-content-muted                            │  │
+│  │  Right column header: text-content-muted                           │  │
+│  │  Removed: bg-rose-500/10 in left column                           │  │
+│  │  Added: bg-emerald-500/10 in right column                         │  │
+│  │  Synchronized scroll between columns                               │  │
+│  │                                                                       │  │
+│  │  "No changes" state: "Identical to previous version"              │  │
+│  │  text-sm text-content-muted text-center py-4                      │  │
+│  │                                                                       │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+│  ┌─ Used in Experiments ────────────────────────────────────────────────┐  │
+│  │                                                                       │  │
+│  │  Used in Experiments (2)                                            │  │
+│  │  text-sm font-semibold text-content-primary                         │  │
+│  │                                                                       │  │
+│  │  ┌──────────────────────────────────────────────────────────────┐  │  │
+│  │  │ prompt-v7-test        A/B Test     Completed    +3.3% ↑     │  │  │
+│  │  │ v6 → v7, 2 days ago                p=0.023                  │  │  │
+│  │  └──────────────────────────────────────────────────────────────┘  │  │
+│  │  ┌──────────────────────────────────────────────────────────────┐  │  │
+│  │  │ prompt-v5-upgrade     Rollout      Completed    +1.1% ↑     │  │  │
+│  │  │ v4 → v5, 1 week ago               4/4 stages               │  │  │
+│  │  └──────────────────────────────────────────────────────────────┘  │  │
+│  │                                                                       │  │
+│  │  Each row: card class, p-3, cursor-pointer                         │  │
+│  │  Click → navigate to /experiments/[id]                              │  │
+│  │  Hover: bg-surface-overlay/50                                       │  │
+│  │                                                                       │  │
+│  │  Row 1: experiment name (font-mono text-sm), type badge, status    │  │
+│  │    badge, delta (colored: positive = text-status-success,          │  │
+│  │    negative = text-status-error)                                   │  │
+│  │  Row 2: versions compared, relative time, significance / stages   │  │
+│  │    text-xs text-content-muted                                      │  │
+│  │                                                                       │  │
+│  │  Data from trpc.experiments.listByPrompt(name)                     │  │
+│  │  Filtered to experiments referencing this prompt name in variants   │  │
+│  │                                                                       │  │
+│  │  Empty state:                                                       │  │
+│  │  "No experiments have used this prompt."                           │  │
+│  │  text-sm text-content-muted, py-4 text-center                     │  │
+│  │  [Create Experiment →] link to /experiments (new)                  │  │
+│  │                                                                       │  │
+│  │  Hidden entirely if experiments feature is not yet available       │  │
+│  │  (feature flag check).                                              │  │
+│  │                                                                       │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+
+═══════════════════════════════════════════════════════════════════════════════
+EDIT MODE
+═══════════════════════════════════════════════════════════════════════════════
+
+Entered by clicking [Edit] in the header. Also used by "Restore" from
+version history (pre-fills content from the selected version).
+
+The page transforms in-place — no modal, no navigation. Only the content
+section and header actions change. Performance, Metadata, Version History,
+and Experiments sections remain visible (read-only) below the editor.
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                                                                             │
+│  ┌─ Header (edit mode) ─────────────────────────────────────────────────┐  │
+│  │                                                                       │  │
+│  │  booking-system                         [text]  [✓ production]      │  │
+│  │  text-2xl font-bold font-mono                                        │  │
+│  │                                                                       │  │
+│  │  Editing · Changes will create version v8                           │  │
+│  │  text-sm text-amber-500 (replaces description line)                 │  │
+│  │                                                                       │  │
+│  │  [Save as v8]                        [Cancel]                       │  │
+│  │  btn btn-primary                      btn btn-ghost                  │  │
+│  │                                                                       │  │
+│  │  "Save as v8" disabled until content differs from current version   │  │
+│  │  "Cancel" exits edit mode, restores original content, no confirm    │  │
+│  │  (content loss is recoverable — user can re-enter edit mode)       │  │
+│  │                                                                       │  │
+│  │  Production toggle, Duplicate, Delete: hidden during edit mode     │  │
+│  │                                                                       │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+│  ┌─ Content Editor ─────────────────────────────────────────────────────┐  │
+│  │                                                                       │  │
+│  │  (Text type):                                                        │  │
+│  │  ┌─────────────────────────────────────────────────────────────────┐│  │
+│  │  │ You are a booking assistant that helps users find and book      ││  │
+│  │  │ travel accommodations. You should:                              ││  │
+│  │  │                                                                 ││  │
+│  │  │ 1. Ask clarifying questions about travel dates and preferences  ││  │
+│  │  │ 2. Search available options using the {{tool_name}} tool        ││  │
+│  │  │ 3. Present options in a clear, formatted way                    ││  │
+│  │  │ 4. Help with booking confirmation and payment                   ││  │
+│  │  │                                                                 ││  │
+│  │  │ Rules:                                                          ││  │
+│  │  │ - Always confirm before making a booking                        ││  │
+│  │  │ - Show prices in {{currency}}                                   ││  │
+│  │  │ - Greet the user as {{user_name}}█                              ││  │
+│  │  │                                                                 ││  │
+│  │  └─────────────────────────────────────────────────────────────────┘│  │
+│  │  textarea, font-mono, text-sm, min-h-[300px], resize-y             │  │
+│  │  border-2 border-primary (visual indicator of edit mode)            │  │
+│  │  focus:ring-2 ring-primary/20                                       │  │
+│  │  p-4, rounded-md, bg-surface-card                                  │  │
+│  │                                                                       │  │
+│  │  (Chat type):                                                       │  │
+│  │  Same message builder as Create dialog (role dropdown + textarea    │  │
+│  │  per message, [+ Add Message], drag reorder, [Trash2] remove).     │  │
+│  │  Pre-filled with current messages. border-2 border-primary on     │  │
+│  │  the containing card to indicate edit mode.                         │  │
+│  │                                                                       │  │
+│  │  ── Variables (live-updating) ──────────────────────────────────── │  │
+│  │  Variables detected: user_name, currency, tool_name               │  │
+│  │  text-xs text-content-muted, each as badge badge-secondary         │  │
+│  │  Updates in real-time as content is edited.                         │  │
+│  │                                                                       │  │
+│  │  ── Commit Message ────────────────────────────────────────────── │  │
+│  │                                                                       │  │
+│  │  What changed? *                                                    │  │
+│  │  ┌─────────────────────────────────────────────────────────────────┐│  │
+│  │  │ e.g. Added currency variable for international support          ││  │
+│  │  └─────────────────────────────────────────────────────────────────┘│  │
+│  │  input: h-9, text-sm, border border-border, rounded-md             │  │
+│  │  Required. Maps to commit_message field in API.                    │  │
+│  │  "Save as v8" disabled until commit message is non-empty.          │  │
+│  │                                                                       │  │
+│  │  ── Model Config (optional, collapsible) ─────────────────────── │  │
+│  │                                                                       │  │
+│  │  ▸ Update Model Configuration                                      │  │
+│  │  Same fields as Create dialog (Model, Temperature, Max Tokens).    │  │
+│  │  Pre-filled with current config. Changes included in new version.  │  │
+│  │                                                                       │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+│  On save:                                                                   │
+│    1. Calls trpc.prompts.update({                                          │
+│         id: prompt.id,                                                     │
+│         template: newContent,       // or messages for chat type          │
+│         commit_message: commitMsg,                                         │
+│         config: updatedConfig       // if changed                         │
+│       })                                                                   │
+│    2. API auto-increments version, sets parent_version_id                  │
+│    3. Toast: "Version v8 created"                                          │
+│    4. Exit edit mode, refresh data, new version visible in history        │
+│                                                                             │
+│  On cancel:                                                                 │
+│    1. Restore content to current version (discard edits)                  │
+│    2. Exit edit mode                                                       │
+│    3. No confirmation dialog (edits are always recoverable)              │
+│                                                                             │
+│  On save error:                                                             │
+│    1. Stay in edit mode (don't lose user's work)                          │
+│    2. Show inline error: text-status-error text-sm below Save button     │
+│    3. "Failed to save. Please try again."                                 │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+
+═══════════════════════════════════════════════════════════════════════════════
+DELETE CONFIRMATION DIALOG
+═══════════════════════════════════════════════════════════════════════════════
+
+Same dialog as index page (see prompts/index.txt).
+Triggered by [Delete] in header actions.
+Navigates to /prompts on successful delete.
+
+
+═══════════════════════════════════════════════════════════════════════════════
+LOADING STATE
+═══════════════════════════════════════════════════════════════════════════════
+
+  ┌─ Header skeleton ──────────────────────────────────────────────────┐
+  │ ░░░░░░░░░░░░░░░░░░                         ░░░░░░  ░░░░░░░░░░░░ │
+  │ ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░                                    │
+  │ ░░░░░░░░░░░░  ░░░░░░░░░░  ░░░░░░░░                              │
+  └────────────────────────────────────────────────────────────────────┘
+
+  ┌─ Performance skeleton (grid-cols-3 gap-4) ─────────────────────────┐
+  │ ┌──────────────────┐ ┌──────────────────┐ ┌──────────────────┐    │
+  │ │ ░░░░░░░░         │ │ ░░░░░░░░         │ │ ░░░░░░░░         │    │
+  │ │ ░░░░             │ │ ░░░░             │ │ ░░░░             │    │
+  │ └──────────────────┘ └──────────────────┘ └──────────────────┘    │
+  └────────────────────────────────────────────────────────────────────┘
+
+  ┌─ Content skeleton ─────────────────────────────────────────────────┐
+  │ ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░          │
+  │ ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░                          │
+  │ ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░                  │
+  │ ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░                                    │
+  │ ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░                      │
+  │ ░░░░░░░░░░░░░░░░░░░░░░                                            │
+  └────────────────────────────────────────────────────────────────────┘
+
+  ┌─ Metadata skeleton (grid-cols-2 gap-4) ────────────────────────────┐
+  │ ┌───────────────────────┐ ┌───────────────────────┐                │
+  │ │ ░░░░░   ░░░░░░░░     │ │ ░░░░░   ░░░░░░░░     │                │
+  │ │ ░░░░░   ░░░░░░       │ │ ░░░░░   ░░░░         │                │
+  │ │ ░░░░░   ░░░░░        │ │ ░░░░░   ░░░░         │                │
+  │ └───────────────────────┘ └───────────────────────┘                │
+  └────────────────────────────────────────────────────────────────────┘
+
+  ┌─ Version history skeleton ─────────────────────────────────────────┐
+  │ ░░░░░░░░░░░░░░░░░                                                 │
+  │ ┌──────────────────────────────────────────────────────────────────┐│
+  │ │ ░░░   ░░░░░░░░░░   ░░░░░░   ░░░░   ░░░░░░░░░░░░░░░           ││
+  │ │ ░░░   ░░░░░░░░     ░░░░░░   ░░░░   ░░░░░░░░░░░               ││
+  │ │ ░░░   ░░░░░░░░     ░░░░░░           ░░░░░░░░░                 ││
+  │ └──────────────────────────────────────────────────────────────────┘│
+  └────────────────────────────────────────────────────────────────────┘
+
+  animate-pulse on all ░ blocks.
+  Back nav renders immediately (not skeletonized).
+
+
+═══════════════════════════════════════════════════════════════════════════════
+ERROR STATE
+═══════════════════════════════════════════════════════════════════════════════
+
+  ┌──────────────────────────────────────────────────────────┐
+  │                                                          │
+  │        (AlertCircle icon, w-12 h-12, text-status-error) │
+  │                                                          │
+  │        Failed to load prompt                             │
+  │        text-lg font-medium text-content-primary          │
+  │                                                          │
+  │        This prompt may have been deleted or you may      │
+  │        not have access.                                  │
+  │        text-sm text-content-muted                        │
+  │                                                          │
+  │        [Back to Prompts]                                 │
+  │        btn btn-secondary btn-sm                          │
+  │        Link to /prompts                                  │
+  │                                                          │
+  └──────────────────────────────────────────────────────────┘
+
+  Centered: min-h-[400px] flex items-center justify-center.
+  Back nav still visible above error state.
+
+
+═══════════════════════════════════════════════════════════════════════════════
+NOT FOUND STATE (prompt ID doesn't exist)
+═══════════════════════════════════════════════════════════════════════════════
+
+  ┌──────────────────────────────────────────────────────────┐
+  │                                                          │
+  │        (FileQuestion icon, w-12 h-12, text-content-muted)│
+  │                                                          │
+  │        Prompt not found                                  │
+  │        text-lg font-medium text-content-primary          │
+  │                                                          │
+  │        The prompt you're looking for doesn't exist       │
+  │        or has been deleted.                              │
+  │        text-sm text-content-muted                        │
+  │                                                          │
+  │        [Back to Prompts]                                 │
+  │        btn btn-secondary btn-sm                          │
+  │                                                          │
+  └──────────────────────────────────────────────────────────┘
+
+
+═══════════════════════════════════════════════════════════════════════════════
+BEHAVIORAL NOTES
+═══════════════════════════════════════════════════════════════════════════════
+
+1. Edit mode is inline, not a separate route or modal. The URL
+   does not change when entering edit mode (no ?edit=true query
+   param). This means refreshing the page exits edit mode and
+   shows the current version — acceptable because edits are
+   explicitly saved.
+
+2. Every save creates a new version. The API's prompts.update
+   auto-increments the version field and sets parent_version_id.
+   There is no way to edit a version in place — version history
+   is immutable (git-like model).
+
+3. Commit message is required for save. The "Save as v8" button
+   stays disabled until both: (a) content differs from current
+   version AND (b) commit message is non-empty. This ensures
+   every version has an authored description of what changed.
+
+4. "Restore" from version history does NOT directly restore. It
+   enters edit mode with the old version's content pre-filled.
+   The user reviews, optionally modifies, adds a commit message
+   (e.g., "Restored from v4"), and saves as a new version. This
+   avoids accidental destructive rollbacks.
+
+5. Diff is computed client-side using a standard diff algorithm
+   (e.g., diff-match-patch or jsdiff). The diff compares the
+   selected version against its parent (parent_version_id).
+   "Compare to Current" compares against the latest version.
+
+6. Performance section refreshes independently of prompt data.
+   trpc.evals.getScoresByPrompt may be slower (ClickHouse query),
+   so it loads after the prompt content appears.
+
+7. Context-aware back navigation: on mount, check
+   document.referrer. If it includes "/agents/", extract agent
+   name from the prompt's tags or the URL, and show
+   "← Back to {agent name}". Use router.back() on click with
+   fallback to /prompts if no referrer.
+
+8. Tags are editable inline without creating a new version.
+   Clicking a tag shows an × to remove it. The tag input at the
+   end of the tag list allows adding new tags. Changes call
+   trpc.prompts.update({ tags }) which updates metadata without
+   incrementing the version number. (The API supports metadata-
+   only updates that don't create a new version.)
+
+9. Chat message editor in edit mode supports drag-to-reorder via
+   a grip handle (GripVertical icon). Uses @dnd-kit/sortable for
+   accessible drag and drop. Messages can be added (+ Add Message)
+   and removed (Trash2 icon, hidden when only one message remains).
+
+10. Side-by-side diff toggle persists in localStorage as user
+    preference ("prompt-diff-mode": "inline" | "side-by-side").
+    Default is inline. Toggle is only shown when a diff is visible.
+
+11. "Used in Experiments" section queries experiments that reference
+    this prompt name in their variant configuration. The query
+    returns experiments where variants.promptName = this prompt's
+    name. Results show most recent first, max 10.
+
+12. Production toggle confirmation: toggling production ON shows
+    a toast with the version number ("Set v7 as production").
+    Toggling OFF shows "Removed from production." No modal
+    confirmation because the action is easily reversible (toggle
+    it back).
+
+13. Variable highlighting in the content viewer uses regex
+    /\{\{(\w+)\}\}/g to find {{variable}} patterns and wraps
+    each match in a <span class="text-amber-500 font-semibold">.
+    In edit mode (textarea), variables are not highlighted (plain
+    text editing). The detected variables list below updates in
+    real-time.
+
+14. "Test This Prompt" (future): When prompt playground is built
+    (Phase 5), this button will open a side panel or navigate to
+    /prompts/[id]/test where the user can fill in variable values
+    and run the prompt against the configured model. For now, the
+    button is removed from the UI entirely (not shown as disabled)
+    to avoid confusion.

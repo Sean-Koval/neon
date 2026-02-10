@@ -19,6 +19,8 @@ interface SpanTimelineProps {
   spans: SpanSummary[]
   selectedSpanId: string | null
   onSpanSelect: (span: SpanSummary) => void
+  /** Set of span IDs to highlight with rose background (e.g. RCA root causes) */
+  highlightIds?: Set<string>
 }
 
 interface FlatSpan extends SpanSummary {
@@ -69,6 +71,7 @@ function TimelineBar({
   span,
   metrics,
   isSelected,
+  isHighlighted,
   onSelect,
   hoveredId,
   onHover,
@@ -76,6 +79,7 @@ function TimelineBar({
   span: FlatSpan
   metrics: { startTime: number; totalDuration: number }
   isSelected: boolean
+  isHighlighted?: boolean
   onSelect: () => void
   hoveredId: string | null
   onHover: (id: string | null) => void
@@ -93,7 +97,13 @@ function TimelineBar({
       tabIndex={0}
       className={clsx(
         'flex items-center h-7 cursor-pointer transition-colors',
-        isSelected ? 'bg-blue-50' : isHovered ? 'bg-gray-50' : '',
+        isSelected
+          ? 'bg-blue-50 dark:bg-blue-500/10'
+          : isHighlighted
+            ? 'bg-rose-50 dark:bg-rose-500/10'
+            : isHovered
+              ? 'bg-gray-50 dark:bg-dark-900'
+              : '',
       )}
       onClick={onSelect}
       onKeyDown={(e) => {
@@ -107,7 +117,7 @@ function TimelineBar({
     >
       {/* Label area */}
       <div
-        className="flex items-center gap-1.5 min-w-[140px] max-w-[140px] sm:min-w-[200px] sm:max-w-[200px] px-2 border-r border-gray-100 overflow-hidden"
+        className="flex items-center gap-1.5 min-w-[140px] max-w-[140px] sm:min-w-[200px] sm:max-w-[200px] px-2 border-r border-gray-100 dark:border-dark-700 overflow-hidden"
         style={{ paddingLeft: `${span.depth * 12 + 8}px` }}
       >
         <div
@@ -116,7 +126,7 @@ function TimelineBar({
             span.status === 'error' ? 'bg-red-500' : typeConfig.barColor,
           )}
         />
-        <span className="text-xs truncate text-gray-700" title={span.name}>
+        <span className="text-xs truncate text-gray-700 dark:text-gray-300" title={span.name}>
           {getSpanLabel(span)}
         </span>
       </div>
@@ -157,9 +167,13 @@ function TimelineBar({
         )}
       </div>
 
-      {/* Duration */}
-      <div className="w-14 text-right pr-2 text-xs text-gray-500 tabular-nums flex-shrink-0">
-        {formatDuration(span.duration_ms)}
+      {/* Duration + label */}
+      <div className="w-14 text-right pr-2 text-xs text-gray-500 dark:text-gray-400 tabular-nums flex-shrink-0">
+        {isHighlighted ? (
+          <span className="text-rose-600 dark:text-rose-400 font-medium">RCA</span>
+        ) : (
+          formatDuration(span.duration_ms)
+        )}
       </div>
     </div>
   )
@@ -174,19 +188,19 @@ function TimelineLegend() {
   ]
 
   return (
-    <div className="flex flex-wrap gap-3 px-3 py-1.5 border-t bg-gray-50 text-xs">
+    <div className="flex flex-wrap gap-3 px-3 py-1.5 border-t bg-gray-50 dark:bg-dark-900 text-xs">
       {types.map(({ type, label }) => {
         const config = getSpanTypeConfig(type)
         return (
           <div key={type} className="flex items-center gap-1.5">
             <div className={clsx('w-2.5 h-2.5 rounded-sm', config.barColor)} />
-            <span className="text-gray-600">{label}</span>
+            <span className="text-gray-600 dark:text-gray-300">{label}</span>
           </div>
         )
       })}
       <div className="flex items-center gap-1.5">
         <div className="w-2.5 h-2.5 rounded-sm bg-red-400" />
-        <span className="text-gray-600">Error</span>
+        <span className="text-gray-600 dark:text-gray-300">Error</span>
       </div>
     </div>
   )
@@ -196,6 +210,7 @@ export function SpanTimeline({
   spans,
   selectedSpanId,
   onSpanSelect,
+  highlightIds,
 }: SpanTimelineProps) {
   const [hoveredId, setHoveredId] = useState<string | null>(null)
   const flatSpans = flattenSpans(spans)
@@ -203,7 +218,7 @@ export function SpanTimeline({
 
   if (flatSpans.length === 0) {
     return (
-      <div className="flex items-center justify-center h-32 text-gray-500 text-sm border rounded-lg">
+      <div className="flex items-center justify-center h-32 text-gray-500 dark:text-gray-400 text-sm border rounded-lg">
         No spans to display
       </div>
     )
@@ -212,8 +227,8 @@ export function SpanTimeline({
   return (
     <div className="border rounded-lg overflow-hidden">
       {/* Header */}
-      <div className="flex items-center bg-gray-100 border-b text-xs font-medium text-gray-600">
-        <div className="min-w-[140px] max-w-[140px] sm:min-w-[200px] sm:max-w-[200px] px-2 py-1.5 border-r border-gray-200">
+      <div className="flex items-center bg-gray-100 dark:bg-dark-800 border-b text-xs font-medium text-gray-600 dark:text-gray-300">
+        <div className="min-w-[140px] max-w-[140px] sm:min-w-[200px] sm:max-w-[200px] px-2 py-1.5 border-r border-gray-200 dark:border-dark-700">
           Span
         </div>
         <div className="flex-1 px-2 py-1.5">
@@ -230,6 +245,7 @@ export function SpanTimeline({
             span={span}
             metrics={metrics}
             isSelected={span.span_id === selectedSpanId}
+            isHighlighted={highlightIds?.has(span.span_id)}
             onSelect={() => onSpanSelect(span)}
             hoveredId={hoveredId}
             onHover={setHoveredId}

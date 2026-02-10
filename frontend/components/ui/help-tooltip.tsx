@@ -23,7 +23,7 @@ export function HelpTooltip({ content, size = 'sm' }: HelpTooltipProps) {
     <span className="relative inline-flex items-center ml-1">
       <button
         type="button"
-        className="text-gray-400 hover:text-gray-600 transition-colors"
+        className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
         onMouseEnter={() => setShow(true)}
         onMouseLeave={() => setShow(false)}
         onClick={() => setShow(!show)}

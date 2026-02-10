@@ -82,10 +82,10 @@ export function CorrelationHeatmap({
   if (n === 0) {
     return (
       <div
-        className={`flex items-center justify-center bg-gray-50 rounded-lg ${className}`}
+        className={`flex items-center justify-center bg-gray-50 dark:bg-dark-900 rounded-lg ${className}`}
         style={{ height }}
       >
-        <p className="text-gray-500">
+        <p className="text-gray-500 dark:text-gray-400">
           No data available for correlation analysis
         </p>
       </div>
@@ -134,7 +134,7 @@ export function CorrelationHeatmap({
       {/* Legend */}
       <div className="flex items-center justify-end gap-4 mb-4">
         <div className="flex items-center gap-2">
-          <span className="text-xs text-gray-500">Negative</span>
+          <span className="text-xs text-gray-500 dark:text-gray-400">Negative</span>
           <div className="flex h-3">
             <div className="w-4" style={{ backgroundColor: '#f87171' }} />
             <div className="w-4" style={{ backgroundColor: '#fca5a5' }} />
@@ -144,7 +144,7 @@ export function CorrelationHeatmap({
             <div className="w-4" style={{ backgroundColor: '#93c5fd' }} />
             <div className="w-4" style={{ backgroundColor: '#60a5fa' }} />
           </div>
-          <span className="text-xs text-gray-500">Positive</span>
+          <span className="text-xs text-gray-500 dark:text-gray-400">Positive</span>
         </div>
       </div>
 
@@ -163,7 +163,7 @@ export function CorrelationHeatmap({
           {labels.map((label, idx) => (
             <div
               key={`header-${idx}`}
-              className="text-xs text-gray-600 font-medium truncate px-1 flex items-end justify-center"
+              className="text-xs text-gray-600 dark:text-gray-300 font-medium truncate px-1 flex items-end justify-center"
               style={{
                 height: 60,
                 writingMode: 'vertical-rl',
@@ -181,7 +181,7 @@ export function CorrelationHeatmap({
               {/* Row label */}
               <div
                 key={`label-${rowIdx}`}
-                className="text-xs text-gray-600 font-medium truncate px-2 flex items-center"
+                className="text-xs text-gray-600 dark:text-gray-300 font-medium truncate px-2 flex items-center"
                 style={{ height: cellSize }}
                 title={labels[rowIdx]}
               >
@@ -232,18 +232,18 @@ export function CorrelationHeatmap({
 
       {/* Selected cell details */}
       {selectedCell && (
-        <div className="mt-4 p-3 bg-gray-50 rounded-lg border">
-          <p className="text-sm font-medium text-gray-900">
+        <div className="mt-4 p-3 bg-gray-50 dark:bg-dark-900 rounded-lg border">
+          <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
             {labels[selectedCell.row]} &harr; {labels[selectedCell.col]}
           </p>
-          <p className="text-sm text-gray-600 mt-1">
+          <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
             Correlation:{' '}
             <span className="font-semibold">
               {values[selectedCell.row][selectedCell.col].toFixed(4)}
             </span>
           </p>
           {selectedCell.row !== selectedCell.col && (
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
               {Math.abs(values[selectedCell.row][selectedCell.col]) >= 0.5
                 ? 'Strong correlation indicates these components tend to perform similarly.'
                 : Math.abs(values[selectedCell.row][selectedCell.col]) >= 0.3
@@ -267,12 +267,12 @@ export function CorrelationHeatmapSkeleton({
   height?: number
 }) {
   return (
-    <div className="animate-pulse bg-gray-100 rounded-lg" style={{ height }}>
+    <div className="animate-pulse bg-gray-100 dark:bg-dark-800 rounded-lg" style={{ height }}>
       <div className="p-4">
-        <div className="h-4 bg-gray-200 rounded w-1/4 mb-4" />
+        <div className="h-4 bg-gray-200 dark:bg-dark-700 rounded w-1/4 mb-4" />
         <div className="grid grid-cols-6 gap-1">
           {Array.from({ length: 36 }).map((_, i) => (
-            <div key={i} className="aspect-square bg-gray-200 rounded" />
+            <div key={i} className="aspect-square bg-gray-200 dark:bg-dark-700 rounded" />
           ))}
         </div>
       </div>

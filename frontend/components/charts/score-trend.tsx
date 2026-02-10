@@ -24,19 +24,19 @@ interface ScoreTrendChartProps {
 function ChartSkeleton() {
   return (
     <div className="animate-pulse">
-      <div className="h-[300px] bg-gray-100 rounded-lg flex items-end justify-around p-4 gap-2">
+      <div className="h-[300px] bg-gray-100 dark:bg-dark-800 rounded-lg flex items-end justify-around p-4 gap-2">
         {/* Animated bar placeholders */}
         {[40, 65, 55, 80, 70, 85, 75].map((height, i) => (
           <div
             key={i}
-            className="bg-gray-200 rounded-t w-8"
+            className="bg-gray-200 dark:bg-dark-700 rounded-t w-8"
             style={{ height: `${height}%` }}
           />
         ))}
       </div>
       <div className="flex justify-between mt-2">
         {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day) => (
-          <div key={day} className="h-3 w-8 bg-gray-200 rounded" />
+          <div key={day} className="h-3 w-8 bg-gray-200 dark:bg-dark-700 rounded" />
         ))}
       </div>
     </div>
@@ -45,9 +45,9 @@ function ChartSkeleton() {
 
 function InsufficientData() {
   return (
-    <div className="h-[300px] bg-gray-50 rounded-lg flex flex-col items-center justify-center text-gray-500">
+    <div className="h-[300px] bg-gray-50 dark:bg-dark-900 rounded-lg flex flex-col items-center justify-center text-gray-500 dark:text-gray-400">
       <svg
-        className="w-12 h-12 mb-3 text-gray-300"
+        className="w-12 h-12 mb-3 text-gray-300 dark:text-dark-600"
         fill="none"
         stroke="currentColor"
         viewBox="0 0 24 24"
@@ -60,7 +60,7 @@ function InsufficientData() {
         />
       </svg>
       <p className="font-medium">Insufficient Data</p>
-      <p className="text-sm text-gray-400 mt-1">
+      <p className="text-sm text-gray-400 dark:text-gray-500 mt-1">
         Run more evaluations to see score trends
       </p>
     </div>
@@ -79,8 +79,8 @@ function CustomTooltip({
   const data = payload[0].payload as ScoreTrendPoint
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg shadow-lg p-3">
-      <p className="font-medium text-gray-900">{data.displayDate}</p>
+    <div className="bg-white dark:bg-dark-800 border border-gray-200 dark:border-dark-700 rounded-lg shadow-lg p-3">
+      <p className="font-medium text-gray-900 dark:text-gray-100">{data.displayDate}</p>
       <div className="mt-1 space-y-1">
         <p className="text-sm">
           <span className="text-gray-500">Avg Score: </span>
@@ -116,7 +116,7 @@ export function ScoreTrendChart({
   if (isError) {
     return (
       <div
-        className={`h-[300px] bg-red-50 rounded-lg flex flex-col items-center justify-center ${className}`}
+        className={`h-[300px] bg-red-50 dark:bg-red-500/10 rounded-lg flex flex-col items-center justify-center ${className}`}
       >
         <p className="font-medium text-red-600">Failed to load chart data</p>
         <p className="text-sm text-red-500 mt-1">

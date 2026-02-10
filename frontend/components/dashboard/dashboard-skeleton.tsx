@@ -41,10 +41,10 @@ export function StatsGridSkeleton({ count = 4 }: { count?: number }) {
 export function ChartCardSkeleton() {
   return (
     <div className="card overflow-hidden">
-      <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white">
+      <div className="p-6 border-b border-gray-200 dark:border-dark-700 bg-gradient-to-r from-gray-50 dark:from-dark-900 to-white dark:to-dark-800">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-gray-100 animate-pulse">
+            <div className="p-2 rounded-lg bg-gray-100 dark:bg-dark-800 animate-pulse">
               <div className="w-5 h-5" />
             </div>
             <div className="animate-pulse">
@@ -68,10 +68,10 @@ export function ChartCardSkeleton() {
 export function RecentRunsSkeleton({ count = 5 }: { count?: number }) {
   return (
     <div className="card overflow-hidden">
-      <div className="p-6 border-b border-gray-200">
+      <div className="p-6 border-b border-gray-200 dark:border-dark-700">
         <Skeleton className="h-5 w-28" />
       </div>
-      <div className="divide-y divide-gray-100">
+      <div className="divide-y divide-gray-100 dark:divide-dark-700">
         {Array.from({ length: count }).map((_, i) => (
           <div key={i} className="p-4 animate-pulse">
             <div className="flex items-center justify-between">

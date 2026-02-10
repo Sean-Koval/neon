@@ -97,7 +97,7 @@ export function CreateAlertRuleDialog({
   }
 
   const inputClass =
-    'w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-primary-400 focus:ring-1 focus:ring-primary-400 outline-none'
+    'w-full rounded-md border border-gray-300 dark:border-dark-600 px-3 py-1.5 text-sm focus:border-primary-400 focus:ring-1 focus:ring-primary-400 outline-none'
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -109,19 +109,19 @@ export function CreateAlertRuleDialog({
       />
 
       {/* Dialog */}
-      <div className="relative bg-white rounded-lg shadow-xl max-w-lg w-full mx-4 max-h-[90vh] overflow-y-auto">
+      <div className="relative bg-white dark:bg-dark-800 rounded-lg shadow-xl max-w-lg w-full mx-4 max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-200">
+        <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-dark-700">
           <div className="flex items-center gap-2">
             <Plus className="w-5 h-5 text-primary-600" />
-            <h2 className="text-lg font-semibold text-gray-900">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
               Create Alert Rule
             </h2>
           </div>
           <button
             type="button"
             onClick={handleClose}
-            className="p-1 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-600"
+            className="p-1 rounded hover:bg-gray-100 dark:hover:bg-dark-700 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
           >
             <X className="w-5 h-5" />
           </button>
@@ -131,7 +131,7 @@ export function CreateAlertRuleDialog({
         <form onSubmit={handleSubmit} className="p-4 space-y-4">
           {/* Name */}
           <div>
-            <label htmlFor="rule-name" className="block text-xs font-medium text-gray-600 mb-1">
+            <label htmlFor="rule-name" className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">
               Rule Name *
             </label>
             <input
@@ -146,7 +146,7 @@ export function CreateAlertRuleDialog({
 
           {/* Description */}
           <div>
-            <label htmlFor="rule-desc" className="block text-xs font-medium text-gray-600 mb-1">
+            <label htmlFor="rule-desc" className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">
               Description
             </label>
             <input
@@ -162,7 +162,7 @@ export function CreateAlertRuleDialog({
           {/* Metric + Operator + Threshold row */}
           <div className="grid grid-cols-3 gap-3">
             <div>
-              <label htmlFor="rule-metric" className="block text-xs font-medium text-gray-600 mb-1">
+              <label htmlFor="rule-metric" className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">
                 Metric *
               </label>
               <select
@@ -179,7 +179,7 @@ export function CreateAlertRuleDialog({
               </select>
             </div>
             <div>
-              <label htmlFor="rule-operator" className="block text-xs font-medium text-gray-600 mb-1">
+              <label htmlFor="rule-operator" className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">
                 Operator
               </label>
               <select
@@ -198,7 +198,7 @@ export function CreateAlertRuleDialog({
               </select>
             </div>
             <div>
-              <label htmlFor="rule-threshold" className="block text-xs font-medium text-gray-600 mb-1">
+              <label htmlFor="rule-threshold" className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">
                 Threshold
               </label>
               <input
@@ -214,7 +214,7 @@ export function CreateAlertRuleDialog({
 
           {/* Severity */}
           <div>
-            <label htmlFor="rule-severity" className="block text-xs font-medium text-gray-600 mb-1">
+            <label htmlFor="rule-severity" className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">
               Severity
             </label>
             <select
@@ -236,7 +236,7 @@ export function CreateAlertRuleDialog({
           {/* Window + Consecutive Breaches */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label htmlFor="rule-window" className="block text-xs font-medium text-gray-600 mb-1">
+              <label htmlFor="rule-window" className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">
                 Eval Window (seconds)
               </label>
               <input
@@ -249,7 +249,7 @@ export function CreateAlertRuleDialog({
               />
             </div>
             <div>
-              <label htmlFor="rule-breaches" className="block text-xs font-medium text-gray-600 mb-1">
+              <label htmlFor="rule-breaches" className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">
                 Consecutive Breaches
               </label>
               <input
@@ -264,7 +264,7 @@ export function CreateAlertRuleDialog({
           </div>
 
           {/* Footer */}
-          <div className="flex justify-end gap-3 pt-2 border-t border-gray-100">
+          <div className="flex justify-end gap-3 pt-2 border-t border-gray-100 dark:border-dark-700">
             <button
               type="button"
               onClick={handleClose}
@@ -275,7 +275,7 @@ export function CreateAlertRuleDialog({
             <button
               type="submit"
               disabled={!isValid || isPending}
-              className="btn btn-primary text-sm inline-flex items-center gap-1.5"
+              className="btn btn-primary text-sm"
             >
               <Plus className="w-3.5 h-3.5" />
               {isPending ? 'Creating...' : 'Create Rule'}

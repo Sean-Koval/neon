@@ -52,10 +52,10 @@ function ScoreBadge({ value }: { value: number }) {
   const percentage = Math.round(value * 100)
   const color =
     percentage >= 80
-      ? 'bg-green-100 text-green-800'
+      ? 'bg-green-100 dark:bg-emerald-500/20 text-green-800 dark:text-emerald-300'
       : percentage >= 60
-        ? 'bg-yellow-100 text-yellow-800'
-        : 'bg-red-100 text-red-800'
+        ? 'bg-yellow-100 dark:bg-amber-500/20 text-yellow-800 dark:text-amber-300'
+        : 'bg-red-100 dark:bg-red-500/20 text-red-800 dark:text-red-300'
 
   return (
     <span className={`px-2 py-0.5 rounded text-sm font-medium ${color}`}>
@@ -87,10 +87,10 @@ function ResultRow({
     <div className="border-b last:border-b-0">
       {/* Row header */}
       <div
-        className="flex items-center px-4 py-3 hover:bg-gray-50 cursor-pointer"
+        className="flex items-center px-4 py-3 hover:bg-gray-50 dark:hover:bg-dark-700 cursor-pointer"
         onClick={onToggle}
       >
-        <button className="mr-3 text-gray-400">
+        <button className="mr-3 text-gray-400 dark:text-gray-500">
           {isExpanded ? (
             <ChevronDown className="w-4 h-4" />
           ) : (
@@ -108,7 +108,7 @@ function ResultRow({
         </div>
 
         <div className="flex items-center gap-4">
-          <div className="flex items-center gap-1 text-sm text-gray-500">
+          <div className="flex items-center gap-1 text-sm text-gray-500 dark:text-gray-400">
             <Zap className="w-4 h-4" />
             {result.result.iterations} iter
           </div>
@@ -125,22 +125,22 @@ function ResultRow({
 
       {/* Expanded details */}
       {isExpanded && (
-        <div className="px-4 py-4 bg-gray-50 border-t">
+        <div className="px-4 py-4 bg-gray-50 dark:bg-dark-900 border-t">
           {/* Scores */}
           <div className="mb-4">
-            <h4 className="text-sm font-medium text-gray-700 mb-2">Scores</h4>
+            <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Scores</h4>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {result.scores.map((score) => (
                 <div
                   key={score.name}
-                  className="bg-white rounded-lg p-3 border"
+                  className="bg-white dark:bg-dark-800 rounded-lg p-3 border"
                 >
                   <div className="flex items-center justify-between mb-1">
                     <span className="text-sm font-medium">{score.name}</span>
                     <ScoreBadge value={score.value} />
                   </div>
                   {score.reason && (
-                    <p className="text-xs text-gray-500 line-clamp-2">
+                    <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2">
                       {score.reason}
                     </p>
                   )}
@@ -152,20 +152,20 @@ function ResultRow({
           {/* Status info */}
           <div className="flex items-center gap-4 text-sm">
             <div>
-              <span className="text-gray-500">Status: </span>
+              <span className="text-gray-500 dark:text-gray-400">Status: </span>
               <span
                 className={
                   passed
-                    ? 'text-green-600 font-medium'
-                    : 'text-red-600 font-medium'
+                    ? 'text-green-600 dark:text-emerald-400 font-medium'
+                    : 'text-red-600 dark:text-red-400 font-medium'
                 }
               >
                 {result.result.status}
               </span>
             </div>
             <div>
-              <span className="text-gray-500">Trace ID: </span>
-              <code className="text-xs bg-gray-200 px-1.5 py-0.5 rounded">
+              <span className="text-gray-500 dark:text-gray-400">Trace ID: </span>
+              <code className="text-xs bg-gray-200 dark:bg-dark-700 px-1.5 py-0.5 rounded">
                 {result.result.traceId}
               </code>
             </div>
@@ -173,8 +173,8 @@ function ResultRow({
 
           {/* Reason (if failed) */}
           {result.result.reason && (
-            <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded">
-              <p className="text-sm text-red-800">{result.result.reason}</p>
+            <div className="mt-3 p-3 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/25 rounded">
+              <p className="text-sm text-red-800 dark:text-red-300">{result.result.reason}</p>
             </div>
           )}
         </div>
@@ -224,13 +224,13 @@ export function EvalRunResults({
   return (
     <div className="border rounded-lg overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 bg-gray-50 border-b">
+      <div className="flex items-center justify-between px-4 py-3 bg-gray-50 dark:bg-dark-900 border-b">
         <div className="flex items-center gap-4">
           <h3 className="font-semibold">Results</h3>
-          <span className="text-sm text-gray-500">
+          <span className="text-sm text-gray-500 dark:text-gray-400">
             {results.length} cases •{' '}
-            <span className="text-green-600">{passed} passed</span> •{' '}
-            <span className="text-red-600">{failed} failed</span>
+            <span className="text-green-600 dark:text-emerald-400">{passed} passed</span> •{' '}
+            <span className="text-red-600 dark:text-red-400">{failed} failed</span>
           </span>
         </div>
 
@@ -266,7 +266,7 @@ export function EvalRunResults({
       {/* Results list */}
       <div className="divide-y">
         {filteredResults.length === 0 ? (
-          <div className="px-4 py-8 text-center text-gray-500">
+          <div className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
             No results to display
           </div>
         ) : (

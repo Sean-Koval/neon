@@ -6,9 +6,27 @@ const config: Config = {
     './components/**/*.{js,ts,jsx,tsx,mdx}',
     './app/**/*.{js,ts,jsx,tsx,mdx}',
   ],
+  darkMode: 'class',
   theme: {
     extend: {
       colors: {
+        // Semantic surface colors (auto-switch with theme)
+        surface: {
+          base: 'var(--surface-base)',
+          raised: 'var(--surface-raised)',
+          card: 'var(--surface-card)',
+          overlay: 'var(--surface-overlay)',
+        },
+        border: {
+          DEFAULT: 'var(--border-default)',
+          subtle: 'var(--border-subtle)',
+        },
+        content: {
+          primary: 'var(--text-primary)',
+          secondary: 'var(--text-secondary)',
+          muted: 'var(--text-muted)',
+          inverted: 'var(--text-inverted)',
+        },
         // Neon cyan primary
         primary: {
           50: '#ecfeff',
@@ -35,7 +53,7 @@ const config: Config = {
           800: '#6b21a8',
           900: '#581c87',
         },
-        // Dark theme colors
+        // Raw dark palette (for direct use when needed)
         dark: {
           50: '#f8fafc',
           100: '#f1f5f9',

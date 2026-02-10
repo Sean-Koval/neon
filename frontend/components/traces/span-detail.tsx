@@ -157,22 +157,22 @@ function getStatusInfo(status: SpanSummary['status']) {
     case 'ok':
       return {
         Icon: CheckCircle,
-        color: 'text-green-500',
-        bgColor: 'bg-green-50',
+        color: 'text-emerald-600 dark:text-emerald-400',
+        bgColor: 'bg-emerald-50 dark:bg-emerald-500/10',
         label: 'Success',
       }
     case 'error':
       return {
         Icon: XCircle,
-        color: 'text-red-500',
-        bgColor: 'bg-red-50',
+        color: 'text-red-600 dark:text-red-400',
+        bgColor: 'bg-red-50 dark:bg-red-500/10',
         label: 'Error',
       }
     default:
       return {
         Icon: AlertCircle,
-        color: 'text-gray-400',
-        bgColor: 'bg-gray-50',
+        color: 'text-gray-400 dark:text-gray-500',
+        bgColor: 'bg-gray-50 dark:bg-dark-900',
         label: 'Unset',
       }
   }
@@ -207,20 +207,20 @@ function Section({
   const [isOpen, setIsOpen] = useState(defaultOpen)
 
   return (
-    <div className="border-b border-gray-100 last:border-0">
+    <div className="border-b border-gray-100 dark:border-dark-700 last:border-0">
       <button
         type="button"
-        className="flex items-center gap-2 w-full px-4 py-3 text-left hover:bg-gray-50 transition-colors"
+        className="flex items-center gap-2 w-full px-4 py-3 text-left hover:bg-gray-50 dark:hover:bg-dark-700 transition-colors"
         onClick={() => setIsOpen(!isOpen)}
       >
         {isOpen ? (
-          <ChevronDown className="w-4 h-4 text-gray-400" />
+          <ChevronDown className="w-4 h-4 text-gray-400 dark:text-gray-500" />
         ) : (
-          <ChevronRight className="w-4 h-4 text-gray-400" />
+          <ChevronRight className="w-4 h-4 text-gray-400 dark:text-gray-500" />
         )}
         <span className="font-medium text-sm flex-1">{title}</span>
         {isLoading && (
-          <Loader2 className="w-4 h-4 text-gray-400 animate-spin" />
+          <Loader2 className="w-4 h-4 text-gray-400 dark:text-gray-500 animate-spin" />
         )}
         {badge}
       </button>
@@ -234,11 +234,11 @@ function Section({
  */
 function CodeBlockSkeleton() {
   return (
-    <div className="bg-gray-50 rounded-lg p-4 animate-pulse">
-      <div className="h-4 bg-gray-200 rounded w-3/4 mb-2" />
-      <div className="h-4 bg-gray-200 rounded w-1/2 mb-2" />
-      <div className="h-4 bg-gray-200 rounded w-5/6 mb-2" />
-      <div className="h-4 bg-gray-200 rounded w-2/3" />
+    <div className="bg-gray-50 dark:bg-dark-900 rounded-lg p-4 animate-pulse">
+      <div className="h-4 bg-gray-200 dark:bg-dark-700 rounded w-3/4 mb-2" />
+      <div className="h-4 bg-gray-200 dark:bg-dark-700 rounded w-1/2 mb-2" />
+      <div className="h-4 bg-gray-200 dark:bg-dark-700 rounded w-5/6 mb-2" />
+      <div className="h-4 bg-gray-200 dark:bg-dark-700 rounded w-2/3" />
     </div>
   )
 }
@@ -291,19 +291,19 @@ function CodeBlock({
         <button
           type="button"
           onClick={handleCopy}
-          className="p-1.5 bg-white/90 hover:bg-white rounded border shadow-sm"
+          className="p-1.5 bg-white/90 hover:bg-white dark:bg-dark-800 rounded border shadow-sm"
           title="Copy"
         >
           {copied ? (
             <Check className="w-3.5 h-3.5 text-green-500" />
           ) : (
-            <Copy className="w-3.5 h-3.5 text-gray-500" />
+            <Copy className="w-3.5 h-3.5 text-gray-500 dark:text-gray-400" />
           )}
         </button>
       </div>
       <pre
         className={clsx(
-          'bg-gray-50 rounded-lg p-4 text-sm overflow-x-auto font-mono',
+          'bg-gray-50 dark:bg-dark-900 rounded-lg p-4 text-sm overflow-x-auto font-mono',
           !isExpanded && 'overflow-y-hidden',
         )}
         style={{ maxHeight: isExpanded ? 'none' : maxHeight }}
@@ -318,7 +318,7 @@ function CodeBlock({
         <button
           type="button"
           onClick={() => setShowFullContent(true)}
-          className="w-full py-2 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-b-lg border-t bg-gray-50 transition-colors flex items-center justify-center gap-2"
+          className="w-full py-2 text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-500/10 rounded-b-lg border-t border-gray-200 dark:border-dark-700 bg-gray-50 dark:bg-dark-900 transition-colors flex items-center justify-center gap-2"
         >
           <span>
             Showing {(TRUNCATION_THRESHOLD / 1024).toFixed(0)}KB of{' '}
@@ -333,7 +333,7 @@ function CodeBlock({
         <button
           type="button"
           onClick={() => setIsExpanded(!isExpanded)}
-          className="w-full py-1.5 text-xs text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-b-lg border-t bg-gray-50 transition-colors"
+          className="w-full py-1.5 text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-dark-700 rounded-b-lg border-t bg-gray-50 dark:bg-dark-900 transition-colors"
         >
           {isExpanded ? 'Show less' : 'Show more'}
         </button>
@@ -362,10 +362,12 @@ function KVRow({
 
   return (
     <div className="flex py-1.5 text-sm gap-2">
-      <div className="w-28 sm:w-32 text-gray-500 flex-shrink-0">{label}</div>
+      <div className="w-28 sm:w-32 text-gray-500 dark:text-gray-400 flex-shrink-0">
+        {label}
+      </div>
       <div
         className={clsx(
-          'text-gray-900 flex-1 min-w-0',
+          'text-gray-900 dark:text-gray-100 flex-1 min-w-0',
           mono && 'font-mono text-xs',
         )}
       >
@@ -391,50 +393,50 @@ function getSkillCategoryConfig(category?: SkillCategory) {
     code: {
       icon: Code,
       label: 'Code',
-      color: 'text-purple-600',
-      bgColor: 'bg-purple-50',
+      color: 'text-purple-600 dark:text-purple-400',
+      bgColor: 'bg-purple-50 dark:bg-purple-500/10',
     },
     search: {
       icon: Search,
       label: 'Search',
-      color: 'text-blue-600',
-      bgColor: 'bg-blue-50',
+      color: 'text-blue-600 dark:text-blue-400',
+      bgColor: 'bg-blue-50 dark:bg-blue-500/10',
     },
     file: {
       icon: FileCode,
       label: 'File',
-      color: 'text-orange-600',
-      bgColor: 'bg-orange-50',
+      color: 'text-orange-600 dark:text-orange-400',
+      bgColor: 'bg-orange-50 dark:bg-orange-500/10',
     },
     data: {
       icon: Settings,
       label: 'Data',
-      color: 'text-cyan-600',
-      bgColor: 'bg-cyan-50',
+      color: 'text-cyan-600 dark:text-cyan-400',
+      bgColor: 'bg-cyan-50 dark:bg-cyan-500/10',
     },
     communication: {
       icon: MessageSquare,
       label: 'Communication',
-      color: 'text-green-600',
-      bgColor: 'bg-green-50',
+      color: 'text-green-600 dark:text-emerald-400',
+      bgColor: 'bg-green-50 dark:bg-emerald-500/10',
     },
     browser: {
       icon: Globe,
       label: 'Browser',
-      color: 'text-indigo-600',
-      bgColor: 'bg-indigo-50',
+      color: 'text-indigo-600 dark:text-indigo-400',
+      bgColor: 'bg-indigo-50 dark:bg-indigo-500/10',
     },
     system: {
       icon: Terminal,
       label: 'System',
-      color: 'text-gray-600',
-      bgColor: 'bg-gray-100',
+      color: 'text-gray-600 dark:text-gray-300',
+      bgColor: 'bg-gray-100 dark:bg-dark-800',
     },
     custom: {
       icon: Sparkles,
       label: 'Custom',
-      color: 'text-pink-600',
-      bgColor: 'bg-pink-50',
+      color: 'text-pink-600 dark:text-pink-400',
+      bgColor: 'bg-pink-50 dark:bg-pink-500/10',
     },
   }
 
@@ -442,8 +444,8 @@ function getSkillCategoryConfig(category?: SkillCategory) {
     configs[category || 'custom'] || {
       icon: Wrench,
       label: 'Unknown',
-      color: 'text-gray-500',
-      bgColor: 'bg-gray-50',
+      color: 'text-gray-500 dark:text-gray-400',
+      bgColor: 'bg-gray-50 dark:bg-dark-900',
     }
   )
 }
@@ -458,21 +460,21 @@ function getConfidenceColor(confidence: number): {
 } {
   if (confidence >= 0.8) {
     return {
-      text: 'text-emerald-700',
-      bg: 'bg-emerald-50',
+      text: 'text-emerald-700 dark:text-emerald-400',
+      bg: 'bg-emerald-50 dark:bg-emerald-500/10',
       bar: 'bg-emerald-500',
     }
   }
   if (confidence >= 0.5) {
     return {
-      text: 'text-amber-700',
-      bg: 'bg-amber-50',
+      text: 'text-amber-700 dark:text-amber-400',
+      bg: 'bg-amber-50 dark:bg-amber-500/10',
       bar: 'bg-amber-500',
     }
   }
   return {
-    text: 'text-rose-700',
-    bg: 'bg-rose-50',
+    text: 'text-rose-700 dark:text-rose-400',
+    bg: 'bg-rose-50 dark:bg-rose-500/10',
     bar: 'bg-rose-500',
   }
 }
@@ -486,7 +488,7 @@ function ConfidenceBar({ confidence }: { confidence: number }) {
 
   return (
     <div className="flex items-center gap-2">
-      <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+      <div className="flex-1 h-2 bg-gray-100 dark:bg-dark-800 rounded-full overflow-hidden">
         <div
           className={clsx('h-full rounded-full transition-all', colors.bar)}
           style={{ width: `${percentage}%` }}
@@ -547,7 +549,9 @@ function SkillSelectionSection({
         {/* Confidence */}
         {context.selectionConfidence !== undefined && (
           <div>
-            <div className="text-sm text-gray-500 mb-2">Confidence</div>
+            <div className="text-sm text-gray-500 dark:text-gray-400 mb-2">
+              Confidence
+            </div>
             <ConfidenceBar confidence={context.selectionConfidence} />
           </div>
         )}
@@ -555,8 +559,10 @@ function SkillSelectionSection({
         {/* Reason */}
         {context.selectionReason && (
           <div>
-            <div className="text-sm text-gray-500 mb-1">Selection Reason</div>
-            <div className="text-sm text-gray-700 bg-gray-50 rounded-lg p-3">
+            <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">
+              Selection Reason
+            </div>
+            <div className="text-sm text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-dark-900 rounded-lg p-3">
               {context.selectionReason}
             </div>
           </div>
@@ -566,7 +572,7 @@ function SkillSelectionSection({
         {context.alternativesConsidered &&
           context.alternativesConsidered.length > 0 && (
             <div>
-              <div className="text-sm text-gray-500 mb-2">
+              <div className="text-sm text-gray-500 dark:text-gray-400 mb-2">
                 Alternatives Considered ({context.alternativesConsidered.length}
                 )
               </div>
@@ -576,9 +582,11 @@ function SkillSelectionSection({
                   return (
                     <div
                       key={alt}
-                      className="flex items-center justify-between text-sm bg-gray-50 rounded px-3 py-1.5"
+                      className="flex items-center justify-between text-sm bg-gray-50 dark:bg-dark-900 rounded px-3 py-1.5"
                     >
-                      <span className="font-mono text-gray-700">{alt}</span>
+                      <span className="font-mono text-gray-700 dark:text-gray-300">
+                        {alt}
+                      </span>
                       {score !== undefined && (
                         <span
                           className={clsx(
@@ -613,12 +621,20 @@ function MCPTransportBadge({ transport }: { transport?: MCPTransport }) {
     MCPTransport,
     { label: string; color: string; bgColor: string }
   > = {
-    stdio: { label: 'stdio', color: 'text-gray-700', bgColor: 'bg-gray-100' },
-    http: { label: 'HTTP', color: 'text-blue-700', bgColor: 'bg-blue-50' },
+    stdio: {
+      label: 'stdio',
+      color: 'text-gray-700 dark:text-gray-300',
+      bgColor: 'bg-gray-100 dark:bg-dark-800',
+    },
+    http: {
+      label: 'HTTP',
+      color: 'text-blue-700 dark:text-blue-400',
+      bgColor: 'bg-blue-50 dark:bg-blue-500/10',
+    },
     websocket: {
       label: 'WebSocket',
-      color: 'text-purple-700',
-      bgColor: 'bg-purple-50',
+      color: 'text-purple-700 dark:text-purple-400',
+      bgColor: 'bg-purple-50 dark:bg-purple-500/10',
     },
   }
 
@@ -654,7 +670,7 @@ function MCPContextSection({
       badge={
         <div className="flex items-center gap-1.5">
           <Server className="w-3.5 h-3.5 text-indigo-500" />
-          <span className="text-xs font-medium text-indigo-700">
+          <span className="text-xs font-medium text-indigo-700 dark:text-indigo-400">
             {context.serverId}
           </span>
         </div>
@@ -676,7 +692,7 @@ function MCPContextSection({
             <MCPTransportBadge transport={context.transport} />
           )}
           {context.protocolVersion && (
-            <span className="text-xs font-medium px-2 py-0.5 rounded bg-gray-100 text-gray-700">
+            <span className="text-xs font-medium px-2 py-0.5 rounded bg-gray-100 dark:bg-dark-800 text-gray-700 dark:text-gray-300">
               v{context.protocolVersion}
             </span>
           )}
@@ -685,12 +701,14 @@ function MCPContextSection({
         {/* Capabilities */}
         {context.capabilities && context.capabilities.length > 0 && (
           <div>
-            <div className="text-sm text-gray-500 mb-1.5">Capabilities</div>
+            <div className="text-sm text-gray-500 dark:text-gray-400 mb-1.5">
+              Capabilities
+            </div>
             <div className="flex flex-wrap gap-1">
               {context.capabilities.map((cap) => (
                 <span
                   key={cap}
-                  className="text-xs px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded"
+                  className="text-xs px-2 py-0.5 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 rounded"
                 >
                   {cap}
                 </span>
@@ -701,7 +719,7 @@ function MCPContextSection({
 
         {/* Error */}
         {context.errorCode && (
-          <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">
+          <div className="flex items-center gap-2 text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-500/10 rounded-lg px-3 py-2">
             <AlertCircle className="w-4 h-4" />
             <span>Error: {context.errorCode}</span>
           </div>
@@ -738,24 +756,28 @@ function DecisionMetadataSection({
       label: 'User Initiated',
       icon: User,
       active: !!metadata.wasUserInitiated,
-      color: 'text-blue-700',
-      bgColor: 'bg-blue-50',
+      color: 'text-blue-700 dark:text-blue-400',
+      bgColor: 'bg-blue-50 dark:bg-blue-500/10',
     },
     {
       key: 'fallback',
       label: 'Fallback',
       icon: AlertTriangle,
       active: !!metadata.isFallback,
-      color: 'text-amber-700',
-      bgColor: 'bg-amber-50',
+      color: 'text-amber-700 dark:text-amber-400',
+      bgColor: 'bg-amber-50 dark:bg-amber-500/10',
     },
     {
       key: 'approval',
       label: metadata.approvalGranted ? 'Approved' : 'Approval Required',
       icon: Shield,
       active: !!metadata.requiredApproval,
-      color: metadata.approvalGranted ? 'text-green-700' : 'text-orange-700',
-      bgColor: metadata.approvalGranted ? 'bg-green-50' : 'bg-orange-50',
+      color: metadata.approvalGranted
+        ? 'text-green-700 dark:text-emerald-400'
+        : 'text-orange-700 dark:text-orange-400',
+      bgColor: metadata.approvalGranted
+        ? 'bg-green-50 dark:bg-emerald-500/10'
+        : 'bg-orange-50 dark:bg-orange-500/10',
     },
   ]
 
@@ -767,7 +789,7 @@ function DecisionMetadataSection({
       defaultOpen={defaultOpen}
       badge={
         activeFlags.length > 0 ? (
-          <span className="text-xs text-gray-500">
+          <span className="text-xs text-gray-500 dark:text-gray-400">
             {activeFlags.length} flag{activeFlags.length !== 1 ? 's' : ''}
           </span>
         ) : undefined
@@ -799,8 +821,8 @@ function DecisionMetadataSection({
         {/* Retry info */}
         {metadata.retryCount !== undefined && metadata.retryCount > 0 && (
           <div className="flex items-center gap-2 text-sm">
-            <RefreshCw className="w-4 h-4 text-gray-500" />
-            <span className="text-gray-700">
+            <RefreshCw className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+            <span className="text-gray-700 dark:text-gray-300">
               Retry attempt #{metadata.retryCount}
             </span>
           </div>
@@ -820,7 +842,7 @@ function DecisionMetadataSection({
         {activeFlags.length === 0 &&
           !metadata.retryCount &&
           !metadata.originalSpanId && (
-            <div className="text-sm text-gray-500 italic">
+            <div className="text-sm text-gray-500 dark:text-gray-400 italic">
               No special decision context
             </div>
           )}
@@ -846,19 +868,19 @@ function TokenUsage({
   return (
     <div className="flex flex-wrap gap-3 text-sm">
       {input !== undefined && (
-        <div className="flex items-center gap-1.5 px-2 py-1 bg-blue-50 rounded text-blue-700">
-          <span className="text-blue-500 text-xs">IN</span>
+        <div className="flex items-center gap-1.5 px-2 py-1 bg-blue-50 dark:bg-blue-500/10 rounded text-blue-700 dark:text-blue-400">
+          <span className="text-blue-500 dark:text-blue-400 text-xs">IN</span>
           <span className="font-medium">{input.toLocaleString()}</span>
         </div>
       )}
       {output !== undefined && (
-        <div className="flex items-center gap-1.5 px-2 py-1 bg-green-50 rounded text-green-700">
+        <div className="flex items-center gap-1.5 px-2 py-1 bg-green-50 dark:bg-emerald-500/10 rounded text-green-700 dark:text-emerald-400">
           <span className="text-green-500 text-xs">OUT</span>
           <span className="font-medium">{output.toLocaleString()}</span>
         </div>
       )}
       {total !== undefined && (
-        <div className="flex items-center gap-1.5 px-2 py-1 bg-gray-100 rounded text-gray-700">
+        <div className="flex items-center gap-1.5 px-2 py-1 bg-gray-100 dark:bg-dark-800 rounded text-gray-700 dark:text-gray-300">
           <Hash className="w-3 h-3" />
           <span className="font-medium">{total.toLocaleString()}</span>
         </div>
@@ -948,9 +970,9 @@ export function SpanDetail({
   const showLoading = !hasInlineDetails && isLoading
 
   return (
-    <div className="h-full flex flex-col border-l bg-white">
+    <div className="h-full flex flex-col border-l border-gray-200 dark:border-dark-700 bg-white dark:bg-dark-800">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b bg-gray-50">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-dark-700 bg-gray-50 dark:bg-dark-900">
         <div className="flex items-center gap-2 min-w-0 flex-1">
           <TypeIcon
             className={clsx('w-5 h-5 flex-shrink-0', typeConfig.textColor)}
@@ -963,7 +985,7 @@ export function SpanDetail({
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 hover:bg-gray-200 rounded text-gray-500 ml-2 flex-shrink-0"
+            className="p-1.5 hover:bg-gray-200 dark:hover:bg-dark-700 rounded text-gray-500 dark:text-gray-400 ml-2 flex-shrink-0"
             title="Close"
           >
             <X className="w-5 h-5" />
@@ -976,7 +998,7 @@ export function SpanDetail({
         {/* Status banner */}
         <div
           className={clsx(
-            'flex items-center gap-2 px-4 py-2 border-b',
+            'flex items-center gap-2 border-b border-gray-200 px-4 py-2 dark:border-dark-700',
             statusInfo.bgColor,
           )}
         >
@@ -985,29 +1007,29 @@ export function SpanDetail({
             {statusInfo.label}
           </span>
           {span.status_message && (
-            <span className="text-sm text-gray-600 truncate flex-1">
+            <span className="text-sm text-gray-600 dark:text-gray-300 truncate flex-1">
               — {span.status_message}
             </span>
           )}
         </div>
 
         {/* Quick stats bar */}
-        <div className="flex flex-wrap items-center gap-3 px-4 py-3 border-b bg-white">
+        <div className="flex flex-wrap items-center gap-3 border-b border-gray-200 bg-white px-4 py-3 dark:border-dark-700 dark:bg-dark-800">
           <SpanTypeBadge type={span.span_type} size="sm" />
-          <div className="flex items-center gap-1 text-sm text-gray-600">
+          <div className="flex items-center gap-1 text-sm text-gray-600 dark:text-gray-300">
             <Timer className="w-3.5 h-3.5" />
             <span className="font-medium">
               {formatDuration(span.duration_ms)}
             </span>
           </div>
           {span.total_tokens && (
-            <div className="flex items-center gap-1 text-sm text-gray-600">
+            <div className="flex items-center gap-1 text-sm text-gray-600 dark:text-gray-300">
               <Hash className="w-3.5 h-3.5" />
               <span>{span.total_tokens.toLocaleString()} tokens</span>
             </div>
           )}
           {span.cost_usd && (
-            <div className="flex items-center gap-1 text-sm text-gray-600">
+            <div className="flex items-center gap-1 text-sm text-gray-600 dark:text-gray-300">
               <DollarSign className="w-3.5 h-3.5" />
               <span>${span.cost_usd.toFixed(4)}</span>
             </div>
@@ -1040,7 +1062,7 @@ export function SpanDetail({
               title="Model"
               badge={
                 span.model && (
-                  <span className="text-xs px-2 py-0.5 bg-purple-100 text-purple-700 rounded">
+                  <span className="text-xs px-2 py-0.5 bg-purple-100 dark:bg-purple-500/20 text-purple-700 dark:text-purple-400 rounded">
                     {span.model}
                   </span>
                 )
@@ -1049,7 +1071,9 @@ export function SpanDetail({
               <div className="space-y-3">
                 <KVRow label="Model" value={span.model} />
                 <div>
-                  <div className="text-sm text-gray-500 mb-2">Token Usage</div>
+                  <div className="text-sm text-gray-500 dark:text-gray-400 mb-2">
+                    Token Usage
+                  </div>
                   <TokenUsage
                     input={span.input_tokens}
                     output={span.output_tokens}
@@ -1084,7 +1108,7 @@ export function SpanDetail({
               title="Tool"
               badge={
                 span.tool_name && (
-                  <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded font-mono">
+                  <span className="text-xs px-2 py-0.5 bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-400 rounded font-mono">
                     {span.tool_name}
                   </span>
                 )
@@ -1174,14 +1198,43 @@ export function SpanDetail({
           >
             {showLoading ? (
               <div className="space-y-2 animate-pulse">
-                <div className="h-4 bg-gray-200 rounded w-2/3" />
-                <div className="h-4 bg-gray-200 rounded w-1/2" />
+                <div className="h-4 bg-gray-200 dark:bg-dark-700 rounded w-2/3" />
+                <div className="h-4 bg-gray-200 dark:bg-dark-700 rounded w-1/2" />
               </div>
             ) : (
-              <div className="space-y-1">
-                {Object.entries(attributes || {}).map(([key, value]) => (
-                  <KVRow key={key} label={key} value={value} />
-                ))}
+              <div className="divide-y divide-gray-100 dark:divide-dark-700">
+                {Object.entries(attributes || {}).map(([key, value]) => {
+                  const strValue = String(value ?? '')
+                  const isLong = strValue.length > 80
+                  return (
+                    <div key={key} className="py-2 first:pt-0 last:pb-0">
+                      <div className="flex items-center gap-1.5 mb-0.5">
+                        <span className="text-xs font-mono text-gray-500 dark:text-gray-400 truncate">
+                          {key}
+                        </span>
+                        <CopyButton value={strValue} size="sm" />
+                      </div>
+                      {isLong ? (
+                        <pre className="text-sm text-gray-900 dark:text-gray-100 bg-gray-50 dark:bg-dark-900 rounded-md px-3 py-2 font-mono text-xs whitespace-pre-wrap break-words overflow-x-auto max-h-40 overflow-y-auto">
+                          {strValue}
+                        </pre>
+                      ) : (
+                        <span
+                          className={clsx(
+                            'text-sm text-gray-900 dark:text-gray-100 break-all',
+                            /^\d+$/.test(strValue) && 'font-mono tabular-nums',
+                          )}
+                        >
+                          {strValue || (
+                            <span className="text-gray-400 dark:text-gray-500 italic">
+                              empty
+                            </span>
+                          )}
+                        </span>
+                      )}
+                    </div>
+                  )
+                })}
               </div>
             )}
           </Section>

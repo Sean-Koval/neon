@@ -1,0 +1,422 @@
+================================================================================
+TRAINING — app/training/page.tsx
+================================================================================
+The improvement pipeline: collect feedback, curate datasets, export for
+training, and run autonomous optimization loops. Merges the former
+standalone Feedback page with dataset management, export, and auto-
+improvement capabilities.
+Route: /training
+
+PARENT: Root layout with sidebar (IMPROVE group)
+DATA: trpc.feedback.stats()
+      trpc.feedback.list(filters)
+      trpc.feedback.comparisons()
+      trpc.feedback.create(input)
+      trpc.training.datasets.list()
+      trpc.training.loops.list()
+LAYOUT: p-6, space-y-6
+
+DESIGN NOTES:
+
+1. Training is a pipeline, not a toolbox. Data flows from Feedback
+   (collection) → Datasets (curation) → Export (external training)
+   or Auto-Improve (autonomous optimization). The tab order reflects
+   this left-to-right flow.
+
+2. Page-level stat cards show pipeline health BEFORE any tab. This
+   answers "how healthy is my improvement pipeline?" at a glance:
+   how much feedback collected, how many datasets curated, how many
+   loops running, and what's the best improvement achieved.
+
+3. Agent filter scopes all tabs. Training data spans multiple agents,
+   so an agent dropdown in the header lets operators focus on one
+   agent's pipeline. Default: All Agents. URL-synced.
+
+4. Feedback sub-navigation uses a segmented control (pill buttons),
+   not sub-tabs, to avoid a 3-level navigation depth (sidebar →
+   Training tab → Feedback sub-tab). Pill buttons feel like a
+   mode toggle, not a hierarchy level.
+
+5. The Feedback tab absorbs the former standalone /feedback page.
+   Existing components (PreferencePicker, CorrectionForm) are reused.
+   The main change is embedding them within the Training context
+   with the agent filter scoping the data.
+
+6. Preference sessions are timed. The PreferencePicker tracks
+   decision time (ms) per comparison, feeding data quality metrics.
+   Fast decisions suggest clear quality differences; very slow
+   decisions suggest ambiguous pairs.
+
+7. Correction types are categorized (factual, incomplete, tone,
+   clarity, relevance, formatting) to enable aggregate analysis:
+   "which error type does this agent make most?" This feeds the
+   auto-optimizer's strategy selection.
+
+8. Feedback tab is the default — it's the most frequently used
+   (daily collection) while Datasets/Export are periodic and
+   Auto-Improve is configure-and-monitor.
+
+9. Badge on Auto-Improve tab when approval is pending. The tab
+   label shows "Auto-Improve (1)" with a warning badge to surface
+   the critical human-in-the-loop moment without requiring the
+   user to navigate there proactively.
+
+---
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                                                                             │
+│  ┌─ Header ─────────────────────────────────────────────────────────────┐  │
+│  │                                                                       │  │
+│  │  Training                                        [Agent: All ▾]     │  │
+│  │  text-2xl font-bold text-content-primary          dropdown h-9      │  │
+│  │                                                                       │  │
+│  │  Collect feedback, curate datasets, and improve your agents          │  │
+│  │  text-sm text-content-muted                                          │  │
+│  │                                                                       │  │
+│  │  Agent dropdown: filters all tabs by selected agent.                │  │
+│  │  Options from trpc.agents.list(). "All" shows aggregate.           │  │
+│  │  URL-synced: &agent=booking-agent                                    │  │
+│  │                                                                       │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+│  ┌─ Pipeline Stats (grid-cols-4 gap-4) ─────────────────────────────────┐  │
+│  │                                                                       │  │
+│  │  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐ ┌──────────────┐│  │
+│  │  │ Feedback     │ │ Curated      │ │ Active       │ │ Best         ││  │
+│  │  │ Collected    │ │ Datasets     │ │ Loops        │ │ Improvement  ││  │
+│  │  │ 142          │ │ 3            │ │ 1            │ │ +3.2%        ││  │
+│  │  │ 7 new (7d)   │ │              │ │              │ │ search-agent ││  │
+│  │  └──────────────┘ └──────────────┘ └──────────────┘ └──────────────┘│  │
+│  │                                                                       │  │
+│  │  stat-card class                                                      │  │
+│  │  "Feedback Collected": total count + new in last 7d                  │  │
+│  │  "Curated Datasets": count of created datasets                      │  │
+│  │  "Active Loops": count of running optimization loops                │  │
+│  │    Colored emerald if >0, text-content-muted if 0                   │  │
+│  │  "Best Improvement": highest score delta from any completed loop    │  │
+│  │    Shows agent name below. Colored emerald. "—" if no loops.        │  │
+│  │  All stats respect the agent filter.                                 │  │
+│  │                                                                       │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+│  ┌─ Tabs ───────────────────────────────────────────────────────────────┐  │
+│  │                                                                       │  │
+│  │  Feedback*  |  Datasets  |  Export  |  Auto-Improve                  │  │
+│  │  ═════════                                                           │  │
+│  │                                                                       │  │
+│  │  tab bar: border-b border-border                                     │  │
+│  │  Active: text-content-primary font-semibold border-b-2 border-primary│  │
+│  │  Inactive: text-content-muted hover:text-content-secondary          │  │
+│  │  URL-synced: &tab=feedback (default) / datasets / export /          │  │
+│  │    auto-improve                                                      │  │
+│  │                                                                       │  │
+│  │  Badge on Auto-Improve when approval pending:                       │  │
+│  │  "Auto-Improve (1)" — badge-warning text-[10px] ml-1.5             │  │
+│  │                                                                       │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+│  ┌─ TAB: Feedback ─────────────────────────────────────────────────────┐  │
+│  │                                                                       │  │
+│  │  ┌─ Feedback Stats (grid-cols-3 gap-4) ───────────────────────────┐ │  │
+│  │  │                                                                   │ │  │
+│  │  │  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐            │ │  │
+│  │  │  │ Total        │ │ Preferences  │ │ Corrections  │            │ │  │
+│  │  │  │ Feedback     │ │              │ │              │            │ │  │
+│  │  │  │ 142          │ │ 98           │ │ 44           │            │ │  │
+│  │  │  └──────────────┘ └──────────────┘ └──────────────┘            │ │  │
+│  │  │                                                                   │ │  │
+│  │  │  stat-card class. Filtered by selected agent.                    │ │  │
+│  │  │                                                                   │ │  │
+│  │  └───────────────────────────────────────────────────────────────────┘ │  │
+│  │                                                                       │  │
+│  │  ┌─ Segmented Control ────────────────────────────────────────────┐ │  │
+│  │  │                                                                   │ │  │
+│  │  │  [■ Preferences]  [  Corrections  ]  [  History  ]             │ │  │
+│  │  │                                                                   │ │  │
+│  │  │  Container: bg-surface-overlay/30 rounded-lg p-1 inline-flex   │ │  │
+│  │  │  Active: bg-surface-card shadow-sm rounded-md px-3 py-1.5      │ │  │
+│  │  │    text-content-primary text-sm font-medium                    │ │  │
+│  │  │  Inactive: px-3 py-1.5 text-content-muted text-sm             │ │  │
+│  │  │    hover:text-content-secondary cursor-pointer                 │ │  │
+│  │  │  URL-synced: &mode=preferences (default) / corrections / history│ │  │
+│  │  │                                                                   │ │  │
+│  │  └───────────────────────────────────────────────────────────────────┘ │  │
+│  │                                                                       │  │
+│  │  ══ MODE: Preferences ═══════════════════════════════════════════   │  │
+│  │                                                                       │  │
+│  │  ┌─ Preference Session ───────────────────────────────────────────┐ │  │
+│  │  │                                                                   │ │  │
+│  │  │  Session Progress                                    4/10       │ │  │
+│  │  │  ┌════════════════════>                              ┐         │ │  │
+│  │  │  └─────────────────────────────────────────────────────┘         │ │  │
+│  │  │  progress bar: h-2 bg-surface-overlay rounded-full              │ │  │
+│  │  │  fill: bg-primary rounded-full, width proportional              │ │  │
+│  │  │  text-sm text-content-muted, right-aligned count                │ │  │
+│  │  │                                                                   │ │  │
+│  │  │  ┌─────────────────────────┐   ┌─────────────────────────┐     │ │  │
+│  │  │  │ Response A              │   │ Response B              │     │ │  │
+│  │  │  │                         │   │                         │     │ │  │
+│  │  │  │ "The capital of         │   │ "Paris is the capital   │     │ │  │
+│  │  │  │  France is Paris.       │   │  of France, known for  │     │ │  │
+│  │  │  │  It is known for the    │VS │  the Eiffel Tower and  │     │ │  │
+│  │  │  │  Eiffel Tower."         │   │  rich cultural          │     │ │  │
+│  │  │  │                         │   │  heritage."             │     │ │  │
+│  │  │  │                         │   │                         │     │ │  │
+│  │  │  │    [Choose A]           │   │    [Choose B]           │     │ │  │
+│  │  │  │    btn btn-secondary    │   │    btn btn-secondary    │     │ │  │
+│  │  │  └─────────────────────────┘   └─────────────────────────┘     │ │  │
+│  │  │                                                                   │ │  │
+│  │  │  card class per response. grid grid-cols-2 gap-4                │ │  │
+│  │  │  Response text: text-sm text-content-primary, whitespace-pre-wrap│ │  │
+│  │  │  "VS" divider: text-xs font-bold text-content-muted, abs center│ │  │
+│  │  │                                                                   │ │  │
+│  │  │  ┌─ Secondary Actions ──────────────────────────────────────┐  │ │  │
+│  │  │  │                                                            │  │ │  │
+│  │  │  │  [Tie]  [Both Bad]  [Skip]                                │  │ │  │
+│  │  │  │  btn btn-ghost btn-sm each                                │  │ │  │
+│  │  │  │                                                            │  │ │  │
+│  │  │  │  ┌─────────────────────────────────────────────────────┐  │  │ │  │
+│  │  │  │  │ Reason (optional)...                                 │  │  │ │  │
+│  │  │  │  └─────────────────────────────────────────────────────┘  │  │ │  │
+│  │  │  │  input: h-9, text-sm, border border-border, rounded-md  │  │ │  │
+│  │  │  │                                                            │  │ │  │
+│  │  │  │  Confidence:  ★ ★ ★ ★ ☆  (4/5)                          │  │ │  │
+│  │  │  │  5-star rating, default 3. Filled stars: text-amber-400. │  │ │  │
+│  │  │  │  Empty stars: text-content-muted. Clickable.             │  │ │  │
+│  │  │  │  Maps to confidence: 1-5 in feedback schema.             │  │ │  │
+│  │  │  │                                                            │  │ │  │
+│  │  │  └──────────────────────────────────────────────────────────┘  │ │  │
+│  │  │                                                                   │ │  │
+│  │  │  Reuses PreferencePicker from components/feedback/               │ │  │
+│  │  │  Data: trpc.feedback.comparisons() → pre-generated A/B pairs   │ │  │
+│  │  │  On choice: trpc.feedback.create({ type: 'preference',         │ │  │
+│  │  │    choice, reason, confidence, decisionTimeMs })               │ │  │
+│  │  │  Auto-advances 300ms after choice (visual feedback, then next) │ │  │
+│  │  │  10 pairs per session (configurable).                           │ │  │
+│  │  │                                                                   │ │  │
+│  │  └───────────────────────────────────────────────────────────────────┘ │  │
+│  │                                                                       │  │
+│  │  Session complete state:                                             │  │
+│  │  ┌───────────────────────────────────────────────────────────────┐  │  │
+│  │  │                                                                │  │  │
+│  │  │  (CheckCircle icon, w-10 h-10, text-status-success)          │  │  │
+│  │  │                                                                │  │  │
+│  │  │  Session complete! 10/10 preferences recorded.                │  │  │
+│  │  │  text-lg font-medium text-content-primary                     │  │  │
+│  │  │                                                                │  │  │
+│  │  │  Avg decision time: 3.8s · Avg confidence: 4.1/5              │  │  │
+│  │  │  text-sm text-content-muted                                    │  │  │
+│  │  │                                                                │  │  │
+│  │  │  [Start New Session]                                           │  │  │
+│  │  │  btn btn-primary                                               │  │  │
+│  │  │                                                                │  │  │
+│  │  └───────────────────────────────────────────────────────────────┘  │  │
+│  │                                                                       │  │
+│  │  ══ MODE: Corrections ═══════════════════════════════════════════   │  │
+│  │                                                                       │  │
+│  │  ┌─ Correction Form ─────────────────────────────────────────────┐ │  │
+│  │  │                                                                   │ │  │
+│  │  │  Original Response                                              │ │  │
+│  │  │  ┌─────────────────────────────────────────────────────────────┐│ │  │
+│  │  │  │ ▸ Show original (collapsed by default, click to expand)     ││ │  │
+│  │  │  │                                                               ││ │  │
+│  │  │  │   "The capital of France is Paris. It was founded in        ││ │  │
+│  │  │  │    the 3rd century BC by a Celtic people called the         ││ │  │
+│  │  │  │    Parisii."                                                 ││ │  │
+│  │  │  └─────────────────────────────────────────────────────────────┘│ │  │
+│  │  │  collapsible card, bg-surface-overlay/30, rounded-md, p-3      │ │  │
+│  │  │  font-mono text-sm text-content-secondary                      │ │  │
+│  │  │                                                                   │ │  │
+│  │  │  Corrected Response *                                            │ │  │
+│  │  │  ┌─────────────────────────────────────────────────────────────┐│ │  │
+│  │  │  │ The capital of France is Paris. It has been continuously    ││ │  │
+│  │  │  │ inhabited since the 3rd century BC, originally settled by  ││ │  │
+│  │  │  │ a Celtic people called the Parisii.█                       ││ │  │
+│  │  │  └─────────────────────────────────────────────────────────────┘│ │  │
+│  │  │  textarea, font-mono, text-sm, min-h-[150px], resize-y        │ │  │
+│  │  │  border border-border, focus:border-primary                    │ │  │
+│  │  │  Pre-filled with original. User edits to correct.              │ │  │
+│  │  │                                                                   │ │  │
+│  │  │  Char count: 156 → 178 (+22)  Words: 28 → 31 (+3)            │ │  │
+│  │  │  text-xs text-content-muted, live-updating                     │ │  │
+│  │  │                                                                   │ │  │
+│  │  │  Correction Type * (select all that apply)                     │ │  │
+│  │  │  ┌─────────────────────────────────────────────────────────────┐│ │  │
+│  │  │  │ [■ factual] [  incomplete] [  tone]                         ││ │  │
+│  │  │  │ [  clarity] [  relevance ] [  formatting]                   ││ │  │
+│  │  │  └─────────────────────────────────────────────────────────────┘│ │  │
+│  │  │  toggle buttons, multi-select, flex flex-wrap gap-2            │ │  │
+│  │  │  Active: bg-primary/10 text-primary border border-primary      │ │  │
+│  │  │  Inactive: bg-surface-overlay/30 text-content-muted            │ │  │
+│  │  │    border border-border hover:border-content-muted             │ │  │
+│  │  │  text-xs px-2.5 py-1 rounded-md                               │ │  │
+│  │  │  At least one type required for submit.                        │ │  │
+│  │  │                                                                   │ │  │
+│  │  │  Change Summary                                                  │ │  │
+│  │  │  ┌─────────────────────────────────────────────────────────────┐│ │  │
+│  │  │  │ e.g. Fixed founding date claim                              ││ │  │
+│  │  │  └─────────────────────────────────────────────────────────────┘│ │  │
+│  │  │  input: h-9, text-sm. Optional but recommended.                │ │  │
+│  │  │                                                                   │ │  │
+│  │  │  [Submit Correction]              [Skip]                        │ │  │
+│  │  │  btn btn-primary                   btn btn-ghost                │ │  │
+│  │  │                                                                   │ │  │
+│  │  │  Submit disabled until: corrected text differs from original   │ │  │
+│  │  │  AND at least one correction type selected.                    │ │  │
+│  │  │  On submit: trpc.feedback.create({ type: 'correction',        │ │  │
+│  │  │    original, corrected, correctionTypes, changeSummary })      │ │  │
+│  │  │  Toast: "Correction submitted"                                 │ │  │
+│  │  │  Reuses CorrectionForm from components/feedback/               │ │  │
+│  │  │                                                                   │ │  │
+│  │  └───────────────────────────────────────────────────────────────────┘ │  │
+│  │                                                                       │  │
+│  │  ══ MODE: History ═══════════════════════════════════════════════   │  │
+│  │                                                                       │  │
+│  │  ┌─ Feedback History ─────────────────────────────────────────────┐ │  │
+│  │  │                                                                   │ │  │
+│  │  │  ┌──────────┬───────────────┬────────────┬──────┬───────────┐ │ │  │
+│  │  │  │ Type     │ Choice/Action │ Confidence │ Time │ Date      │ │ │  │
+│  │  │  ├──────────┼───────────────┼────────────┼──────┼───────────┤ │ │  │
+│  │  │  │ pref     │ Chose B       │ ★★★★☆     │ 4.2s │ 2h ago    │ │ │  │
+│  │  │  │ pref     │ Tie           │ ★★★☆☆     │ 8.1s │ 2h ago    │ │ │  │
+│  │  │  │ correct  │ factual, tone │ —          │ —    │ 5h ago    │ │ │  │
+│  │  │  │ pref     │ Chose A       │ ★★★★★     │ 2.3s │ 1d ago    │ │ │  │
+│  │  │  │ correct  │ incomplete    │ —          │ —    │ 1d ago    │ │ │  │
+│  │  │  └──────────┴───────────────┴────────────┴──────┴───────────┘ │ │  │
+│  │  │                                                                   │ │  │
+│  │  │  Table: text-sm, full-width                                      │ │  │
+│  │  │  Type: badge — "pref" = badge-info, "correct" = badge-warning  │ │  │
+│  │  │  Choice: text-content-primary. Corrections: show type tags     │ │  │
+│  │  │  Confidence: star display (prefs only, "—" for corrections)    │ │  │
+│  │  │  Time: decision time in seconds (prefs only)                   │ │  │
+│  │  │  Date: relative timestamp                                       │ │  │
+│  │  │                                                                   │ │  │
+│  │  │  Click row → expand to show full response text or correction   │ │  │
+│  │  │  diff. Active row: bg-surface-overlay/30                       │ │  │
+│  │  │                                                                   │ │  │
+│  │  │  ┌─ Load More ─────────────────────────────────────────────┐  │ │  │
+│  │  │  │  Showing 5 of 142           [Load More]                  │  │ │  │
+│  │  │  │  text-sm text-content-muted   btn btn-secondary btn-sm   │  │ │  │
+│  │  │  └─────────────────────────────────────────────────────────┘  │ │  │
+│  │  │  Offset pagination, 20 per batch.                              │ │  │
+│  │  │                                                                   │ │  │
+│  │  └───────────────────────────────────────────────────────────────────┘ │  │
+│  │                                                                       │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+
+═══════════════════════════════════════════════════════════════════════════════
+LOADING STATE
+═══════════════════════════════════════════════════════════════════════════════
+
+Stats + tab bar render immediately (not skeletonized).
+
+Preferences mode skeleton:
+  ┌──────────────────────────────────────────────────────────────────────┐
+  │ ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ (progress bar)               │
+  │ ┌───────────────────────┐   ┌───────────────────────┐              │
+  │ │ ░░░░░░░░░░░░░░░░░░░░ │   │ ░░░░░░░░░░░░░░░░░░░░ │              │
+  │ │ ░░░░░░░░░░░░░░       │   │ ░░░░░░░░░░░░░░       │              │
+  │ │ ░░░░░░░░░░░░░░░░     │   │ ░░░░░░░░░░░░░░░░     │              │
+  │ │ ░░░░░░░░             │   │ ░░░░░░░░             │              │
+  │ └───────────────────────┘   └───────────────────────┘              │
+  └──────────────────────────────────────────────────────────────────────┘
+  animate-pulse on ░ blocks. Two card skeletons side by side.
+
+History mode: standard table skeleton (5 rows of ░ blocks).
+
+
+═══════════════════════════════════════════════════════════════════════════════
+EMPTY STATES
+═══════════════════════════════════════════════════════════════════════════════
+
+No feedback collected yet:
+  ┌──────────────────────────────────────────────────────────┐
+  │                                                          │
+  │        (MessageSquare icon, w-12 h-12, text-content-muted)│
+  │                                                          │
+  │        No feedback collected yet                        │
+  │        text-lg font-medium text-content-primary          │
+  │                                                          │
+  │        Start a preference session or provide corrections │
+  │        to begin building training data.                  │
+  │        text-sm text-content-muted, max-w-sm mx-auto      │
+  │                                                          │
+  │        [Start Preference Session]                        │
+  │        btn btn-primary                                   │
+  │                                                          │
+  └──────────────────────────────────────────────────────────┘
+
+All comparisons reviewed (no more pairs available):
+  ┌──────────────────────────────────────────────────────────┐
+  │                                                          │
+  │        (CheckCircle icon, w-10 h-10, text-status-success)│
+  │                                                          │
+  │        All comparisons reviewed                         │
+  │                                                          │
+  │        You've reviewed all available pairs. New pairs    │
+  │        are generated when agents produce new responses.  │
+  │        text-sm text-content-muted                        │
+  │                                                          │
+  └──────────────────────────────────────────────────────────┘
+
+
+═══════════════════════════════════════════════════════════════════════════════
+ERROR STATE
+═══════════════════════════════════════════════════════════════════════════════
+
+  ┌──────────────────────────────────────────────────────────┐
+  │                                                          │
+  │        (AlertCircle icon, w-12 h-12, text-status-error) │
+  │                                                          │
+  │        Failed to load feedback data                     │
+  │        text-lg font-medium text-content-primary          │
+  │                                                          │
+  │        [Retry]                                           │
+  │        btn btn-secondary btn-sm, onClick: refetch()     │
+  │                                                          │
+  └──────────────────────────────────────────────────────────┘
+
+
+═══════════════════════════════════════════════════════════════════════════════
+BEHAVIORAL NOTES
+═══════════════════════════════════════════════════════════════════════════════
+
+1. Tab state stored in URL: &tab=feedback (default) / datasets /
+   export / auto-improve. Shallow routing via router.replace.
+
+2. Agent filter in header scopes all tabs. Changing agent resets
+   sub-mode (preferences/corrections/history) to default.
+
+3. Preference session auto-advances to next pair after choice.
+   300ms delay for visual feedback (chosen card briefly highlights
+   with bg-status-success/10 border-status-success) before loading
+   the next pair.
+
+4. Decision time tracking: timer starts when pair renders, stops
+   on choice. Stored as decisionTimeMs in feedback schema. Not
+   visible to the user during the session — shown in History mode
+   and session completion summary.
+
+5. Segmented control uses pill-button pattern. URL-synced:
+   &mode=preferences. Changing mode preserves tab state.
+
+6. Correction form pre-fills textarea with original response.
+   Diff (char/word count) updates in real-time below textarea.
+
+7. History table is read-only. Click row to expand and see full
+   response text or correction diff. Only one row expanded at a
+   time (accordion pattern).
+
+8. Session progress persists in component state only (not URL).
+   Navigating away resets progress — intentional for data quality
+   (sessions should be completed in one sitting).
+
+9. "All comparisons reviewed" state appears when
+   trpc.feedback.comparisons() returns empty. New pairs are
+   generated when agents produce traces via the SDK.
+
+10. Feedback stats (Total, Preferences, Corrections) respect the
+    agent filter. "All" shows aggregate across all agents.

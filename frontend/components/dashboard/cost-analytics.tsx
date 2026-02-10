@@ -21,23 +21,23 @@ function CostStatCard({
   const trendColors = {
     up: 'text-emerald-600',
     down: 'text-rose-600',
-    neutral: 'text-gray-500',
+    neutral: 'text-gray-500 dark:text-gray-400',
   }
 
   return (
     <div className="stat-card group">
       <div className="flex items-center justify-between">
-        <span className="text-sm font-medium text-gray-500">{title}</span>
-        <div className="p-2 rounded-lg bg-gradient-to-br from-gray-50 to-gray-100 group-hover:from-primary-50 group-hover:to-accent-50 transition-colors">
+        <span className="text-sm font-medium text-gray-500 dark:text-gray-400">{title}</span>
+        <div className="p-2 rounded-lg bg-gradient-to-br from-gray-50 dark:from-dark-900 to-gray-100 dark:to-dark-800 group-hover:from-primary-50 dark:group-hover:from-primary-900/30 group-hover:to-accent-50 dark:group-hover:to-accent-900/30 transition-colors">
           {icon}
         </div>
       </div>
       <div className="mt-3">
-        <span className="text-3xl font-bold text-gray-900">{value}</span>
+        <span className="text-3xl font-bold text-gray-900 dark:text-gray-100">{value}</span>
       </div>
       <div className="mt-2">
         <span
-          className={`text-sm ${trend ? trendColors[trend] : 'text-gray-500'}`}
+          className={`text-sm ${trend ? trendColors[trend] : 'text-gray-500 dark:text-gray-400'}`}
         >
           {subtitle}
         </span>
@@ -50,14 +50,14 @@ function CostCardSkeleton() {
   return (
     <div className="card p-6 animate-pulse">
       <div className="flex items-center justify-between">
-        <div className="h-4 w-20 bg-gray-200 rounded" />
-        <div className="h-9 w-9 bg-gray-200 rounded-lg" />
+        <div className="h-4 w-20 bg-gray-200 dark:bg-dark-700 rounded" />
+        <div className="h-9 w-9 bg-gray-200 dark:bg-dark-700 rounded-lg" />
       </div>
       <div className="mt-3">
-        <div className="h-9 w-24 bg-gray-200 rounded" />
+        <div className="h-9 w-24 bg-gray-200 dark:bg-dark-700 rounded" />
       </div>
       <div className="mt-2">
-        <div className="h-4 w-32 bg-gray-200 rounded" />
+        <div className="h-4 w-32 bg-gray-200 dark:bg-dark-700 rounded" />
       </div>
     </div>
   )

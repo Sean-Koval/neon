@@ -1,0 +1,89 @@
+================================================================================
+SIDEBAR — components/sidebar.tsx
+================================================================================
+Always-dark sidebar with grouped navigation: Monitor / Evaluate / Improve.
+10 nav items in 3 groups + Settings below a divider.
+
+WIDTH: w-64 (256px)
+BG: bg-dark-900 (#0f172a)
+HEIGHT: h-screen (fixed, full viewport height)
+
+┌────────────────────────────────┐
+│                                │
+│  ┌────────────────────────┐   │
+│  │  [⚡ icon]  Neon        │   │  Logo section
+│  │             Agent Eval  │   │  - Icon: 40x40 rounded-xl gradient primary→accent
+│  │                         │   │  - "Neon" in text-neon-glow (gradient text)
+│  └────────────────────────┘   │  - "Agent Eval" in text-dark-500 uppercase 10px
+│                                │
+│  MONITOR ──────────────────   │  Group label: text-dark-500, text-[11px],
+│                                │  font-semibold, uppercase, tracking-wider
+│  ┌ ● Command Center     / ┐  │  px-3, mb-1 for label
+│  │   (LayoutDashboard)     │  │
+│  ├ ● Agents        /agents ┤  │  Each nav item:
+│  │   (Bot)                 │  │  - nav-item class (flex, px-4, py-2.5, text-sm)
+│  ├ ● Traces       /traces  ┤  │  - Active: nav-item-active (gradient bg, white text,
+│  │   (Activity)            │  │    left border primary-400)
+│  └─────────────────────────┘  │  - Inactive: nav-item-inactive (dark-400 text,
+│                                │    hover:white, hover:bg-dark-700/50)
+│  EVALUATE ─────────────────   │  - Icon: w-5 h-5 mr-3, active=primary-400, else dark-500
+│                                │
+│  ┌ ● Suites       /suites  ┐  │
+│  │   (FlaskConical)        │  │
+│  ├ ● Eval Runs  /eval-runs ┤  │
+│  │   (Zap)                 │  │
+│  ├ ● Compare    /compare   ┤  │
+│  │   (GitCompare)          │  │
+│  └─────────────────────────┘  │
+│                                │
+│  IMPROVE ──────────────────   │
+│                                │
+│  ┌ ● Experiments /experiments┐ │
+│  │   (TestTubes)            │  │
+│  ├ ● Prompts    /prompts    ┤  │
+│  │   (FileText)             │  │
+│  ├ ● Training   /training   ┤  │
+│  │   (GraduationCap)       │  │
+│  └──────────────────────────┘ │
+│                                │
+│  ─── divider ──────────────   │  border-t border-dark-800, my-2
+│                                │
+│  ┌ ● Settings   /settings   ┐ │
+│  │   (Settings)              │ │
+│  └───────────────────────────┘ │
+│                                │
+│         (flex-1 spacer)        │  Pushes footer to bottom
+│                                │
+│  ┌────────────────────────┐   │  Footer: p-4, border-t border-dark-800
+│  │  v0.2.0    [🌙/☀️]     │   │  - Version text: text-xs text-dark-500
+│  │                         │   │  - ThemeToggle button (right-aligned)
+│  └────────────────────────┘   │
+│                                │
+└────────────────────────────────┘
+
+ACTIVE STATE DETECTION:
+  - "/" exact match → Command Center
+  - Other routes: startsWith match (e.g., "/agents" matches "/agents/foo")
+  - Only one item active at a time
+
+GROUP LABEL STYLING:
+  - text-[11px] font-semibold uppercase tracking-wider
+  - text-dark-500 (muted)
+  - px-6 py-2 (inline with nav item text)
+
+NAV ITEM SPACING:
+  - Groups separated by the group label (acts as visual separator)
+  - Items within a group: space-y-0.5
+  - Group labels: mt-6 mb-1 (except first group: mt-0)
+
+ICONS (lucide-react):
+  Command Center: LayoutDashboard
+  Agents:         Bot
+  Traces:         Activity
+  Suites:         FlaskConical (or TestTube)
+  Eval Runs:      Zap
+  Compare:        GitCompare
+  Experiments:    TestTubes (or Beaker)
+  Prompts:        FileText
+  Training:       GraduationCap
+  Settings:       Settings

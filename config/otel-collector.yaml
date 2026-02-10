@@ -28,7 +28,7 @@ processors:
         value: "true"
         action: upsert
       - key: deployment.environment
-        value: ${env:DEPLOYMENT_ENV:-development}
+        value: "development"
         action: upsert
 
 exporters:
@@ -38,10 +38,9 @@ exporters:
   # This exporter serves as a backup with create_schema: true so it manages
   # its own otel_traces/otel_logs tables independently.
   clickhouse:
-    endpoint: tcp://neon-clickhouse:9000?dial_timeout=10s&compress=lz4
+    endpoint: tcp://clickhouse:9000?dial_timeout=10s&compress=lz4
     database: neon
     ttl: 2160h # 90 days, matching existing TTL
-    create_schema: true
     timeout: 10s
     retry_on_failure:
       enabled: true
@@ -50,7 +49,7 @@ exporters:
       max_elapsed_time: 300s
 
   otlphttp/neon-api:
-    endpoint: http://neon-web:3000/api/v1/traces
+    endpoint: http://web:3000/api/v1/traces
     headers:
       x-api-key: ${env:NEON_API_KEY:-neon-internal}
       x-workspace-id: ${env:DEFAULT_PROJECT_ID:-00000000-0000-0000-0000-000000000001}
@@ -65,16 +64,17 @@ exporters:
   kafka:
     protocol_version: "3.0.0"
     brokers:
-      - neon-redpanda:9092
+      - redpanda:9092
     topic: neon.traces.spans
     encoding: otlp_json
     producer:
       max_message_bytes: 1048576  # 1MB
       required_acks: 1
       compression: snappy
-    retry:
-      max: 5
-      backoff: 200ms
+    retry_on_failure:
+      enabled: true
+      initial_interval: 200ms
+      max_interval: 5s
     timeout: 10s
 
   debug:
@@ -95,7 +95,7 @@ service:
     traces:
       receivers: [otlp]
       processors: [memory_limiter, attributes, batch]
-      exporters: [kafka, otlphttp/neon-api, clickhouse]
+      exporters: [otlphttp/neon-api, clickhouse, debug]
   telemetry:
     logs:
       level: info

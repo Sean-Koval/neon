@@ -1,0 +1,460 @@
+================================================================================
+SUITE DETAIL — app/suites/[id]/page.tsx
+================================================================================
+Suite definition detail: metadata, test cases, run history, score trends.
+Route: /suites/[id]
+
+DESIGN NOTES:
+  1. The detail page is the operational hub for a single suite. It answers:
+     "What does this suite test, how has it been performing, should I run it?"
+  2. Test cases are the core content — each case is expandable to show full
+     input JSON, expected outputs, scorer config, and tags.
+  3. Run history provides temporal context: is this suite trending up or down?
+     The score trend chart and run history table answer this at a glance.
+  4. "Run Suite" is the primary CTA — always visible in the header.
+  5. Edit/Delete are secondary actions. Delete requires confirmation.
+  6. The page layout is a single scrollable column (no tabs) since all sections
+     are typically relevant together.
+  7. EvalCase fields:
+     - input: Record<string, unknown> (JSON, the data sent to the agent)
+     - expected_tools: string[] (unordered tools that should be called)
+     - expected_tool_sequence: string[] (tools in exact order)
+     - expected_output_contains: string[] (strings in output)
+     - expected_output_pattern: string (regex for output)
+     - scorers: ScorerType[] (per-case override of suite defaults)
+     - scorer_config: Record<string, unknown> (per-scorer config overrides)
+     - min_score: number (0-1)
+     - tags: string[]
+     - timeout_seconds: number (1-3600)
+  8. Suite execution config: parallel (bool), stop_on_failure (bool).
+     These are secondary information, not prominent.
+
+DATA: trpc.suites.get(suiteId), trpc.evals.listRuns({ suiteId, limit: 10 })
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                                                                             │
+│  <- Back to Suites                                                         │
+│  text-sm text-content-muted hover:text-content-primary, links to /suites   │
+│                                                                             │
+│  ┌─ Suite Header ──────────────────────────────────────────────────────┐   │
+│  │                                                                       │   │
+│  │  booking-agent-suite                                                  │   │
+│  │  Tests for booking flow accuracy and edge cases                       │   │
+│  │                                                                       │   │
+│  │  [Run Suite]  [Edit Suite]  [Delete]                                 │   │
+│  │                                                                       │   │
+│  │  Name: text-2xl font-bold text-content-primary                       │   │
+│  │  Description: text-sm text-content-secondary                         │   │
+│  │  "Run Suite": btn btn-primary — opens StartEvalRunDialog pre-filled  │   │
+│  │  "Edit Suite": btn btn-secondary — links to /suites/[id]/edit        │   │
+│  │  "Delete": btn btn-ghost text-status-error — opens confirm dialog    │   │
+│  │                                                                       │   │
+│  └───────────────────────────────────────────────────────────────────────┘   │
+│                                                                             │
+│  ┌─ Summary Stats (grid-cols-4 gap-4) ───────────────────────────────────┐ │
+│  │                                                                         │ │
+│  │  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐ ┌──────────────┐ │ │
+│  │  │ Test Cases   │ │ Last Pass    │ │ Avg Score    │ │ Total Runs   │ │ │
+│  │  │ 12           │ │ Rate         │ │ 0.87         │ │ 24           │ │ │
+│  │  │              │ │ 94%          │ │              │ │              │ │ │
+│  │  └──────────────┘ └──────────────┘ └──────────────┘ └──────────────┘ │ │
+│  │                                                                         │ │
+│  │  stat-card class                                                       │ │
+│  │  "Test Cases": count from suite.cases.length                          │ │
+│  │  "Last Pass Rate": from most recent run summary.passed/total_cases   │ │
+│  │    Colored: >=90% emerald, >=70% amber, <70% rose                    │ │
+│  │  "Avg Score": from most recent run summary.avg_score                  │ │
+│  │    Colored: >=0.85 emerald, >=0.7 amber, <0.7 rose                   │ │
+│  │  "Total Runs": count of all runs for this suite                      │ │
+│  │  If no runs: "Last Pass Rate" and "Avg Score" show "--"              │ │
+│  │                                                                         │ │
+│  └───────────────────────────────────────────────────────────────────────┘ │
+│                                                                             │
+│  ┌─ Suite Configuration ─────────────────────────────────────────────────┐ │
+│  │                                                                         │ │
+│  │  Configuration                                                         │ │
+│  │                                                                         │ │
+│  │  ┌─ Config Grid (grid-cols-2 lg:grid-cols-4 gap-x-8 gap-y-3) ─────┐ │ │
+│  │  │                                                                   │ │ │
+│  │  │  Agent                        Min Score                          │ │ │
+│  │  │  booking-agent                0.80                                │ │ │
+│  │  │                                                                   │ │ │
+│  │  │  Timeout                      Execution                          │ │ │
+│  │  │  30s                          Parallel                            │ │ │
+│  │  │                                                                   │ │ │
+│  │  │  Label: text-[10px] uppercase tracking-wider text-content-muted │ │ │
+│  │  │  Value: text-sm text-content-primary                             │ │ │
+│  │  │  Agent value is a link to /agents/[agentId]                     │ │ │
+│  │  │  Execution: "Parallel" or "Sequential" based on suite.parallel  │ │ │
+│  │  │  If stop_on_failure: append " (stops on first failure)"         │ │ │
+│  │  │                                                                   │ │ │
+│  │  └───────────────────────────────────────────────────────────────────┘ │ │
+│  │                                                                         │ │
+│  │  ┌─ Scorers ──────────────────────────────────────────────────────┐  │ │
+│  │  │                                                                  │  │ │
+│  │  │  Default Scorers                                                │  │ │
+│  │  │  [tool_selection]  [reasoning]  [grounding]                     │  │ │
+│  │  │                                                                  │  │ │
+│  │  │  badge-muted for each scorer. These are suite defaults;         │  │ │
+│  │  │  individual cases may override with their own scorer list.      │  │ │
+│  │  │                                                                  │  │ │
+│  │  └──────────────────────────────────────────────────────────────────┘  │ │
+│  │                                                                         │ │
+│  │  card class                                                            │ │
+│  │                                                                         │ │
+│  └───────────────────────────────────────────────────────────────────────┘ │
+│                                                                             │
+│  ┌─ Test Cases ──────────────────────────────────────────────────────────┐ │
+│  │                                                                         │ │
+│  │  Test Cases (12)                                     [+ Add Case]     │ │
+│  │                                                                         │ │
+│  │  Title: text-lg font-semibold text-content-primary                    │ │
+│  │  Count in parens: text-content-muted                                  │ │
+│  │  "Add Case": btn btn-secondary btn-sm, links to /suites/[id]/edit    │ │
+│  │                                                                         │ │
+│  │  ┌─ Case Card (collapsed) ────────────────────────────────────────┐  │ │
+│  │  │                                                                  │  │ │
+│  │  │  (ChevronRight)  1. Basic booking             Min: 0.80   [v]  │  │ │
+│  │  │                                                                  │  │ │
+│  │  │  Collapsed row: flex items-center                               │  │ │
+│  │  │  Chevron: rotates 90deg when expanded                           │  │ │
+│  │  │  Number: text-content-muted                                     │  │ │
+│  │  │  Name: text-sm font-medium text-content-primary                 │  │ │
+│  │  │  Min score: text-xs text-content-muted, right side              │  │ │
+│  │  │  [v]: expand/collapse toggle                                    │  │ │
+│  │  │                                                                  │  │ │
+│  │  └──────────────────────────────────────────────────────────────────┘  │ │
+│  │                                                                         │ │
+│  │  ┌─ Case Card (expanded) ─────────────────────────────────────────┐  │ │
+│  │  │                                                                  │  │ │
+│  │  │  (ChevronDown)  2. Edge: no availability       Min: 0.80  [^]  │  │ │
+│  │  │                                                                  │  │ │
+│  │  │  ┌─ Case Detail ───────────────────────────────────────────┐   │  │ │
+│  │  │  │                                                          │   │  │ │
+│  │  │  │  ┌─ Input ──────────────────────────────────────────┐  │   │  │ │
+│  │  │  │  │                                                    │  │   │  │ │
+│  │  │  │  │  Input                                             │  │   │  │ │
+│  │  │  │  │  ┌──────────────────────────────────────────────┐│  │   │  │ │
+│  │  │  │  │  │ {                                             ││  │   │  │ │
+│  │  │  │  │  │   "customer_message": "Book for Dec 25",     ││  │   │  │ │
+│  │  │  │  │  │   "order_id": "ORD-456"                      ││  │   │  │ │
+│  │  │  │  │  │ }                                             ││  │   │  │ │
+│  │  │  │  │  └──────────────────────────────────────────────┘│  │   │  │ │
+│  │  │  │  │                                                    │  │   │  │ │
+│  │  │  │  │  bg-surface-overlay/30 rounded-lg p-3 font-mono  │  │   │  │ │
+│  │  │  │  │  text-xs. JSON syntax highlighted if possible.   │  │   │  │ │
+│  │  │  │  │  Max-height: 200px, overflow-y-auto for large    │  │   │  │ │
+│  │  │  │  │  inputs.                                          │  │   │  │ │
+│  │  │  │  │                                                    │  │   │  │ │
+│  │  │  │  └────────────────────────────────────────────────────┘  │   │  │ │
+│  │  │  │                                                          │   │  │ │
+│  │  │  │  ┌─ Expectations (grid-cols-2 gap-4) ───────────────┐  │   │  │ │
+│  │  │  │  │                                                    │  │   │  │ │
+│  │  │  │  │  Expected Tools                                   │  │   │  │ │
+│  │  │  │  │  [lookup_order]  [check_availability]             │  │   │  │ │
+│  │  │  │  │                                                    │  │   │  │ │
+│  │  │  │  │  Expected Output Contains                         │  │   │  │ │
+│  │  │  │  │  [no availability]  [alternative dates]           │  │   │  │ │
+│  │  │  │  │                                                    │  │   │  │ │
+│  │  │  │  │  Label: text-[10px] uppercase text-content-muted │  │   │  │ │
+│  │  │  │  │  Tools: badge-muted for each expected tool       │  │   │  │ │
+│  │  │  │  │  Output: badge-muted for each expected string    │  │   │  │ │
+│  │  │  │  │                                                    │  │   │  │ │
+│  │  │  │  │  If expected_tool_sequence is set, show "Ordered"│  │   │  │ │
+│  │  │  │  │  label with tools in numbered list instead.      │  │   │  │ │
+│  │  │  │  │                                                    │  │   │  │ │
+│  │  │  │  │  If expected_output_pattern is set, show:        │  │   │  │ │
+│  │  │  │  │    Output Pattern                                │  │   │  │ │
+│  │  │  │  │    /regex-pattern-here/                           │  │   │  │ │
+│  │  │  │  │    (font-mono text-xs)                            │  │   │  │ │
+│  │  │  │  │                                                    │  │   │  │ │
+│  │  │  │  │  If no expectations set: "No output expectations"│  │   │  │ │
+│  │  │  │  │  in text-content-muted italic                    │  │   │  │ │
+│  │  │  │  │                                                    │  │   │  │ │
+│  │  │  │  └────────────────────────────────────────────────────┘  │   │  │ │
+│  │  │  │                                                          │   │  │ │
+│  │  │  │  ┌─ Case Config ────────────────────────────────────┐  │   │  │ │
+│  │  │  │  │                                                    │  │   │  │ │
+│  │  │  │  │  Scorers: [reasoning] [grounding]                 │  │   │  │ │
+│  │  │  │  │  Timeout: 60s                                      │  │   │  │ │
+│  │  │  │  │  Tags: [edge-case] [availability]                  │  │   │  │ │
+│  │  │  │  │                                                    │  │   │  │ │
+│  │  │  │  │  Scorers: badge-muted. If same as suite defaults, │  │   │  │ │
+│  │  │  │  │    show "Suite defaults" in text-content-muted    │  │   │  │ │
+│  │  │  │  │    instead of listing them again.                  │  │   │  │ │
+│  │  │  │  │  Tags: badge-muted (blue tint)                    │  │   │  │ │
+│  │  │  │  │  If no tags: omit the Tags row entirely           │  │   │  │ │
+│  │  │  │  │                                                    │  │   │  │ │
+│  │  │  │  └────────────────────────────────────────────────────┘  │   │  │ │
+│  │  │  │                                                          │   │  │ │
+│  │  │  └──────────────────────────────────────────────────────────┘   │  │ │
+│  │  │                                                                  │  │ │
+│  │  └──────────────────────────────────────────────────────────────────┘  │ │
+│  │                                                                         │ │
+│  │  ┌─ Case Card (collapsed) ────────────────────────────────────────┐  │ │
+│  │  │  (ChevronRight)  3. Multi-leg booking          Min: 0.85  [v]  │  │ │
+│  │  └──────────────────────────────────────────────────────────────────┘  │ │
+│  │                                                                         │ │
+│  │  ┌─ Case Card (collapsed) ────────────────────────────────────────┐  │ │
+│  │  │  (ChevronRight)  4. Cancellation request       Min: 0.80  [v]  │  │ │
+│  │  └──────────────────────────────────────────────────────────────────┘  │ │
+│  │                                                                         │ │
+│  │  ... (more cases)                                                      │ │
+│  │                                                                         │ │
+│  │  Case cards: space-y-2. border border-border rounded-lg               │ │
+│  │  Collapsed: px-4 py-3                                                  │ │
+│  │  Expanded: px-4 py-3 + detail section with p-4 bg-surface-overlay/20  │ │
+│  │  Hover: bg-surface-overlay/30 on collapsed header row                 │ │
+│  │  All cases collapsed by default. Clicking toggles individual case.    │ │
+│  │                                                                         │ │
+│  │  card class                                                            │ │
+│  │                                                                         │ │
+│  └───────────────────────────────────────────────────────────────────────┘ │
+│                                                                             │
+│  ┌─ Score Trend ─────────────────────────────────────────────────────────┐ │
+│  │                                                                         │ │
+│  │  Score Trend                                                           │ │
+│  │                                                                         │ │
+│  │  ┌──────────────────────────────────────────────────────────────────┐ │ │
+│  │  │                                                                    │ │ │
+│  │  │  (recharts line chart)                                             │ │ │
+│  │  │                                                                    │ │ │
+│  │  │  1.0 ┤                                                             │ │ │
+│  │  │      │                                            ╱──●            │ │ │
+│  │  │  0.9 ┤     ●──╲         ●──────●──────●──────●╱                   │ │ │
+│  │  │      │          ╲      ╱                                           │ │ │
+│  │  │  0.8 ┤────────────●──●──────────────────────── min score ──────── │ │ │
+│  │  │      │                                                             │ │ │
+│  │  │  0.7 ┤                                                             │ │ │
+│  │  │      └─────────────────────────────────────────────────────────── │ │ │
+│  │  │        run 1  run 2  run 3  run 4  run 5  run 6  run 7  run 8    │ │ │
+│  │  │                                                                    │ │ │
+│  │  │  Y-axis: avg_score (0-1 range)                                    │ │ │
+│  │  │  X-axis: run number or date, most recent right                    │ │ │
+│  │  │  Line: stroke-emerald for runs above min_score,                   │ │ │
+│  │  │        stroke-rose for runs below                                  │ │ │
+│  │  │  Dots: filled circles at each data point                          │ │ │
+│  │  │  Min score line: dashed, text-content-muted, labeled              │ │ │
+│  │  │  Tooltip on hover: "Run #3 — 0.82 avg score, 84% pass rate"     │ │ │
+│  │  │  Height: 200px                                                     │ │ │
+│  │  │  Click data point: navigates to /eval-runs/[runId]                │ │ │
+│  │  │                                                                    │ │ │
+│  │  └──────────────────────────────────────────────────────────────────┘ │ │
+│  │                                                                         │ │
+│  │  If fewer than 2 runs: show "Run this suite at least twice to         │ │
+│  │  see score trends" in text-content-muted italic, centered.            │ │
+│  │                                                                         │ │
+│  │  card class                                                            │ │
+│  │                                                                         │ │
+│  └───────────────────────────────────────────────────────────────────────┘ │
+│                                                                             │
+│  ┌─ Run History ─────────────────────────────────────────────────────────┐ │
+│  │                                                                         │ │
+│  │  Run History                                       [View All Runs]    │ │
+│  │                                                                         │ │
+│  │  "View All Runs": btn btn-ghost btn-sm, links to                      │ │
+│  │    /eval-runs?suite_id=[suiteId]                                      │ │
+│  │                                                                         │ │
+│  │  ┌────────┬──────────┬────────┬────────┬───────┬─────────┬─────────┐ │ │
+│  │  │ Run    │ Version  │ Status │ Pass   │ Score │ Time    │ Trigger │ │ │
+│  │  ├────────┼──────────┼────────┼────────┼───────┼─────────┼─────────┤ │ │
+│  │  │ #24    │ v2.1.0   │ done   │ 94%    │ 0.87  │ 14m ago │ manual  │ │ │
+│  │  │ #23    │ v2.1.0   │ done   │ 92%    │ 0.85  │ 3h ago  │ ci      │ │ │
+│  │  │ #22    │ v2.0.0   │ done   │ 88%    │ 0.81  │ 1d ago  │ manual  │ │ │
+│  │  │ #21    │ v2.0.0   │ fail   │ 67%    │ 0.62  │ 2d ago  │ ci      │ │ │
+│  │  │ #20    │ v2.0.0   │ done   │ 91%    │ 0.84  │ 3d ago  │ sched.  │ │ │
+│  │  └────────┴──────────┴────────┴────────┴───────┴─────────┴─────────┘ │ │
+│  │                                                                         │ │
+│  │  Table columns:                                                        │ │
+│  │  - Run: "#" + run number, text-sm font-mono                           │ │
+│  │    Click row: navigate to /eval-runs/[runId]                          │ │
+│  │  - Version: agent_version or "--" if not set                          │ │
+│  │    text-xs font-mono text-content-muted                               │ │
+│  │  - Status: colored icon                                                │ │
+│  │    completed = CheckCircle (emerald), "done"                          │ │
+│  │    failed = XCircle (rose), "fail"                                    │ │
+│  │    running = Loader (amber, animate-spin), "running"                  │ │
+│  │    cancelled = MinusCircle (gray), "cancel"                           │ │
+│  │  - Pass: summary.passed/summary.total_cases as percentage             │ │
+│  │    Colored: >=90% emerald, >=70% amber, <70% rose                    │ │
+│  │  - Score: summary.avg_score (2 decimal places)                        │ │
+│  │    Colored: >=0.85 emerald, >=0.7 amber, <0.7 rose                   │ │
+│  │  - Time: relative timestamp                                           │ │
+│  │  - Trigger: manual / ci / scheduled (abbreviated "sched.")            │ │
+│  │    text-xs text-content-muted                                         │ │
+│  │                                                                         │ │
+│  │  Shows last 10 runs. Default: newest first.                           │ │
+│  │  Row hover: bg-surface-overlay/50                                     │ │
+│  │  Click row: navigates to /eval-runs/[runId]                           │ │
+│  │                                                                         │ │
+│  │  card class                                                            │ │
+│  │                                                                         │ │
+│  └───────────────────────────────────────────────────────────────────────┘ │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+
+════════════════════════════════════════════════════════════════════════════════
+DELETE SUITE CONFIRMATION DIALOG
+════════════════════════════════════════════════════════════════════════════════
+Triggered by the [Delete] button in the suite header.
+
+  ┌────────────────────────────────────────────────────────────┐
+  │                                                            │
+  │  Delete "booking-agent-suite"?                             │
+  │                                                            │
+  │  This will permanently delete this suite and all 12        │
+  │  test cases. This action cannot be undone.                 │
+  │                                                            │
+  │  Existing eval runs that used this suite will not be       │
+  │  affected — their results are stored independently.        │
+  │                                                            │
+  │                              [Cancel]  [Delete Suite]      │
+  │                                                            │
+  │  Title: text-lg font-semibold text-content-primary         │
+  │  Body: text-sm text-content-secondary                      │
+  │  Reassurance: text-xs text-content-muted                   │
+  │  "Cancel": btn btn-secondary                               │
+  │  "Delete Suite": btn bg-status-error text-white            │
+  │  Standard modal: bg-surface-card border border-border      │
+  │    rounded-xl p-6 max-w-md                                 │
+  │                                                            │
+  │  On confirm: trpc.suites.delete({ suiteId })               │
+  │  On success: navigate to /suites, show toast               │
+  │                                                            │
+  └────────────────────────────────────────────────────────────┘
+
+
+LOADING STATE:
+
+  ┌─────────────────────────────────────────────────────────────────────────┐
+  │                                                                         │
+  │  <- Back to Suites                                                     │
+  │                                                                         │
+  │  ┌─ Header ─────────────────────────────────────────────────────────┐  │
+  │  │  ░░░░░░░░░░░░░░░░░░░░░░                                          │  │
+  │  │  ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░                            │  │
+  │  │  ░░░░░░░  ░░░░░░░  ░░░░░                                         │  │
+  │  └───────────────────────────────────────────────────────────────────┘  │
+  │                                                                         │
+  │  ┌─ Stats ──────────────────────────────────────────────────────────┐  │
+  │  │  ░░░ ░░░░  ░░░ ░░░░  ░░░ ░░░░  ░░░ ░░░░                        │  │
+  │  └───────────────────────────────────────────────────────────────────┘  │
+  │                                                                         │
+  │  ┌─ Config ─────────────────────────────────────────────────────────┐  │
+  │  │  ░░░░ ░░░░░  ░░░░ ░░░░░  ░░░░ ░░░░░  ░░░░ ░░░░░                │  │
+  │  │  ░░░ ░░░ ░░░                                                      │  │
+  │  └───────────────────────────────────────────────────────────────────┘  │
+  │                                                                         │
+  │  ┌─ Cases ──────────────────────────────────────────────────────────┐  │
+  │  │  ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░                                │  │
+  │  │  ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░                                │  │
+  │  │  ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░                                │  │
+  │  │  ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░                                │  │
+  │  └───────────────────────────────────────────────────────────────────┘  │
+  │                                                                         │
+  │  animate-pulse throughout. bg-surface-overlay/50 for blocks.           │
+  │                                                                         │
+  └─────────────────────────────────────────────────────────────────────────┘
+
+
+EMPTY STATE (suite has no test cases — edge case):
+
+  ┌──────────────────────────────────────────────────────────────┐
+  │                                                              │
+  │  (shown in the Test Cases section area)                     │
+  │                                                              │
+  │          (ListChecks icon, w-10 h-10, text-content-muted)  │
+  │                                                              │
+  │          No test cases                                       │
+  │          Add test cases to start evaluating this agent.     │
+  │                                                              │
+  │                    [+ Add Case]                              │
+  │                                                              │
+  │  "Add Case": btn btn-primary btn-sm, links to edit page    │
+  │                                                              │
+  └──────────────────────────────────────────────────────────────┘
+
+
+EMPTY STATE (no run history):
+
+  ┌──────────────────────────────────────────────────────────────┐
+  │                                                              │
+  │  (shown in Run History section)                             │
+  │                                                              │
+  │          No runs yet                                         │
+  │          Run this suite to see execution history             │
+  │          and score trends.                                   │
+  │                                                              │
+  │                    [Run Suite]                                │
+  │                                                              │
+  │  "Run Suite": btn btn-primary btn-sm, opens                │
+  │  StartEvalRunDialog pre-filled with this suite              │
+  │  text-sm text-content-muted for description                │
+  │                                                              │
+  └──────────────────────────────────────────────────────────────┘
+
+
+ERROR STATE:
+
+  ┌──────────────────────────────────────────────────────────────┐
+  │                                                              │
+  │          (AlertCircle icon, w-10 h-10, text-status-error)   │
+  │                                                              │
+  │          Failed to load suite                                │
+  │          Something went wrong. Please try again.             │
+  │                                                              │
+  │                      [Retry]                                 │
+  │                                                              │
+  │  Uses QueryErrorBoundary pattern.                           │
+  │  "Retry": btn btn-secondary, calls refetch()               │
+  │                                                              │
+  └──────────────────────────────────────────────────────────────┘
+
+
+NOT FOUND STATE (invalid suite ID):
+
+  ┌──────────────────────────────────────────────────────────────┐
+  │                                                              │
+  │          Suite not found                                     │
+  │          This suite may have been deleted.                   │
+  │                                                              │
+  │                    [Back to Suites]                           │
+  │                                                              │
+  └──────────────────────────────────────────────────────────────┘
+
+
+DATA SOURCES:
+  - trpc.suites.get(suiteId) → EvalSuite (includes cases[] array)
+  - trpc.evals.listRuns({ suiteId, limit: 10 }) → EvalRun[] (run history)
+  - Summary stats derived from most recent completed run:
+    - Last Pass Rate: summary.passed / summary.total_cases
+    - Avg Score: summary.avg_score
+    - Total Runs: count from listRuns response
+  - Score trend chart data: map runs → [{ runNumber, avgScore, passRate, date }]
+  - Delete: trpc.suites.delete({ suiteId })
+  - Run Suite: opens existing StartEvalRunDialog component
+  - Edit Suite: links to /suites/[id]/edit (existing wizard in edit mode)
+  - Agent link: /agents/[suite.agent_id]
+
+BEHAVIORAL NOTES:
+  1. All cases collapsed by default. Clicking a case header toggles it.
+     Only one case expanded at a time? No — allow multiple open simultaneously.
+  2. The score trend chart uses the same recharts line chart component pattern
+     as other trend charts in the app. Click data points to navigate.
+  3. Run history table shows the last 10 runs. "View All Runs" links to
+     the eval-runs page pre-filtered by suite_id.
+  4. Delete is protected by a confirmation dialog. After deletion,
+     redirect to /suites with a success toast.
+  5. "Run Suite" always opens StartEvalRunDialog (existing component),
+     never navigates directly. The dialog handles version selection,
+     trigger type, and execution.
+  6. If a suite has cases with custom scorer overrides (different from
+     suite defaults), the case card shows the overridden scorers. If
+     identical to suite defaults, shows "Suite defaults" to reduce noise.
+  7. The min_score threshold line on the chart uses the suite's
+     default_min_score value.
+  8. Cache: staleTime 5 minutes for suite detail, 2 minutes for run history
+     (runs are more dynamic).
+  9. Back button uses router.back() if referrer is /suites, otherwise
+     links directly to /suites.

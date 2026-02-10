@@ -1,0 +1,611 @@
+================================================================================
+TRAINING — Auto-Improve Tab — app/training?tab=auto-improve
+================================================================================
+Autonomous optimization loops: collect feedback, curate data, optimize
+prompts, evaluate, deploy, and monitor — with human-in-the-loop approval
+gates at critical stages.
+Route: /training?tab=auto-improve
+
+PARENT: Training page (see index.txt for header + tab bar + pipeline stats)
+DATA: trpc.training.loops.list()
+      trpc.training.loops.getById(id)
+      trpc.training.loops.create(config)
+      trpc.training.loops.signal(id, signal)
+      trpc.training.loops.history(id)
+TEMPORAL: trainingLoopWorkflow from temporal-workers/src/workflows/optimization.ts
+LAYOUT: space-y-6 within tab content area
+
+DESIGN NOTES:
+
+1. This is the most complex tab in Training. The autonomous loop is
+   a 6-stage pipeline (COLLECTING → CURATING → OPTIMIZING →
+   EVALUATING → DEPLOYING → MONITORING) that runs via Temporal
+   workflow with human approval gates. The UI must make this
+   complexity manageable.
+
+2. The pipeline visualization is the hero element. It must clearly
+   show: which stage is current, what happened at each completed
+   stage, and where human approval is needed. The pipeline is
+   a horizontal strip of 6 connected nodes with status indicators.
+
+3. Approval gates are the most critical UX moment. When the pipeline
+   pauses for human review, the Auto-Improve tab shows a badge
+   (surfaced in the tab bar per index.txt) and the approval banner
+   is prominently colored amber. The user must be able to:
+   (a) see what the optimizer changed, (b) see the eval score
+   delta, (c) approve/reject/skip with one click.
+
+4. The loop is inherently autonomous — users configure it, then
+   monitor. The tab splits into two sections: Active Loops (the
+   live pipeline view) and Iteration History (what happened in
+   past iterations). Most visits are quick status checks.
+
+5. Signal controls (Pause/Resume/Abort) are always visible for
+   active loops. These map directly to Temporal workflow signals:
+   pause → pauses between stages, resume → continues from pause,
+   abort → terminates the workflow.
+
+6. "Configure New Loop" is a dialog, not a page, because loop
+   configuration is relatively simple: pick an agent, strategy,
+   trigger, and thresholds. The complexity is in monitoring, not
+   setup.
+
+7. Stage detail panel shows metrics specific to the current stage.
+   COLLECTING: feedback count, time range. CURATING: dataset size,
+   source breakdown. OPTIMIZING: strategy, iterations attempted.
+   EVALUATING: score delta, pass rate. DEPLOYING: target env,
+   rollback available. MONITORING: time remaining, score stability.
+
+8. Score delta is the key metric. It's shown prominently in the
+   pipeline and in the iteration history. Color-coded:
+   positive (emerald), neutral (amber), negative (rose).
+
+9. Multiple loops can run simultaneously for different agents.
+   The active loops section shows a card per loop. Each card
+   has its own pipeline visualization. This is important for
+   teams managing multiple agents.
+
+---
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  (Training Header + Tab Bar — see index.txt)                                │
+│                                                                             │
+│  Feedback  |  Datasets  |  Export  |  Auto-Improve*                        │
+│                                      ═════════════                          │
+│                                                                             │
+│  ┌─ TAB: Auto-Improve ───────────────────────────────────────────────────┐  │
+│  │                                                                         │  │
+│  │  ┌─ Header ─────────────────────────────────────────────────────────┐  │  │
+│  │  │                                                                     │  │  │
+│  │  │  Active Loops                              [+ New Loop]           │  │  │
+│  │  │  text-lg font-semibold text-content-primary  btn btn-primary h-9 │  │  │
+│  │  │                                                                     │  │  │
+│  │  └─────────────────────────────────────────────────────────────────────┘  │  │
+│  │                                                                         │  │
+│  │  ┌─ Active Loop Card ──────────────────────────────────────────────┐  │  │
+│  │  │                                                                     │  │  │
+│  │  │  ┌─ Loop Header ─────────────────────────────────────────────┐  │  │  │
+│  │  │  │                                                              │  │  │  │
+│  │  │  │  booking-agent optimization          ● Running   Iter 3/5  │  │  │  │
+│  │  │  │  text-sm font-semibold                badge-success         │  │  │  │
+│  │  │  │  text-content-primary                                       │  │  │  │
+│  │  │  │                                                              │  │  │  │
+│  │  │  │  Strategy: coordinate_ascent · Trigger: manual              │  │  │  │
+│  │  │  │  text-xs text-content-muted                                  │  │  │  │
+│  │  │  │                                                              │  │  │  │
+│  │  │  │  Status badges:                                             │  │  │  │
+│  │  │  │    Running = badge-success with pulse dot                   │  │  │  │
+│  │  │  │    Paused = badge-warning                                    │  │  │  │
+│  │  │  │    Awaiting Approval = badge-warning with pulse dot         │  │  │  │
+│  │  │  │    Completed = badge-info                                    │  │  │  │
+│  │  │  │    Failed = badge-error                                      │  │  │  │
+│  │  │  │    Aborted = badge-muted                                     │  │  │  │
+│  │  │  │                                                              │  │  │  │
+│  │  │  └──────────────────────────────────────────────────────────────┘  │  │  │
+│  │  │                                                                     │  │  │
+│  │  │  ┌─ Pipeline Visualization ──────────────────────────────────┐  │  │  │
+│  │  │  │                                                              │  │  │  │
+│  │  │  │  ┌────────┐   ┌────────┐   ┌────────┐   ┌────────┐       │  │  │  │
+│  │  │  │  │COLLECT │──>│ CURATE │──>│OPTIMIZE│──>│EVALUATE│       │  │  │  │
+│  │  │  │  │  ✓     │   │  ✓     │   │  ●     │   │  ○     │       │  │  │  │
+│  │  │  │  │ 142    │   │ 1,240  │   │ iter 2 │   │        │       │  │  │  │
+│  │  │  │  └────────┘   └────────┘   └────────┘   └────────┘       │  │  │  │
+│  │  │  │       │                                       │            │  │  │  │
+│  │  │  │       │    ┌────────┐   ┌────────┐           │            │  │  │  │
+│  │  │  │       └──< │MONITOR │<──│ DEPLOY │ <─────────┘            │  │  │  │
+│  │  │  │            │  ○     │   │  ○     │                         │  │  │  │
+│  │  │  │            │        │   │        │                         │  │  │  │
+│  │  │  │            └────────┘   └────────┘                         │  │  │  │
+│  │  │  │                                                              │  │  │  │
+│  │  │  │  Stage nodes: w-20 h-16, rounded-lg, text-center            │  │  │  │
+│  │  │  │  Completed (✓): bg-status-success/10 border-status-success  │  │  │  │
+│  │  │  │    text-status-success, CheckCircle icon                    │  │  │  │
+│  │  │  │  Running (●): bg-primary/10 border-primary                  │  │  │  │
+│  │  │  │    text-primary, pulse animation on dot                     │  │  │  │
+│  │  │  │  Pending (○): bg-surface-overlay/30 border-border           │  │  │  │
+│  │  │  │    text-content-muted                                        │  │  │  │
+│  │  │  │  Failed (✗): bg-status-error/10 border-status-error         │  │  │  │
+│  │  │  │    text-status-error, XCircle icon                           │  │  │  │
+│  │  │  │  Awaiting Approval: bg-status-warning/10                    │  │  │  │
+│  │  │  │    border-status-warning, pulse, ShieldCheck icon           │  │  │  │
+│  │  │  │                                                              │  │  │  │
+│  │  │  │  Connectors: h-0.5 or w-0.5                                │  │  │  │
+│  │  │  │    Completed: bg-status-success                             │  │  │  │
+│  │  │  │    Running: bg-primary animate-pulse                        │  │  │  │
+│  │  │  │    Pending: bg-border dashed                                │  │  │  │
+│  │  │  │                                                              │  │  │  │
+│  │  │  │  Stage label: text-[10px] font-bold uppercase               │  │  │  │
+│  │  │  │  Stage metric: text-[10px] text-content-muted               │  │  │  │
+│  │  │  │    (e.g. "142" for collect count, "1,240" for dataset size, │  │  │  │
+│  │  │  │     "iter 2" for optimization progress)                     │  │  │  │
+│  │  │  │                                                              │  │  │  │
+│  │  │  │  Click any completed or running stage → opens detail below  │  │  │  │
+│  │  │  │                                                              │  │  │  │
+│  │  │  └──────────────────────────────────────────────────────────────┘  │  │  │
+│  │  │                                                                     │  │  │
+│  │  │  ┌─ Approval Banner (when stage needs human review) ─────────┐  │  │  │
+│  │  │  │                                                              │  │  │  │
+│  │  │  │  ⚠ Approval Required                                       │  │  │  │
+│  │  │  │                                                              │  │  │  │
+│  │  │  │  The optimizer found an improvement of +2.1% for            │  │  │  │
+│  │  │  │  booking-agent. Score: 0.92 → 0.94. This is within         │  │  │  │
+│  │  │  │  the marginal range (1-5%) and requires human approval.    │  │  │  │
+│  │  │  │                                                              │  │  │  │
+│  │  │  │  Changes:                                                    │  │  │  │
+│  │  │  │  • System prompt: "Be more specific about refund deadlines"│  │  │  │
+│  │  │  │  • Temperature: 0.7 → 0.6                                   │  │  │  │
+│  │  │  │  • Examples added: 12 new few-shot examples                 │  │  │  │
+│  │  │  │                                                              │  │  │  │
+│  │  │  │  [Approve & Deploy]    [Reject]      [Skip Stage]           │  │  │  │
+│  │  │  │  btn btn-primary       btn btn-danger  btn btn-ghost        │  │  │  │
+│  │  │  │                                                              │  │  │  │
+│  │  │  │  bg-status-warning/10 border border-status-warning/30       │  │  │  │
+│  │  │  │  rounded-lg p-4                                              │  │  │  │
+│  │  │  │                                                              │  │  │  │
+│  │  │  │  Approval logic (from workflow):                            │  │  │  │
+│  │  │  │  • Auto-approve: improvement ≥ 5% (threshold configurable) │  │  │  │
+│  │  │  │  • Human review: improvement 1-5% (marginal)               │  │  │  │
+│  │  │  │  • Auto-reject: improvement < 1% or regression             │  │  │  │
+│  │  │  │                                                              │  │  │  │
+│  │  │  │  "Approve & Deploy": sends 'approve' signal to workflow    │  │  │  │
+│  │  │  │    → pipeline advances to DEPLOYING stage                   │  │  │  │
+│  │  │  │  "Reject": sends 'reject' signal → pipeline retries        │  │  │  │
+│  │  │  │    optimization with adjusted parameters                    │  │  │  │
+│  │  │  │  "Skip Stage": sends 'skipStage' signal → pipeline         │  │  │  │
+│  │  │  │    advances without deploying (keeps current version)       │  │  │  │
+│  │  │  │                                                              │  │  │  │
+│  │  │  └──────────────────────────────────────────────────────────────┘  │  │  │
+│  │  │                                                                     │  │  │
+│  │  │  ┌─ Stage Detail (expandable, shown when stage clicked) ─────┐  │  │  │
+│  │  │  │                                                              │  │  │  │
+│  │  │  │  ── COLLECTING stage detail ──────────────────────────────  │  │  │  │
+│  │  │  │  Feedback collected   142 items                             │  │  │  │
+│  │  │  │  Time range           Last 7 days                           │  │  │  │
+│  │  │  │  Sources              98 preferences · 44 corrections      │  │  │  │
+│  │  │  │  Quality              Avg confidence: 4.1/5                 │  │  │  │
+│  │  │  │                                                              │  │  │  │
+│  │  │  │  ── CURATING stage detail ────────────────────────────────  │  │  │  │
+│  │  │  │  Dataset              booking-agent-auto-v3                 │  │  │  │
+│  │  │  │  Examples             1,240 (from 142 feedback + traces)   │  │  │  │
+│  │  │  │  Sources              Corrections 62% · Prefs 28% · Tr 10%│  │  │  │
+│  │  │  │  Split                80/20 (Train: 992 / Test: 248)       │  │  │  │
+│  │  │  │                                                              │  │  │  │
+│  │  │  │  ── OPTIMIZING stage detail ──────────────────────────────  │  │  │  │
+│  │  │  │  Strategy             coordinate_ascent                     │  │  │  │
+│  │  │  │  Iteration            2 of 3                                │  │  │  │
+│  │  │  │  Changes attempted    System prompt rewrite, temperature    │  │  │  │
+│  │  │  │  Current best         +2.1% over baseline                   │  │  │  │
+│  │  │  │                                                              │  │  │  │
+│  │  │  │  ── EVALUATING stage detail ──────────────────────────────  │  │  │  │
+│  │  │  │  Eval suite           booking-suite-v2                      │  │  │  │
+│  │  │  │  Cases run            100/100                                │  │  │  │
+│  │  │  │  Baseline score       0.92                                   │  │  │  │
+│  │  │  │  New score            0.94 (+2.1%)                          │  │  │  │
+│  │  │  │  Pass rate            96% (was 93%)                          │  │  │  │
+│  │  │  │  Verdict              Marginal → Human review               │  │  │  │
+│  │  │  │                                                              │  │  │  │
+│  │  │  │  ── DEPLOYING stage detail ───────────────────────────────  │  │  │  │
+│  │  │  │  Target               production                            │  │  │  │
+│  │  │  │  Rollback available   Yes (v2.1 saved)                      │  │  │  │
+│  │  │  │  Deployed at          Jan 18, 2025 2:30 PM                  │  │  │  │
+│  │  │  │                                                              │  │  │  │
+│  │  │  │  ── MONITORING stage detail ──────────────────────────────  │  │  │  │
+│  │  │  │  Monitoring period    24h (16h remaining)                   │  │  │  │
+│  │  │  │  Live score           0.93 (stable)                          │  │  │  │
+│  │  │  │  Regression detected  No                                     │  │  │  │
+│  │  │  │  Auto-rollback        Enabled (if score < 0.90)             │  │  │  │
+│  │  │  │                                                              │  │  │  │
+│  │  │  │  2-col grid, text-sm                                        │  │  │  │
+│  │  │  │  Label: text-content-muted  Value: text-content-primary     │  │  │  │
+│  │  │  │  Score deltas: emerald if positive, rose if negative        │  │  │  │
+│  │  │  │  bg-surface-overlay/20 rounded-lg p-4                       │  │  │  │
+│  │  │  │  Only one stage detail open at a time (accordion)           │  │  │  │
+│  │  │  │                                                              │  │  │  │
+│  │  │  └──────────────────────────────────────────────────────────────┘  │  │  │
+│  │  │                                                                     │  │  │
+│  │  │  ┌─ Controls ────────────────────────────────────────────────┐  │  │  │
+│  │  │  │                                                              │  │  │  │
+│  │  │  │  [Pause]     [Abort]                                        │  │  │  │
+│  │  │  │  btn-secondary btn-danger btn-sm                             │  │  │  │
+│  │  │  │                                                              │  │  │  │
+│  │  │  │  When paused: [Resume]  [Abort]                             │  │  │  │
+│  │  │  │                btn-primary btn-danger btn-sm                 │  │  │  │
+│  │  │  │                                                              │  │  │  │
+│  │  │  │  Pause: pauses pipeline between stages (not mid-stage).    │  │  │  │
+│  │  │  │    Signal: trpc.training.loops.signal(id, 'pause')          │  │  │  │
+│  │  │  │  Resume: continues from paused state.                       │  │  │  │
+│  │  │  │    Signal: trpc.training.loops.signal(id, 'resume')         │  │  │  │
+│  │  │  │  Abort: terminates the workflow. Confirmation required.    │  │  │  │
+│  │  │  │    Signal: trpc.training.loops.signal(id, 'abort')          │  │  │  │
+│  │  │  │  Skip Stage: advances past current stage without action.   │  │  │  │
+│  │  │  │    Signal: trpc.training.loops.signal(id, 'skipStage')      │  │  │  │
+│  │  │  │                                                              │  │  │  │
+│  │  │  └──────────────────────────────────────────────────────────────┘  │  │  │
+│  │  │                                                                     │  │  │
+│  │  │  card class p-5                                                    │  │  │
+│  │  │                                                                     │  │  │
+│  │  └────────────────────────────────────────────────────────────────────┘  │  │
+│  │                                                                         │  │
+│  │  (Additional active loop cards repeat the same pattern)               │  │
+│  │                                                                         │  │
+│  │  ┌─ Iteration History ─────────────────────────────────────────────┐  │  │
+│  │  │                                                                     │  │  │
+│  │  │  Past Iterations                                                  │  │  │
+│  │  │  text-lg font-semibold text-content-primary mb-4                  │  │  │
+│  │  │                                                                     │  │  │
+│  │  │  ┌─────────┬──────────────┬───────────┬────────────┬──────────┐ │  │  │
+│  │  │  │ Agent   │ Strategy     │ Score Δ   │ Status     │ Date     │ │  │  │
+│  │  │  ├─────────┼──────────────┼───────────┼────────────┼──────────┤ │  │  │
+│  │  │  │ booking │ coord_ascent │ +3.2%     │ deployed   │ 3d ago   │ │  │  │
+│  │  │  │ search  │ reflection   │ +1.8%     │ deployed   │ 5d ago   │ │  │  │
+│  │  │  │ booking │ example_sel  │ -0.4%     │ rejected   │ 7d ago   │ │  │  │
+│  │  │  │ support │ coord_ascent │ +0.3%     │ skipped    │ 10d ago  │ │  │  │
+│  │  │  │ booking │ reflection   │ +5.1%     │ deployed   │ 14d ago  │ │  │  │
+│  │  │  └─────────┴──────────────┴───────────┴────────────┴──────────┘ │  │  │
+│  │  │                                                                     │  │  │
+│  │  │  Table: text-sm, full-width                                       │  │  │
+│  │  │  Agent: text-content-primary font-medium                          │  │  │
+│  │  │  Strategy: text-content-secondary, font-mono text-xs              │  │  │
+│  │  │  Score Δ: colored — emerald if positive, rose if negative         │  │  │
+│  │  │    font-semibold                                                   │  │  │
+│  │  │  Status badges:                                                    │  │  │
+│  │  │    deployed = badge-success                                        │  │  │
+│  │  │    rejected = badge-error                                          │  │  │
+│  │  │    skipped = badge-muted                                           │  │  │
+│  │  │    aborted = badge-muted                                           │  │  │
+│  │  │    failed = badge-error                                            │  │  │
+│  │  │  Date: relative timestamp, text-content-muted                     │  │  │
+│  │  │                                                                     │  │  │
+│  │  │  Click row → expand to show iteration detail:                     │  │  │
+│  │  │    Changes made, eval results, approval decision, timestamps.    │  │  │
+│  │  │    bg-surface-overlay/20 rounded-md p-4, text-sm                  │  │  │
+│  │  │    Accordion pattern: one row expanded at a time.                  │  │  │
+│  │  │                                                                     │  │  │
+│  │  │  Row hover: bg-surface-overlay/50                                  │  │  │
+│  │  │                                                                     │  │  │
+│  │  │  ┌─ Load More ─────────────────────────────────────────────┐     │  │  │
+│  │  │  │  Showing 5 of 23 iterations     [Load More]              │     │  │  │
+│  │  │  │  text-sm text-content-muted      btn btn-secondary btn-sm│     │  │  │
+│  │  │  └─────────────────────────────────────────────────────────┘     │  │  │
+│  │  │  Offset pagination, 10 per batch.                                 │  │  │
+│  │  │                                                                     │  │  │
+│  │  └─────────────────────────────────────────────────────────────────────┘  │  │
+│  │                                                                         │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+
+================================================================================
+CONFIGURE NEW LOOP DIALOG
+================================================================================
+Trigger: [+ New Loop] button
+Dialog: max-w-lg, bg-surface-card, rounded-xl, shadow-xl
+        overlay: bg-black/50
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                                                                             │
+│  Configure Optimization Loop                                      [X]    │
+│  text-lg font-semibold text-content-primary                                │
+│                                                                             │
+│  Agent *                                                                   │
+│  ┌─────────────────────────────────────────────────────────────────────┐  │
+│  │ Select agent...                                                  ▾ │  │
+│  └─────────────────────────────────────────────────────────────────────┘  │
+│  dropdown: h-9. Options from trpc.agents.list()                          │
+│  Pre-filled if agent filter is active on Training page.                  │
+│                                                                             │
+│  Strategy *                                                                │
+│  ┌─ Radio Group ───────────────────────────────────────────────────────┐  │
+│  │                                                                       │  │
+│  │  (●) Coordinate Ascent                                              │  │
+│  │      Iteratively optimize one parameter at a time while holding     │  │
+│  │      others fixed. Best for stable, incremental improvement.        │  │
+│  │                                                                       │  │
+│  │  ( ) Example Selection                                               │  │
+│  │      Add/remove few-shot examples based on performance. Best for    │  │
+│  │      agents that rely on in-context learning.                        │  │
+│  │                                                                       │  │
+│  │  ( ) Reflection                                                      │  │
+│  │      Use an LLM to analyze failures and rewrite prompts. Best for   │  │
+│  │      complex system prompts with many instructions.                  │  │
+│  │                                                                       │  │
+│  │  Radio: vertical stack, gap-4                                       │  │
+│  │  Active: text-primary, ring-primary                                 │  │
+│  │  Label: text-sm font-medium text-content-primary                    │  │
+│  │  Description: text-xs text-content-muted ml-6, max-w-md            │  │
+│  │                                                                       │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+│  Trigger *                                                                 │
+│  ┌─────────────────────────────────────────────────────────────────────┐  │
+│  │ (●) Manual         Start loop now, run once                       │  │
+│  │ ( ) Regression     Auto-start when score drops below threshold    │  │
+│  │ ( ) Signal         Start when feedback count exceeds threshold     │  │
+│  └─────────────────────────────────────────────────────────────────────┘  │
+│  Radio: same style as Strategy. text-sm.                                 │
+│                                                                             │
+│  ── Advanced Settings ──────────────── (collapsible, default closed) ──  │
+│                                                                             │
+│  Max Iterations                                                            │
+│  ┌─────────────────────────────────────────────────────────────────────┐  │
+│  │ 3                                                                    │  │
+│  └─────────────────────────────────────────────────────────────────────┘  │
+│  input: h-9, w-24, type=number, min=1, max=10. Default: 3.              │
+│                                                                             │
+│  Improvement Threshold                                                     │
+│  ┌─────────────────────────────────────────────────────────────────────┐  │
+│  │ 2%                                                                   │  │
+│  └─────────────────────────────────────────────────────────────────────┘  │
+│  input: h-9, w-24. Default: 2%. Minimum improvement to auto-approve.    │
+│  text-xs text-content-muted: "Improvements ≥ this % are auto-approved. │
+│    Below this requires human review."                                    │
+│                                                                             │
+│  Auto-Approve Threshold                                                    │
+│  ┌─────────────────────────────────────────────────────────────────────┐  │
+│  │ 5%                                                                   │  │
+│  └─────────────────────────────────────────────────────────────────────┘  │
+│  input: h-9, w-24. Default: 5%. Improvements ≥ this skip human review. │
+│                                                                             │
+│  Eval Suite                                                                │
+│  ┌─────────────────────────────────────────────────────────────────────┐  │
+│  │ Select eval suite...                                             ▾ │  │
+│  └─────────────────────────────────────────────────────────────────────┘  │
+│  dropdown: h-9. Options from trpc.suites.list(). The suite used to      │
+│  evaluate each optimization iteration. Required — loop needs eval       │
+│  criteria to measure improvement.                                        │
+│                                                                             │
+│  Monitoring Period                                                         │
+│  ┌─────────────────────────────────────────────────────────────────────┐  │
+│  │ 24h ▾                                                               │  │
+│  └─────────────────────────────────────────────────────────────────────┘  │
+│  dropdown: 6h / 12h / 24h / 48h / 72h. Default: 24h.                   │
+│  How long to monitor after deployment before declaring success.          │
+│                                                                             │
+│  ── End Advanced Settings ──────────────────────────────────────────────  │
+│                                                                             │
+│  ┌───────────────────────────────────────────────────────────────────────┐│
+│  │                                                                       ││
+│  │  Summary:                                                            ││
+│  │  Will run coordinate_ascent on booking-agent for up to 3 iterations.││
+│  │  Improvements ≥5% auto-approved, 2-5% requires review, <2% rejected.││
+│  │  After deployment, monitors for 24h before marking complete.         ││
+│  │                                                                       ││
+│  │  text-xs text-content-muted bg-surface-overlay/20 rounded-md p-3    ││
+│  │  Generated dynamically from selections above.                        ││
+│  │                                                                       ││
+│  └───────────────────────────────────────────────────────────────────────┘│
+│                                                                             │
+│                                       [Cancel]  [Start Loop]              │
+│                                       btn-ghost   btn-primary              │
+│                                                                             │
+│  On submit: trpc.training.loops.create(config)                            │
+│  Starts Temporal trainingLoopWorkflow. Spinner on button during creation. │
+│  Success: dialog closes, new active loop card appears.                    │
+│  Error: inline error banner above footer buttons.                         │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+
+================================================================================
+ABORT CONFIRMATION DIALOG
+================================================================================
+Trigger: [Abort] button on active loop
+Dialog: max-w-sm, same modal pattern
+
+  ┌──────────────────────────────────────────────────────────┐
+  │                                                          │
+  │  Abort Optimization Loop                          [X]  │
+  │  text-lg font-semibold text-content-primary              │
+  │                                                          │
+  │  Are you sure you want to abort the optimization        │
+  │  loop for booking-agent?                                │
+  │                                                          │
+  │  This will terminate the workflow. Any changes made      │
+  │  during this iteration will not be deployed.             │
+  │  text-sm text-content-muted                              │
+  │                                                          │
+  │  If a deployment already occurred in a previous          │
+  │  iteration, it will remain active.                       │
+  │  text-xs text-content-muted                              │
+  │                                                          │
+  │  [Cancel]                  [Abort Loop]                  │
+  │  btn btn-ghost              btn btn-danger               │
+  │                                                          │
+  └──────────────────────────────────────────────────────────┘
+
+
+===============================================================================
+LOADING STATE
+===============================================================================
+
+  ┌──────────────────────────────────────────────────────────────────────┐
+  │  ░░░░░░░░░░░░░░░░░░░░                     [░░░░░░░░░░░░]           │
+  │                                                                      │
+  │  ┌──────────────────────────────────────────────────────────────┐   │
+  │  │ ░░░░░░░░░░░░░░░░                          ░░░░  ░░░░░      │   │
+  │  │                                                              │   │
+  │  │ ┌────────┐   ┌────────┐   ┌────────┐   ┌────────┐          │   │
+  │  │ │ ░░░░░░ │──>│ ░░░░░░ │──>│ ░░░░░░ │──>│ ░░░░░░ │          │   │
+  │  │ └────────┘   └────────┘   └────────┘   └────────┘          │   │
+  │  │      │                                       │              │   │
+  │  │      │    ┌────────┐   ┌────────┐           │              │   │
+  │  │      └──< │ ░░░░░░ │<──│ ░░░░░░ │ <─────────┘              │   │
+  │  │           └────────┘   └────────┘                           │   │
+  │  └──────────────────────────────────────────────────────────────┘   │
+  │                                                                      │
+  │  ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ (history skeleton)            │
+  │  ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░                               │
+  │  ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░                               │
+  └──────────────────────────────────────────────────────────────────────┘
+  animate-pulse. Loop card skeleton with pipeline node placeholders +
+  history table skeleton (3 rows).
+
+
+===============================================================================
+EMPTY STATE — No loops configured
+===============================================================================
+
+  ┌──────────────────────────────────────────────────────────┐
+  │                                                          │
+  │        (Zap icon, w-12 h-12, text-content-muted)       │
+  │                                                          │
+  │        No optimization loops yet                        │
+  │        text-lg font-medium text-content-primary          │
+  │                                                          │
+  │        Set up an autonomous optimization loop to         │
+  │        automatically collect feedback, optimize          │
+  │        prompts, and deploy improvements.                 │
+  │        text-sm text-content-muted, max-w-sm mx-auto      │
+  │                                                          │
+  │        [+ New Loop]                                      │
+  │        btn btn-primary                                   │
+  │                                                          │
+  └──────────────────────────────────────────────────────────┘
+
+  Iteration History section not rendered when no loops exist.
+
+
+===============================================================================
+EMPTY STATE — No iteration history
+===============================================================================
+
+  Shown below active loops when loops exist but no iterations completed:
+
+  ┌──────────────────────────────────────────────────────────┐
+  │                                                          │
+  │  Past Iterations                                        │
+  │                                                          │
+  │  No completed iterations yet. Results will appear       │
+  │  here as loops complete their cycles.                   │
+  │  text-sm text-content-muted                              │
+  │                                                          │
+  └──────────────────────────────────────────────────────────┘
+
+
+===============================================================================
+ERROR STATE
+===============================================================================
+
+  ┌──────────────────────────────────────────────────────────┐
+  │                                                          │
+  │        (AlertCircle icon, w-12 h-12, text-status-error) │
+  │                                                          │
+  │        Failed to load optimization data                 │
+  │        text-lg font-medium text-content-primary          │
+  │                                                          │
+  │        {error.message}                                   │
+  │        text-sm text-content-muted                        │
+  │                                                          │
+  │        [Retry]                                           │
+  │        btn btn-secondary btn-sm, onClick: refetch()     │
+  │                                                          │
+  └──────────────────────────────────────────────────────────┘
+
+  Loop-level error (workflow failure):
+  ┌──────────────────────────────────────────────────────────┐
+  │                                                          │
+  │  ⚠ Loop failed at OPTIMIZING stage                     │
+  │                                                          │
+  │  Error: Timeout waiting for LLM response after 60s     │
+  │  text-sm text-status-error                               │
+  │                                                          │
+  │  The loop has been marked as failed. You can start a    │
+  │  new loop with the same configuration.                  │
+  │  text-xs text-content-muted                              │
+  │                                                          │
+  │  [Start New Loop]                                        │
+  │  btn btn-secondary btn-sm                                │
+  │                                                          │
+  │  bg-status-error/10 border border-status-error/20       │
+  │  rounded-md p-3, within the loop card                    │
+  │                                                          │
+  └──────────────────────────────────────────────────────────┘
+
+
+===============================================================================
+BEHAVIORAL NOTES
+===============================================================================
+
+1. Active loop cards poll for updates every 5 seconds (not real-time
+   WebSocket, since pipeline stages are minutes-long). The pipeline
+   visualization smoothly transitions between states.
+
+2. Approval banner appears ONLY when the workflow is paused waiting
+   for human input. It disappears after approve/reject/skip.
+   The approval is a Temporal signal, not a REST call — response
+   is near-instant.
+
+3. The Auto-Improve tab badge (shown in the tab bar, see index.txt)
+   counts the number of loops awaiting approval. Badge disappears
+   when all approvals are resolved. This is the primary mechanism
+   for surfacing urgent action.
+
+4. "Abort" always requires confirmation dialog. Abort sends the
+   'abort' signal to the Temporal workflow, which cleans up any
+   in-progress work. If a deployment already happened in a previous
+   iteration, it remains active.
+
+5. Stage detail accordion: clicking a pipeline node opens its detail
+   panel below the pipeline visualization. Only one stage detail
+   visible at a time. The running stage is auto-expanded by default.
+
+6. Iteration history is paginated (10 per batch, "Load More").
+   Sorted newest first. Click row to expand and see full detail
+   including changes made, eval results, and approval decision.
+
+7. "Configure New Loop" dialog pre-fills agent from the page-level
+   agent filter. Advanced Settings are collapsed by default —
+   most users use defaults (3 iterations, 2% threshold, 24h monitor).
+
+8. Score delta colors: ≥ 0 = text-status-success, < 0 = text-status-error.
+   The delta is always shown as percentage points (e.g., "+3.2%"
+   not "+3.2 percentage points") for brevity.
+
+9. Multiple loops for the same agent are allowed but a warning
+   appears: "Another loop is already running for booking-agent.
+   Running multiple loops may produce conflicting optimizations."
+   text-xs text-status-warning, shown in the dialog.
+
+10. Pipeline visualization is responsive. On mobile/narrow viewports,
+    nodes stack vertically instead of the 2-row horizontal layout.
+    Connectors adjust to vertical arrows.
+
+11. Auto-approve/auto-reject thresholds in the Configure dialog
+    have a relationship: auto-approve must be > improvement threshold.
+    If user enters auto-approve < improvement, show inline validation:
+    "Auto-approve threshold must be greater than improvement threshold."
+
+12. The summary text in Configure dialog updates live as options
+    change. It reads as a plain-English sentence describing what
+    the loop will do, reducing configuration errors.
+
+13. When a loop completes all iterations and enters MONITORING stage
+    with no regression detected, the status changes to "Completed"
+    after the monitoring period. The loop card then moves to the
+    Iteration History section (no manual action needed).
+
+14. Failed loops show the error inline within the loop card (not
+    as a full-page error). The user can "Start New Loop" which
+    opens the Configure dialog pre-filled with the failed loop's
+    settings.

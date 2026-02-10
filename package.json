@@ -20,6 +20,7 @@
     "workers": "turbo run dev --filter=@neon/temporal-workers"
   },
   "devDependencies": {
+    "playwright": "^1.58.2",
     "turbo": "^2.4.0"
   },
   "packageManager": "bun@1.2.0",

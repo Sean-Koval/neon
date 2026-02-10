@@ -1,0 +1,73 @@
+================================================================================
+ROOT LAYOUT — layout.tsx
+================================================================================
+The shell that wraps every page: fixed sidebar + scrollable main area.
+Global overlays (command palette, status bar) are mounted here.
+
+VIEWPORT: Full browser window (min 1280px designed, responsive down to 1024px)
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ <html lang="en" suppressHydrationWarning>                                   │
+│ <body class="font-inter">                                                   │
+│ <Providers> (Theme + Toast + Auth + tRPC + React Query)                     │
+│                                                                              │
+│ ┌──────────┬─────────────────────────────────────────────────────────────┐   │
+│ │          │                                                             │   │
+│ │ SIDEBAR  │  MAIN CONTENT AREA                                         │   │
+│ │ w-64     │  flex-1 overflow-auto                                      │   │
+│ │ fixed    │  bg-surface-raised                                         │   │
+│ │ h-screen │                                                             │   │
+│ │ dark bg  │  ┌─────────────────────────────────────────────────────┐   │   │
+│ │          │  │                                                     │   │   │
+│ │ (see     │  │  {children} — Page content rendered here            │   │   │
+│ │ sidebar  │  │                                                     │   │   │
+│ │ .txt)    │  │  Each page provides its own padding (p-6 or p-8)   │   │   │
+│ │          │  │                                                     │   │   │
+│ │          │  │                                                     │   │   │
+│ │          │  │                                                     │   │   │
+│ │          │  │                                                     │   │   │
+│ │          │  │                                                     │   │   │
+│ │          │  │                                                     │   │   │
+│ │          │  └─────────────────────────────────────────────────────┘   │   │
+│ │          │                                                             │   │
+│ └──────────┴─────────────────────────────────────────────────────────────┘   │
+│                                                                              │
+│ ┌────────────────────────────────────────────────────────────────────────┐   │
+│ │ STATUS BAR (floating, bottom, z-50) — see status-bar.txt              │   │
+│ │ Only visible when eval runs or experiments are actively running        │   │
+│ └────────────────────────────────────────────────────────────────────────┘   │
+│                                                                              │
+│ ┌────────────────────────────────────────────────────────────────────────┐   │
+│ │ COMMAND PALETTE (modal overlay, z-50) — see command-palette.txt       │   │
+│ │ Triggered by Cmd+K / Ctrl+K                                           │   │
+│ └────────────────────────────────────────────────────────────────────────┘   │
+│                                                                              │
+│ ┌────────────────────────────────────────────────────────────────────────┐   │
+│ │ KEYBOARD SHORTCUTS OVERLAY (modal, z-50) — see keyboard-shortcuts.txt │   │
+│ │ Triggered by ? key                                                     │   │
+│ └────────────────────────────────────────────────────────────────────────┘   │
+│                                                                              │
+│ </Providers>                                                                 │
+│ </body>                                                                      │
+│ </html>                                                                      │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+COMPONENT HIERARCHY:
+  RootLayout
+  ├── Providers
+  │   ├── ThemeProvider (next-themes)
+  │   ├── ToastProvider
+  │   ├── AuthProvider
+  │   ├── tRPC.Provider
+  │   └── QueryClientProvider
+  ├── Sidebar (always visible, always dark)
+  ├── <main> (scrollable content area)
+  │   └── {children} (page component)
+  ├── CommandPalette (mounted but hidden until Cmd+K)
+  ├── StatusBar (mounted but hidden until work is running)
+  └── KeyboardShortcutsOverlay (mounted but hidden until ?)
+
+RESPONSIVE BEHAVIOR:
+  >= 1280px: Full sidebar (w-64) + content
+  1024-1279px: Collapsed sidebar (w-16, icons only) + content
+  < 1024px: Hidden sidebar + hamburger menu (future consideration)

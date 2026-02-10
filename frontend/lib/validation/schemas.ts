@@ -232,7 +232,27 @@ const promptMessageSchema = z.object({
 const promptVariableSchema = z.object({
   name: nonEmpty,
   description: z.string().optional(),
-  type: z.enum(['string', 'number', 'boolean', 'object', 'array']),
+  type: z
+    .enum([
+      'string',
+      'number',
+      'boolean',
+      'object',
+      'array',
+      'string_array',
+      'enum',
+      'messages',
+      'tool_result',
+      'agent_output',
+      'context',
+    ])
+    .optional(),
+  source: z
+    .enum(['input', 'system', 'memory', 'tool', 'agent', 'runtime', 'unknown'])
+    .optional(),
+  rendering: z.enum(['text', 'json', 'join_lines', 'messages']).optional(),
+  enum_values: z.array(z.string()).optional(),
+  schema: z.record(z.string(), z.unknown()).optional(),
   required: z.boolean().optional(),
   default: z.unknown().optional(),
 })

@@ -14,27 +14,27 @@ const statusConfig: Record<
   completed: {
     icon: CheckCircle,
     label: 'Completed',
-    className: 'bg-emerald-50 text-emerald-700 border border-emerald-200',
+    className: 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/25',
   },
   running: {
     icon: Loader2,
     label: 'Running',
-    className: 'bg-amber-50 text-amber-700 border border-amber-200',
+    className: 'bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-500/25',
   },
   pending: {
     icon: Clock,
     label: 'Pending',
-    className: 'bg-gray-50 text-gray-700 border border-gray-200',
+    className: 'bg-gray-50 dark:bg-dark-900 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-dark-700',
   },
   failed: {
     icon: XCircle,
     label: 'Failed',
-    className: 'bg-rose-50 text-rose-700 border border-rose-200',
+    className: 'bg-rose-50 dark:bg-rose-500/10 text-rose-700 dark:text-rose-400 border border-rose-200 dark:border-rose-500/25',
   },
   cancelled: {
     icon: AlertCircle,
     label: 'Cancelled',
-    className: 'bg-gray-50 text-gray-600 border border-gray-200',
+    className: 'bg-gray-50 dark:bg-dark-900 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-dark-700',
   },
 }
 
@@ -90,17 +90,17 @@ export function ScoreBadge({
   showLabel = false,
 }: ScoreBadgeProps) {
   const getScoreColor = (score: number) => {
-    if (score >= thresholds.good) return 'text-emerald-700'
-    if (score >= thresholds.warning) return 'text-amber-700'
-    return 'text-rose-700'
+    if (score >= thresholds.good) return 'text-emerald-700 dark:text-emerald-400'
+    if (score >= thresholds.warning) return 'text-amber-700 dark:text-amber-400'
+    return 'text-rose-700 dark:text-rose-400'
   }
 
   const getScoreBg = (score: number) => {
     if (score >= thresholds.good)
-      return 'bg-emerald-50 border border-emerald-200'
+      return 'bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/25'
     if (score >= thresholds.warning)
-      return 'bg-amber-50 border border-amber-200'
-    return 'bg-rose-50 border border-rose-200'
+      return 'bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/25'
+    return 'bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/25'
   }
 
   return (
@@ -111,7 +111,7 @@ export function ScoreBadge({
         getScoreBg(score),
       )}
     >
-      {showLabel && <span className="text-gray-500 font-normal">Score:</span>}
+      {showLabel && <span className="text-gray-500 dark:text-gray-400 font-normal">Score:</span>}
       {score.toFixed(2)}
     </span>
   )
@@ -126,16 +126,16 @@ export function PassRatioBadge({ passed, total }: PassRatioBadgeProps) {
   const ratio = total > 0 ? passed / total : 0
   const color =
     ratio >= 0.8
-      ? 'text-emerald-600'
+      ? 'text-emerald-600 dark:text-emerald-400'
       : ratio >= 0.6
-        ? 'text-amber-600'
-        : 'text-rose-600'
+        ? 'text-amber-600 dark:text-amber-400'
+        : 'text-rose-600 dark:text-rose-400'
 
   return (
     <span className="text-sm font-medium">
       <span className={color}>{passed}</span>
-      <span className="text-gray-400">/</span>
-      <span className="text-gray-600">{total}</span>
+      <span className="text-gray-400 dark:text-gray-500">/</span>
+      <span className="text-gray-600 dark:text-gray-300">{total}</span>
     </span>
   )
 }

@@ -735,14 +735,51 @@ export interface PromptRecord {
   variant: string
 }
 
+function toClickHouseDateTime64(value: unknown): string {
+  if (value instanceof Date) {
+    return value.toISOString().replace('T', ' ').replace('Z', '')
+  }
+
+  const raw = String(value ?? '').trim()
+  if (!raw) {
+    return new Date().toISOString().replace('T', ' ').replace('Z', '')
+  }
+
+  // Fast path for ISO-like strings commonly produced in JS runtime.
+  if (raw.includes('T')) {
+    const normalizedIso = raw.replace('T', ' ').replace(/Z$/, '')
+    // Handle timezone offsets (+00:00) by converting through Date.
+    if (/[+-]\d{2}:\d{2}$/.test(raw)) {
+      const parsed = new Date(raw)
+      if (!Number.isNaN(parsed.getTime())) {
+        return parsed.toISOString().replace('T', ' ').replace('Z', '')
+      }
+    }
+    return normalizedIso
+  }
+
+  // Last-resort parse to keep writes resilient across callers.
+  const parsed = new Date(raw)
+  if (!Number.isNaN(parsed.getTime())) {
+    return parsed.toISOString().replace('T', ' ').replace('Z', '')
+  }
+
+  return raw
+}
+
 /**
  * Insert a prompt into ClickHouse
  */
 export async function insertPrompt(prompt: PromptRecord): Promise<void> {
   const ch = getClickHouseClient()
+  const normalizedPrompt: PromptRecord = {
+    ...prompt,
+    created_at: toClickHouseDateTime64(prompt.created_at),
+    updated_at: toClickHouseDateTime64(prompt.updated_at),
+  }
   await ch.insert({
     table: 'prompts',
-    values: [prompt],
+    values: [normalizedPrompt],
     format: 'JSONEachRow',
   })
 }
@@ -778,6 +815,7 @@ export async function getPromptByName(
   projectId: string,
   name: string,
   version?: number,
+  variant?: string,
 ): Promise<PromptRecord | null> {
   const ch = getClickHouseClient()
 
@@ -790,6 +828,11 @@ export async function getPromptByName(
   if (version !== undefined) {
     query += ' AND version = {version:UInt32}'
     params.version = version
+  }
+
+  if (variant) {
+    query += ' AND variant = {variant:String}'
+    params.variant = variant
   }
 
   query += ' ORDER BY version DESC LIMIT 1'
@@ -828,6 +871,11 @@ export async function listPrompts(params: {
     queryParams.isProduction = params.isProduction ? 1 : 0
   }
 
+  if (params.tags && params.tags.length > 0) {
+    conditions.push('hasAny(tags, {tags:Array(String)})')
+    queryParams.tags = params.tags
+  }
+
   // Get latest version of each prompt
   const result = await ch.query({
     query: `
@@ -857,17 +905,25 @@ export async function getPromptVersionHistory(
   projectId: string,
   name: string,
   limit = 20,
+  variant?: string,
 ): Promise<PromptRecord[]> {
   const ch = getClickHouseClient()
+
+  const variantFilter = variant ? ' AND variant = {variant:String}' : ''
 
   const result = await ch.query({
     query: `
       SELECT * FROM prompts
-      WHERE project_id = {projectId:String} AND name = {name:String}
+      WHERE project_id = {projectId:String} AND name = {name:String}${variantFilter}
       ORDER BY version DESC
       LIMIT {limit:UInt32}
     `,
-    query_params: { projectId, name, limit },
+    query_params: {
+      projectId,
+      name,
+      limit,
+      ...(variant ? { variant } : {}),
+    },
     format: 'JSONEachRow',
   })
 
@@ -880,20 +936,74 @@ export async function getPromptVersionHistory(
 export async function getLatestPromptVersion(
   projectId: string,
   name: string,
+  variant?: string,
 ): Promise<number> {
   const ch = getClickHouseClient()
+
+  const variantFilter = variant ? ' AND variant = {variant:String}' : ''
 
   const result = await ch.query({
     query: `
       SELECT max(version) as max_version FROM prompts
-      WHERE project_id = {projectId:String} AND name = {name:String}
+      WHERE project_id = {projectId:String} AND name = {name:String}${variantFilter}
     `,
-    query_params: { projectId, name },
+    query_params: {
+      projectId,
+      name,
+      ...(variant ? { variant } : {}),
+    },
     format: 'JSONEachRow',
   })
 
   const rows = await result.json<{ max_version: number }>()
   return rows[0]?.max_version ?? 0
+}
+
+/**
+ * List latest prompt record for each variant.
+ */
+export async function listPromptVariants(
+  projectId: string,
+  name: string,
+): Promise<PromptRecord[]> {
+  const ch = getClickHouseClient()
+
+  const result = await ch.query({
+    query: `
+      SELECT * FROM prompts
+      WHERE project_id = {projectId:String}
+        AND name = {name:String}
+        AND (variant, version) IN (
+          SELECT variant, max(version)
+          FROM prompts
+          WHERE project_id = {projectId:String} AND name = {name:String}
+          GROUP BY variant
+        )
+      ORDER BY variant ASC
+    `,
+    query_params: { projectId, name },
+    format: 'JSONEachRow',
+  })
+
+  return result.json<PromptRecord>()
+}
+
+/**
+ * Delete all versions of a prompt by name.
+ */
+export async function deletePromptByName(
+  projectId: string,
+  name: string,
+): Promise<void> {
+  const ch = getClickHouseClient()
+  await ch.command({
+    query: `
+      ALTER TABLE prompts
+      DELETE WHERE project_id = {projectId:String} AND name = {name:String}
+      SETTINGS mutations_sync = 1
+    `,
+    query_params: { projectId, name },
+  })
 }
 
 // =============================================================================

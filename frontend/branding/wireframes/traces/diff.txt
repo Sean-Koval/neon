@@ -1,0 +1,303 @@
+================================================================================
+TRACE DIFF — app/traces/diff/page.tsx
+================================================================================
+Side-by-side trace comparison with metric deltas, timeline overlay, and span diffs.
+Route: /traces/diff?a=[traceIdA]&b=[traceIdB]
+
+LAYOUT: p-6, space-y-6
+DATA: useTrace(traceIdA), useTrace(traceIdB)
+
+DESIGN NOTES:
+
+  1. Trace IDs come from URL query params ?a=...&b=... Pre-populated when
+     arriving from "Compare Selected" on the traces list page, or from
+     "Compare" on the agents versions tab.
+
+  2. The diff compares two complete traces. Each trace is fetched independently
+     via useTrace(). The comparison logic runs client-side.
+
+  3. Span matching: Spans are matched across traces by name + parent path.
+     For example, "root/llm_call/web_search" in trace A matches
+     "root/llm_call/web_search" in trace B. Unmatched spans are highlighted
+     as "added" or "removed".
+
+  4. When traces have different span counts, the diff shows: matched spans
+     (side-by-side), added spans (only in trace B, green highlight), and
+     removed spans (only in trace A, red highlight). This mirrors code
+     diff conventions.
+
+  5. The timeline overlay superimposes both traces' timelines with different
+     colors so the user can visually compare execution shapes.
+
+  6. Users typically arrive here from: (a) the traces list "Compare Selected"
+     bulk action, (b) the agents versions tab "Compare" button, or
+     (c) directly via URL.
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                                                                             │
+│  ← Back to Traces                                                          │
+│  text-sm text-content-muted hover:text-content-primary                     │
+│                                                                             │
+│  ┌─ Page Header ───────────────────────────────────────────────────────┐  │
+│  │                                                                       │  │
+│  │  Trace Comparison                                                    │  │
+│  │  text-xl font-bold text-content-primary                              │  │
+│  │                                                                       │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+│  ┌─ Trace Selectors (grid-cols-2 gap-6) ──────────────────────────────┐   │
+│  │                                                                       │  │
+│  │  ┌─ Trace A (Baseline) ───────────┐  ┌─ Trace B (Candidate) ─────┐ │  │
+│  │  │                                  │  │                            │ │  │
+│  │  │  ┌────────────────────────────┐ │  │  ┌──────────────────────┐ │ │  │
+│  │  │  │ Select trace...         ▾  │ │  │  │ Select trace...   ▾  │ │ │  │
+│  │  │  └────────────────────────────┘ │  │  └──────────────────────┘ │ │  │
+│  │  │                                  │  │                            │ │  │
+│  │  │  abc-12345  booking v2.0         │  │  def-67890  booking v2.1 │ │  │
+│  │  │  12 spans · 3.2s · ok           │  │  10 spans · 2.8s · ok   │ │  │
+│  │  │  2 hours ago                     │  │  30 minutes ago          │ │  │
+│  │  │                                  │  │                            │ │  │
+│  │  └──────────────────────────────────┘  └────────────────────────────┘ │  │
+│  │                                                                       │  │
+│  │  Selectors: searchable dropdown of recent traces.                    │  │
+│  │  Shows: traceId (truncated) + agent + version + span count +         │  │
+│  │         duration + status + relative time.                            │  │
+│  │  Pre-populated from URL params. Changeable by user.                  │  │
+│  │  "Baseline" / "Candidate" labels help orient comparison.             │  │
+│  │  card class for each selector.                                        │  │
+│  │                                                                       │  │
+│  │  [Swap A ↔ B]  btn btn-ghost btn-sm, swaps the two traces.          │  │
+│  │                                                                       │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+│  ┌─ Diff Summary (grid-cols-5 gap-4) ─────────────────────────────────┐   │
+│  │                                                                       │  │
+│  │  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐                 │  │
+│  │  │ Duration     │ │ Spans        │ │ Status       │                 │  │
+│  │  │ 3.2s → 2.8s │ │ 12 → 10     │ │ ok → ok     │                 │  │
+│  │  │ -12% ↓      │ │ -2           │ │ (no change)  │                 │  │
+│  │  └──────────────┘ └──────────────┘ └──────────────┘                 │  │
+│  │  ┌──────────────┐ ┌──────────────┐                                  │  │
+│  │  │ Tokens       │ │ Cost         │                                  │  │
+│  │  │ 3,200→2,100 │ │ $0.14→$0.09 │                                  │  │
+│  │  │ -34% ↓      │ │ -36% ↓      │                                  │  │
+│  │  └──────────────┘ └──────────────┘                                  │  │
+│  │                                                                       │  │
+│  │  stat-card class.                                                    │  │
+│  │  Format: "A value → B value" on line 1, delta on line 2.           │  │
+│  │  Delta coloring:                                                      │  │
+│  │    Duration decrease: emerald (improvement), increase: rose          │  │
+│  │    Spans decrease: emerald (fewer steps), increase: amber            │  │
+│  │    Status change: rose if error introduced, emerald if error fixed  │  │
+│  │    Tokens decrease: emerald (cheaper), increase: amber               │  │
+│  │    Cost decrease: emerald, increase: rose                            │  │
+│  │  Arrow: ↓ for decrease, ↑ for increase.                             │  │
+│  │  "(no change)" in text-content-muted if values are equal.           │  │
+│  │                                                                       │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+│  ┌─ Timeline Overlay ─────────────────────────────────────────────────┐   │
+│  │                                                                       │  │
+│  │  Timeline Comparison                                                 │  │
+│  │  text-base font-semibold text-content-primary                        │  │
+│  │                                                                       │  │
+│  │  ┌───────────────────────────────────────────────────────────────┐  │  │
+│  │  │                                                                 │  │  │
+│  │  │  Both traces superimposed, different colors:                    │  │  │
+│  │  │  Trace A (baseline): accent-500 bars (50% opacity)             │  │  │
+│  │  │  Trace B (candidate): emerald-500 bars (50% opacity)           │  │  │
+│  │  │                                                                 │  │  │
+│  │  │  0ms                              2s                      4s   │  │  │
+│  │  │  |──────────────────────────────────|───────────────────────|  │  │  │
+│  │  │                                                                 │  │  │
+│  │  │  root (A) ────────────────────────────────── 3.2s              │  │  │
+│  │  │  root (B) ──────────────────────────── 2.8s                    │  │  │
+│  │  │    llm_call (A) ─────────── 1.2s                               │  │  │
+│  │  │    llm_call (B) ──────── 0.9s                                  │  │  │
+│  │  │    web_search (A) ──── 0.8s                                    │  │  │
+│  │  │    web_search (B) ── 0.6s                                      │  │  │
+│  │  │                                                                 │  │  │
+│  │  │  Matched spans shown as stacked pairs (A above B).             │  │  │
+│  │  │  Unmatched spans shown with dashed border.                     │  │  │
+│  │  │  Height: ~250px. Uses existing timeline-overlay component.     │  │  │
+│  │  │                                                                 │  │  │
+│  │  │  Legend: ── Trace A (baseline)  ── Trace B (candidate)         │  │  │
+│  │  │                                                                 │  │  │
+│  │  └───────────────────────────────────────────────────────────────┘  │  │
+│  │                                                                       │  │
+│  │  card class.                                                          │  │
+│  │                                                                       │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+│  ┌─ Span Diff List ───────────────────────────────────────────────────┐   │
+│  │                                                                       │  │
+│  │  Span-by-Span Comparison                                            │  │
+│  │  text-base font-semibold text-content-primary                        │  │
+│  │                                                                       │  │
+│  │  ┌─────────────┬──────────┬──────────┬────────────┬─────────────┐  │  │
+│  │  │ Span        │ A Dur.   │ B Dur.   │ Delta      │ Match       │  │  │
+│  │  ├─────────────┼──────────┼──────────┼────────────┼─────────────┤  │  │
+│  │  │ root        │ 3.2s     │ 2.8s     │ -12% ↓     │ matched     │  │  │
+│  │  │ llm_call    │ 1.2s     │ 0.9s     │ -25% ↓     │ matched     │  │  │
+│  │  │ web_search  │ 0.8s     │ 0.6s     │ -25% ↓     │ matched     │  │  │
+│  │  │ llm_call[1] │ 0.9s     │ 0.8s     │ -11% ↓     │ matched     │  │  │
+│  │  │ summarize   │ 0.3s     │ --       │ removed    │ A only      │  │  │
+│  │  │ validate    │ --       │ 0.2s     │ added      │ B only      │  │  │
+│  │  └─────────────┴──────────┴──────────┴────────────┴─────────────┘  │  │
+│  │                                                                       │  │
+│  │  Column details:                                                      │  │
+│  │  Span: name (disambiguated with [index] if duplicate names).         │  │
+│  │  A/B Duration: duration from each trace. "--" if span not present.  │  │
+│  │  Delta: percentage change. Colored:                                   │  │
+│  │    Decrease (faster): emerald text + ↓ arrow                         │  │
+│  │    Increase (slower): rose text + ↑ arrow                            │  │
+│  │    "removed": rose text, bg-rose-500/10 row background               │  │
+│  │    "added": emerald text, bg-emerald-500/10 row background           │  │
+│  │    No change: text-content-muted "0%"                                │  │
+│  │  Match: "matched", "A only" (removed), "B only" (added).            │  │
+│  │                                                                       │  │
+│  │  Click row -> expands to show span detail side-by-side:              │  │
+│  │                                                                       │  │
+│  │  ┌─ Expanded Row ────────────────────────────────────────────────┐  │  │
+│  │  │                                                                 │  │  │
+│  │  │  ┌─ Trace A ──────────────┐  ┌─ Trace B ──────────────┐     │  │  │
+│  │  │  │                          │  │                          │     │  │  │
+│  │  │  │ Status: ok              │  │ Status: ok              │     │  │  │
+│  │  │  │ Duration: 0.8s          │  │ Duration: 0.6s          │     │  │  │
+│  │  │  │ Tokens: 450             │  │ Tokens: 380             │     │  │  │
+│  │  │  │ Cost: $0.002            │  │ Cost: $0.001            │     │  │  │
+│  │  │  │                          │  │                          │     │  │  │
+│  │  │  │ Input:                   │  │ Input:                   │     │  │  │
+│  │  │  │ "search for flights..." │  │ "search for flights..." │     │  │  │
+│  │  │  │                          │  │                          │     │  │  │
+│  │  │  │ Output:                  │  │ Output:                  │     │  │  │
+│  │  │  │ "[3 results]"           │  │ "[5 results]"           │     │  │  │
+│  │  │  │                          │  │                          │     │  │  │
+│  │  │  └──────────────────────────┘  └──────────────────────────┘     │  │  │
+│  │  │                                                                 │  │  │
+│  │  │  Side-by-side grid-cols-2. Shows SpanDetails for both.         │  │  │
+│  │  │  Differences highlighted with bg-amber-500/10.                 │  │  │
+│  │  │  Lazy-loaded on expand (fetches SpanDetails for both spans).  │  │  │
+│  │  │                                                                 │  │  │
+│  │  └─────────────────────────────────────────────────────────────────┘  │  │
+│  │                                                                       │  │
+│  │  Uses existing span-diff-list + span-diff-detail components.         │  │
+│  │  card class.                                                          │  │
+│  │                                                                       │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+LOADING STATE:
+
+  ┌──────────────────────────────────────────────────────────┐
+  │                                                          │
+  │  ← Back to Traces                                       │
+  │                                                          │
+  │  Trace Comparison                                        │
+  │                                                          │
+  │  ┌───────────────────┐  ┌───────────────────┐          │
+  │  │ ░░░░░░░░░░░░░░░░  │  │ ░░░░░░░░░░░░░░░░  │          │
+  │  │ ░░░░░░░░ · ░░░░   │  │ ░░░░░░░░ · ░░░░   │          │
+  │  └───────────────────┘  └───────────────────┘          │
+  │                                                          │
+  │  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐  │
+  │  │ ░░░░░░░  │ │ ░░░░░░░  │ │ ░░░░░░░  │ │ ░░░░░░░  │  │
+  │  └──────────┘ └──────────┘ └──────────┘ └──────────┘  │
+  │                                                          │
+  │  ┌──────────────────────────────────────────────────┐  │
+  │  │ ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  │  │
+  │  │ ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  │  │
+  │  └──────────────────────────────────────────────────┘  │
+  │                                                          │
+  │  Two selector skeletons, stat card row, timeline area. │
+  │                                                          │
+  └──────────────────────────────────────────────────────────┘
+
+EMPTY STATE (no traces selected):
+
+  ┌──────────────────────────────────────────────────────────┐
+  │                                                          │
+  │  ← Back to Traces                                       │
+  │                                                          │
+  │  Trace Comparison                                        │
+  │                                                          │
+  │  ┌─ Trace A ───────────────┐  ┌─ Trace B ──────────┐  │
+  │  │ Select trace...       ▾  │  │ Select trace...  ▾  │  │
+  │  └──────────────────────────┘  └─────────────────────┘  │
+  │                                                          │
+  │        (GitCompare icon, w-10 h-10, text-content-muted)│
+  │                                                          │
+  │        Select two traces to compare                     │
+  │        text-base font-medium text-content-primary        │
+  │                                                          │
+  │        Choose a baseline (A) and candidate (B) trace   │
+  │        from the dropdowns above, or select two traces  │
+  │        from the traces list and click "Compare."        │
+  │        text-sm text-content-muted max-w-md centered      │
+  │                                                          │
+  └──────────────────────────────────────────────────────────┘
+
+ERROR STATE:
+
+  ┌──────────────────────────────────────────────────────────┐
+  │                                                          │
+  │        (AlertTriangle icon, w-10 h-10, text-status-     │
+  │         error)                                           │
+  │                                                          │
+  │        Failed to load trace comparison                   │
+  │        text-base font-medium text-content-primary        │
+  │                                                          │
+  │        One or both traces could not be retrieved.       │
+  │        text-sm text-content-muted                        │
+  │                                                          │
+  │        [Retry]  [Back to Traces]                         │
+  │                                                          │
+  └──────────────────────────────────────────────────────────┘
+
+DATA SOURCES:
+
+  useTrace(traceIdA), useTrace(traceIdB)
+    Hook: frontend/hooks/use-traces.ts
+    tRPC: traces.get
+    Returns: TraceWithSpans { trace: Trace, spans: SpanWithChildren[] }
+    Stale time: 1 minute
+
+  Existing components used:
+    - trace-selector.tsx: Dropdown selector for choosing traces
+    - timeline-overlay.tsx: Superimposed timeline comparison
+    - span-diff-list.tsx: Table of matched/unmatched spans
+    - span-diff-detail.tsx: Side-by-side span detail comparison
+    - diff-summary.tsx: Metric deltas (duration, spans, status)
+
+BEHAVIORAL NOTES:
+
+  1. URL state: Trace IDs are in URL params (?a=...&b=...).
+     Changing a selector updates the URL and triggers refetch.
+
+  2. Trace selectors: Searchable dropdown of recent traces. Filterable
+     by agent, status, time range. Shows trace ID (truncated), agent
+     name, version, duration, and relative time.
+
+  3. Swap button: [Swap A <-> B] reverses the baseline/candidate. This
+     changes which trace is considered "before" vs "after" in deltas.
+
+  4. Span matching algorithm: Spans are matched by their name path
+     (full path from root). If multiple spans have the same name at the
+     same level, they're disambiguated by index (e.g., llm_call[0],
+     llm_call[1]). Matching is order-sensitive within each level.
+
+  5. Expandable rows: Clicking a span row in the diff list expands it
+     to show side-by-side detail. Lazy-loads SpanDetails for both
+     spans. Only one row expanded at a time (accordion behavior).
+
+  6. Diff highlighting: In the expanded row, values that differ between
+     A and B are highlighted with bg-amber-500/10 and a small
+     "changed" indicator.
+
+  7. Performance: Both traces are fetched in parallel. The diff
+     computation runs client-side after both traces load. For traces
+     with many spans (>100), the diff list is virtualized.
+
+  8. Deep link: Arriving at /traces/diff?a=X&b=Y auto-selects both
+     traces and immediately shows the comparison.

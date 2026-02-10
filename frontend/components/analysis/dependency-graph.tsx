@@ -250,10 +250,10 @@ export function DependencyGraphVisualization({
   if (graph.nodes.length === 0) {
     return (
       <div
-        className={`flex items-center justify-center bg-gray-50 rounded-lg ${className}`}
+        className={`flex items-center justify-center bg-gray-50 dark:bg-dark-900 rounded-lg ${className}`}
         style={{ height }}
       >
-        <p className="text-gray-500">No component dependencies to visualize</p>
+        <p className="text-gray-500 dark:text-gray-400">No component dependencies to visualize</p>
       </div>
     )
   }
@@ -265,7 +265,7 @@ export function DependencyGraphVisualization({
         <button
           type="button"
           onClick={handleZoomIn}
-          className="p-2 bg-white rounded-lg shadow hover:bg-gray-50 transition-colors"
+          className="p-2 bg-white dark:bg-dark-800 rounded-lg shadow hover:bg-gray-50 dark:hover:bg-dark-700 transition-colors"
           title="Zoom in"
         >
           <ZoomIn className="w-4 h-4" />
@@ -273,7 +273,7 @@ export function DependencyGraphVisualization({
         <button
           type="button"
           onClick={handleZoomOut}
-          className="p-2 bg-white rounded-lg shadow hover:bg-gray-50 transition-colors"
+          className="p-2 bg-white dark:bg-dark-800 rounded-lg shadow hover:bg-gray-50 dark:hover:bg-dark-700 transition-colors"
           title="Zoom out"
         >
           <ZoomOut className="w-4 h-4" />
@@ -281,7 +281,7 @@ export function DependencyGraphVisualization({
         <button
           type="button"
           onClick={handleReset}
-          className="p-2 bg-white rounded-lg shadow hover:bg-gray-50 transition-colors"
+          className="p-2 bg-white dark:bg-dark-800 rounded-lg shadow hover:bg-gray-50 dark:hover:bg-dark-700 transition-colors"
           title="Reset view"
         >
           <RefreshCcw className="w-4 h-4" />
@@ -293,11 +293,11 @@ export function DependencyGraphVisualization({
         <div className="font-medium mb-2">Legend</div>
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full border-2 border-[#1e3a5f] bg-gray-200" />
+            <div className="w-3 h-3 rounded-full border-2 border-[#1e3a5f] bg-gray-200 dark:bg-dark-700" />
             <span>Test Suite</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full border-2 border-[#4c1d95] bg-gray-200" />
+            <div className="w-3 h-3 rounded-full border-2 border-[#4c1d95] bg-gray-200 dark:bg-dark-700" />
             <span>Scorer</span>
           </div>
           <div className="flex items-center gap-2 mt-2">
@@ -315,7 +315,7 @@ export function DependencyGraphVisualization({
       <svg
         width="100%"
         height={height}
-        className="bg-gray-50 rounded-lg cursor-grab active:cursor-grabbing"
+        className="bg-gray-50 dark:bg-dark-900 rounded-lg cursor-grab active:cursor-grabbing"
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         role="img"
@@ -417,7 +417,7 @@ export function DependencyGraphVisualization({
 
       {/* Selected Node Details */}
       {selectedNode && (
-        <div className="absolute bottom-2 left-2 right-2 z-10 bg-white rounded-lg p-4 shadow-lg border">
+        <div className="absolute bottom-2 left-2 right-2 z-10 bg-white dark:bg-dark-800 rounded-lg p-4 shadow-lg border">
           {(() => {
             const node = graph.nodes.find((n) => n.id === selectedNode)
             if (!node) return null
@@ -429,26 +429,26 @@ export function DependencyGraphVisualization({
             return (
               <div className="flex flex-wrap gap-4">
                 <div>
-                  <p className="font-semibold text-gray-900">{node.name}</p>
-                  <p className="text-sm text-gray-500 capitalize">
+                  <p className="font-semibold text-gray-900 dark:text-gray-100">{node.name}</p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 capitalize">
                     {node.type} &bull; {node.healthStatus}
                   </p>
                 </div>
                 <div className="flex gap-6">
                   <div>
-                    <p className="text-xs text-gray-500">Score</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">Score</p>
                     <p className="font-semibold">
                       {(node.avgScore * 100).toFixed(0)}%
                     </p>
                   </div>
                   <div>
-                    <p className="text-xs text-gray-500">Pass Rate</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">Pass Rate</p>
                     <p className="font-semibold">
                       {(node.passRate * 100).toFixed(0)}%
                     </p>
                   </div>
                   <div>
-                    <p className="text-xs text-gray-500">Connections</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">Connections</p>
                     <p className="font-semibold">{connectedEdges.length}</p>
                   </div>
                 </div>
@@ -468,10 +468,10 @@ export function DependencyGraphVisualization({
 export function DependencyGraphSkeleton({ height = 500 }: { height?: number }) {
   return (
     <div
-      className="animate-pulse bg-gray-100 rounded-lg flex items-center justify-center"
+      className="animate-pulse bg-gray-100 dark:bg-dark-800 rounded-lg flex items-center justify-center"
       style={{ height }}
     >
-      <div className="text-gray-400">Loading graph...</div>
+      <div className="text-gray-400 dark:text-gray-500">Loading graph...</div>
     </div>
   )
 }

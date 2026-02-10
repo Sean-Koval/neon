@@ -190,11 +190,11 @@ class AgentState(TypedDict):
 # =============================================================================
 
 
-def create_agent(model_name: str = "gemini-3-flash-preview"):
+def create_agent(model_name: str = "gemini-2.5-flash"):
     """Create the agent with the specified model.
 
     Supported models (2025):
-        - Vertex AI: gemini-3-flash-preview (default), gemini-2.0-flash
+        - Vertex AI: gemini-2.5-flash (default), gemini-2.0-flash
         - Vertex AI Claude: claude-sonnet-4-5@20250514, claude-opus-4-5@20250514
         - OpenAI: gpt-4o-mini, gpt-4o
         - Anthropic direct: claude-sonnet-4-5-20250514

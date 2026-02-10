@@ -23,20 +23,20 @@ export function ChartLoadingSkeleton({
   return (
     <div className={`animate-pulse ${className}`}>
       <div
-        className="bg-gray-100 rounded-lg flex items-end justify-around p-4 gap-2"
+        className="bg-gray-100 dark:bg-dark-800 rounded-lg flex items-end justify-around p-4 gap-2"
         style={{ height }}
       >
         {[40, 65, 55, 80, 70, 85, 75, 60, 72].map((h, i) => (
           <div
             key={i}
-            className="bg-gray-200 rounded-t w-8 transition-all"
+            className="bg-gray-200 dark:bg-dark-700 rounded-t w-8 transition-all"
             style={{ height: `${h}%` }}
           />
         ))}
       </div>
       <div className="flex justify-between mt-3 px-2">
         {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day) => (
-          <div key={day} className="h-3 w-8 bg-gray-200 rounded" />
+          <div key={day} className="h-3 w-8 bg-gray-200 dark:bg-dark-700 rounded" />
         ))}
       </div>
     </div>
@@ -51,20 +51,20 @@ export function ScoreTrendsLoadingSkeleton({
   return (
     <div className={`card overflow-hidden ${className}`}>
       {/* Header skeleton */}
-      <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white">
+      <div className="p-6 border-b border-gray-200 dark:border-dark-700 bg-gradient-to-r from-gray-50 dark:from-dark-900 to-white dark:to-dark-800">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-gray-100 animate-pulse">
+            <div className="p-2 rounded-lg bg-gray-100 dark:bg-dark-700 animate-pulse">
               <div className="w-5 h-5" />
             </div>
             <div className="animate-pulse">
-              <div className="h-5 w-32 bg-gray-200 rounded mb-1" />
-              <div className="h-4 w-24 bg-gray-200 rounded" />
+              <div className="h-5 w-32 bg-gray-200 dark:bg-dark-700 rounded mb-1" />
+              <div className="h-4 w-24 bg-gray-200 dark:bg-dark-700 rounded" />
             </div>
           </div>
           <div className="flex items-center gap-2 animate-pulse">
-            <div className="h-9 w-36 bg-gray-100 rounded-lg" />
-            <div className="h-9 w-20 bg-gray-100 rounded-lg" />
+            <div className="h-9 w-36 bg-gray-100 dark:bg-dark-700 rounded-lg" />
+            <div className="h-9 w-20 bg-gray-100 dark:bg-dark-700 rounded-lg" />
           </div>
         </div>
       </div>
@@ -74,9 +74,9 @@ export function ScoreTrendsLoadingSkeleton({
         {/* Statistics skeleton */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="bg-gray-50 rounded-lg p-3 animate-pulse">
-              <div className="h-3 w-12 bg-gray-200 rounded mb-2" />
-              <div className="h-6 w-16 bg-gray-200 rounded" />
+            <div key={i} className="bg-gray-50 dark:bg-dark-900 rounded-lg p-3 animate-pulse">
+              <div className="h-3 w-12 bg-gray-200 dark:bg-dark-700 rounded mb-2" />
+              <div className="h-6 w-16 bg-gray-200 dark:bg-dark-700 rounded" />
             </div>
           ))}
         </div>

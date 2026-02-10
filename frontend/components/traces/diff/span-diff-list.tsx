@@ -37,33 +37,33 @@ function getStatusStyles(status: SpanDiffStatus) {
   switch (status) {
     case 'added':
       return {
-        bg: 'bg-green-50',
-        border: 'border-l-green-500',
-        text: 'text-green-700',
+        bg: 'bg-emerald-50 dark:bg-emerald-500/10',
+        border: 'border-l-emerald-500',
+        text: 'text-emerald-700 dark:text-emerald-400',
         icon: Plus,
         label: 'Added',
       }
     case 'removed':
       return {
-        bg: 'bg-red-50',
-        border: 'border-l-red-500',
-        text: 'text-red-700',
+        bg: 'bg-rose-50 dark:bg-rose-500/10',
+        border: 'border-l-rose-500',
+        text: 'text-rose-700 dark:text-rose-400',
         icon: Minus,
         label: 'Removed',
       }
     case 'modified':
       return {
-        bg: 'bg-amber-50',
+        bg: 'bg-amber-50 dark:bg-amber-500/10',
         border: 'border-l-amber-500',
-        text: 'text-amber-700',
+        text: 'text-amber-700 dark:text-amber-400',
         icon: RefreshCw,
         label: 'Modified',
       }
     default:
       return {
-        bg: 'bg-white',
-        border: 'border-l-gray-200',
-        text: 'text-gray-500',
+        bg: 'bg-white dark:bg-slate-900/55',
+        border: 'border-l-gray-200 dark:border-l-slate-700/80',
+        text: 'text-gray-500 dark:text-gray-400',
         icon: null,
         label: 'Unchanged',
       }
@@ -111,9 +111,13 @@ function SpanDiffRow({
   return (
     <div
       className={clsx(
-        'flex items-stretch border-b border-gray-100 cursor-pointer transition-colors',
+        'flex items-stretch border-b border-border/70 dark:border-slate-700/75 cursor-pointer transition-colors duration-150',
+        diff.status === 'unchanged'
+          ? 'hover:bg-surface-raised/65 dark:hover:bg-slate-800/70'
+          : 'hover:brightness-[0.99] dark:hover:brightness-110',
         statusStyles.bg,
-        isSelected && 'ring-2 ring-inset ring-blue-500',
+        isSelected &&
+          'ring-2 ring-inset ring-primary-500/45 bg-primary-500/5 dark:bg-primary-500/12',
       )}
       onClick={onSelect}
       role="button"
@@ -141,13 +145,13 @@ function SpanDiffRow({
               e.stopPropagation()
               onToggle()
             }}
-            className="p-0.5 hover:bg-gray-200 rounded flex-shrink-0"
+            className="p-0.5 hover:bg-gray-200 dark:hover:bg-dark-700 rounded flex-shrink-0"
             aria-label={isExpanded ? 'Collapse' : 'Expand'}
           >
             {isExpanded ? (
-              <ChevronDown className="w-4 h-4 text-gray-500" />
+              <ChevronDown className="w-4 h-4 text-gray-500 dark:text-gray-400" />
             ) : (
-              <ChevronRight className="w-4 h-4 text-gray-500" />
+              <ChevronRight className="w-4 h-4 text-gray-500 dark:text-gray-400" />
             )}
           </button>
         ) : (
@@ -169,7 +173,7 @@ function SpanDiffRow({
         {/* Span name */}
         <span
           className={clsx(
-            'text-sm truncate',
+            'text-sm truncate text-content-primary',
             diff.status === 'removed' && 'line-through opacity-60',
           )}
           title={span.name}
@@ -179,63 +183,63 @@ function SpanDiffRow({
       </div>
 
       {/* Baseline column */}
-      <div className="flex-1 flex items-center justify-end gap-2 px-3 py-2.5 border-l border-gray-100 min-w-[120px]">
+      <div className="flex-1 flex items-center justify-end gap-2 px-3 py-2.5 border-l border-border/70 min-w-[120px] dark:border-slate-700/80">
         {diff.baseline ? (
           <>
-            <span className="text-sm text-gray-600">
+            <span className="text-sm text-gray-600 dark:text-gray-300">
               {formatDuration(diff.baseline.duration_ms)}
             </span>
             {diff.baseline.total_tokens && (
-              <span className="text-xs text-gray-400">
+              <span className="text-xs text-gray-400 dark:text-gray-500">
                 {diff.baseline.total_tokens.toLocaleString()} tok
               </span>
             )}
           </>
         ) : (
-          <span className="text-sm text-gray-400 italic">-</span>
+          <span className="text-sm text-gray-400 dark:text-gray-500 italic">-</span>
         )}
       </div>
 
       {/* Candidate column */}
-      <div className="flex-1 flex items-center justify-end gap-2 px-3 py-2.5 border-l border-gray-100 min-w-[120px]">
+      <div className="flex-1 flex items-center justify-end gap-2 px-3 py-2.5 border-l border-border/70 min-w-[120px] dark:border-slate-700/80">
         {diff.candidate ? (
           <>
-            <span className="text-sm text-gray-900 font-medium">
+            <span className="text-sm text-gray-900 dark:text-gray-100 font-medium">
               {formatDuration(diff.candidate.duration_ms)}
             </span>
             {diff.candidate.total_tokens && (
-              <span className="text-xs text-gray-500">
+              <span className="text-xs text-gray-500 dark:text-gray-400">
                 {diff.candidate.total_tokens.toLocaleString()} tok
               </span>
             )}
           </>
         ) : (
-          <span className="text-sm text-gray-400 italic">-</span>
+          <span className="text-sm text-gray-400 dark:text-gray-500 italic">-</span>
         )}
       </div>
 
       {/* Delta column */}
-      <div className="w-24 flex items-center justify-end px-3 py-2.5 border-l border-gray-100">
+      <div className="w-24 flex items-center justify-end px-3 py-2.5 border-l border-border/70 dark:border-slate-700/80">
         {diff.status === 'modified' && durationDelta !== 0 ? (
           <span
             className={clsx(
               'text-sm font-medium',
-              durationDelta > 0 ? 'text-red-600' : 'text-green-600',
+              durationDelta > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400',
             )}
           >
             {durationDelta > 0 ? '+' : ''}
             {formatDuration(durationDelta)}
           </span>
         ) : diff.status === 'added' ? (
-          <span className="text-xs font-medium text-green-600 uppercase">
+          <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400 uppercase">
             New
           </span>
         ) : diff.status === 'removed' ? (
-          <span className="text-xs font-medium text-red-600 uppercase">
+          <span className="text-xs font-medium text-rose-600 dark:text-rose-400 uppercase">
             Gone
           </span>
         ) : (
-          <span className="text-xs text-gray-400">-</span>
+          <span className="text-xs text-gray-400 dark:text-gray-500">-</span>
         )}
       </div>
     </div>
@@ -266,7 +270,7 @@ function FilterToggle({
         'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors',
         isActive
           ? `${styles.bg} ${styles.text} border-current`
-          : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50',
+          : 'bg-surface-card text-content-secondary border-border hover:bg-surface-raised',
       )}
     >
       {styles.icon && <styles.icon className="w-3.5 h-3.5" />}
@@ -274,7 +278,7 @@ function FilterToggle({
       <span
         className={clsx(
           'px-1.5 py-0.5 rounded text-xs',
-          isActive ? 'bg-white/50' : 'bg-gray-100',
+          isActive ? 'bg-white/50 dark:bg-black/20' : 'bg-surface-raised',
         )}
       >
         {count}
@@ -397,8 +401,8 @@ export function SpanDiffList({
     <div className="space-y-4">
       {/* Filter toggles */}
       {!externalFilter && (
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-sm text-gray-500 mr-2">Show:</span>
+        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-surface-card px-3 py-2 shadow-sm dark:bg-slate-900/70 dark:border-slate-700/80">
+          <span className="text-sm text-content-secondary mr-2">Show:</span>
           <FilterToggle
             status="added"
             count={statusCounts.added}
@@ -427,9 +431,9 @@ export function SpanDiffList({
       )}
 
       {/* Diff table */}
-      <div className="border rounded-lg overflow-hidden">
+      <div className="border border-border rounded-xl overflow-hidden bg-surface-card shadow-sm dark:bg-slate-900/72 dark:border-slate-700/80">
         {/* Header */}
-        <div className="flex items-center bg-gray-100 border-b text-sm font-medium text-gray-600">
+        <div className="sticky top-0 z-10 flex items-center bg-surface-raised border-b border-border text-sm font-medium text-content-secondary backdrop-blur-sm dark:bg-slate-900/96 dark:border-slate-700/85 dark:text-slate-300">
           <div className="w-1 flex-shrink-0" />
           <div className="min-w-[240px] max-w-[320px] px-3 py-2.5 flex items-center justify-between flex-shrink-0">
             <span>Span</span>
@@ -437,7 +441,7 @@ export function SpanDiffList({
               <button
                 type="button"
                 onClick={expandAll}
-                className="text-xs text-gray-500 hover:text-gray-700 px-1"
+                className="rounded px-1.5 py-0.5 text-xs text-gray-500 dark:text-gray-300 hover:text-gray-700 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10"
                 title="Expand all"
               >
                 +
@@ -445,20 +449,20 @@ export function SpanDiffList({
               <button
                 type="button"
                 onClick={collapseAll}
-                className="text-xs text-gray-500 hover:text-gray-700 px-1"
+                className="rounded px-1.5 py-0.5 text-xs text-gray-500 dark:text-gray-300 hover:text-gray-700 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10"
                 title="Collapse all"
               >
                 -
               </button>
             </div>
           </div>
-          <div className="flex-1 px-3 py-2.5 text-right border-l border-gray-200 min-w-[120px]">
+          <div className="flex-1 px-3 py-2.5 text-right border-l border-border min-w-[120px] dark:border-slate-700/85">
             Baseline
           </div>
-          <div className="flex-1 px-3 py-2.5 text-right border-l border-gray-200 min-w-[120px]">
+          <div className="flex-1 px-3 py-2.5 text-right border-l border-border min-w-[120px] dark:border-slate-700/85">
             Candidate
           </div>
-          <div className="w-24 px-3 py-2.5 text-right border-l border-gray-200">
+          <div className="w-24 px-3 py-2.5 text-right border-l border-border dark:border-slate-700/85">
             Delta
           </div>
         </div>
@@ -466,7 +470,7 @@ export function SpanDiffList({
         {/* Rows */}
         <div className="max-h-[600px] overflow-y-auto">
           {visibleDiffs.length === 0 ? (
-            <div className="flex items-center justify-center py-12 text-gray-500">
+            <div className="flex items-center justify-center py-12 text-gray-500 dark:text-gray-400">
               No spans match the current filters
             </div>
           ) : (

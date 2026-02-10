@@ -75,9 +75,9 @@ export function TimelineLoadingSkeleton() {
 
 export function SpanDetailLoadingSkeleton() {
   return (
-    <div className="h-full flex flex-col border-l bg-white animate-pulse">
+    <div className="h-full flex flex-col border-l border-gray-200 bg-white animate-pulse dark:border-dark-700 dark:bg-dark-800">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b bg-gray-50">
+      <div className="flex items-center justify-between border-b border-gray-200 bg-gray-50 px-4 py-3 dark:border-dark-700 dark:bg-dark-900">
         <div className="flex items-center gap-2">
           <div className="w-5 h-5 bg-gray-200 rounded" />
           <div className="h-5 w-32 bg-gray-200 rounded" />
@@ -86,13 +86,13 @@ export function SpanDetailLoadingSkeleton() {
       </div>
 
       {/* Status banner */}
-      <div className="flex items-center gap-2 px-4 py-2 border-b bg-gray-50">
+      <div className="flex items-center gap-2 border-b border-gray-200 bg-gray-50 px-4 py-2 dark:border-dark-700 dark:bg-dark-900">
         <div className="w-4 h-4 bg-gray-200 rounded" />
         <div className="h-4 w-16 bg-gray-200 rounded" />
       </div>
 
       {/* Quick stats */}
-      <div className="flex items-center gap-3 px-4 py-3 border-b">
+      <div className="flex items-center gap-3 border-b border-gray-200 px-4 py-3 dark:border-dark-700">
         <div className="h-6 w-16 bg-gray-200 rounded-full" />
         <div className="h-6 w-20 bg-gray-200 rounded" />
         <div className="h-6 w-24 bg-gray-200 rounded" />
@@ -101,7 +101,10 @@ export function SpanDetailLoadingSkeleton() {
       {/* Content sections */}
       <div className="flex-1 overflow-hidden">
         {[1, 2, 3].map((i) => (
-          <div key={i} className="border-b border-gray-100">
+          <div
+            key={i}
+            className="border-b border-gray-100 dark:border-dark-700"
+          >
             <div className="flex items-center gap-2 px-4 py-3">
               <div className="w-4 h-4 bg-gray-200 rounded" />
               <div className="h-4 w-24 bg-gray-200 rounded" />

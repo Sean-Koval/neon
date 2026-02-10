@@ -29,8 +29,8 @@ export default function GlobalError({
         <div className="min-h-screen flex flex-col items-center justify-center px-4 py-16">
           <div className="text-center max-w-md">
             {/* Icon */}
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-rose-100 mb-6">
-              <AlertCircle className="w-8 h-8 text-rose-600" />
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-rose-100 dark:bg-rose-500/20 mb-6">
+              <AlertCircle className="w-8 h-8 text-rose-600 dark:text-rose-400" />
             </div>
 
             {/* Title */}

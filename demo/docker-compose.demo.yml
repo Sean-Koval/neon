@@ -1,0 +1,46 @@
+# Neon Demo Override
+#
+# Adds auth bypass and a demo LangChain agent that streams traces.
+#
+# Usage:
+#   docker compose -f docker-compose.yml -f demo/docker-compose.demo.yml up -d
+#
+# Or use the quickstart script:
+#   ./demo/demo.sh
+#
+# This override:
+#   1. Sets the web frontend to development mode with auth bypass
+#   2. Adds a demo LangChain agent that sends traces to the dashboard
+
+services:
+  # Override web to enable dev auth bypass
+  web:
+    environment:
+      - CLICKHOUSE_URL=http://clickhouse:8123
+      - CLICKHOUSE_DATABASE=neon
+      - DATABASE_URL=postgresql://neon:neon@postgres:5432/neon
+      - TEMPORAL_ADDRESS=temporal:7233
+      - TEMPORAL_NAMESPACE=default
+      - TEMPORAL_TASK_QUEUE=agent-workers
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
+      - NODE_ENV=development
+      - AUTH_DEV_BYPASS=true
+      - DEV_WORKSPACE_ID=00000000-0000-0000-0000-000000000001
+
+  # Demo LangChain agent that runs queries and streams traces
+  demo-agent:
+    build:
+      context: ./examples/langgraph-agent
+      dockerfile: Dockerfile
+    container_name: neon-demo-agent
+    environment:
+      - NEON_API_URL=http://web:3000
+      - NEON_PROJECT_ID=00000000-0000-0000-0000-000000000001
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+    depends_on:
+      web:
+        condition: service_started
+    # Run a set of demo queries, then exit
+    command: ["python", "run_demo.py"]
+    restart: "no"

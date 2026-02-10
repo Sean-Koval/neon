@@ -398,16 +398,16 @@ export function LiveDebugger({
   return (
     <div
       className={clsx(
-        'flex flex-col h-full bg-white border-l shadow-lg',
+        'flex flex-col h-full bg-white dark:bg-dark-800 border-l shadow-lg',
         className,
       )}
     >
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b bg-gray-50">
+      <div className="flex items-center justify-between px-4 py-3 border-b bg-gray-50 dark:bg-dark-900">
         <div className="flex items-center gap-2">
           <Bug className="w-5 h-5 text-orange-500" />
-          <h2 className="font-semibold text-gray-900">Live Debugger</h2>
-          <span className="text-xs text-gray-500 font-mono truncate max-w-32">
+          <h2 className="font-semibold text-gray-900 dark:text-gray-100">Live Debugger</h2>
+          <span className="text-xs text-gray-500 dark:text-gray-400 font-mono truncate max-w-32">
             {traceId}
           </span>
         </div>
@@ -421,7 +421,7 @@ export function LiveDebugger({
           {onClose && (
             <button
               onClick={onClose}
-              className="p-1.5 hover:bg-gray-200 rounded text-gray-500"
+              className="p-1.5 hover:bg-gray-200 dark:hover:bg-dark-700 rounded text-gray-500 dark:text-gray-400"
               title="Close Debugger"
             >
               <X className="w-5 h-5" />
@@ -434,7 +434,7 @@ export function LiveDebugger({
       <DebugStateBanner state={debugState} span={currentSpan} />
 
       {/* Control Bar */}
-      <div className="flex items-center gap-1 px-4 py-2 border-b bg-white">
+      <div className="flex items-center gap-1 px-4 py-2 border-b bg-white dark:bg-dark-800">
         {/* Resume/Pause */}
         {isPaused ? (
           <ControlButton
@@ -453,7 +453,7 @@ export function LiveDebugger({
           />
         )}
 
-        <div className="w-px h-6 bg-gray-200 mx-1" />
+        <div className="w-px h-6 bg-gray-200 dark:bg-dark-700 mx-1" />
 
         {/* Step Controls */}
         <ControlButton
@@ -485,7 +485,7 @@ export function LiveDebugger({
       </div>
 
       {/* Tab Navigation */}
-      <div className="flex border-b bg-gray-50">
+      <div className="flex border-b bg-gray-50 dark:bg-dark-900">
         <TabButton
           active={activeTab === 'stack'}
           onClick={() => setActiveTab('stack')}
@@ -572,11 +572,11 @@ function DebugStateBanner({
     DebugState,
     { bg: string; text: string; label: string }
   > = {
-    idle: { bg: 'bg-gray-100', text: 'text-gray-600', label: 'Idle' },
-    running: { bg: 'bg-green-50', text: 'text-green-700', label: 'Running' },
-    paused: { bg: 'bg-amber-50', text: 'text-amber-700', label: 'Paused' },
-    stepping: { bg: 'bg-blue-50', text: 'text-blue-700', label: 'Stepping' },
-    completed: { bg: 'bg-gray-100', text: 'text-gray-600', label: 'Completed' },
+    idle: { bg: 'bg-gray-100 dark:bg-dark-800', text: 'text-gray-600 dark:text-gray-300', label: 'Idle' },
+    running: { bg: 'bg-green-50 dark:bg-emerald-500/10', text: 'text-green-700 dark:text-emerald-400', label: 'Running' },
+    paused: { bg: 'bg-amber-50 dark:bg-amber-500/10', text: 'text-amber-700 dark:text-amber-400', label: 'Paused' },
+    stepping: { bg: 'bg-blue-50 dark:bg-blue-500/10', text: 'text-blue-700 dark:text-blue-400', label: 'Stepping' },
+    completed: { bg: 'bg-gray-100 dark:bg-dark-800', text: 'text-gray-600 dark:text-gray-300', label: 'Completed' },
   }
 
   const config = configs[state]
@@ -592,7 +592,7 @@ function DebugStateBanner({
           {config.label}
         </span>
         {span && state === 'paused' && (
-          <span className="text-sm text-gray-600">
+          <span className="text-sm text-gray-600 dark:text-gray-300">
             at <span className="font-mono">{span.name}</span>
           </span>
         )}
@@ -610,32 +610,32 @@ function DebugStateChip({ state }: { state: DebugState }) {
     { bg: string; text: string; dot: string; label: string }
   > = {
     idle: {
-      bg: 'bg-gray-100',
-      text: 'text-gray-600',
+      bg: 'bg-gray-100 dark:bg-dark-800',
+      text: 'text-gray-600 dark:text-gray-300',
       dot: 'bg-gray-400',
       label: 'Idle',
     },
     running: {
-      bg: 'bg-green-50',
-      text: 'text-green-700',
+      bg: 'bg-green-50 dark:bg-emerald-500/10',
+      text: 'text-green-700 dark:text-emerald-400',
       dot: 'bg-green-500',
       label: 'Running',
     },
     paused: {
-      bg: 'bg-amber-50',
-      text: 'text-amber-700',
+      bg: 'bg-amber-50 dark:bg-amber-500/10',
+      text: 'text-amber-700 dark:text-amber-400',
       dot: 'bg-amber-500',
       label: 'Paused',
     },
     stepping: {
-      bg: 'bg-blue-50',
-      text: 'text-blue-700',
+      bg: 'bg-blue-50 dark:bg-blue-500/10',
+      text: 'text-blue-700 dark:text-blue-400',
       dot: 'bg-blue-500',
       label: 'Stepping',
     },
     completed: {
-      bg: 'bg-gray-100',
-      text: 'text-gray-600',
+      bg: 'bg-gray-100 dark:bg-dark-800',
+      text: 'text-gray-600 dark:text-gray-300',
       dot: 'bg-gray-400',
       label: 'Done',
     },
@@ -690,7 +690,7 @@ function ControlButton({
         'flex items-center gap-1.5 px-2 py-1.5 rounded text-sm font-medium transition-colors',
         variant === 'primary'
           ? 'bg-green-600 text-white hover:bg-green-700 disabled:bg-gray-300'
-          : 'bg-gray-100 text-gray-700 hover:bg-gray-200 disabled:text-gray-400 disabled:bg-gray-50',
+          : 'bg-gray-100 dark:bg-dark-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-dark-700 disabled:text-gray-400 dark:disabled:text-gray-500 disabled:bg-gray-50 dark:disabled:bg-dark-900',
         disabled && 'cursor-not-allowed',
       )}
     >
@@ -722,8 +722,8 @@ function TabButton({
       className={clsx(
         'flex items-center gap-1.5 px-4 py-2 text-sm font-medium border-b-2 transition-colors',
         active
-          ? 'border-blue-500 text-blue-600 bg-white'
-          : 'border-transparent text-gray-600 hover:text-gray-900 hover:bg-gray-100',
+          ? 'border-blue-500 text-blue-600 dark:text-blue-400 bg-white dark:bg-dark-800'
+          : 'border-transparent text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-dark-700',
       )}
     >
       <Icon className="w-4 h-4" />
@@ -732,7 +732,7 @@ function TabButton({
         <span
           className={clsx(
             'text-xs px-1.5 py-0.5 rounded-full',
-            active ? 'bg-blue-100 text-blue-700' : 'bg-gray-200 text-gray-600',
+            active ? 'bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-400' : 'bg-gray-200 dark:bg-dark-700 text-gray-600 dark:text-gray-300',
           )}
         >
           {badge}
@@ -756,10 +756,10 @@ function CallStackPanel({
 }) {
   if (stack.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-12 text-gray-500">
+      <div className="flex flex-col items-center justify-center py-12 text-gray-500 dark:text-gray-400">
         <Layers className="w-8 h-8 mb-2 opacity-50" />
         <p className="text-sm">No active spans</p>
-        <p className="text-xs text-gray-400">
+        <p className="text-xs text-gray-400 dark:text-gray-500">
           Spans will appear here during execution
         </p>
       </div>
@@ -778,13 +778,13 @@ function CallStackPanel({
             key={span.spanId}
             onClick={() => onSpanSelect(span)}
             className={clsx(
-              'w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-gray-50 transition-colors',
-              isCurrent && 'bg-blue-50 hover:bg-blue-50',
+              'w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-gray-50 dark:hover:bg-dark-700 transition-colors',
+              isCurrent && 'bg-blue-50 dark:bg-blue-500/10 hover:bg-blue-50 dark:hover:bg-blue-500/10',
             )}
           >
             {/* Depth indicator */}
             <div
-              className="flex items-center justify-center w-6 h-6 rounded-full text-xs font-medium bg-gray-100 text-gray-600"
+              className="flex items-center justify-center w-6 h-6 rounded-full text-xs font-medium bg-gray-100 dark:bg-dark-800 text-gray-600 dark:text-gray-300"
               title={`Stack depth: ${stack.length - index}`}
             >
               {stack.length - index}
@@ -797,14 +797,14 @@ function CallStackPanel({
                 <span
                   className={clsx(
                     'font-mono text-sm truncate',
-                    isCurrent ? 'text-blue-700 font-medium' : 'text-gray-900',
+                    isCurrent ? 'text-blue-700 dark:text-blue-400 font-medium' : 'text-gray-900 dark:text-gray-100',
                   )}
                 >
                   {span.name}
                 </span>
               </div>
               {(span.toolName || span.model) && (
-                <div className="text-xs text-gray-500 mt-0.5">
+                <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
                   {span.toolName ?? span.model}
                 </div>
               )}
@@ -812,7 +812,7 @@ function CallStackPanel({
 
             {/* Current indicator */}
             {isTop && (
-              <span className="text-xs px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded font-medium">
+              <span className="text-xs px-1.5 py-0.5 bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400 rounded font-medium">
                 Top
               </span>
             )}
@@ -843,7 +843,7 @@ function BreakpointsPanel({
       <div className="p-4 border-b">
         <button
           onClick={onAdd}
-          className="flex items-center gap-2 w-full px-3 py-2 text-sm font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
+          className="flex items-center gap-2 w-full px-3 py-2 text-sm font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-500/10 hover:bg-blue-100 dark:hover:bg-blue-500/20 rounded-lg transition-colors"
         >
           <Plus className="w-4 h-4" />
           Add Breakpoint
@@ -852,10 +852,10 @@ function BreakpointsPanel({
 
       {/* Breakpoint list */}
       {breakpoints.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-12 text-gray-500">
+        <div className="flex flex-col items-center justify-center py-12 text-gray-500 dark:text-gray-400">
           <CircleDot className="w-8 h-8 mb-2 opacity-50" />
           <p className="text-sm">No breakpoints set</p>
-          <p className="text-xs text-gray-400">
+          <p className="text-xs text-gray-400 dark:text-gray-500">
             Add breakpoints to pause execution
           </p>
         </div>
@@ -864,7 +864,7 @@ function BreakpointsPanel({
           {breakpoints.map((bp) => (
             <div
               key={bp.id}
-              className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50"
+              className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-dark-700"
             >
               {/* Toggle */}
               <button
@@ -873,7 +873,7 @@ function BreakpointsPanel({
                   'w-4 h-4 rounded-full border-2 flex items-center justify-center transition-colors',
                   bp.enabled
                     ? 'border-red-500 bg-red-500'
-                    : 'border-gray-300 bg-white',
+                    : 'border-gray-300 dark:border-dark-600 bg-white dark:bg-dark-800',
                 )}
               >
                 {bp.enabled && <Circle className="w-2 h-2 text-white" />}
@@ -884,12 +884,12 @@ function BreakpointsPanel({
                 <div
                   className={clsx(
                     'text-sm font-medium',
-                    bp.enabled ? 'text-gray-900' : 'text-gray-400',
+                    bp.enabled ? 'text-gray-900 dark:text-gray-100' : 'text-gray-400 dark:text-gray-500',
                   )}
                 >
                   {bp.name ?? `Breakpoint ${bp.id.slice(-6)}`}
                 </div>
-                <div className="text-xs text-gray-500 flex items-center gap-2">
+                <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-2">
                   {bp.spanType && (
                     <span>
                       type:{' '}
@@ -900,14 +900,14 @@ function BreakpointsPanel({
                   )}
                   {bp.spanName && <span>name: {bp.spanName}</span>}
                   {bp.toolName && <span>tool: {bp.toolName}</span>}
-                  <span className="text-gray-400">on {bp.trigger}</span>
+                  <span className="text-gray-400 dark:text-gray-500">on {bp.trigger}</span>
                 </div>
               </div>
 
               {/* Remove */}
               <button
                 onClick={() => onRemove(bp.id)}
-                className="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded"
+                className="p-1 text-gray-400 dark:text-gray-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded"
               >
                 <Trash2 className="w-4 h-4" />
               </button>
@@ -933,10 +933,10 @@ function EventLogPanel({
 }) {
   if (events.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-12 text-gray-500">
+      <div className="flex flex-col items-center justify-center py-12 text-gray-500 dark:text-gray-400">
         <Timer className="w-8 h-8 mb-2 opacity-50" />
         <p className="text-sm">No events yet</p>
-        <p className="text-xs text-gray-400">Debug events will appear here</p>
+        <p className="text-xs text-gray-400 dark:text-gray-500">Debug events will appear here</p>
       </div>
     )
   }
@@ -948,27 +948,27 @@ function EventLogPanel({
         const isExpanded = expanded.has(realIndex)
 
         return (
-          <div key={realIndex} className="hover:bg-gray-50">
+          <div key={realIndex} className="hover:bg-gray-50 dark:hover:bg-dark-700">
             <button
               onClick={() => onToggleExpand(realIndex)}
               className="w-full flex items-center gap-2 px-4 py-2 text-left"
             >
               {isExpanded ? (
-                <ChevronDown className="w-3 h-3 text-gray-400" />
+                <ChevronDown className="w-3 h-3 text-gray-400 dark:text-gray-500" />
               ) : (
-                <ChevronRight className="w-3 h-3 text-gray-400" />
+                <ChevronRight className="w-3 h-3 text-gray-400 dark:text-gray-500" />
               )}
               <EventTypeBadge type={event.type} />
-              <span className="text-gray-500 truncate flex-1">
+              <span className="text-gray-500 dark:text-gray-400 truncate flex-1">
                 {event.payload.span?.name ?? event.payload.message ?? ''}
               </span>
-              <span className="text-gray-400">
+              <span className="text-gray-400 dark:text-gray-500">
                 {new Date(event.timestamp).toLocaleTimeString()}
               </span>
             </button>
             {isExpanded && (
               <div className="px-4 pb-3 pl-9">
-                <pre className="text-xs text-gray-600 bg-gray-50 p-2 rounded overflow-x-auto">
+                <pre className="text-xs text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-dark-900 p-2 rounded overflow-x-auto">
                   {JSON.stringify(event.payload, null, 2)}
                 </pre>
               </div>
@@ -985,21 +985,21 @@ function EventLogPanel({
  */
 function EventTypeBadge({ type }: { type: DebugEvent['type'] }) {
   const configs: Record<string, { bg: string; text: string }> = {
-    connected: { bg: 'bg-green-100', text: 'text-green-700' },
-    traceStarted: { bg: 'bg-blue-100', text: 'text-blue-700' },
-    spanEnter: { bg: 'bg-purple-100', text: 'text-purple-700' },
-    spanExit: { bg: 'bg-purple-100', text: 'text-purple-700' },
-    breakpointHit: { bg: 'bg-red-100', text: 'text-red-700' },
-    paused: { bg: 'bg-amber-100', text: 'text-amber-700' },
-    resumed: { bg: 'bg-green-100', text: 'text-green-700' },
-    stepCompleted: { bg: 'bg-blue-100', text: 'text-blue-700' },
-    traceCompleted: { bg: 'bg-gray-100', text: 'text-gray-700' },
-    error: { bg: 'bg-red-100', text: 'text-red-700' },
-    ping: { bg: 'bg-gray-100', text: 'text-gray-500' },
-    inspectResult: { bg: 'bg-cyan-100', text: 'text-cyan-700' },
+    connected: { bg: 'bg-green-100 dark:bg-emerald-500/20', text: 'text-green-700 dark:text-emerald-400' },
+    traceStarted: { bg: 'bg-blue-100 dark:bg-blue-500/20', text: 'text-blue-700 dark:text-blue-400' },
+    spanEnter: { bg: 'bg-purple-100 dark:bg-purple-500/20', text: 'text-purple-700 dark:text-purple-400' },
+    spanExit: { bg: 'bg-purple-100 dark:bg-purple-500/20', text: 'text-purple-700 dark:text-purple-400' },
+    breakpointHit: { bg: 'bg-red-100 dark:bg-red-500/20', text: 'text-red-700 dark:text-red-400' },
+    paused: { bg: 'bg-amber-100 dark:bg-amber-500/20', text: 'text-amber-700 dark:text-amber-400' },
+    resumed: { bg: 'bg-green-100 dark:bg-emerald-500/20', text: 'text-green-700 dark:text-emerald-400' },
+    stepCompleted: { bg: 'bg-blue-100 dark:bg-blue-500/20', text: 'text-blue-700 dark:text-blue-400' },
+    traceCompleted: { bg: 'bg-gray-100 dark:bg-dark-800', text: 'text-gray-700 dark:text-gray-300' },
+    error: { bg: 'bg-red-100 dark:bg-red-500/20', text: 'text-red-700 dark:text-red-400' },
+    ping: { bg: 'bg-gray-100 dark:bg-dark-800', text: 'text-gray-500 dark:text-gray-400' },
+    inspectResult: { bg: 'bg-cyan-100 dark:bg-cyan-500/20', text: 'text-cyan-700 dark:text-cyan-400' },
   }
 
-  const config = configs[type] ?? { bg: 'bg-gray-100', text: 'text-gray-600' }
+  const config = configs[type] ?? { bg: 'bg-gray-100 dark:bg-dark-800', text: 'text-gray-600 dark:text-gray-300' }
 
   return (
     <span
@@ -1022,21 +1022,21 @@ function CurrentSpanPreview({ span }: { span: DebugSpan }) {
   const typeConfig = getSpanTypeConfig(span.spanType)
 
   return (
-    <div className="border-t bg-gray-50">
+    <div className="border-t bg-gray-50 dark:bg-dark-900">
       <button
         onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center gap-2 px-4 py-2 text-left hover:bg-gray-100"
+        className="w-full flex items-center gap-2 px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-dark-700"
       >
         {expanded ? (
-          <ChevronDown className="w-4 h-4 text-gray-400" />
+          <ChevronDown className="w-4 h-4 text-gray-400 dark:text-gray-500" />
         ) : (
-          <ChevronRight className="w-4 h-4 text-gray-400" />
+          <ChevronRight className="w-4 h-4 text-gray-400 dark:text-gray-500" />
         )}
         <SpanTypeBadge type={span.spanType} size="sm" />
-        <span className="font-mono text-sm font-medium text-gray-900 truncate flex-1">
+        <span className="font-mono text-sm font-medium text-gray-900 dark:text-gray-100 truncate flex-1">
           {span.name}
         </span>
-        <span className="text-xs text-gray-500">
+        <span className="text-xs text-gray-500 dark:text-gray-400">
           {span.durationMs ? `${span.durationMs}ms` : 'in progress'}
         </span>
       </button>
@@ -1045,18 +1045,18 @@ function CurrentSpanPreview({ span }: { span: DebugSpan }) {
         <div className="px-4 pb-3 space-y-2 text-sm">
           <div className="grid grid-cols-2 gap-2 text-xs">
             <div>
-              <span className="text-gray-500">Span ID:</span>{' '}
+              <span className="text-gray-500 dark:text-gray-400">Span ID:</span>{' '}
               <span className="font-mono">{span.spanId.slice(0, 16)}...</span>
             </div>
             <div>
-              <span className="text-gray-500">Status:</span>{' '}
+              <span className="text-gray-500 dark:text-gray-400">Status:</span>{' '}
               <span
                 className={clsx(
                   span.status === 'error'
-                    ? 'text-red-600'
+                    ? 'text-red-600 dark:text-red-400'
                     : span.status === 'ok'
-                      ? 'text-green-600'
-                      : 'text-gray-600',
+                      ? 'text-green-600 dark:text-emerald-400'
+                      : 'text-gray-600 dark:text-gray-300',
                 )}
               >
                 {span.status}
@@ -1064,19 +1064,19 @@ function CurrentSpanPreview({ span }: { span: DebugSpan }) {
             </div>
             {span.toolName && (
               <div>
-                <span className="text-gray-500">Tool:</span>{' '}
+                <span className="text-gray-500 dark:text-gray-400">Tool:</span>{' '}
                 <span className="font-mono">{span.toolName}</span>
               </div>
             )}
             {span.model && (
               <div>
-                <span className="text-gray-500">Model:</span>{' '}
+                <span className="text-gray-500 dark:text-gray-400">Model:</span>{' '}
                 <span className="font-mono">{span.model}</span>
               </div>
             )}
             {span.totalTokens && (
               <div>
-                <span className="text-gray-500">Tokens:</span>{' '}
+                <span className="text-gray-500 dark:text-gray-400">Tokens:</span>{' '}
                 {span.totalTokens.toLocaleString()}
               </div>
             )}
@@ -1084,8 +1084,8 @@ function CurrentSpanPreview({ span }: { span: DebugSpan }) {
 
           {span.input && (
             <div>
-              <div className="text-xs text-gray-500 mb-1">Input:</div>
-              <pre className="text-xs bg-white border rounded p-2 max-h-20 overflow-auto">
+              <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Input:</div>
+              <pre className="text-xs bg-white dark:bg-dark-800 border rounded p-2 max-h-20 overflow-auto">
                 {span.input.slice(0, 500)}
                 {span.input.length > 500 && '...'}
               </pre>
@@ -1094,8 +1094,8 @@ function CurrentSpanPreview({ span }: { span: DebugSpan }) {
 
           {span.output && (
             <div>
-              <div className="text-xs text-gray-500 mb-1">Output:</div>
-              <pre className="text-xs bg-white border rounded p-2 max-h-20 overflow-auto">
+              <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Output:</div>
+              <pre className="text-xs bg-white dark:bg-dark-800 border rounded p-2 max-h-20 overflow-auto">
                 {span.output.slice(0, 500)}
                 {span.output.length > 500 && '...'}
               </pre>
@@ -1139,17 +1139,17 @@ function AddBreakpointModal({
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
+      <div className="bg-white dark:bg-dark-800 rounded-lg shadow-xl w-full max-w-md mx-4">
         <div className="flex items-center justify-between px-4 py-3 border-b">
           <h3 className="font-semibold">Add Breakpoint</h3>
-          <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded">
+          <button onClick={onClose} className="p-1 hover:bg-gray-100 dark:hover:bg-dark-700 rounded">
             <X className="w-5 h-5" />
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className="p-4 space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Name (optional)
             </label>
             <input
@@ -1162,7 +1162,7 @@ function AddBreakpointModal({
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Span Type
             </label>
             <select
@@ -1180,7 +1180,7 @@ function AddBreakpointModal({
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Span Name (pattern)
             </label>
             <input
@@ -1193,7 +1193,7 @@ function AddBreakpointModal({
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Tool Name (for tool spans)
             </label>
             <input
@@ -1206,7 +1206,7 @@ function AddBreakpointModal({
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Trigger
             </label>
             <select
@@ -1226,7 +1226,7 @@ function AddBreakpointModal({
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg"
+              className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-dark-700 rounded-lg"
             >
               Cancel
             </button>

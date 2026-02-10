@@ -133,12 +133,12 @@ export function MCPToolUsageTable({
   // Sort icon
   const SortIcon = ({ field }: { field: SortField }) => {
     if (field !== sortField) {
-      return <ArrowUpDown className="w-4 h-4 text-gray-400" />
+      return <ArrowUpDown className="w-4 h-4 text-gray-400 dark:text-gray-500" />
     }
     return sortDirection === 'asc' ? (
-      <ArrowUp className="w-4 h-4 text-gray-700" />
+      <ArrowUp className="w-4 h-4 text-gray-700 dark:text-gray-300" />
     ) : (
-      <ArrowDown className="w-4 h-4 text-gray-700" />
+      <ArrowDown className="w-4 h-4 text-gray-700 dark:text-gray-300" />
     )
   }
 
@@ -174,24 +174,24 @@ export function MCPToolUsageTable({
       {/* Header with search and stats */}
       <div className="flex items-center justify-between gap-4">
         <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-gray-500" />
           <input
             type="text"
             placeholder="Search tools..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+            className="w-full pl-10 pr-4 py-2 border dark:border-dark-700 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 dark:bg-dark-800 dark:text-gray-100 dark:placeholder:text-gray-500"
           />
         </div>
         <div className="flex items-center gap-6 text-sm">
           <div>
-            <span className="text-gray-500">Total Calls:</span>{' '}
+            <span className="text-gray-500 dark:text-gray-400">Total Calls:</span>{' '}
             <span className="font-semibold">
               {formatNumber(stats.totalCalls)}
             </span>
           </div>
           <div>
-            <span className="text-gray-500">Avg Success:</span>{' '}
+            <span className="text-gray-500 dark:text-gray-400">Avg Success:</span>{' '}
             <span
               className={clsx(
                 'font-semibold',
@@ -206,7 +206,7 @@ export function MCPToolUsageTable({
             </span>
           </div>
           <div>
-            <span className="text-gray-500">Avg Latency:</span>{' '}
+            <span className="text-gray-500 dark:text-gray-400">Avg Latency:</span>{' '}
             <span className="font-semibold">
               {formatLatency(stats.avgLatency)}
             </span>
@@ -215,15 +215,15 @@ export function MCPToolUsageTable({
       </div>
 
       {/* Table */}
-      <div className="border rounded-lg overflow-hidden">
+      <div className="border dark:border-dark-700 rounded-lg overflow-hidden">
         <table className="w-full">
-          <thead className="bg-gray-50 border-b">
+          <thead className="bg-gray-50 dark:bg-dark-900 border-b dark:border-dark-700">
             <tr>
               <th className="px-4 py-3 text-left">
                 <button
                   type="button"
                   onClick={() => handleSort('toolId')}
-                  className="flex items-center gap-1 text-xs font-medium text-gray-600 uppercase tracking-wide hover:text-gray-900"
+                  className="flex items-center gap-1 text-xs font-medium text-gray-600 dark:text-gray-300 uppercase tracking-wide hover:text-gray-900 dark:hover:text-gray-100"
                 >
                   Tool
                   <SortIcon field="toolId" />
@@ -233,7 +233,7 @@ export function MCPToolUsageTable({
                 <button
                   type="button"
                   onClick={() => handleSort('serverId')}
-                  className="flex items-center gap-1 text-xs font-medium text-gray-600 uppercase tracking-wide hover:text-gray-900"
+                  className="flex items-center gap-1 text-xs font-medium text-gray-600 dark:text-gray-300 uppercase tracking-wide hover:text-gray-900 dark:hover:text-gray-100"
                 >
                   Server
                   <SortIcon field="serverId" />
@@ -243,7 +243,7 @@ export function MCPToolUsageTable({
                 <button
                   type="button"
                   onClick={() => handleSort('callCount')}
-                  className="flex items-center gap-1 text-xs font-medium text-gray-600 uppercase tracking-wide hover:text-gray-900 ml-auto"
+                  className="flex items-center gap-1 text-xs font-medium text-gray-600 dark:text-gray-300 uppercase tracking-wide hover:text-gray-900 dark:hover:text-gray-100 ml-auto"
                 >
                   Calls
                   <SortIcon field="callCount" />
@@ -253,7 +253,7 @@ export function MCPToolUsageTable({
                 <button
                   type="button"
                   onClick={() => handleSort('successRate')}
-                  className="flex items-center gap-1 text-xs font-medium text-gray-600 uppercase tracking-wide hover:text-gray-900 ml-auto"
+                  className="flex items-center gap-1 text-xs font-medium text-gray-600 dark:text-gray-300 uppercase tracking-wide hover:text-gray-900 dark:hover:text-gray-100 ml-auto"
                 >
                   Success Rate
                   <SortIcon field="successRate" />
@@ -263,7 +263,7 @@ export function MCPToolUsageTable({
                 <button
                   type="button"
                   onClick={() => handleSort('avgLatencyMs')}
-                  className="flex items-center gap-1 text-xs font-medium text-gray-600 uppercase tracking-wide hover:text-gray-900 ml-auto"
+                  className="flex items-center gap-1 text-xs font-medium text-gray-600 dark:text-gray-300 uppercase tracking-wide hover:text-gray-900 dark:hover:text-gray-100 ml-auto"
                 >
                   Latency
                   <SortIcon field="avgLatencyMs" />
@@ -271,10 +271,10 @@ export function MCPToolUsageTable({
               </th>
             </tr>
           </thead>
-          <tbody className="divide-y">
+          <tbody className="divide-y dark:divide-dark-700">
             {displayedTools.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-gray-500">
+                <td colSpan={5} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
                   No tools found
                 </td>
               </tr>
@@ -283,18 +283,18 @@ export function MCPToolUsageTable({
                 <tr
                   key={`${tool.serverId}-${tool.toolId}`}
                   className={clsx(
-                    'hover:bg-gray-50 transition-colors',
+                    'hover:bg-gray-50 dark:hover:bg-dark-700 transition-colors',
                     onToolClick && 'cursor-pointer',
                   )}
                   onClick={() => onToolClick?.(tool)}
                 >
                   <td className="px-4 py-3">
                     <div>
-                      <p className="font-mono text-sm text-gray-900">
+                      <p className="font-mono text-sm text-gray-900 dark:text-gray-100">
                         {tool.toolId}
                       </p>
                       {tool.name !== tool.toolId && (
-                        <p className="text-xs text-gray-500">{tool.name}</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">{tool.name}</p>
                       )}
                     </div>
                   </td>
@@ -310,13 +310,13 @@ export function MCPToolUsageTable({
                               : 'bg-rose-500',
                         )}
                       />
-                      <span className="text-sm text-gray-700">
+                      <span className="text-sm text-gray-700 dark:text-gray-300">
                         {tool.serverId}
                       </span>
                     </div>
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <span className="text-sm font-medium text-gray-900">
+                    <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
                       {formatNumber(tool.callCount)}
                     </span>
                   </td>
@@ -335,7 +335,7 @@ export function MCPToolUsageTable({
                     </span>
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <span className="text-sm text-gray-700">
+                    <span className="text-sm text-gray-700 dark:text-gray-300">
                       {formatLatency(tool.avgLatencyMs)}
                     </span>
                   </td>
@@ -357,29 +357,29 @@ export function MCPToolUsageTableSkeleton() {
   return (
     <div className="space-y-4 animate-pulse">
       <div className="flex items-center justify-between gap-4">
-        <div className="h-10 w-64 bg-gray-200 rounded-lg" />
+        <div className="h-10 w-64 bg-gray-200 dark:bg-dark-700 rounded-lg" />
         <div className="flex items-center gap-4">
-          <div className="h-5 w-24 bg-gray-200 rounded" />
-          <div className="h-5 w-24 bg-gray-200 rounded" />
-          <div className="h-5 w-24 bg-gray-200 rounded" />
+          <div className="h-5 w-24 bg-gray-200 dark:bg-dark-700 rounded" />
+          <div className="h-5 w-24 bg-gray-200 dark:bg-dark-700 rounded" />
+          <div className="h-5 w-24 bg-gray-200 dark:bg-dark-700 rounded" />
         </div>
       </div>
-      <div className="border rounded-lg overflow-hidden">
-        <div className="bg-gray-50 border-b px-4 py-3">
+      <div className="border dark:border-dark-700 rounded-lg overflow-hidden">
+        <div className="bg-gray-50 dark:bg-dark-900 border-b dark:border-dark-700 px-4 py-3">
           <div className="flex gap-4">
             {[1, 2, 3, 4, 5].map((i) => (
-              <div key={i} className="h-4 w-16 bg-gray-200 rounded" />
+              <div key={i} className="h-4 w-16 bg-gray-200 dark:bg-dark-700 rounded" />
             ))}
           </div>
         </div>
         {[1, 2, 3, 4, 5].map((i) => (
-          <div key={i} className="px-4 py-3 border-b last:border-0">
+          <div key={i} className="px-4 py-3 border-b dark:border-dark-700 last:border-0">
             <div className="flex gap-4">
-              <div className="h-4 w-24 bg-gray-200 rounded" />
-              <div className="h-4 w-16 bg-gray-200 rounded" />
-              <div className="h-4 w-12 bg-gray-200 rounded ml-auto" />
-              <div className="h-4 w-12 bg-gray-200 rounded" />
-              <div className="h-4 w-12 bg-gray-200 rounded" />
+              <div className="h-4 w-24 bg-gray-200 dark:bg-dark-700 rounded" />
+              <div className="h-4 w-16 bg-gray-200 dark:bg-dark-700 rounded" />
+              <div className="h-4 w-12 bg-gray-200 dark:bg-dark-700 rounded ml-auto" />
+              <div className="h-4 w-12 bg-gray-200 dark:bg-dark-700 rounded" />
+              <div className="h-4 w-12 bg-gray-200 dark:bg-dark-700 rounded" />
             </div>
           </div>
         ))}

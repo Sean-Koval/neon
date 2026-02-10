@@ -68,8 +68,8 @@ export function AgentOverview({
   return (
     <div className="space-y-6">
       {/* Score Trend Chart */}
-      <div className="bg-dark-800/50 border border-dark-700/50 rounded-xl p-6">
-        <h3 className="text-white font-semibold mb-4">Score Trend</h3>
+      <div className="bg-surface-card border border-border rounded-xl p-6">
+        <h3 className="text-content-primary font-semibold mb-4">Score Trend</h3>
         <div className="h-48 flex items-end gap-1 px-2">
           {Array.from({ length: 30 }, (_, i) => {
             const height = 40 + Math.sin(i * 0.3) * 20 + Math.random() * 15
@@ -82,7 +82,7 @@ export function AgentOverview({
             )
           })}
         </div>
-        <div className="flex justify-between mt-2 text-[10px] text-dark-500">
+        <div className="flex justify-between mt-2 text-[10px] text-content-muted">
           <span>30 days ago</span>
           <span>Today</span>
         </div>
@@ -90,10 +90,10 @@ export function AgentOverview({
 
       <div className="grid grid-cols-2 gap-6">
         {/* Active Issues */}
-        <div className="bg-dark-800/50 border border-dark-700/50 rounded-xl p-6">
+        <div className="bg-surface-card border border-border rounded-xl p-6">
           <div className="flex items-center gap-2 mb-4">
             <AlertCircle className="w-4 h-4 text-yellow-400" />
-            <h3 className="text-white font-semibold">Active Issues</h3>
+            <h3 className="text-content-primary font-semibold">Active Issues</h3>
           </div>
           <div className="space-y-3">
             {issues.map((issue) => (
@@ -109,19 +109,19 @@ export function AgentOverview({
         </div>
 
         {/* Tool Usage */}
-        <div className="bg-dark-800/50 border border-dark-700/50 rounded-xl p-6">
+        <div className="bg-surface-card border border-border rounded-xl p-6">
           <div className="flex items-center gap-2 mb-4">
-            <Wrench className="w-4 h-4 text-primary-400" />
-            <h3 className="text-white font-semibold">Tool Usage</h3>
+            <Wrench className="w-4 h-4 text-primary-500 dark:text-primary-400" />
+            <h3 className="text-content-primary font-semibold">Tool Usage</h3>
           </div>
           <div className="space-y-3">
             {toolUsage.map((tool) => (
               <div key={tool.name}>
                 <div className="flex items-center justify-between mb-1">
-                  <span className="text-sm text-dark-300">{tool.name}</span>
-                  <span className="text-xs text-dark-400">{tool.count.toLocaleString()}</span>
+                  <span className="text-sm text-content-secondary">{tool.name}</span>
+                  <span className="text-xs text-content-muted">{tool.count.toLocaleString()}</span>
                 </div>
-                <div className="h-2 bg-dark-700 rounded-full overflow-hidden">
+                <div className="h-2 bg-gray-200 dark:bg-dark-700 rounded-full overflow-hidden">
                   <div
                     className="h-full bg-gradient-to-r from-primary-500 to-accent-500 rounded-full"
                     style={{ width: `${tool.percentage}%` }}
@@ -134,15 +134,15 @@ export function AgentOverview({
       </div>
 
       {/* Recent Traces */}
-      <div className="bg-dark-800/50 border border-dark-700/50 rounded-xl p-6">
+      <div className="bg-surface-card border border-border rounded-xl p-6">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            <Activity className="w-4 h-4 text-primary-400" />
-            <h3 className="text-white font-semibold">Recent Traces</h3>
+            <Activity className="w-4 h-4 text-primary-500 dark:text-primary-400" />
+            <h3 className="text-content-primary font-semibold">Recent Traces</h3>
           </div>
           <Link
             href={`/traces?agent_id=${agentId}`}
-            className="text-xs text-primary-400 hover:text-primary-300 transition-colors"
+            className="text-xs text-primary-500 dark:text-primary-400 hover:text-primary-400 dark:hover:text-primary-300 transition-colors"
           >
             View all
           </Link>
@@ -152,7 +152,7 @@ export function AgentOverview({
             <Link
               key={trace.id}
               href={`/traces/${trace.id}`}
-              className="flex items-center justify-between p-3 rounded-lg hover:bg-dark-700/50 transition-colors"
+              className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-dark-700/50 transition-colors"
             >
               <div className="flex items-center gap-3">
                 <div
@@ -160,14 +160,14 @@ export function AgentOverview({
                     trace.status === 'ok' ? 'bg-green-400' : 'bg-red-400'
                   }`}
                 />
-                <span className="text-sm text-white">{trace.name}</span>
+                <span className="text-sm text-content-primary">{trace.name}</span>
               </div>
               <div className="flex items-center gap-4">
-                <div className="flex items-center gap-1 text-dark-400">
+                <div className="flex items-center gap-1 text-content-muted">
                   <Clock className="w-3 h-3" />
                   <span className="text-xs">{trace.duration_ms.toLocaleString()}ms</span>
                 </div>
-                <span className="text-xs text-dark-500">{trace.timestamp}</span>
+                <span className="text-xs text-content-muted">{trace.timestamp}</span>
               </div>
             </Link>
           ))}

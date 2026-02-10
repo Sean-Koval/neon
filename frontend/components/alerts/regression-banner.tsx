@@ -18,20 +18,20 @@ export function RegressionBanner({ alerts }: RegressionBannerProps) {
   return (
     <div
       className={`rounded-lg border px-4 py-3 ${
-        isCritical ? 'bg-red-50 border-red-200' : 'bg-amber-50 border-amber-200'
+        isCritical ? 'bg-red-50 dark:bg-red-500/10 border-red-200 dark:border-red-500/25' : 'bg-amber-50 dark:bg-amber-500/10 border-amber-200 dark:border-amber-500/25'
       }`}
       role="alert"
     >
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           {isCritical ? (
-            <XCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
+            <XCircle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0" />
           ) : (
-            <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0" />
+            <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0" />
           )}
           <div>
             <p
-              className={`text-sm font-medium ${isCritical ? 'text-red-800' : 'text-amber-800'}`}
+              className={`text-sm font-medium ${isCritical ? 'text-red-800 dark:text-red-300' : 'text-amber-800 dark:text-amber-300'}`}
             >
               {alerts.length} regression{alerts.length !== 1 ? 's' : ''}{' '}
               detected
@@ -43,7 +43,7 @@ export function RegressionBanner({ alerts }: RegressionBannerProps) {
               )}
             </p>
             <p
-              className={`text-xs mt-0.5 ${isCritical ? 'text-red-600' : 'text-amber-600'}`}
+              className={`text-xs mt-0.5 ${isCritical ? 'text-red-600 dark:text-red-400' : 'text-amber-600 dark:text-amber-400'}`}
             >
               {alerts[0].suiteName}: {alerts[0].details}
               {alerts.length > 1 && ` and ${alerts.length - 1} more`}
@@ -54,8 +54,8 @@ export function RegressionBanner({ alerts }: RegressionBannerProps) {
           href="/alerts"
           className={`inline-flex items-center gap-1 text-sm font-medium ${
             isCritical
-              ? 'text-red-700 hover:text-red-900'
-              : 'text-amber-700 hover:text-amber-900'
+              ? 'text-red-700 dark:text-red-400 hover:text-red-900 dark:hover:text-red-300'
+              : 'text-amber-700 dark:text-amber-400 hover:text-amber-900 dark:hover:text-amber-300'
           }`}
         >
           <Bell className="w-4 h-4" />

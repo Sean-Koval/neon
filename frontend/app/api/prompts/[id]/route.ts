@@ -186,7 +186,7 @@ export const PATCH = withRateLimit(async function PATCH(
       existing.name,
     )
     const newVersion = latestVersion + 1
-    const now = new Date().toISOString()
+    const now = new Date().toISOString().replace('T', ' ').replace('Z', '')
 
     // Create new version with updates
     const newPromptId = uuidv4()

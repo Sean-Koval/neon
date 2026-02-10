@@ -76,13 +76,13 @@ export function ConfidenceIntervalBar({
   return (
     <div className="space-y-1">
       {label && (
-        <div className="text-xs text-gray-500 font-medium">{label}</div>
+        <div className="text-xs text-gray-500 dark:text-gray-400 font-medium">{label}</div>
       )}
-      <div className="relative bg-gray-100 rounded h-8" style={{ width }}>
+      <div className="relative bg-gray-100 dark:bg-dark-800 rounded h-8" style={{ width }}>
         {/* Baseline CI range */}
         {baselineCI && (
           <div
-            className="absolute top-1 h-2.5 bg-gray-300 rounded-sm opacity-60"
+            className="absolute top-1 h-2.5 bg-gray-300 dark:bg-gray-500 rounded-sm opacity-60"
             style={{
               left: toPixels(baselineCI.lower),
               width: toPixels(baselineCI.upper) - toPixels(baselineCI.lower),
@@ -108,7 +108,7 @@ export function ConfidenceIntervalBar({
 
         {/* Baseline mean marker */}
         <div
-          className="absolute top-1 w-0.5 h-2.5 bg-gray-600"
+          className="absolute top-1 w-0.5 h-2.5 bg-gray-600 dark:bg-gray-300"
           style={{ left: toPixels(baselineMean) }}
           title={`Baseline: ${formatValue(baselineMean)}`}
         />
@@ -125,7 +125,7 @@ export function ConfidenceIntervalBar({
       </div>
 
       {/* Scale labels */}
-      <div className="flex justify-between text-[10px] text-gray-400">
+      <div className="flex justify-between text-[10px] text-gray-400 dark:text-gray-500">
         <span>{formatValue(scaleStart)}</span>
         <span>{formatValue(scaleEnd)}</span>
       </div>
@@ -166,8 +166,8 @@ export function StatisticalBadge({
         className={clsx(
           'px-2 py-0.5 text-xs font-medium rounded flex items-center gap-1 transition-colors',
           isSignificant
-            ? 'bg-blue-100 text-blue-700 hover:bg-blue-200'
-            : 'bg-gray-100 text-gray-600 hover:bg-gray-200',
+            ? 'bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-500/30'
+            : 'bg-gray-100 dark:bg-dark-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-dark-700',
         )}
         onClick={() => showTooltip && setShowDetails(!showDetails)}
         onMouseEnter={() => showTooltip && setShowDetails(true)}
@@ -225,10 +225,10 @@ export function EffectSizeBadge({
   const [showDetails, setShowDetails] = useState(false)
 
   const magnitudeColors = {
-    negligible: 'bg-gray-100 text-gray-600',
-    small: 'bg-yellow-100 text-yellow-700',
-    medium: 'bg-orange-100 text-orange-700',
-    large: 'bg-red-100 text-red-700',
+    negligible: 'bg-gray-100 dark:bg-dark-800 text-gray-600 dark:text-gray-300',
+    small: 'bg-yellow-100 dark:bg-amber-500/20 text-yellow-700 dark:text-amber-400',
+    medium: 'bg-orange-100 dark:bg-orange-500/20 text-orange-700 dark:text-orange-400',
+    large: 'bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-400',
   }
 
   const magnitudeLabels = {
@@ -265,8 +265,8 @@ export function EffectSizeBadge({
                 <div>Cliff's δ: {effectSize.cliffsDelta.toFixed(3)}</div>
               )}
               <div className="pt-1 border-t border-gray-700 mt-1">
-                <span className="text-gray-400">|d| interpretation:</span>
-                <div className="text-[10px] text-gray-400">
+                <span className="text-gray-400 dark:text-gray-500">|d| interpretation:</span>
+                <div className="text-[10px] text-gray-400 dark:text-gray-500">
                   {'< 0.2: negligible, < 0.5: small'}
                   <br />
                   {'< 0.8: medium, ≥ 0.8: large'}
@@ -316,7 +316,7 @@ export function SignificanceIndicator({
       ? isImprovement
         ? 'text-emerald-500'
         : 'text-rose-500'
-      : 'text-gray-400'
+      : 'text-gray-400 dark:text-gray-500'
 
     return (
       <span

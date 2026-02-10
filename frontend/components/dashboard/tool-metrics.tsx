@@ -161,18 +161,18 @@ function getSuccessRate(metric: ToolMetric): number {
  * Get color class based on success rate
  */
 function getSuccessRateColor(rate: number): string {
-  if (rate >= 95) return 'text-emerald-600'
-  if (rate >= 80) return 'text-amber-600'
-  return 'text-rose-600'
+  if (rate >= 95) return 'text-emerald-600 dark:text-emerald-400'
+  if (rate >= 80) return 'text-amber-600 dark:text-amber-400'
+  return 'text-rose-600 dark:text-rose-400'
 }
 
 /**
  * Get color class based on latency
  */
 function getLatencyColor(ms: number): string {
-  if (ms < 500) return 'text-emerald-600'
-  if (ms < 2000) return 'text-amber-600'
-  return 'text-rose-600'
+  if (ms < 500) return 'text-emerald-600 dark:text-emerald-400'
+  if (ms < 2000) return 'text-amber-600 dark:text-amber-400'
+  return 'text-rose-600 dark:text-rose-400'
 }
 
 // =============================================================================
@@ -183,17 +183,17 @@ function ToolMetricsSkeleton() {
   return (
     <div className="card p-6 animate-pulse">
       <div className="flex items-center justify-between mb-4">
-        <div className="h-5 w-32 bg-gray-200 rounded" />
-        <div className="h-8 w-8 bg-gray-200 rounded-lg" />
+        <div className="h-5 w-32 bg-gray-200 dark:bg-dark-700 rounded" />
+        <div className="h-8 w-8 bg-gray-200 dark:bg-dark-700 rounded-lg" />
       </div>
       <div className="space-y-3">
         {[1, 2, 3, 4].map((i) => (
           <div key={i} className="flex items-center justify-between">
-            <div className="h-4 w-24 bg-gray-200 rounded" />
+            <div className="h-4 w-24 bg-gray-200 dark:bg-dark-700 rounded" />
             <div className="flex gap-4">
-              <div className="h-4 w-16 bg-gray-200 rounded" />
-              <div className="h-4 w-16 bg-gray-200 rounded" />
-              <div className="h-4 w-16 bg-gray-200 rounded" />
+              <div className="h-4 w-16 bg-gray-200 dark:bg-dark-700 rounded" />
+              <div className="h-4 w-16 bg-gray-200 dark:bg-dark-700 rounded" />
+              <div className="h-4 w-16 bg-gray-200 dark:bg-dark-700 rounded" />
             </div>
           </div>
         ))}
@@ -209,21 +209,21 @@ interface ToolMetricsErrorProps {
 
 function ToolMetricsError({ error, onRetry }: ToolMetricsErrorProps) {
   return (
-    <div className="card p-6 bg-red-50 border-red-200">
+    <div className="card p-6 bg-red-50 dark:bg-red-500/10 border-red-200 dark:border-red-500/25">
       <div className="flex items-center space-x-3">
-        <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
+        <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0" />
         <div className="flex-1">
-          <h3 className="text-sm font-medium text-red-800">
+          <h3 className="text-sm font-medium text-red-800 dark:text-red-300">
             Failed to load tool metrics
           </h3>
-          <p className="mt-1 text-sm text-red-600">{error.message}</p>
+          <p className="mt-1 text-sm text-red-600 dark:text-red-400">{error.message}</p>
         </div>
         <button
           type="button"
           onClick={onRetry}
-          className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-red-700 bg-white border border-red-300 rounded-md hover:bg-red-50 transition-colors"
+          className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-red-700 dark:text-red-400 bg-white dark:bg-dark-800 border border-red-300 dark:border-red-500/25 rounded-md hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
         >
-          <RefreshCw className="w-4 h-4 mr-1" />
+          <RefreshCw className="w-4 h-4" />
           Retry
         </button>
       </div>
@@ -234,13 +234,13 @@ function ToolMetricsError({ error, onRetry }: ToolMetricsErrorProps) {
 function ToolMetricsEmpty() {
   return (
     <div className="card p-8 text-center">
-      <div className="w-12 h-12 mx-auto mb-4 rounded-xl bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
-        <Wrench className="w-6 h-6 text-gray-400" />
+      <div className="w-12 h-12 mx-auto mb-4 rounded-xl bg-gradient-to-br from-gray-100 dark:from-dark-800 to-gray-200 dark:to-dark-700 flex items-center justify-center">
+        <Wrench className="w-6 h-6 text-gray-400 dark:text-gray-500" />
       </div>
-      <h3 className="text-sm font-medium text-gray-900 mb-1">
+      <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-1">
         No tool data yet
       </h3>
-      <p className="text-sm text-gray-500">
+      <p className="text-sm text-gray-500 dark:text-gray-400">
         Tool metrics will appear here once agents start using tools.
       </p>
     </div>
@@ -257,18 +257,18 @@ function ToolRow({ metric, maxCalls }: ToolRowProps) {
   const barWidth = maxCalls > 0 ? (metric.callCount / maxCalls) * 100 : 0
 
   return (
-    <div className="group py-3 border-b border-gray-100 last:border-0 hover:bg-gray-50/50 -mx-2 px-2 rounded transition-colors">
+    <div className="group py-3 border-b border-gray-100 dark:border-dark-700 last:border-0 hover:bg-gray-50/50 dark:hover:bg-dark-700/50 -mx-2 px-2 rounded transition-colors">
       <div className="flex items-center justify-between">
         {/* Tool name with usage bar */}
         <div className="flex-1 min-w-0 mr-4">
           <div className="flex items-center gap-2">
-            <Wrench className="w-4 h-4 text-gray-400 flex-shrink-0" />
-            <span className="font-medium text-gray-900 truncate">
+            <Wrench className="w-4 h-4 text-gray-400 dark:text-gray-500 flex-shrink-0" />
+            <span className="font-medium text-gray-900 dark:text-gray-100 truncate">
               {metric.toolName}
             </span>
           </div>
           {/* Usage bar */}
-          <div className="mt-1.5 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+          <div className="mt-1.5 h-1.5 bg-gray-100 dark:bg-dark-800 rounded-full overflow-hidden">
             <div
               className="h-full bg-gradient-to-r from-primary-400 to-primary-500 rounded-full transition-all duration-500"
               style={{ width: `${barWidth}%` }}
@@ -280,10 +280,10 @@ function ToolRow({ metric, maxCalls }: ToolRowProps) {
         <div className="flex items-center gap-6 text-sm flex-shrink-0">
           {/* Call count */}
           <div className="text-right w-16">
-            <span className="font-medium text-gray-900">
+            <span className="font-medium text-gray-900 dark:text-gray-100">
               {metric.callCount.toLocaleString()}
             </span>
-            <span className="text-gray-400 ml-1 text-xs">calls</span>
+            <span className="text-gray-400 dark:text-gray-500 ml-1 text-xs">calls</span>
           </div>
 
           {/* Success rate */}
@@ -302,7 +302,7 @@ function ToolRow({ metric, maxCalls }: ToolRowProps) {
 
           {/* Latency */}
           <div className="flex items-center gap-1 w-20 text-right">
-            <Clock className="w-3.5 h-3.5 text-gray-400" />
+            <Clock className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500" />
             <span
               className={`font-medium ${getLatencyColor(metric.avgLatencyMs)}`}
             >
@@ -322,33 +322,33 @@ interface SummaryCardsProps {
 function SummaryCards({ summary }: SummaryCardsProps) {
   return (
     <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-      <div className="bg-gray-50 rounded-lg p-3 text-center">
-        <div className="text-2xl font-bold text-gray-900">
+      <div className="bg-gray-50 dark:bg-dark-900 rounded-lg p-3 text-center">
+        <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">
           {summary.totalCalls.toLocaleString()}
         </div>
-        <div className="text-xs text-gray-500">Total Calls</div>
+        <div className="text-xs text-gray-500 dark:text-gray-400">Total Calls</div>
       </div>
-      <div className="bg-gray-50 rounded-lg p-3 text-center">
-        <div className="text-2xl font-bold text-gray-900">
+      <div className="bg-gray-50 dark:bg-dark-900 rounded-lg p-3 text-center">
+        <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">
           {summary.totalTools}
         </div>
-        <div className="text-xs text-gray-500">Unique Tools</div>
+        <div className="text-xs text-gray-500 dark:text-gray-400">Unique Tools</div>
       </div>
-      <div className="bg-gray-50 rounded-lg p-3 text-center">
+      <div className="bg-gray-50 dark:bg-dark-900 rounded-lg p-3 text-center">
         <div
           className={`text-2xl font-bold ${getSuccessRateColor(summary.overallSuccessRate)}`}
         >
           {summary.overallSuccessRate.toFixed(1)}%
         </div>
-        <div className="text-xs text-gray-500">Success Rate</div>
+        <div className="text-xs text-gray-500 dark:text-gray-400">Success Rate</div>
       </div>
-      <div className="bg-gray-50 rounded-lg p-3 text-center">
+      <div className="bg-gray-50 dark:bg-dark-900 rounded-lg p-3 text-center">
         <div
           className={`text-2xl font-bold ${getLatencyColor(summary.avgLatencyMs)}`}
         >
           {formatLatency(summary.avgLatencyMs)}
         </div>
-        <div className="text-xs text-gray-500">Avg Latency</div>
+        <div className="text-xs text-gray-500 dark:text-gray-400">Avg Latency</div>
       </div>
     </div>
   )
@@ -371,7 +371,7 @@ function ToolMetricsContent({ data }: ToolMetricsContentProps) {
       <SummaryCards summary={data.summary} />
 
       {/* Tools list header */}
-      <div className="flex items-center justify-between text-xs text-gray-500 font-medium uppercase tracking-wide mb-2 px-2">
+      <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 font-medium uppercase tracking-wide mb-2 px-2">
         <span>Tool</span>
         <div className="flex items-center gap-6">
           <span className="w-16 text-right">Usage</span>
@@ -412,18 +412,18 @@ export function ToolMetricsCard({
   return (
     <div className={`card overflow-hidden ${className}`}>
       {/* Header */}
-      <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white">
+      <div className="p-6 border-b border-gray-200 dark:border-dark-700 bg-gradient-to-r from-gray-50 dark:from-dark-900 to-white dark:to-dark-800">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-lg font-semibold text-gray-900">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
               Tool Metrics
             </h2>
-            <p className="text-sm text-gray-500 mt-0.5">
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
               Last {days} days • Skill and tool execution stats
             </p>
           </div>
-          <div className="p-2 rounded-lg bg-gradient-to-br from-gray-50 to-gray-100">
-            <Wrench className="w-5 h-5 text-gray-600" />
+          <div className="p-2 rounded-lg bg-gradient-to-br from-gray-50 dark:from-dark-900 to-gray-100 dark:to-dark-800">
+            <Wrench className="w-5 h-5 text-gray-600 dark:text-gray-300" />
           </div>
         </div>
       </div>
