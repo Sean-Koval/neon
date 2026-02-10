@@ -49,8 +49,12 @@ export function useExperiments(
     'queryKey' | 'queryFn'
   >,
 ) {
+  const normalizedFilters = filters
+    ? ({ ...filters } as Record<string, unknown>)
+    : undefined
+
   return useQuery({
-    queryKey: queryKeys.experiments.list(filters),
+    queryKey: queryKeys.experiments.list(normalizedFilters),
     queryFn: async () => {
       const params = new URLSearchParams()
       if (filters?.type) params.set('type', filters.type)

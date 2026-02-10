@@ -138,7 +138,11 @@ export const experimentsRouter = router({
         .optional()
     )
     .query(async ({ ctx, input }) => {
-      const params = input ?? {};
+      const params = {
+        limit: 20,
+        sort: "newest" as const,
+        ...input,
+      };
 
       // Query Temporal for experiment workflows
       // Both abTestWorkflow and progressiveRolloutWorkflow

@@ -62,8 +62,8 @@ export function ExportDropdown({
     const lines: string[] = [
       '# Comparison Report',
       '',
-      `**Baseline:** ${comparison.baseline.run_id} (${comparison.baseline.suite_name ?? 'N/A'})`,
-      `**Candidate:** ${comparison.candidate.run_id} (${comparison.candidate.suite_name ?? 'N/A'})`,
+      `**Baseline:** ${comparison.baseline.id}`,
+      `**Candidate:** ${comparison.candidate.id}`,
       `**Overall Delta:** ${comparison.overall_delta >= 0 ? '+' : ''}${(comparison.overall_delta * 100).toFixed(1)}%`,
       `**Result:** ${comparison.passed ? 'PASSED' : 'FAILED'}`,
       `**Threshold:** ${(comparison.threshold * 100).toFixed(0)}%`,

@@ -530,6 +530,8 @@ export interface StartEvalRunRequest {
   agentId: string
   /** Agent version (optional, defaults to "latest") */
   agentVersion?: string
+  /** Optional suite ID when launching from a suite selection */
+  suiteId?: string
   /** Dataset of test cases */
   dataset: {
     items: DatasetItem[]

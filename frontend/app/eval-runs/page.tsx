@@ -407,11 +407,13 @@ export default function EvalRunsPage() {
 
   // Debounced search
   const [debouncedSearch, setDebouncedSearch] = useState(searchQuery)
-  const searchTimer = useRef<ReturnType<typeof setTimeout>>()
+  const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     searchTimer.current = setTimeout(() => setDebouncedSearch(searchQuery), 300)
-    return () => clearTimeout(searchTimer.current)
+    return () => {
+      if (searchTimer.current) clearTimeout(searchTimer.current)
+    }
   }, [searchQuery])
 
   // Sync filters to URL

@@ -360,8 +360,9 @@ function ResultRow({
   const hasSignificance = item.significance || item.effectSize
 
   // Attempt to extract trace IDs from item metadata (if available)
-  const baselineTraceId = (item as Record<string, unknown>).baseline_trace_id as string | undefined
-  const candidateTraceId = (item as Record<string, unknown>).candidate_trace_id as string | undefined
+  const itemMetadata = item as unknown as Record<string, unknown>
+  const baselineTraceId = itemMetadata.baseline_trace_id as string | undefined
+  const candidateTraceId = itemMetadata.candidate_trace_id as string | undefined
 
   return (
     <div className={clsx(
