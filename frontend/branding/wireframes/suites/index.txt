@@ -1,0 +1,253 @@
+================================================================================
+SUITES LIST — app/suites/page.tsx
+================================================================================
+Evaluation suite definitions. Promoted from hidden to visible nav under EVALUATE.
+A suite is a reusable collection of test cases + scorers targeting a specific agent.
+Route: /suites
+
+DESIGN NOTES:
+  1. Suites are the entry point to the evaluation lifecycle. The list view must
+     surface enough context to decide which suite to run next — last run result,
+     case count, scorer coverage, and pass-rate trend.
+  2. "Create Suite" links to /suites/new (existing 4-step wizard), not a dialog.
+     The wizard handles the complexity of multi-case creation with JSON input
+     editors, scorer configuration, and execution settings.
+  3. Cards are links to /suites/[id]. "Run This Suite" is a secondary action
+     that opens the existing StartEvalRunDialog pre-filled with the suite.
+  4. Summary stats strip aggregates across all suites for a project-level view.
+  5. Filters are URL-synced via shallow routing (searchParams).
+  6. ScorerType values: tool_selection, reasoning, grounding, efficiency, custom.
+  7. Suite data is cached for 5 minutes (staleTime). No real-time polling needed.
+
+DATA: trpc.suites.list, trpc.evals.listRuns (for last-run stats per suite)
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                                                                             │
+│  ┌─ Page Header ───────────────────────────────────────────────────────┐   │
+│  │                                                                       │   │
+│  │  Evaluation Suites                              [+ Create Suite]     │   │
+│  │  Reusable test definitions for evaluating agent capabilities          │   │
+│  │                                                                       │   │
+│  │  Title: text-2xl font-bold text-content-primary                      │   │
+│  │  Subtitle: text-sm text-content-muted                                │   │
+│  │  "Create Suite": btn btn-primary, links to /suites/new              │   │
+│  │                                                                       │   │
+│  └───────────────────────────────────────────────────────────────────────┘   │
+│                                                                             │
+│  ┌─ Summary Stats (grid-cols-4 gap-4) ───────────────────────────────────┐ │
+│  │                                                                         │ │
+│  │  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐ ┌──────────────┐ │ │
+│  │  │ Suites       │ │ Total Cases  │ │ Avg Pass Rate│ │ Last Run     │ │ │
+│  │  │ 8            │ │ 147          │ │ 91.3%        │ │ 14m ago      │ │ │
+│  │  └──────────────┘ └──────────────┘ └──────────────┘ └──────────────┘ │ │
+│  │                                                                         │ │
+│  │  stat-card class (bg-surface-card border border-border rounded-xl p-4) │ │
+│  │  Label: text-[10px] uppercase tracking-wider text-content-muted        │ │
+│  │  Value: text-2xl font-bold text-content-primary                        │ │
+│  │                                                                         │ │
+│  │  "Avg Pass Rate": colored >=90% emerald, >=70% amber, <70% rose      │ │
+│  │  "Last Run": relative timestamp of most recent run across all suites  │ │
+│  │                                                                         │ │
+│  └───────────────────────────────────────────────────────────────────────┘ │
+│                                                                             │
+│  ┌─ Filters ─────────────────────────────────────────────────────────────┐ │
+│  │                                                                         │ │
+│  │  ┌───────────────────────────────────┐ ┌──────────────┐               │ │
+│  │  │ (SearchIcon) Search suites...     │ │ Agent    ▾  │               │ │
+│  │  └───────────────────────────────────┘ └──────────────┘               │ │
+│  │                                                                         │ │
+│  │  ┌──────────────┐  ┌──────────────┐                                   │ │
+│  │  │ Scorer    ▾  │  │ Sort by   ▾  │                                   │ │
+│  │  └──────────────┘  └──────────────┘                                   │ │
+│  │                                                                         │ │
+│  │  Search: filters by suite name or description (client-side)            │ │
+│  │  Agent: all / booking-agent / research-agent / ... (from suite data)  │ │
+│  │  Scorer: all / tool_selection / reasoning / grounding / efficiency    │ │
+│  │  Sort: last run (default) / name / cases / pass rate                  │ │
+│  │                                                                         │ │
+│  │  All filters stored in URL searchParams for shareability              │ │
+│  │                                                                         │ │
+│  └───────────────────────────────────────────────────────────────────────┘ │
+│                                                                             │
+│  ┌─ Suite Grid (grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4) ────────┐│
+│  │                                                                         ││
+│  │  ┌─ Suite Card ─────────────────────────────────────────────────────┐  ││
+│  │  │                                                                   │  ││
+│  │  │  ┌─ Card Header ──────────────────────────────────────────────┐ │  ││
+│  │  │  │                                                             │ │  ││
+│  │  │  │  booking-agent-suite                        12 cases       │ │  ││
+│  │  │  │  Tests for booking flow accuracy and edge cases            │ │  ││
+│  │  │  │                                                             │ │  ││
+│  │  │  │  Name: text-base font-semibold text-content-primary        │ │  ││
+│  │  │  │  Cases: text-xs text-content-muted, right-aligned          │ │  ││
+│  │  │  │  Description: text-sm text-content-secondary line-clamp-2  │ │  ││
+│  │  │  │                                                             │ │  ││
+│  │  │  └─────────────────────────────────────────────────────────────┘ │  ││
+│  │  │                                                                   │  ││
+│  │  │  ┌─ Metadata Row ─────────────────────────────────────────────┐ │  ││
+│  │  │  │                                                             │ │  ││
+│  │  │  │  Agent: booking-agent                                      │ │  ││
+│  │  │  │  Scorers: [tool_selection] [reasoning] [grounding]         │ │  ││
+│  │  │  │  Min Score: 0.80                                            │ │  ││
+│  │  │  │                                                             │ │  ││
+│  │  │  │  Agent: text-xs text-content-muted label + value           │ │  ││
+│  │  │  │  Scorers: badge-muted for each scorer type                 │ │  ││
+│  │  │  │  Min Score: text-xs                                         │ │  ││
+│  │  │  │                                                             │ │  ││
+│  │  │  └─────────────────────────────────────────────────────────────┘ │  ││
+│  │  │                                                                   │  ││
+│  │  │  ┌─ Last Run Stats ───────────────────────────────────────────┐ │  ││
+│  │  │  │                                                             │ │  ││
+│  │  │  │  Last run: 14m ago    Pass: 94% (11/12)    Score: 0.87    │ │  ││
+│  │  │  │                                                             │ │  ││
+│  │  │  │  Pass rate colored: >=90% emerald, >=70% amber, <70% rose │ │  ││
+│  │  │  │  Score colored: same thresholds as pass rate               │ │  ││
+│  │  │  │  If no runs yet: "No runs yet" in text-content-muted      │ │  ││
+│  │  │  │                                                             │ │  ││
+│  │  │  └─────────────────────────────────────────────────────────────┘ │  ││
+│  │  │                                                                   │  ││
+│  │  │  ┌─ Card Footer (border-t border-border pt-3 mt-3) ──────────┐ │  ││
+│  │  │  │                                                             │ │  ││
+│  │  │  │  [Run Suite]                                     [View ->] │ │  ││
+│  │  │  │                                                             │ │  ││
+│  │  │  │  "Run Suite": btn btn-secondary btn-sm                     │ │  ││
+│  │  │  │    Opens StartEvalRunDialog pre-filled with this suite     │ │  ││
+│  │  │  │  "View ->": btn btn-ghost btn-sm, navigates to /suites/[id]│ │  ││
+│  │  │  │                                                             │ │  ││
+│  │  │  └─────────────────────────────────────────────────────────────┘ │  ││
+│  │  │                                                                   │  ││
+│  │  │  card class (bg-surface-card border border-border rounded-xl     │  ││
+│  │  │  p-5 hover:border-content-muted/30 transition-colors)           │  ││
+│  │  │  Entire card clickable (links to /suites/[id]), except buttons  │  ││
+│  │  │                                                                   │  ││
+│  │  └───────────────────────────────────────────────────────────────────┘  ││
+│  │                                                                         ││
+│  │  ┌─ Suite Card (never run) ─────────────────────────────────────────┐  ││
+│  │  │                                                                   │  ││
+│  │  │  research-agent-eval                            5 cases          │  ││
+│  │  │  Evaluate research agent quality and grounding                  │  ││
+│  │  │                                                                   │  ││
+│  │  │  Agent: research-agent                                           │  ││
+│  │  │  Scorers: [reasoning] [grounding]                                │  ││
+│  │  │  Min Score: 0.70                                                  │  ││
+│  │  │                                                                   │  ││
+│  │  │  No runs yet                                                     │  ││
+│  │  │                                                                   │  ││
+│  │  │  [Run Suite]                                         [View ->]  │  ││
+│  │  │                                                                   │  ││
+│  │  │  "No runs yet": text-sm text-content-muted italic               │  ││
+│  │  │  Same card layout but last-run-stats section is collapsed       │  ││
+│  │  │                                                                   │  ││
+│  │  └───────────────────────────────────────────────────────────────────┘  ││
+│  │                                                                         ││
+│  │  (more suite cards...)                                                  ││
+│  │                                                                         ││
+│  └─────────────────────────────────────────────────────────────────────────┘│
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+
+LOADING STATE:
+
+  ┌─ Summary Stats (grid-cols-4 gap-4) ─────────────────────────────────────┐
+  │                                                                           │
+  │  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐ ┌──────────────┐   │
+  │  │ ░░░░░░░░░░░  │ │ ░░░░░░░░░░░  │ │ ░░░░░░░░░░░  │ │ ░░░░░░░░░░░  │   │
+  │  │ ░░░░░        │ │ ░░░░░        │ │ ░░░░░        │ │ ░░░░░        │   │
+  │  └──────────────┘ └──────────────┘ └──────────────┘ └──────────────┘   │
+  └───────────────────────────────────────────────────────────────────────────┘
+
+  ┌─ Suite Grid ────────────────────────────────────────────────────────────┐
+  │                                                                          │
+  │  ┌───────────────────┐ ┌───────────────────┐ ┌───────────────────┐     │
+  │  │ ░░░░░░░░░░░░░░░░  │ │ ░░░░░░░░░░░░░░░░  │ │ ░░░░░░░░░░░░░░░░  │     │
+  │  │ ░░░░░░░░░░░░░     │ │ ░░░░░░░░░░░░░     │ │ ░░░░░░░░░░░░░     │     │
+  │  │                    │ │                    │ │                    │     │
+  │  │ ░░░░ ░░░░ ░░░░    │ │ ░░░░ ░░░░ ░░░░    │ │ ░░░░ ░░░░ ░░░░    │     │
+  │  │ ░░░░░░ ░░░░ ░░░   │ │ ░░░░░░ ░░░░ ░░░   │ │ ░░░░░░ ░░░░ ░░░   │     │
+  │  │                    │ │                    │ │                    │     │
+  │  │ ──────────────     │ │ ──────────────     │ │ ──────────────     │     │
+  │  │ ░░░░░   ░░░░░     │ │ ░░░░░   ░░░░░     │ │ ░░░░░   ░░░░░     │     │
+  │  └───────────────────┘ └───────────────────┘ └───────────────────┘     │
+  │                                                                          │
+  │  6 skeleton cards matching card layout. animate-pulse.                  │
+  │  bg-surface-overlay/50 for skeleton blocks.                            │
+  │                                                                          │
+  └──────────────────────────────────────────────────────────────────────────┘
+
+
+EMPTY STATE (no suites):
+
+  ┌──────────────────────────────────────────────────────────────┐
+  │                                                              │
+  │          (FlaskConical icon, w-12 h-12, text-content-muted) │
+  │                                                              │
+  │          No evaluation suites yet                            │
+  │          Create your first suite to start evaluating         │
+  │          your agents with reusable test definitions.         │
+  │                                                              │
+  │                    [+ Create Suite]                           │
+  │                                                              │
+  │  Title: text-lg font-semibold text-content-primary           │
+  │  Body: text-sm text-content-muted max-w-md text-center      │
+  │  Button: btn btn-primary, links to /suites/new              │
+  │  Container: py-20 flex flex-col items-center gap-4          │
+  │                                                              │
+  └──────────────────────────────────────────────────────────────┘
+
+
+EMPTY STATE (filters active, no matches):
+
+  ┌──────────────────────────────────────────────────────────────┐
+  │                                                              │
+  │          (Search icon, w-10 h-10, text-content-muted)       │
+  │                                                              │
+  │          No suites match your filters                        │
+  │          Try adjusting your search or filter criteria.       │
+  │                                                              │
+  │                    [Clear Filters]                            │
+  │                                                              │
+  └──────────────────────────────────────────────────────────────┘
+
+
+ERROR STATE:
+
+  ┌──────────────────────────────────────────────────────────────┐
+  │                                                              │
+  │          (AlertCircle icon, w-10 h-10, text-status-error)   │
+  │                                                              │
+  │          Failed to load suites                               │
+  │          Something went wrong. Please try again.             │
+  │                                                              │
+  │                      [Retry]                                 │
+  │                                                              │
+  │  Uses QueryErrorBoundary pattern.                           │
+  │  "Retry": btn btn-secondary, calls refetch()               │
+  │                                                              │
+  └──────────────────────────────────────────────────────────────┘
+
+
+DATA SOURCES:
+  - trpc.suites.list → EvalSuite[] (suite metadata + cases array)
+  - trpc.evals.listRuns({ suiteId }) → EvalRun[] (for last-run stats per suite)
+  - Last-run stats are derived client-side: take most recent run per suite,
+    extract summary.passed / summary.total_cases and summary.avg_score
+  - Summary stats strip is computed by aggregating across all suites
+  - Agent list for filter dropdown is derived from unique agent_id values
+  - StartEvalRunDialog is the existing component from eval-runs page
+  - Suite creation wizard is at /suites/new (existing 4-step flow)
+
+BEHAVIORAL NOTES:
+  1. Cards are clickable links to /suites/[id], but the "Run Suite" button
+     is a separate click target that opens StartEvalRunDialog (stopPropagation).
+  2. Search is client-side (debounced 300ms) since suite count is typically
+     low (< 50). No server-side pagination needed.
+  3. Sort persists in URL searchParams. Default: most recently run first.
+  4. Suites without any runs sort to the bottom in the default sort order.
+  5. The "Run Suite" button pre-fills StartEvalRunDialog with:
+     { suiteId, agentId (from suite), defaultScorers (from suite) }
+  6. Scorer badges use abbreviated labels: tool_selection -> "Tool",
+     reasoning -> "Reason", grounding -> "Ground", efficiency -> "Effic",
+     custom -> "Custom".
+  7. Cache: staleTime 5 minutes. No refetchInterval (suites change rarely).
+  8. Grid is responsive: 1 col on mobile, 2 on md, 3 on xl.

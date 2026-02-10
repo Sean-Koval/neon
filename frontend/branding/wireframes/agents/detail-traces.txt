@@ -1,0 +1,132 @@
+================================================================================
+AGENT DETAIL — Traces Tab — app/agents/[id]?tab=traces
+================================================================================
+Agent-specific traces: filtered view of the main Traces page.
+Route: /agents/[id]?tab=traces
+
+PARENT: Agent Detail page (see detail.txt for header + tab bar)
+DATA: useTraces({ agentId })
+
+DESIGN NOTE: "Confidence" renamed to "Avg Score" to align with the
+actual data source. The traces schema stores per-trace scores from
+eval scorers, not a separate "confidence" metric. "Low-score decisions"
+are traces where the score falls below the agent's SLA target
+(or below 0.7 if no SLA is configured).
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  (Agent Header + Tab Bar — see detail.txt)                                  │
+│                                                                             │
+│  Overview  |  Skills  |  Tools  |  Versions  |  Traces*                    │
+│                                                =========                    │
+│                                                                             │
+│  ┌─ TAB: Traces ───────────────────────────────────────────────────────┐  │
+│  │                                                                       │  │
+│  │  ┌─ Trace Filters ─────────────────────────────────────────────────┐ │  │
+│  │  │                                                                   │ │  │
+│  │  │  ┌───────────────────────────────────┐ ┌────────────┐           │ │  │
+│  │  │  │ (SearchIcon) Search traces...      │ │ Status  ▾ │           │ │  │
+│  │  │  └───────────────────────────────────┘ └────────────┘           │ │  │
+│  │  │                                                                   │ │  │
+│  │  │  ┌────────────┐  ┌────────────────────────────────────────────┐ │ │  │
+│  │  │  │ Last 7d ▾  │  │ [Compare Selected]  [View All Traces]     │ │ │  │
+│  │  │  └────────────┘  └────────────────────────────────────────────┘ │ │  │
+│  │  │                                                                   │ │  │
+│  │  │  Search: filters by trace ID or input text                       │ │  │
+│  │  │  Status: all / success / failed / warning                        │ │  │
+│  │  │  Time range: last 1h / 6h / 24h / 7d / 30d / custom             │ │  │
+│  │  │  "Compare Selected": enabled when 2 traces are checked          │ │  │
+│  │  │    -> navigates to /traces/diff?a=X&b=Y                         │ │  │
+│  │  │  "View All Traces": link to /traces?agent_id=X (full page)     │ │  │
+│  │  │                                                                   │ │  │
+│  │  └───────────────────────────────────────────────────────────────────┘ │  │
+│  │                                                                       │  │
+│  │  ┌─ Trace Quality Summary (grid-cols-4 gap-4) ─────────────────────┐ │  │
+│  │  │                                                                   │ │  │
+│  │  │  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐             │ │  │
+│  │  │  │ Traces (7d)  │ │ Avg Score    │ │ Low-Score    │             │ │  │
+│  │  │  │ 1,240        │ │ 0.87         │ │ Traces       │             │ │  │
+│  │  │  │              │ │              │ │ 23 (1.8%)    │             │ │  │
+│  │  │  └──────────────┘ └──────────────┘ └──────────────┘             │ │  │
+│  │  │  ┌──────────────┐                                                │ │  │
+│  │  │  │ Loop         │  stat-card class                               │ │  │
+│  │  │  │ Detections   │                                                │ │  │
+│  │  │  │ 3            │  "Avg Score": avg of per-trace eval scores     │ │  │
+│  │  │  └──────────────┘  from ClickHouse (not a separate confidence    │ │  │
+│  │  │                    metric). Colored: >=0.85 emerald, >=0.7       │ │  │
+│  │  │                    amber, <0.7 rose.                              │ │  │
+│  │  │                                                                   │ │  │
+│  │  │                    "Low-Score Traces": count where trace score   │ │  │
+│  │  │                    < agent's SLA minPassRate (or <0.7 default).  │ │  │
+│  │  │                    Colored rose if >5% of total, amber >2%.     │ │  │
+│  │  │                                                                   │ │  │
+│  │  │                    "Loop Detections": traces where span_count   │ │  │
+│  │  │                    > 2x the agent's median span count.           │ │  │
+│  │  │                    Indicates potential retry loops or stuck       │ │  │
+│  │  │                    tool calls. Colored rose if >0.                │ │  │
+│  │  │                                                                   │ │  │
+│  │  └───────────────────────────────────────────────────────────────────┘ │  │
+│  │                                                                       │  │
+│  │  ┌─ Trace List ────────────────────────────────────────────────────┐ │  │
+│  │  │                                                                   │ │  │
+│  │  │  ┌──┬───────────────┬────────┬───────┬──────────┬──────┬──────┐ │ │  │
+│  │  │  │  │ Trace ID      │ Status │ Spans │ Duration │ Score│ Time │ │ │  │
+│  │  │  ├──┼───────────────┼────────┼───────┼──────────┼──────┼──────┤ │ │  │
+│  │  │  │☐ │ abc-1234...   │  ok    │ 12    │ 3.2s     │ 0.92 │ 2m   │ │ │  │
+│  │  │  │☐ │ def-5678...   │  fail  │ 8     │ timeout  │ 0.31 │ 5m   │ │ │  │
+│  │  │  │☐ │ ghi-9012...   │  ok    │ 15    │ 4.1s     │ 0.88 │ 12m  │ │ │  │
+│  │  │  │☐ │ jkl-3456...   │  ok    │ 6     │ 1.8s     │ 0.95 │ 30m  │ │ │  │
+│  │  │  │☐ │ mno-7890...   │  warn  │ 22    │ 8.5s     │ 0.67 │ 1h   │ │ │  │
+│  │  │  │  │               │        │       │          │      │loop! │ │ │  │
+│  │  │  └──┴───────────────┴────────┴───────┴──────────┴──────┴──────┘ │ │  │
+│  │  │                                                                   │ │  │
+│  │  │  Table details:                                                  │ │  │
+│  │  │  - Checkbox: for multi-select (enables Compare Selected)        │ │  │
+│  │  │  - Trace ID: first 8 chars + ellipsis, font-mono, truncated     │ │  │
+│  │  │    Click row -> navigate to /traces/[traceId]                   │ │  │
+│  │  │  - Status: colored icon                                          │ │  │
+│  │  │    ok = CheckCircle (emerald)                                    │ │  │
+│  │  │    fail = XCircle (rose)                                         │ │  │
+│  │  │    warn = AlertTriangle (amber) — for loops, timeouts, errors   │ │  │
+│  │  │  - Spans: count, amber if >2x agent median                      │ │  │
+│  │  │  - Duration: formatted (ms/s), rose if >SLA maxP50Latency       │ │  │
+│  │  │  - Score: per-trace score from eval, colored by threshold        │ │  │
+│  │  │  - Time: relative timestamp                                      │ │  │
+│  │  │  - "loop!" badge: text-[10px] badge-red, shown when span count  │ │  │
+│  │  │    is anomalously high (>2x median for this agent)              │ │  │
+│  │  │                                                                   │ │  │
+│  │  │  All columns sortable. Default: newest first.                    │ │  │
+│  │  │  Row hover: bg-surface-overlay/50                                │ │  │
+│  │  │  Click row: navigate to /traces/[traceId]                       │ │  │
+│  │  │                                                                   │ │  │
+│  │  │  card class                                                      │ │  │
+│  │  │                                                                   │ │  │
+│  │  │  ┌─ Pagination ──────────────────────────────────────────────┐  │ │  │
+│  │  │  │                                                            │  │ │  │
+│  │  │  │  Showing 1-20 of 1,240 traces                             │  │ │  │
+│  │  │  │                                                            │  │ │  │
+│  │  │  │  [Prev]  1  2  3  ...  62  [Next]                         │  │ │  │
+│  │  │  │                                                            │  │ │  │
+│  │  │  │  20 per page. text-sm text-content-muted                  │  │ │  │
+│  │  │  │  Active page: text-content-primary font-medium            │  │ │  │
+│  │  │  │  Inactive: text-content-muted hover:text-content-secondary│  │ │  │
+│  │  │  │                                                            │  │ │  │
+│  │  │  └────────────────────────────────────────────────────────────┘  │ │  │
+│  │  │                                                                   │ │  │
+│  │  └───────────────────────────────────────────────────────────────────┘ │  │
+│  │                                                                       │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+EMPTY STATE (no traces for this agent):
+
+  ┌──────────────────────────────────────────────────────────┐
+  │                                                          │
+  │        (Activity icon, w-12 h-12, text-content-muted)   │
+  │                                                          │
+  │        No traces yet                                     │
+  │        This agent hasn't sent any traces.                │
+  │        Traces appear automatically when the agent        │
+  │        executes via the SDK.                             │
+  │                                                          │
+  └──────────────────────────────────────────────────────────┘

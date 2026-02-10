@@ -21,6 +21,9 @@ import { promptsRouter } from "./prompts";
 import { compareRouter } from "./compare";
 import { agentsRouter } from "./agents";
 import { alertRulesRouter } from "./alertRules";
+import { experimentsRouter } from "./experiments";
+import { datasetsRouter } from "./datasets";
+import { trainingLoopsRouter } from "./trainingLoops";
 
 /**
  * Main app router
@@ -53,6 +56,13 @@ export const appRouter = router({
 
   // Alert rules
   alertRules: alertRulesRouter,
+
+  // Experiments (A/B tests & progressive rollouts)
+  experiments: experimentsRouter,
+
+  // Training: datasets & optimization loops
+  datasets: datasetsRouter,
+  trainingLoops: trainingLoopsRouter,
 });
 
 /**

@@ -173,20 +173,20 @@ function SummaryStat({ label, count, variant }: SummaryStatProps) {
  */
 export function ComparisonHeaderSkeleton() {
   return (
-    <div className="rounded-2xl bg-gray-200 p-8 animate-pulse">
+    <div className="rounded-2xl bg-gray-200 dark:bg-dark-700 p-8 animate-pulse">
       <div className="flex items-center gap-4">
-        <div className="w-16 h-16 rounded-full bg-gray-300" />
+        <div className="w-16 h-16 rounded-full bg-gray-300 dark:bg-dark-600" />
         <div className="space-y-2">
-          <div className="h-8 w-64 bg-gray-300 rounded" />
-          <div className="h-4 w-48 bg-gray-300 rounded" />
+          <div className="h-8 w-64 bg-gray-300 dark:bg-dark-600 rounded" />
+          <div className="h-4 w-48 bg-gray-300 dark:bg-dark-600 rounded" />
         </div>
       </div>
-      <div className="mt-6 pt-6 border-t border-gray-300">
+      <div className="mt-6 pt-6 border-t border-gray-300 dark:border-dark-600">
         <div className="grid grid-cols-3 gap-4">
           {[1, 2, 3].map((i) => (
             <div key={i} className="text-center space-y-2">
-              <div className="h-10 w-12 bg-gray-300 rounded mx-auto" />
-              <div className="h-4 w-20 bg-gray-300 rounded mx-auto" />
+              <div className="h-10 w-12 bg-gray-300 dark:bg-dark-600 rounded mx-auto" />
+              <div className="h-4 w-20 bg-gray-300 dark:bg-dark-600 rounded mx-auto" />
             </div>
           ))}
         </div>

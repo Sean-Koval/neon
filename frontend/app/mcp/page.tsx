@@ -113,10 +113,10 @@ export default function MCPDashboardPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
             MCP Observability
           </h1>
-          <p className="text-gray-500">
+          <p className="text-gray-500 dark:text-gray-400">
             Monitor Model Context Protocol server health and performance
           </p>
         </div>
@@ -124,11 +124,11 @@ export default function MCPDashboardPage() {
         <div className="flex items-center gap-3">
           {/* Date Range Selector */}
           <div className="flex items-center gap-2">
-            <Calendar className="w-4 h-4 text-gray-500" />
+            <Calendar className="w-4 h-4 text-gray-500 dark:text-gray-400" />
             <select
               value={dateRange}
               onChange={(e) => setDateRange(Number(e.target.value))}
-              className="px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-primary-500"
+              className="px-3 py-2 border dark:border-dark-700 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 dark:bg-dark-800 dark:text-gray-100"
             >
               {DATE_RANGES.map((range) => (
                 <option key={range.days} value={range.days}>
@@ -143,7 +143,7 @@ export default function MCPDashboardPage() {
             type="button"
             onClick={() => refetch()}
             disabled={isLoading}
-            className="p-2 border rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+            className="p-2 border dark:border-dark-700 rounded-lg hover:bg-gray-50 dark:hover:bg-dark-700 transition-colors disabled:opacity-50"
             title="Refresh data"
           >
             <RefreshCcw
@@ -184,16 +184,16 @@ export default function MCPDashboardPage() {
       {/* Summary Stats */}
       {!isLoading && (
         <div className="grid grid-cols-6 gap-4 mb-6">
-          <div className="bg-white border rounded-lg p-4">
-            <div className="flex items-center gap-2 text-gray-500 mb-1">
+          <div className="bg-white dark:bg-dark-800 border dark:border-dark-700 rounded-lg p-4">
+            <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400 mb-1">
               <Server className="w-4 h-4" />
               <span className="text-xs font-medium">Servers</span>
             </div>
-            <div className="text-2xl font-bold text-gray-900">
+            <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">
               {summary.totalServers}
             </div>
           </div>
-          <div className="bg-white border rounded-lg p-4 border-emerald-200">
+          <div className="bg-white dark:bg-dark-800 border rounded-lg p-4 border-emerald-200">
             <div className="flex items-center gap-2 text-emerald-600 mb-1">
               <CheckCircle className="w-4 h-4" />
               <span className="text-xs font-medium">Healthy</span>
@@ -202,7 +202,7 @@ export default function MCPDashboardPage() {
               {summary.healthyServers}
             </div>
           </div>
-          <div className="bg-white border rounded-lg p-4 border-amber-200">
+          <div className="bg-white dark:bg-dark-800 border rounded-lg p-4 border-amber-200">
             <div className="flex items-center gap-2 text-amber-600 mb-1">
               <AlertCircle className="w-4 h-4" />
               <span className="text-xs font-medium">Degraded</span>
@@ -211,7 +211,7 @@ export default function MCPDashboardPage() {
               {summary.degradedServers}
             </div>
           </div>
-          <div className="bg-white border rounded-lg p-4 border-rose-200">
+          <div className="bg-white dark:bg-dark-800 border rounded-lg p-4 border-rose-200">
             <div className="flex items-center gap-2 text-rose-600 mb-1">
               <XCircle className="w-4 h-4" />
               <span className="text-xs font-medium">Unhealthy</span>
@@ -220,18 +220,18 @@ export default function MCPDashboardPage() {
               {summary.unhealthyServers}
             </div>
           </div>
-          <div className="bg-white border rounded-lg p-4">
-            <div className="text-xs font-medium text-gray-500 mb-1">
+          <div className="bg-white dark:bg-dark-800 border dark:border-dark-700 rounded-lg p-4">
+            <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
               Total Calls
             </div>
-            <div className="text-2xl font-bold text-gray-900">
+            <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">
               {summary.totalCalls >= 1000
                 ? `${(summary.totalCalls / 1000).toFixed(1)}K`
                 : summary.totalCalls}
             </div>
           </div>
-          <div className="bg-white border rounded-lg p-4">
-            <div className="text-xs font-medium text-gray-500 mb-1">
+          <div className="bg-white dark:bg-dark-800 border dark:border-dark-700 rounded-lg p-4">
+            <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
               Error Rate
             </div>
             <div
@@ -250,7 +250,7 @@ export default function MCPDashboardPage() {
       )}
 
       {/* Tab Navigation */}
-      <div className="border-b border-gray-200 mb-6">
+      <div className="border-b border-gray-200 dark:border-dark-700 mb-6">
         <nav className="flex gap-4">
           {tabs.map((tab) => (
             <button
@@ -262,7 +262,7 @@ export default function MCPDashboardPage() {
                 ${
                   activeTab === tab.id
                     ? 'border-primary-500 text-primary-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-dark-600'
                 }
               `}
             >
@@ -284,8 +284,8 @@ export default function MCPDashboardPage() {
               ))}
             </div>
           ) : servers.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-64 text-gray-500">
-              <Server className="w-12 h-12 mb-4 text-gray-300" />
+            <div className="flex flex-col items-center justify-center h-64 text-gray-500 dark:text-gray-400">
+              <Server className="w-12 h-12 mb-4 text-gray-300 dark:text-gray-600" />
               <p className="text-lg font-medium">No MCP servers found</p>
               <p className="text-sm">
                 MCP server data will appear here once you start tracing MCP
@@ -307,11 +307,11 @@ export default function MCPDashboardPage() {
 
         {/* Topology Tab */}
         {activeTab === 'topology' && (
-          <div className="bg-white border rounded-lg p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">
+          <div className="bg-white dark:bg-dark-800 border dark:border-dark-700 rounded-lg p-6">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
               MCP Server Topology
             </h2>
-            <p className="text-sm text-gray-500 mb-6">
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
               Visualizes the network of MCP servers and their connections to
               agents. Node color indicates health status, size indicates call
               volume.
@@ -336,11 +336,11 @@ export default function MCPDashboardPage() {
 
         {/* Tools Tab */}
         {activeTab === 'tools' && (
-          <div className="bg-white border rounded-lg p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">
+          <div className="bg-white dark:bg-dark-800 border dark:border-dark-700 rounded-lg p-6">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
               Tool Usage Analytics
             </h2>
-            <p className="text-sm text-gray-500 mb-6">
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
               Detailed statistics for each MCP tool across all servers. Click a
               row to see detailed execution history.
             </p>
@@ -358,13 +358,13 @@ export default function MCPDashboardPage() {
 
       {/* Selected Server Sidebar */}
       {selectedServer && (
-        <div className="fixed right-0 top-0 bottom-0 w-96 bg-white border-l shadow-lg overflow-y-auto z-50">
-          <div className="p-4 border-b bg-gray-50 flex items-center justify-between">
-            <h3 className="font-semibold text-gray-900">Server Details</h3>
+        <div className="fixed right-0 top-0 bottom-0 w-96 bg-white dark:bg-dark-800 border-l dark:border-dark-700 shadow-lg overflow-y-auto z-50">
+          <div className="p-4 border-b dark:border-dark-700 bg-gray-50 dark:bg-dark-900 flex items-center justify-between">
+            <h3 className="font-semibold text-gray-900 dark:text-gray-100">Server Details</h3>
             <button
               type="button"
               onClick={() => setSelectedServer(null)}
-              className="text-gray-400 hover:text-gray-600 text-xl"
+              className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-xl"
             >
               &times;
             </button>

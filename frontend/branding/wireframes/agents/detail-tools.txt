@@ -1,0 +1,178 @@
+================================================================================
+AGENT DETAIL — Tools Tab — app/agents/[id]?tab=tools
+================================================================================
+Absorbs the current /mcp page content, scoped to this agent's MCP servers.
+Shows server health, tool usage table, and topology as a modal.
+
+PARENT: Agent Detail page (see detail.txt for header + tab bar)
+DATA: useMCPHealth({ agentId }), filtered from existing hook
+
+DESIGN NOTE: Previous version had 3 sub-tabs (Servers | Topology | Tools)
+within the Tools tab, creating 3 levels of navigation. This revision
+flattens to a single scrollable view: summary stats -> server cards
+(with inline tool tables) -> flat tool analytics table. Topology is
+accessible via a [View Topology] button that opens a drawer/modal.
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  (Agent Header + Tab Bar — see detail.txt)                                  │
+│                                                                             │
+│  Overview  |  Skills  |  Tools*  |  Versions  |  Traces                    │
+│                        ========                                             │
+│                                                                             │
+│  ┌─ TAB: Tools ─────────────────────────────────────────────────────────┐  │
+│  │                                                                       │  │
+│  │  ┌─ Summary Stats (grid-cols-4 gap-4) ──────────────────────────┐   │  │
+│  │  │                                                                │   │  │
+│  │  │  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐          │   │  │
+│  │  │  │ Servers      │ │ Healthy      │ │ Total Calls  │          │   │  │
+│  │  │  │ 4            │ │ 3 / 4        │ │ 12.4K        │          │   │  │
+│  │  │  └──────────────┘ └──────────────┘ └──────────────┘          │   │  │
+│  │  │  ┌──────────────┐                                             │   │  │
+│  │  │  │ Error Rate   │  stat-card class                            │   │  │
+│  │  │  │ 0.8%         │  Error rate colored: <1% emerald,           │   │  │
+│  │  │  └──────────────┘  1-5% amber, >5% rose                      │   │  │
+│  │  │                                                                │   │  │
+│  │  └────────────────────────────────────────────────────────────────┘   │  │
+│  │                                                                       │  │
+│  │                                                                       │  │
+│  │  ┌─ Server Header ─────────────────────────────────────────────────┐ │  │
+│  │  │                                                                   │ │  │
+│  │  │  MCP Servers                                  [View Topology]    │ │  │
+│  │  │                                                                   │ │  │
+│  │  │  "View Topology" opens a modal/drawer with the topology graph.  │ │  │
+│  │  │  btn btn-secondary btn-sm                                        │ │  │
+│  │  │                                                                   │ │  │
+│  │  └───────────────────────────────────────────────────────────────────┘ │  │
+│  │                                                                       │  │
+│  │  ┌─ Server Cards (grid-cols-1 lg:grid-cols-2 gap-4) ───────────────┐ │  │
+│  │  │                                                                   │ │  │
+│  │  │  ┌─ MCP Server Card ──────────────────────────────────────────┐ │ │  │
+│  │  │  │                                                             │ │ │  │
+│  │  │  │  ┌─ Server Header ────────────────────────────────────┐   │ │ │  │
+│  │  │  │  │                                                     │   │ │ │  │
+│  │  │  │  │  (green dot) web-search-mcp               v1.2.0  │   │ │ │  │
+│  │  │  │  │                                                     │   │ │ │  │
+│  │  │  │  │  Status dot: emerald=healthy, amber=degraded,      │   │ │ │  │
+│  │  │  │  │              rose=down                              │   │ │ │  │
+│  │  │  │  │  Name: text-base font-semibold text-content-primary│   │ │ │  │
+│  │  │  │  │  Version: text-xs text-content-muted               │   │ │ │  │
+│  │  │  │  │                                                     │   │ │ │  │
+│  │  │  │  └─────────────────────────────────────────────────────┘   │ │ │  │
+│  │  │  │                                                             │ │ │  │
+│  │  │  │  ┌─ Server Stats (grid-cols-4 gap-3) ────────────────┐    │ │ │  │
+│  │  │  │  │                                                     │    │ │ │  │
+│  │  │  │  │  Calls       Error Rate    Avg Latency   P99        │    │ │ │  │
+│  │  │  │  │  5,230       0.3%          234ms         1.2s       │    │ │ │  │
+│  │  │  │  │                                                     │    │ │ │  │
+│  │  │  │  │  text-[10px] uppercase label + text-sm value       │    │ │ │  │
+│  │  │  │  │                                                     │    │ │ │  │
+│  │  │  │  └─────────────────────────────────────────────────────┘    │ │ │  │
+│  │  │  │                                                             │ │ │  │
+│  │  │  │  ┌─ Tools Table ──────────────────────────────────────┐    │ │ │  │
+│  │  │  │  │                                                     │    │ │ │  │
+│  │  │  │  │  ┌────────┬────────┬─────────┬──────┬──────────┐  │    │ │ │  │
+│  │  │  │  │  │ Tool   │ Calls  │ Success │ Lat  │ Errors   │  │    │ │ │  │
+│  │  │  │  │  ├────────┼────────┼─────────┼──────┼──────────┤  │    │ │ │  │
+│  │  │  │  │  │ search │ 3,100  │ 99.7%   │ 189ms│ 9        │  │    │ │ │  │
+│  │  │  │  │  │ fetch  │ 1,800  │ 98.2%   │ 312ms│ 32       │  │    │ │ │  │
+│  │  │  │  │  │ scrape │ 330    │ 95.1%   │ 1.1s │ 16       │  │    │ │ │  │
+│  │  │  │  │  └────────┴────────┴─────────┴──────┴──────────┘  │    │ │ │  │
+│  │  │  │  │                                                     │    │ │ │  │
+│  │  │  │  │  Table header: text-[10px] uppercase tracking-wider│    │ │ │  │
+│  │  │  │  │  Success colored: >=99% emerald, >=95% amber,     │    │ │ │  │
+│  │  │  │  │    <95% rose                                       │    │ │ │  │
+│  │  │  │  │  Row hover: bg-surface-overlay/30                  │    │ │ │  │
+│  │  │  │  │                                                     │    │ │ │  │
+│  │  │  │  └─────────────────────────────────────────────────────┘    │ │ │  │
+│  │  │  │                                                             │ │ │  │
+│  │  │  │  card class (bg-surface-card border border-border           │ │ │  │
+│  │  │  │  rounded-xl p-5)                                            │ │ │  │
+│  │  │  │                                                             │ │ │  │
+│  │  │  └─────────────────────────────────────────────────────────────┘ │ │  │
+│  │  │                                                                   │ │  │
+│  │  │  (more server cards in the same grid...)                         │ │  │
+│  │  │                                                                   │ │  │
+│  │  └───────────────────────────────────────────────────────────────────┘ │  │
+│  │                                                                       │  │
+│  │                                                                       │  │
+│  │  ┌─ All Tools Table (full width) ──────────────────────────────────┐ │  │
+│  │  │                                                                   │ │  │
+│  │  │  All Tools                                       [Export JSON]   │ │  │
+│  │  │                                                                   │ │  │
+│  │  │  Flat table aggregating all tools across all servers.            │ │  │
+│  │  │  Useful for cross-cutting "which tool is slowest?" analysis.    │ │  │
+│  │  │                                                                   │ │  │
+│  │  │  ┌─────────┬──────────┬─────────┬─────────┬────────┬─────────┐ │ │  │
+│  │  │  │ Tool    │ Server   │ Calls   │ Success │ Latency│ Errors  │ │ │  │
+│  │  │  ├─────────┼──────────┼─────────┼─────────┼────────┼─────────┤ │ │  │
+│  │  │  │ search  │ web-srch │ 3,100   │ 99.7%   │ 189ms  │ 9       │ │ │  │
+│  │  │  │ fetch   │ web-srch │ 1,800   │ 98.2%   │ 312ms  │ 32      │ │ │  │
+│  │  │  │ query   │ db-mcp   │ 4,200   │ 99.9%   │ 45ms   │ 4       │ │ │  │
+│  │  │  │ scrape  │ web-srch │ 330     │ 95.1%   │ 1.1s   │ 16      │ │ │  │
+│  │  │  │ insert  │ db-mcp   │ 890     │ 99.6%   │ 78ms   │ 4       │ │ │  │
+│  │  │  └─────────┴──────────┴─────────┴─────────┴────────┴─────────┘ │ │  │
+│  │  │                                                                   │ │  │
+│  │  │  All columns sortable (click header).                            │ │  │
+│  │  │  Default sort: by error count descending (worst first).         │ │  │
+│  │  │  card class                                                      │ │  │
+│  │  │                                                                   │ │  │
+│  │  └───────────────────────────────────────────────────────────────────┘ │  │
+│  │                                                                       │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+
+════════════════════════════════════════════════════════════════════════════════
+TOPOLOGY MODAL (opened via [View Topology] button)
+════════════════════════════════════════════════════════════════════════════════
+Position: fixed inset-0, z-50
+Size: max-w-4xl (896px), max-h-[80vh]
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                        (backdrop: bg-black/50)                               │
+│                                                                              │
+│   ┌──────────────────────────────────────────────────────────────────┐      │
+│   │                                                                    │      │
+│   │  MCP Server Topology — research-agent                  [X close]  │      │
+│   │                                                                    │      │
+│   │  ─── (border-b border-border) ──────────────────────────────────  │      │
+│   │                                                                    │      │
+│   │  ┌──────────────────────────────────────────────────────────┐    │      │
+│   │  │                                                          │    │      │
+│   │  │                  [research-agent]                         │    │      │
+│   │  │                 ╱              ╲                          │    │      │
+│   │  │           ╱                        ╲                     │    │      │
+│   │  │    [web-search-mcp]           [db-mcp]                   │    │      │
+│   │  │     ╱     |      ╲            |       ╲                  │    │      │
+│   │  │  [search][fetch][scrape]   [query]  [insert]             │    │      │
+│   │  │                                                          │    │      │
+│   │  │  Node colors:                                            │    │      │
+│   │  │    emerald border = healthy                              │    │      │
+│   │  │    amber border = degraded                               │    │      │
+│   │  │    rose border = erroring                                │    │      │
+│   │  │  Node size: proportional to call volume                  │    │      │
+│   │  │  Click node: shows tooltip with metrics                  │    │      │
+│   │  │                                                          │    │      │
+│   │  │  Height: ~400px                                          │    │      │
+│   │  │  Uses existing MCPServerTopology component               │    │      │
+│   │  │  (or simple CSS/SVG tree if reactflow not available)     │    │      │
+│   │  │                                                          │    │      │
+│   │  └──────────────────────────────────────────────────────────┘    │      │
+│   │                                                                    │      │
+│   └──────────────────────────────────────────────────────────────────┘      │
+│                                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+EMPTY STATE (no MCP servers detected):
+
+  ┌──────────────────────────────────────────────────────────┐
+  │                                                          │
+  │           (Server icon, w-12 h-12, text-content-muted)  │
+  │                                                          │
+  │           No tools detected                              │
+  │           This agent hasn't used any MCP tools yet.     │
+  │           Tools appear automatically when the agent     │
+  │           calls them during trace execution.             │
+  │                                                          │
+  └──────────────────────────────────────────────────────────┘

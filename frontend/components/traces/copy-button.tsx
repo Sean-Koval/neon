@@ -48,8 +48,8 @@ export function CopyButton({
       className={clsx(
         'inline-flex items-center gap-1 rounded transition-colors',
         variant === 'ghost'
-          ? 'hover:bg-gray-100 text-gray-500 hover:text-gray-700'
-          : 'border hover:bg-gray-50 text-gray-600',
+          ? 'hover:bg-gray-100 dark:hover:bg-dark-700 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+          : 'border hover:bg-gray-50 dark:hover:bg-dark-700 text-gray-600 dark:text-gray-300',
         size === 'sm' ? 'p-1 text-xs' : 'p-1.5 text-sm',
         className,
       )}
@@ -66,7 +66,7 @@ export function CopyButton({
         <Copy className={size === 'sm' ? 'w-3 h-3' : 'w-4 h-4'} />
       )}
       {label && (
-        <span className={copied ? 'text-green-600' : ''}>
+        <span className={copied ? 'text-emerald-600 dark:text-emerald-400' : ''}>
           {copied ? 'Copied!' : label}
         </span>
       )}

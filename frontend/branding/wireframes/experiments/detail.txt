@@ -1,0 +1,855 @@
+================================================================================
+EXPERIMENT DETAIL — app/experiments/[id]/page.tsx (NEW)
+================================================================================
+Experiment detail with live progress, multi-metric comparison, and controls.
+Route: /experiments/[id]
+
+DESIGN NOTES:
+  1. Two completely different layouts based on experiment type:
+     A/B Test: parallel variant comparison with statistical analysis.
+     Progressive Rollout: stage-by-stage pipeline with quality gates.
+     The page must detect type and render the appropriate layout.
+
+  2. Three distinct visual phases for each type:
+     RUNNING: progress hero + live metrics + streaming results.
+     COMPLETED: summary verdict + full analysis + per-case breakdown.
+     FAILED/ABORTED: error explanation + partial results if available.
+
+  3. Multi-metric comparison is critical. The old wireframe showed only
+     score. Real experiments need: score AND latency AND cost side by
+     side, because a 3% score improvement that costs 5x more is not
+     a win. All three metrics shown in the variant comparison cards
+     and in the chart (multi-line or togglable).
+
+  4. Reuse existing compare components from frontend/components/compare/:
+     - ConfidenceIntervalBar for visual comparison
+     - StatisticalBadge for p-value display
+     - EffectSizeBadge for Cohen's d magnitude
+     - StatisticalGuidance for the educational panel
+     This avoids reimplementation and maintains consistency with /compare.
+
+  5. Temporal is invisible. No workflow IDs. No Temporal UI links.
+     Progress comes from Temporal queries (abTestProgress,
+     rolloutProgress) but users see "67% complete" not "workflow xyz".
+
+  6. Confirmation dialogs for destructive actions: Abort, Stop Early.
+     "Deploy Winner" is the most consequential action — it triggers a
+     progressiveRolloutWorkflow to push the winning variant to production.
+
+  7. The per-case breakdown table is collapsible because it can be very
+     long. Default: collapsed for completed experiments (summary is
+     enough), expanded for running experiments (users are watching).
+
+  8. Live score chart shown during RUNNING phase (not just completed).
+     Operators watching an experiment need the trend, not just the
+     current snapshot. Chart updates in real-time with polling data.
+
+  9. Per-scorer aggregate comparison fills the gap between "overall
+     winner" and "per-case detail." With 3 scorers, users need to
+     know at a glance which dimensions improved and which regressed.
+
+ 10. Completed rollouts need a baseline comparison ("before vs after")
+     in addition to the gate pass/fail. The gate says "good enough"
+     but the delta says "how much better."
+
+ 11. [Advance] on rollouts lets operators skip stage wait time when
+     metrics look good. Important for production velocity — waiting
+     6h per stage when scores are clearly above gate is unnecessary.
+
+================================================================================
+
+LAYOUT: p-6, space-y-6
+DATA: trpc.experiments.getById(id) (new endpoint)
+      Progress: Temporal query polling (abTestProgress or rolloutProgress)
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                                                                             │
+│  ← Back to Experiments                                                      │
+│  text-sm text-content-muted hover:text-content-primary                     │
+│  flex items-center gap-1, ChevronLeft icon w-4 h-4                         │
+│  Context-aware: if referrer is /agents/[id], shows                         │
+│  "← Back to {agent name}". Uses router.back() with                         │
+│  fallback to /experiments if no history entry.                              │
+│                                                                             │
+│  ┌─ Experiment Header ──────────────────────────────────────────────────┐  │
+│  │                                                                       │  │
+│  │  prompt-v3-test                                                       │  │
+│  │  A/B Test · booking-agent                          ▶ Running         │  │
+│  │  Started 4 hours ago                                                  │  │
+│  │                                                                       │  │
+│  │  Name: text-2xl font-bold text-content-primary                       │  │
+│  │  Type + Agent: text-sm text-content-muted                             │  │
+│  │    Agent name is a link to /agents/[agentId]                         │  │
+│  │  Status badge: same styling as list page cards                       │  │
+│  │  Time: text-xs text-content-muted                                    │  │
+│  │                                                                       │  │
+│  │  ┌─ Actions (right side of header, flex gap-2) ────────────────┐   │  │
+│  │  │                                                              │   │  │
+│  │  │  RUNNING state (A/B Test):                                   │   │  │
+│  │  │  [Pause]  [Abort]                                            │   │  │
+│  │  │                                                              │   │  │
+│  │  │  RUNNING state (Rollout):                                    │   │  │
+│  │  │  [Advance]  [Pause]  [Abort]                                 │   │  │
+│  │  │                                                              │   │  │
+│  │  │  COMPLETED state:                                            │   │  │
+│  │  │  [Deploy Winner]  [Rerun]  [Export]                          │   │  │
+│  │  │                                                              │   │  │
+│  │  │  PAUSED state:                                               │   │  │
+│  │  │  [Resume]  [Abort]                                           │   │  │
+│  │  │                                                              │   │  │
+│  │  │  FAILED/ABORTED state:                                       │   │  │
+│  │  │  [Rerun]                                                     │   │  │
+│  │  │                                                              │   │  │
+│  │  │  Advance: btn btn-secondary btn-sm (rollout only),            │   │  │
+│  │  │    skips remaining stage duration and advances to next stage. │   │  │
+│  │  │    Disabled on final stage (100%). Shows confirmation toast:  │   │  │
+│  │  │    "Advancing to Stage 3 (50%). Current score: 0.95"         │   │  │
+│  │  │  Pause: btn btn-secondary btn-sm                             │   │  │
+│  │  │  Abort: btn btn-secondary btn-sm text-status-error           │   │  │
+│  │  │  Deploy Winner: btn btn-primary btn-sm (only when            │   │  │
+│  │  │    completed AND significant AND winner != "tie")            │   │  │
+│  │  │  Rerun: btn btn-secondary btn-sm, clones config              │   │  │
+│  │  │  Export: btn btn-secondary btn-sm, dropdown:                 │   │  │
+│  │  │    "JSON" — full experiment config + all variant results +   │   │  │
+│  │  │      per-case scores + statistical analysis. One file.       │   │  │
+│  │  │    "CSV" — per-case table: case_name, score_a, score_b,     │   │  │
+│  │  │      delta, significant, plus per-scorer columns             │   │  │
+│  │  │      (scorer1_a, scorer1_b, scorer1_delta, ...).             │   │  │
+│  │  │    Downloads immediately (client-side, no server round-trip).│   │  │
+│  │  │                                                              │   │  │
+│  │  └──────────────────────────────────────────────────────────────┘   │  │
+│  │                                                                       │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+│                                                                             │
+│  ════════════════════════════════════════════════════════════════════════   │
+│  LAYOUT: A/B TEST                                                          │
+│  ════════════════════════════════════════════════════════════════════════   │
+│                                                                             │
+│                                                                             │
+│  ┌─ PHASE: RUNNING (A/B Test) ─────────────────────────────────────────┐  │
+│  │                                                                       │  │
+│  │  ┌─ Progress Hero ────────────────────────────────────────────────┐ │  │
+│  │  │                                                                 │ │  │
+│  │  │  [=============================>                       ] 67%   │ │  │
+│  │  │  670 / 1,000 samples · Elapsed: 4h 12m · ETA: ~2h             │ │  │
+│  │  │                                                                 │ │  │
+│  │  │  Progress bar: h-3 rounded-full bg-surface-overlay             │ │  │
+│  │  │  Fill: bg-primary-500, animated shimmer on leading edge        │ │  │
+│  │  │  Percentage: text-lg font-bold text-content-primary            │ │  │
+│  │  │  Details: text-sm text-content-muted                           │ │  │
+│  │  │  ETA: estimated from elapsed / progress percentage             │ │  │
+│  │  │                                                                 │ │  │
+│  │  │  ConnectionDot in top-right corner (reuse from eval-runs)      │ │  │
+│  │  │                                                                 │ │  │
+│  │  │  card class                                                     │ │  │
+│  │  │                                                                 │ │  │
+│  │  └─────────────────────────────────────────────────────────────────┘ │  │
+│  │                                                                       │  │
+│  │  ┌─ Variant Comparison (grid-cols-2 gap-4) ───────────────────────┐ │  │
+│  │  │                                                                 │ │  │
+│  │  │  ┌─ Variant A (Baseline) ────────────────────────────────┐    │ │  │
+│  │  │  │                                                        │    │ │  │
+│  │  │  │  Variant A · Baseline                                  │    │ │  │
+│  │  │  │  booking-agent v2.1 · current prompt                   │    │ │  │
+│  │  │  │                                                        │    │ │  │
+│  │  │  │  ┌───────────┐ ┌───────────┐ ┌───────────┐           │    │ │  │
+│  │  │  │  │ Score      │ │ Latency   │ │ Cost      │           │    │ │  │
+│  │  │  │  │ 0.91       │ │ 2.1s      │ │ $28.40    │           │    │ │  │
+│  │  │  │  │ ±0.02      │ │ ±0.3s     │ │ total     │           │    │ │  │
+│  │  │  │  └───────────┘ └───────────┘ └───────────┘           │    │ │  │
+│  │  │  │                                                        │    │ │  │
+│  │  │  │  Samples: 335 / 500                                   │    │ │  │
+│  │  │  │  Pass Rate: 92.5%                                     │    │ │  │
+│  │  │  │                                                        │    │ │  │
+│  │  │  │  "Baseline" label: text-[10px] uppercase tracking-    │    │ │  │
+│  │  │  │  wider text-content-muted                              │    │ │  │
+│  │  │  │  ±values: confidence interval half-width               │    │ │  │
+│  │  │  │                                                        │    │ │  │
+│  │  │  │  card class, border-l-4 border-content-muted           │    │ │  │
+│  │  │  │                                                        │    │ │  │
+│  │  │  └────────────────────────────────────────────────────────┘    │ │  │
+│  │  │                                                                 │ │  │
+│  │  │  ┌─ Variant B (Candidate) ───────────────────────────────┐    │ │  │
+│  │  │  │                                                        │    │ │  │
+│  │  │  │  Variant B · Candidate                                 │    │ │  │
+│  │  │  │  booking-agent v2.1 · prompt-v3                        │    │ │  │
+│  │  │  │                                                        │    │ │  │
+│  │  │  │  ┌───────────┐ ┌───────────┐ ┌───────────┐           │    │ │  │
+│  │  │  │  │ Score      │ │ Latency   │ │ Cost      │           │    │ │  │
+│  │  │  │  │ 0.94       │ │ 1.9s      │ │ $26.10    │           │    │ │  │
+│  │  │  │  │ ±0.02      │ │ ±0.2s     │ │ total     │           │    │ │  │
+│  │  │  │  │ +3.3% ↑   │ │ -10% ↓   │ │ -8% ↓    │           │    │ │  │
+│  │  │  │  └───────────┘ └───────────┘ └───────────┘           │    │ │  │
+│  │  │  │                                                        │    │ │  │
+│  │  │  │  Samples: 335 / 500                                   │    │ │  │
+│  │  │  │  Pass Rate: 95.8%                                     │    │ │  │
+│  │  │  │                                                        │    │ │  │
+│  │  │  │  Both variants show ±CI half-width on the absolute     │    │ │  │
+│  │  │  │  value. Candidate ALSO shows delta % vs baseline       │    │ │  │
+│  │  │  │  below the ± line. Layout:                              │    │ │  │
+│  │  │  │    Line 1: absolute value (0.94)                       │    │ │  │
+│  │  │  │    Line 2: ±CI (text-xs text-content-muted)            │    │ │  │
+│  │  │  │    Line 3: delta (text-xs, colored by direction)       │    │ │  │
+│  │  │  │                                                        │    │ │  │
+│  │  │  │  Delta coloring (vs baseline):                         │    │ │  │
+│  │  │  │    Score: higher is better → positive = emerald        │    │ │  │
+│  │  │  │    Latency: lower is better → negative = emerald       │    │ │  │
+│  │  │  │    Cost: lower is better → negative = emerald          │    │ │  │
+│  │  │  │                                                        │    │ │  │
+│  │  │  │  card class, border-l-4 border-primary-500             │    │ │  │
+│  │  │  │                                                        │    │ │  │
+│  │  │  └────────────────────────────────────────────────────────┘    │ │  │
+│  │  │                                                                 │ │  │
+│  │  └─────────────────────────────────────────────────────────────────┘ │  │
+│  │                                                                       │  │
+│  │  ┌─ Live Score Chart (recharts line chart) ──────────────────────┐  │  │
+│  │  │                                                                │  │  │
+│  │  │  Score Over Samples (live)                      [Metric ▾]    │  │  │
+│  │  │                                                                │  │  │
+│  │  │  1.0 ──────────────────────────────────────                    │  │  │
+│  │  │       ╱╲  ╱──╲                                                 │  │  │
+│  │  │  0.9 ╱  ╲╱    ╲─── Variant B (primary-500)                   │  │  │
+│  │  │                                                                │  │  │
+│  │  │  0.8 ───╲╱──────── Variant A (content-muted)                 │  │  │
+│  │  │                                                                │  │  │
+│  │  │  0.7 ──────────────────────────────────────                    │  │  │
+│  │  │      |    100    |    200    |    300    |  335                 │  │  │
+│  │  │                                                                │  │  │
+│  │  │  Same chart component as completed phase. During running:      │  │  │
+│  │  │  - Updates in real-time as new samples complete                │  │  │
+│  │  │  - X-axis grows rightward, shows total target as faded mark   │  │  │
+│  │  │  - Confidence bands shown (wider at start, narrowing)         │  │  │
+│  │  │  - [Metric] dropdown: Score (default) / Latency / Cost        │  │  │
+│  │  │  - Height: ~200px (slightly smaller than completed phase)     │  │  │
+│  │  │                                                                │  │  │
+│  │  │  card class                                                    │  │  │
+│  │  │                                                                │  │  │
+│  │  └────────────────────────────────────────────────────────────────┘  │  │
+│  │                                                                       │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+│                                                                             │
+│  ┌─ PHASE: PAUSED (A/B Test) ─────────────────────────────────────────┐  │
+│  │                                                                       │  │
+│  │  ┌─ Paused Banner ──────────────────────────────────────────────┐  │  │
+│  │  │                                                                │  │  │
+│  │  │  Experiment Paused                                             │  │  │
+│  │  │  Paused at 67% (670 / 1,000 samples) · 4h 12m elapsed        │  │  │
+│  │  │                                                                │  │  │
+│  │  │  bg-status-warning/5 border border-status-warning/20           │  │  │
+│  │  │  rounded-xl p-4                                                │  │  │
+│  │  │  Title: text-lg font-semibold text-status-warning              │  │  │
+│  │  │  Details: text-sm text-content-secondary                       │  │  │
+│  │  │                                                                │  │  │
+│  │  └────────────────────────────────────────────────────────────────┘  │  │
+│  │                                                                       │  │
+│  │  ┌─ Progress Hero (frozen) ─────────────────────────────────────┐  │  │
+│  │  │                                                                │  │  │
+│  │  │  [=============================>                       ] 67%  │  │  │
+│  │  │  670 / 1,000 samples · Paused                                 │  │  │
+│  │  │                                                                │  │  │
+│  │  │  Same as running phase but:                                    │  │  │
+│  │  │  - No shimmer animation on progress bar leading edge           │  │  │
+│  │  │  - Progress bar fill: bg-status-warning (amber, not primary)  │  │  │
+│  │  │  - ETA replaced with "Paused" text                            │  │  │
+│  │  │  - No ConnectionDot (not polling)                              │  │  │
+│  │  │                                                                │  │  │
+│  │  │  card class                                                    │  │  │
+│  │  │                                                                │  │  │
+│  │  └────────────────────────────────────────────────────────────────┘  │  │
+│  │                                                                       │  │
+│  │  (Variant comparison cards + Live Score Chart shown as in running    │  │
+│  │  phase but with frozen values. Chart stops updating. Confidence      │  │
+│  │  bands remain at current width.)                                     │  │
+│  │                                                                       │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+│                                                                             │
+│  ┌─ PHASE: COMPLETED (A/B Test) ───────────────────────────────────────┐  │
+│  │                                                                       │  │
+│  │  ┌─ Verdict Banner ──────────────────────────────────────────────┐  │  │
+│  │  │                                                                │  │  │
+│  │  │  ┌────────────────────────────────────────────────────────┐  │  │  │
+│  │  │  │                                                        │  │  │  │
+│  │  │  │  Variant B wins                              ✓         │  │  │  │
+│  │  │  │  +3.3% improvement · p = 0.023 · medium effect        │  │  │  │
+│  │  │  │                                                        │  │  │  │
+│  │  │  │  Winner with significant result:                       │  │  │  │
+│  │  │  │    bg-status-success/5 border border-status-success/20 │  │  │  │
+│  │  │  │    Title: text-xl font-bold text-status-success        │  │  │  │
+│  │  │  │    Stats: text-sm text-content-secondary               │  │  │  │
+│  │  │  │                                                        │  │  │  │
+│  │  │  │  Tie (not significant):                                │  │  │  │
+│  │  │  │    bg-status-warning/5 border border-status-warning/20 │  │  │  │
+│  │  │  │    "No significant difference detected"               │  │  │  │
+│  │  │  │    Title: text-xl font-bold text-status-warning        │  │  │  │
+│  │  │  │                                                        │  │  │  │
+│  │  │  └────────────────────────────────────────────────────────┘  │  │  │
+│  │  │                                                                │  │  │
+│  │  │  rounded-xl p-6                                                │  │  │
+│  │  │                                                                │  │  │
+│  │  └────────────────────────────────────────────────────────────────┘  │  │
+│  │                                                                       │  │
+│  │  ┌─ Variant Comparison (same as running, but final values) ──────┐  │  │
+│  │  │                                                                │  │  │
+│  │  │  (grid-cols-2 gap-4, same layout as RUNNING variant cards     │  │  │
+│  │  │  but with final sample counts and no ± ranges)                │  │  │
+│  │  │                                                                │  │  │
+│  │  └────────────────────────────────────────────────────────────────┘  │  │
+│  │                                                                       │  │
+│  │  ┌─ Per-Scorer Aggregate (grid-cols-1 gap-0) ──────────────────┐   │  │
+│  │  │                                                                │  │  │
+│  │  │  Scorer Comparison                                             │  │  │
+│  │  │                                                                │  │  │
+│  │  │  ┌──────────────────┬─────────┬─────────┬────────┬─────────┐│  │  │
+│  │  │  │ Scorer           │ A       │ B       │ Delta  │ Signif? ││  │  │
+│  │  │  ├──────────────────┼─────────┼─────────┼────────┼─────────┤│  │  │
+│  │  │  │ accuracy         │ 0.92    │ 0.96    │ +4.3%  │ ✓       ││  │  │
+│  │  │  │ tool_selection   │ 0.88    │ 0.91    │ +3.4%  │ ~       ││  │  │
+│  │  │  │ latency          │ 0.90    │ 0.95    │ +5.6%  │ ✓       ││  │  │
+│  │  │  └──────────────────┴─────────┴─────────┴────────┴─────────┘│  │  │
+│  │  │                                                                │  │  │
+│  │  │  Aggregate comparison across all test cases, one row per       │  │  │
+│  │  │  scorer. Shows which scorers improved and which regressed.     │  │  │
+│  │  │                                                                │  │  │
+│  │  │  Scorer: text-sm font-mono                                     │  │  │
+│  │  │  A/B: text-sm font-mono text-content-secondary                │  │  │
+│  │  │  Delta: colored by direction (positive = emerald for score,   │  │  │
+│  │  │    negative = emerald for latency/cost — same logic as cards) │  │  │
+│  │  │  Signif: ✓ p<0.05 (emerald), ~ p<0.10 (amber),              │  │  │
+│  │  │          ✗ p>=0.10 (gray)                                     │  │  │
+│  │  │                                                                │  │  │
+│  │  │  Row hover: bg-surface-overlay/50                              │  │  │
+│  │  │  Only shown when experiment has 2+ scorers. If 1 scorer,      │  │  │
+│  │  │  skip this section (aggregate = overall score).                │  │  │
+│  │  │                                                                │  │  │
+│  │  │  card class                                                    │  │  │
+│  │  │                                                                │  │  │
+│  │  └────────────────────────────────────────────────────────────────┘  │  │
+│  │                                                                       │  │
+│  │  ┌─ Score Curves (recharts line chart) ──────────────────────────┐  │  │
+│  │  │                                                                │  │  │
+│  │  │  Score Over Samples                            [Metric ▾]     │  │  │
+│  │  │                                                                │  │  │
+│  │  │  1.0 ──────────────────────────────────────────────────       │  │  │
+│  │  │       ╱╲  ╱──╲                                                │  │  │
+│  │  │  0.9 ╱  ╲╱    ╲──────── Variant B (primary-500)             │  │  │
+│  │  │                                                                │  │  │
+│  │  │  0.8 ───╲╱──────────── Variant A (content-muted)            │  │  │
+│  │  │                                                                │  │  │
+│  │  │  0.7 ──────────────────────────────────────────────────       │  │  │
+│  │  │      |    200    |    400    |    600    |    800    | 1000   │  │  │
+│  │  │                                                                │  │  │
+│  │  │  Height: ~250px                                                │  │  │
+│  │  │  Confidence bands: shaded areas around each line               │  │  │
+│  │  │    Variant A: bg-content-muted/10                              │  │  │
+│  │  │    Variant B: bg-primary-500/10                                │  │  │
+│  │  │  X-axis: cumulative sample count                               │  │  │
+│  │  │  Y-axis: rolling average score                                 │  │  │
+│  │  │                                                                │  │  │
+│  │  │  [Metric] dropdown toggles between:                            │  │  │
+│  │  │    Score (default), Latency, Cost per sample                   │  │  │
+│  │  │  When toggled, Y-axis label and data series change.            │  │  │
+│  │  │  Latency chart: lower is better, uses ms/s scale.              │  │  │
+│  │  │  Cost chart: cumulative cost, uses $ scale.                    │  │  │
+│  │  │                                                                │  │  │
+│  │  │  card class                                                    │  │  │
+│  │  │                                                                │  │  │
+│  │  └────────────────────────────────────────────────────────────────┘  │  │
+│  │                                                                       │  │
+│  │  ┌─ Statistical Results (grid-cols-3 gap-4) ─────────────────────┐  │  │
+│  │  │                                                                │  │  │
+│  │  │  ┌──────────────┐ ┌──────────────┐ ┌──────────────────────┐ │  │  │
+│  │  │  │ Effect Size  │ │ p-value      │ │ Confidence Interval  │ │  │  │
+│  │  │  │              │ │              │ │                      │ │  │  │
+│  │  │  │ +3.3%        │ │ 0.023        │ │ [+1.2%, +5.4%]      │ │  │  │
+│  │  │  │ (medium)     │ │ (significant)│ │                      │ │  │  │
+│  │  │  │              │ │              │ │  ConfidenceInterval  │ │  │  │
+│  │  │  │ EffectSize-  │ │ Statistical- │ │  Bar component from  │ │  │  │
+│  │  │  │ Badge        │ │ Badge        │ │  compare/             │ │  │  │
+│  │  │  └──────────────┘ └──────────────┘ └──────────────────────┘ │  │  │
+│  │  │                                                                │  │  │
+│  │  │  stat-card class for each                                      │  │  │
+│  │  │                                                                │  │  │
+│  │  │  Effect Size coloring:                                         │  │  │
+│  │  │    large: text-status-success (Cohen's d >= 0.8)              │  │  │
+│  │  │    medium: text-status-info (0.5 <= d < 0.8)                  │  │  │
+│  │  │    small: text-status-warning (0.2 <= d < 0.5)                │  │  │
+│  │  │    negligible: text-content-muted (d < 0.2)                   │  │  │
+│  │  │                                                                │  │  │
+│  │  │  p-value coloring:                                             │  │  │
+│  │  │    < 0.01: text-status-success "highly significant"           │  │  │
+│  │  │    < 0.05: text-status-success "significant"                  │  │  │
+│  │  │    < 0.10: text-status-warning "marginal"                     │  │  │
+│  │  │    >= 0.10: text-content-muted "not significant"              │  │  │
+│  │  │                                                                │  │  │
+│  │  └────────────────────────────────────────────────────────────────┘  │  │
+│  │                                                                       │  │
+│  │  ┌─ Statistical Guidance (collapsible) ──────────────────────────┐  │  │
+│  │  │                                                                │  │  │
+│  │  │  ▶ Understanding These Results                                │  │  │
+│  │  │                                                                │  │  │
+│  │  │  (Reuses StatisticalGuidance component from compare/)         │  │  │
+│  │  │  Explains p-values, effect size, confidence intervals.        │  │  │
+│  │  │  Default: collapsed. Click to expand.                         │  │  │
+│  │  │                                                                │  │  │
+│  │  │  card class                                                    │  │  │
+│  │  │                                                                │  │  │
+│  │  └────────────────────────────────────────────────────────────────┘  │  │
+│  │                                                                       │  │
+│  │  ┌─ Per-Case Breakdown (collapsible) ────────────────────────────┐  │  │
+│  │  │                                                                │  │  │
+│  │  │  ▼ Per-Case Results                               1,000 cases│  │  │
+│  │  │                                                                │  │  │
+│  │  │  ┌──────────────────────────────────────────────────────────┐│  │  │
+│  │  │  │ Test Case       │ Score A │ Score B │ Delta  │ Signif? ││  │  │
+│  │  │  ├─────────────────┼─────────┼─────────┼────────┼─────────┤│  │  │
+│  │  │  │ Basic booking   │ 0.92    │ 0.97    │ +5.4%  │ ✓       ││  │  │
+│  │  │  │ Edge: no avail  │ 0.85    │ 0.88    │ +3.5%  │ ~       ││  │  │
+│  │  │  │ Multi-leg       │ 0.91    │ 0.94    │ +3.3%  │ ✓       ││  │  │
+│  │  │  │ Cancellation    │ 0.88    │ 0.86    │ -2.3%  │ ✗       ││  │  │
+│  │  │  │ Currency conv   │ 0.95    │ 0.96    │ +1.1%  │ ✗       ││  │  │
+│  │  │  └──────────────────────────────────────────────────────────┘│  │  │
+│  │  │                                                                │  │  │
+│  │  │  All columns sortable. Default sort: by delta descending      │  │  │
+│  │  │  (biggest improvements first, regressions at bottom).         │  │  │
+│  │  │                                                                │  │  │
+│  │  │  Test Case: from suite case names (or "Case #N" fallback)    │  │  │
+│  │  │  Score A/B: text-sm font-mono                                 │  │  │
+│  │  │  Delta: colored by sign (positive = emerald, negative = rose)│  │  │
+│  │  │  Signif: ✓ p<0.05 (emerald), ~ p<0.10 (amber),             │  │  │
+│  │  │          ✗ p>=0.10 (gray)                                    │  │  │
+│  │  │                                                                │  │  │
+│  │  │  Row hover: bg-surface-overlay/50                             │  │  │
+│  │  │  Click row: expands to show per-scorer breakdown              │  │  │
+│  │  │                                                                │  │  │
+│  │  │  ┌─ Expanded Case (inline) ────────────────────────────────┐│  │  │
+│  │  │  │                                                          ││  │  │
+│  │  │  │  Scorer Breakdown for "Basic booking":                  ││  │  │
+│  │  │  │                                                          ││  │  │
+│  │  │  │  accuracy:       A: 0.95  B: 0.99  +4.2% ✓             ││  │  │
+│  │  │  │  tool_selection: A: 0.90  B: 0.95  +5.6% ✓             ││  │  │
+│  │  │  │  latency:        A: 0.88  B: 0.96  +9.1% ✓             ││  │  │
+│  │  │  │                                                          ││  │  │
+│  │  │  │  text-sm font-mono, indented within the table row       ││  │  │
+│  │  │  │  bg-surface-overlay/30 p-4 rounded-lg                   ││  │  │
+│  │  │  │                                                          ││  │  │
+│  │  │  └──────────────────────────────────────────────────────────┘│  │  │
+│  │  │                                                                │  │  │
+│  │  │  Pagination: 20 cases per page if > 20 total.                 │  │  │
+│  │  │  Collapsed by default for completed experiments.              │  │  │
+│  │  │  Expanded by default during running phase.                    │  │  │
+│  │  │                                                                │  │  │
+│  │  │  card class                                                    │  │  │
+│  │  │                                                                │  │  │
+│  │  └────────────────────────────────────────────────────────────────┘  │  │
+│  │                                                                       │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+│                                                                             │
+│  ┌─ PHASE: FAILED (A/B Test) ──────────────────────────────────────────┐  │
+│  │                                                                       │  │
+│  │  ┌─ Error Card ──────────────────────────────────────────────────┐  │  │
+│  │  │                                                                │  │  │
+│  │  │  Experiment Failed                                             │  │  │
+│  │  │                                                                │  │  │
+│  │  │  Variant B evaluation timed out after 2 hours.                │  │  │
+│  │  │  The agent did not respond within the configured timeout      │  │  │
+│  │  │  for 12 of 500 test cases. Partial results are available      │  │  │
+│  │  │  below.                                                        │  │  │
+│  │  │                                                                │  │  │
+│  │  │  [View Error Details]  [Rerun Experiment]                     │  │  │
+│  │  │                                                                │  │  │
+│  │  │  bg-status-error/5 border border-status-error/20 rounded-xl  │  │  │
+│  │  │  Title: text-lg font-semibold text-status-error               │  │  │
+│  │  │  Message: text-sm text-content-secondary                      │  │  │
+│  │  │                                                                │  │  │
+│  │  └────────────────────────────────────────────────────────────────┘  │  │
+│  │                                                                       │  │
+│  │  ┌─ Partial Results (if any) ────────────────────────────────────┐  │  │
+│  │  │                                                                │  │  │
+│  │  │  Partial Results (488 / 1,000 samples completed)              │  │  │
+│  │  │                                                                │  │  │
+│  │  │  (Same variant comparison cards + per-case breakdown           │  │  │
+│  │  │  as the completed phase, but with a warning banner:            │  │  │
+│  │  │  "Results are based on incomplete data and may not be         │  │  │
+│  │  │  statistically reliable.")                                     │  │  │
+│  │  │                                                                │  │  │
+│  │  │  Warning banner: bg-status-warning/5 text-status-warning      │  │  │
+│  │  │  text-sm p-3 rounded-lg mb-4                                  │  │  │
+│  │  │                                                                │  │  │
+│  │  └────────────────────────────────────────────────────────────────┘  │  │
+│  │                                                                       │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+│                                                                             │
+│  ════════════════════════════════════════════════════════════════════════   │
+│  LAYOUT: PROGRESSIVE ROLLOUT                                               │
+│  ════════════════════════════════════════════════════════════════════════   │
+│                                                                             │
+│                                                                             │
+│  ┌─ PHASE: RUNNING (Rollout) ──────────────────────────────────────────┐  │
+│  │                                                                       │  │
+│  │  ┌─ Rollout Overview ─────────────────────────────────────────────┐ │  │
+│  │  │                                                                 │ │  │
+│  │  │  gemini-2.0-flash  →  gemini-2.5-flash                        │ │  │
+│  │  │  research-agent · Gate: score >= 0.90                          │ │  │
+│  │  │                                                                 │ │  │
+│  │  │  text-lg font-mono (versions)                                  │ │  │
+│  │  │  Arrow: text-content-muted mx-3, ArrowRight icon               │ │  │
+│  │  │  Gate: text-sm text-content-muted                              │ │  │
+│  │  │                                                                 │ │  │
+│  │  │  card class                                                     │ │  │
+│  │  │                                                                 │ │  │
+│  │  └─────────────────────────────────────────────────────────────────┘ │  │
+│  │                                                                       │  │
+│  │  ┌─ Stage Pipeline (full width) ──────────────────────────────────┐ │  │
+│  │  │                                                                 │ │  │
+│  │  │  ┌─────────────┐    ┌─────────────┐    ┌──────────┐           │ │  │
+│  │  │  │             │    │             │    │          │           │ │  │
+│  │  │  │  Stage 1    │    │  Stage 2    │    │ Stage 3  │           │ │  │
+│  │  │  │  10%        │ →  │  25%        │ →  │ 50%      │  → ...   │ │  │
+│  │  │  │             │    │             │    │          │           │ │  │
+│  │  │  │  Score: 0.96│    │  Score: 0.95│    │  --      │           │ │  │
+│  │  │  │  ✓ Passed   │    │  ▶ Active   │    │  Pending │           │ │  │
+│  │  │  │             │    │             │    │          │           │ │  │
+│  │  │  │  Duration:  │    │  Elapsed:   │    │          │           │ │  │
+│  │  │  │  1h 03m     │    │  42m / 1h   │    │          │           │ │  │
+│  │  │  │             │    │             │    │          │           │ │  │
+│  │  │  └─────────────┘    └─────────────┘    └──────────┘           │ │  │
+│  │  │                                                                 │ │  │
+│  │  │  Stage box sizing: flex-1 (equal width), min-w-[140px]        │ │  │
+│  │  │  Horizontal scroll if > 5 stages on small screens.             │ │  │
+│  │  │                                                                 │ │  │
+│  │  │  Completed: bg-status-success/5 border-status-success          │ │  │
+│  │  │    Score value in emerald if >= gate, rose if not               │ │  │
+│  │  │    Duration shown as total elapsed for that stage               │ │  │
+│  │  │  Active: bg-primary-500/5 border-primary-500                   │ │  │
+│  │  │    Animated shimmer border                                      │ │  │
+│  │  │    Shows elapsed / target duration                              │ │  │
+│  │  │    Mini progress bar (h-1) for stage duration                  │ │  │
+│  │  │  Pending: bg-surface-overlay/30 border-border                  │ │  │
+│  │  │    Dimmed, no data                                              │ │  │
+│  │  │                                                                 │ │  │
+│  │  │  Arrows: text-content-muted between boxes                      │ │  │
+│  │  │                                                                 │ │  │
+│  │  │  card class, p-6                                               │ │  │
+│  │  │                                                                 │ │  │
+│  │  └─────────────────────────────────────────────────────────────────┘ │  │
+│  │                                                                       │  │
+│  │  ┌─ Score History (recharts line chart) ──────────────────────────┐ │  │
+│  │  │                                                                 │ │  │
+│  │  │  Score Across Stages                                            │ │  │
+│  │  │                                                                 │ │  │
+│  │  │  1.0 ─────────────────────────────────                         │ │  │
+│  │  │       ●──────●                                                  │ │  │
+│  │  │  0.9 ─── gate line (dashed, text-content-muted) ─────         │ │  │
+│  │  │                                                                 │ │  │
+│  │  │  0.8 ─────────────────────────────────                         │ │  │
+│  │  │       Stage 1   Stage 2   Stage 3   Stage 4                    │ │  │
+│  │  │                                                                 │ │  │
+│  │  │  Height: ~200px                                                 │ │  │
+│  │  │  Points: score at each completed/active stage                  │ │  │
+│  │  │  Line: primary-500, dots at each stage                         │ │  │
+│  │  │  Gate line: horizontal dashed at minimumScore                  │ │  │
+│  │  │  Above gate: point in emerald                                  │ │  │
+│  │  │  Below gate: point in rose (rollout would abort)               │ │  │
+│  │  │                                                                 │ │  │
+│  │  │  card class                                                     │ │  │
+│  │  │                                                                 │ │  │
+│  │  └─────────────────────────────────────────────────────────────────┘ │  │
+│  │                                                                       │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+│                                                                             │
+│  ┌─ PHASE: COMPLETED (Rollout) ────────────────────────────────────────┐  │
+│  │                                                                       │  │
+│  │  ┌─ Verdict Banner ──────────────────────────────────────────────┐  │  │
+│  │  │                                                                │  │  │
+│  │  │  Rollout Complete — All stages passed                         │  │  │
+│  │  │  Final score: 0.94 · 4/4 stages · 6h 42m total              │  │  │
+│  │  │                                                                │  │  │
+│  │  │  bg-status-success/5 border border-status-success/20          │  │  │
+│  │  │  Title: text-xl font-bold text-status-success                 │  │  │
+│  │  │  Stats: text-sm text-content-secondary                        │  │  │
+│  │  │                                                                │  │  │
+│  │  └────────────────────────────────────────────────────────────────┘  │  │
+│  │                                                                       │  │
+│  │  ┌─ Baseline Comparison (grid-cols-3 gap-4) ───────────────────┐   │  │
+│  │  │                                                                │  │  │
+│  │  │  ┌──────────────┐ ┌──────────────┐ ┌──────────────────────┐ │  │  │
+│  │  │  │ Before        │ │ After        │ │ Improvement          │ │  │  │
+│  │  │  │ (old version) │ │ (new version)│ │                      │ │  │  │
+│  │  │  │ 0.91          │ │ 0.94         │ │ +3.3%                │ │  │  │
+│  │  │  │ gemini-2.0    │ │ gemini-2.5   │ │ across all stages    │ │  │  │
+│  │  │  └──────────────┘ └──────────────┘ └──────────────────────┘ │  │  │
+│  │  │                                                                │  │  │
+│  │  │  "Before": baseline score from pre-rollout evaluation or      │  │  │
+│  │  │  the score of the current production version at rollout start. │  │  │
+│  │  │  "After": final score at 100% traffic stage.                   │  │  │
+│  │  │  "Improvement": delta, colored emerald if positive, rose if   │  │  │
+│  │  │  negative. stat-card class for each.                           │  │  │
+│  │  │                                                                │  │  │
+│  │  └────────────────────────────────────────────────────────────────┘  │  │
+│  │                                                                       │  │
+│  │  (Stage Pipeline + Score History chart as above, all stages filled)  │  │
+│  │                                                                       │  │
+│  │  ┌─ Stage Detail Table ──────────────────────────────────────────┐  │  │
+│  │  │                                                                │  │  │
+│  │  │  ┌──────────┬──────────┬────────┬──────────┬──────────────┐ │  │  │
+│  │  │  │ Stage    │ Traffic  │ Score  │ Gate     │ Duration     │ │  │  │
+│  │  │  ├──────────┼──────────┼────────┼──────────┼──────────────┤ │  │  │
+│  │  │  │ Stage 1  │ 10%      │ 0.96   │ ✓ >=0.90│ 1h 03m       │ │  │  │
+│  │  │  │ Stage 2  │ 25%      │ 0.95   │ ✓ >=0.90│ 1h 00m       │ │  │  │
+│  │  │  │ Stage 3  │ 50%      │ 0.94   │ ✓ >=0.90│ 2h 15m       │ │  │  │
+│  │  │  │ Stage 4  │ 100%     │ 0.94   │ ✓ >=0.90│ 2h 24m       │ │  │  │
+│  │  │  └──────────┴──────────┴────────┴──────────┴──────────────┘ │  │  │
+│  │  │                                                                │  │  │
+│  │  │  Score colored by gate: >= gate emerald, < gate rose          │  │  │
+│  │  │  Gate column: ✓ passed (emerald) or ✗ failed (rose)          │  │  │
+│  │  │  card class                                                    │  │  │
+│  │  │                                                                │  │  │
+│  │  └────────────────────────────────────────────────────────────────┘  │  │
+│  │                                                                       │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+│                                                                             │
+│  ┌─ PHASE: ABORTED (Rollout) ──────────────────────────────────────────┐  │
+│  │                                                                       │  │
+│  │  ┌─ Abort Banner ────────────────────────────────────────────────┐  │  │
+│  │  │                                                                │  │  │
+│  │  │  Rollout Aborted at Stage 3                                   │  │  │
+│  │  │  Score dropped to 0.72 (gate: 0.90) — automatic abort        │  │  │
+│  │  │                                                                │  │  │
+│  │  │  bg-status-error/5 border border-status-error/20              │  │  │
+│  │  │  Title: text-xl font-bold text-status-error                   │  │  │
+│  │  │  Reason: text-sm text-content-secondary                       │  │  │
+│  │  │                                                                │  │  │
+│  │  └────────────────────────────────────────────────────────────────┘  │  │
+│  │                                                                       │  │
+│  │  (Stage Pipeline shows completed stages + failed stage + skipped     │  │
+│  │  stages. Failed stage has rose border and ✗ icon. Score History      │  │
+│  │  chart shows the drop below the gate line.)                          │  │
+│  │                                                                       │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+
+================================================================================
+CONFIRMATION DIALOGS
+================================================================================
+
+ABORT EXPERIMENT DIALOG:
+  Triggered by [Abort] button.
+
+  ┌────────────────────────────────────────────────────────────┐
+  │                                                            │
+  │  Abort Experiment?                                         │
+  │                                                            │
+  │  This will stop "prompt-v3-test" immediately.              │
+  │  Any partial results will be preserved but the             │
+  │  experiment will be marked as aborted.                     │
+  │                                                            │
+  │  This action cannot be undone.                             │
+  │                                                            │
+  │                           [Cancel]  [Abort Experiment]     │
+  │                                                            │
+  │  "Abort Experiment": btn btn-primary bg-status-error       │
+  │    hover:bg-status-error/80                                │
+  │  Standard modal styling.                                   │
+  │                                                            │
+  └────────────────────────────────────────────────────────────┘
+
+DEPLOY WINNER DIALOG:
+  Triggered by [Deploy Winner] button. Only available when
+  experiment is completed with a significant winner.
+
+  ┌────────────────────────────────────────────────────────────┐
+  │                                                            │
+  │  Deploy Winning Variant?                                   │
+  │                                                            │
+  │  This will start a progressive rollout to deploy           │
+  │  Variant B (prompt-v3) to production.                      │
+  │                                                            │
+  │  ┌──────────────────────────────────────────────────────┐ │
+  │  │                                                      │ │
+  │  │  Winner:       Variant B                             │ │
+  │  │  Improvement:  +3.3% score                           │ │
+  │  │  Confidence:   p = 0.023                             │ │
+  │  │  Effect:       medium (Cohen's d = 0.54)             │ │
+  │  │                                                      │ │
+  │  │  bg-surface-overlay/50 rounded-lg p-4 text-sm        │ │
+  │  │                                                      │ │
+  │  └──────────────────────────────────────────────────────┘ │
+  │                                                            │
+  │  Rollout Stages:                                           │
+  │  10% → 25% → 50% → 100% (1h between stages)              │
+  │                                                            │
+  │  text-xs text-content-muted: "The rollout will abort      │
+  │  automatically if score drops below the agent's SLA."     │
+  │                                                            │
+  │                       [Cancel]  [Start Deployment]         │
+  │                                                            │
+  │  "Start Deployment": btn btn-primary                      │
+  │  On submit: creates a progressiveRolloutWorkflow           │
+  │  On success: navigates to the new rollout experiment page │
+  │                                                            │
+  └────────────────────────────────────────────────────────────┘
+
+
+================================================================================
+STATES
+================================================================================
+
+LOADING STATE:
+  ┌─────────────────────────────────────────────────────────────────┐
+  │                                                                 │
+  │  ← Back to Experiments                                          │
+  │                                                                 │
+  │  ┌─────────────────────────────────────────────────────────┐  │
+  │  │ ░░░░░░░░░░░░░░░░  ░░░░░░░░░░                           │  │  header
+  │  │ ░░░░░░░░░░░░░░░░░░░░░░░                                 │  │
+  │  └─────────────────────────────────────────────────────────┘  │
+  │                                                                 │
+  │  ┌─────────────────────────────────────────────────────────┐  │
+  │  │ ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ │  │  progress
+  │  └─────────────────────────────────────────────────────────┘  │
+  │                                                                 │
+  │  ┌────────────────────────┐  ┌─────────────────────────────┐  │
+  │  │ ░░░░░░░░░░░░░░░░░░░░ │  │ ░░░░░░░░░░░░░░░░░░░░░░░░░ │  │  variants
+  │  │ ░░░░░░░░░░░░░░░░     │  │ ░░░░░░░░░░░░░░░░░░░        │  │
+  │  │ ░░░░░░░░░░░░         │  │ ░░░░░░░░░░░░░░░░           │  │
+  │  └────────────────────────┘  └─────────────────────────────┘  │
+  │                                                                 │
+  │  animate-pulse, bg-surface-overlay rounded-xl                  │
+  │                                                                 │
+  └─────────────────────────────────────────────────────────────────┘
+
+ERROR STATE (experiment not found):
+  ┌─────────────────────────────────────────────────────────────────┐
+  │                                                                 │
+  │  ← Back to Experiments                                          │
+  │                                                                 │
+  │       (AlertTriangle icon, w-12 h-12, text-status-error)       │
+  │                                                                 │
+  │       Experiment not found                                      │
+  │       This experiment may have been deleted or the ID          │
+  │       is incorrect.                                             │
+  │       [Back to Experiments]                                     │
+  │                                                                 │
+  └─────────────────────────────────────────────────────────────────┘
+
+
+================================================================================
+DATA SOURCES
+================================================================================
+
+  trpc.experiments.getById(id) (NEW — to be created):
+    - Source: PG experiment row + Temporal workflow status/result
+    - Returns: Experiment {
+        id, name, type: 'ab_test' | 'rollout',
+        agentId, config: ABTestInput | ProgressiveRolloutInput,
+        status: 'running' | 'completed' | 'paused' | 'failed' | 'aborted',
+        startedAt, completedAt?,
+        progress?: ABTestProgress | RolloutProgress,
+        result?: ABTestResult | ProgressiveRolloutResult,
+        error?: string
+      }
+
+  Progress polling (running experiments only):
+    - A/B Test: Temporal query "abTestProgress" returns {
+        variantAComplete, variantBComplete,
+        variantAScore?, variantBScore?
+      }
+    - Rollout: Temporal query "rolloutProgress" returns {
+        currentStage, currentPercentage, scores: number[]
+      }
+
+  trpc.experiments.abort(id) — sends Temporal cancel signal
+  trpc.experiments.pause(id) — sends Temporal pause signal (if supported)
+  trpc.experiments.resume(id) — sends Temporal resume signal
+  trpc.experiments.advance(id) — sends Temporal signal to skip remaining
+    stage duration and advance to next stage (rollout only)
+  trpc.experiments.deploy(id) — starts progressiveRolloutWorkflow
+    with winning variant config
+
+  Per-case breakdown: derived from ABTestResult.variantAResult.results
+    and ABTestResult.variantBResult.results, joined by caseIndex.
+
+  Statistical analysis: computed server-side in the compare router
+    or in the abTestWorkflow result. Reuses CompareResponse types:
+    StatisticalSignificance, EffectSize, ConfidenceInterval.
+
+
+================================================================================
+BEHAVIORAL NOTES
+================================================================================
+
+  1. Running experiments poll every 3 seconds via refetchInterval: 3000.
+     Completed/failed experiments use staleTime: Infinity (data won't
+     change). The polling stops automatically when status !== 'running'.
+
+  2. The page detects experiment type from the response and renders
+     either the A/B Test layout or the Progressive Rollout layout.
+     This is a simple conditional render at the top level, not tabs.
+
+  3. Variant comparison cards show three metrics (Score, Latency, Cost)
+     with directional coloring. Score: higher = better (green for +).
+     Latency: lower = better (green for -). Cost: lower = better
+     (green for -). This prevents misreading "latency +10%" as good.
+
+  4. The score curves chart has a [Metric] dropdown to toggle between
+     Score, Latency, and Cost views. Only one is shown at a time to
+     keep the chart clean. Default: Score.
+
+  5. [Deploy Winner] button is only enabled when ALL of:
+     - status === 'completed'
+     - result.winner !== 'tie'
+     - result.confidence < significanceThreshold (significant)
+     Otherwise: disabled with tooltip explaining why.
+
+  6. [Rerun] clones the experiment config into a new create dialog
+     with all fields pre-filled. User can adjust before starting.
+     Does NOT auto-start — always requires confirmation.
+
+  7. [Export] dropdown offers JSON (full experiment data) and CSV
+     (per-case results table). Downloads immediately, no server
+     round-trip needed since data is already in the client.
+
+  8. Per-case breakdown uses virtual scrolling if > 100 cases to
+     maintain scroll performance. Cases are loaded in the initial
+     experiment query — no additional request needed.
+
+  9. The progressive rollout stage pipeline is larger on the detail
+     page than on the list card. Each stage box is ~140px wide with
+     score, status, and duration. On the list card, stages are
+     compact (~60px) with just percentage and icon.
+
+ 10. Live score chart appears in both RUNNING and PAUSED phases.
+     During running: updates every 3 seconds with polling data.
+     During paused: chart is static, no updates, same data as
+     when paused. Same chart component reused in COMPLETED phase
+     with full dataset.
+
+ 11. Per-scorer aggregate table only shown when experiment uses 2+
+     scorers. Positioned between variant comparison cards and score
+     curves for quick "which scorers improved?" scanning before
+     drilling into the full per-case breakdown below.
+
+ 12. [Advance] button for rollouts sends a Temporal signal to skip
+     the remaining stage duration. Requires confirmation toast (not
+     a modal — too disruptive for a non-destructive action). Button
+     is disabled on the final stage (100%) and during the first 5
+     minutes of any stage (to prevent accidental rapid advancement).
+
+ 13. Completed rollout shows baseline comparison section: score of
+     the old version (from most recent eval run before rollout start)
+     vs final score of new version. If no prior eval data exists,
+     the "Before" card shows "N/A" with tooltip "No prior eval data
+     available for comparison."
+
+ 14. Back navigation is context-aware. Uses document.referrer to
+     detect if user came from /agents/[id] and adjusts the label
+     and destination accordingly. Falls back to /experiments.

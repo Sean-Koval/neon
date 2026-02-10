@@ -1,462 +1,525 @@
 'use client'
 
 import {
+  Activity,
   AlertCircle,
+  AlertTriangle,
   CheckCircle,
-  ChevronLeft,
-  ChevronRight,
-  Clock,
-  FileText,
+  ChevronDown,
+  DollarSign,
+  Lightbulb,
   RefreshCw,
-  XCircle,
+  Rocket,
+  Zap,
 } from 'lucide-react'
 import Link from 'next/link'
-import { memo, useMemo } from 'react'
-import { RegressionBanner } from '@/components/alerts/regression-banner'
-import { CostAnalyticsCards } from '@/components/dashboard/cost-analytics'
-import {
-  type DashboardFilters,
-  DashboardFiltersBar,
-} from '@/components/dashboard/filters'
-import {
-  LazyDashboardStatCards,
-  LazyScoreTrends,
-  LazyToolMetricsCard,
-} from '@/components/dashboard/lazy-components'
-import { StatisticalGuidance } from '@/components/statistical-guidance'
-import { HelpTooltip } from '@/components/ui/help-tooltip'
+import { useState } from 'react'
+import { LazyScoreTrends } from '@/components/dashboard/lazy-components'
 import { useAlerts } from '@/hooks/use-alerts'
 import { useDashboard } from '@/hooks/use-dashboard'
 import { CONFIG } from '@/lib/config'
 import { safeFormatDistance } from '@/lib/format-date'
-import type { EvalRun, EvalRunStatus } from '@/lib/types'
 
-export default function Dashboard() {
-  const {
-    filters,
-    setFilters,
-    recentRuns,
-    suites,
-    stats,
-    isLoadingRuns,
-    isLoadingSuites,
-    isLoadingStats,
-    runsError,
-    page,
-    hasNextPage,
-    hasPrevPage,
-    loadNextPage,
-    loadPrevPage,
-    refresh,
-  } = useDashboard()
+// =============================================================================
+// Mock Data
+// =============================================================================
 
+const MOCK_AGENTS = [
+  {
+    id: 'booking-agent',
+    name: 'booking-agent',
+    version: 'v2.1',
+    status: 'healthy' as const,
+    passRate: 94,
+    latency: '320ms',
+    costPerCall: '$0.04',
+  },
+  {
+    id: 'research-agent',
+    name: 'research-agent',
+    version: 'v1.3',
+    status: 'healthy' as const,
+    passRate: 98,
+    latency: '580ms',
+    costPerCall: '$0.12',
+  },
+  {
+    id: 'support-agent',
+    name: 'support-agent',
+    version: 'v3.0',
+    status: 'degraded' as const,
+    passRate: 78,
+    latency: '1.2s',
+    costPerCall: '$0.08',
+  },
+  {
+    id: 'code-agent',
+    name: 'code-agent',
+    version: 'v1.0',
+    status: 'staging' as const,
+    passRate: undefined,
+    latency: '—',
+    costPerCall: '—',
+  },
+]
+
+const MOCK_ACTIVITY = [
+  {
+    id: '1',
+    type: 'eval-complete' as const,
+    description: 'booking-agent evaluation completed — 47/50 passed',
+    time: '2 minutes ago',
+  },
+  {
+    id: '2',
+    type: 'deploy' as const,
+    description: 'research-agent v1.3 deployed to production',
+    time: '18 minutes ago',
+  },
+  {
+    id: '3',
+    type: 'alert' as const,
+    description: 'support-agent pass rate dropped below 80% threshold',
+    time: '1 hour ago',
+  },
+  {
+    id: '4',
+    type: 'optimization' as const,
+    description: 'Prompt optimization loop #12 completed for booking-agent',
+    time: '3 hours ago',
+  },
+  {
+    id: '5',
+    type: 'eval-complete' as const,
+    description:
+      'support-agent nightly regression suite finished — 39/50 passed',
+    time: '6 hours ago',
+  },
+  {
+    id: '6',
+    type: 'deploy' as const,
+    description: 'code-agent v1.0 deployed to staging environment',
+    time: '12 hours ago',
+  },
+]
+
+const ACTIVITY_ICON_MAP = {
+  'eval-complete': { icon: CheckCircle, color: 'text-emerald-500' },
+  deploy: { icon: Rocket, color: 'text-primary-500' },
+  optimization: { icon: Zap, color: 'text-accent-500' },
+  alert: { icon: AlertTriangle, color: 'text-amber-500' },
+} as const
+
+const STATUS_DOTS: Record<string, string> = {
+  healthy: 'text-emerald-500',
+  degraded: 'text-amber-500',
+  failing: 'text-rose-500',
+  staging: 'text-content-muted',
+}
+
+// =============================================================================
+// Command Center Page
+// =============================================================================
+
+type Environment = 'production' | 'staging'
+
+export default function CommandCenter() {
+  const { refresh } = useDashboard()
   const { data: alertsData, error: alertsError } = useAlerts()
-  const regressionAlerts = alertsError ? [] : (alertsData?.alerts ?? [])
+  const alerts = alertsError ? [] : (alertsData?.alerts ?? [])
+  const [environment, setEnvironment] = useState<Environment>('production')
 
   return (
-    <div className="space-y-8">
-      {/* Regression Banner */}
-      <RegressionBanner alerts={regressionAlerts} />
+    <div className="relative p-6 space-y-6">
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-44 bg-gradient-to-b from-primary-100/60 via-accent-100/20 to-transparent dark:hidden" />
 
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-          <p className="text-gray-500">Overview of your agent evaluations</p>
+      {/* 1. Header */}
+      <div className="relative rounded-2xl border border-border bg-gradient-to-br from-white via-white to-slate-50/80 dark:from-surface-card dark:via-surface-card dark:to-surface-raised p-6 shadow-sm">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-3">
+              <h1 className="text-2xl font-bold text-content-primary">
+                Command Center
+              </h1>
+              <EnvironmentSelector
+                value={environment}
+                onChange={setEnvironment}
+              />
+            </div>
+            <p className="text-sm text-content-secondary max-w-2xl">
+              Monitor agent quality, stability, and cost in one place. Trends
+              and alerts are tuned for fast scanning.
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="inline-flex items-center rounded-full border border-border bg-surface-card px-3 py-1 text-xs font-medium text-content-secondary">
+              Live dashboard
+            </span>
+            <button
+              type="button"
+              onClick={refresh}
+              className="btn btn-secondary"
+              title="Refresh dashboard"
+            >
+              <RefreshCw className="w-4 h-4" />
+              Refresh
+            </button>
+          </div>
         </div>
-        <button
-          type="button"
-          onClick={refresh}
-          className="btn btn-secondary inline-flex items-center gap-2"
-          title="Refresh dashboard"
-        >
-          <RefreshCw className="w-4 h-4" />
-          Refresh
-        </button>
       </div>
 
-      {/* Statistical Guidance */}
-      <StatisticalGuidance />
-
-      {/* Filters */}
-      <DashboardFiltersBar
-        filters={filters}
-        onFiltersChange={setFilters}
-        suites={suites}
-        isLoadingSuites={isLoadingSuites}
-      />
-
-      {/* Stats - Lazy loaded for code splitting */}
-      <LazyDashboardStatCards />
-
-      {/* Cost & Token Analytics */}
-      <div className="space-y-2">
-        <h2 className="text-lg font-semibold text-gray-900">Cost & Usage</h2>
-        <CostAnalyticsCards stats={stats} isLoading={isLoadingStats} />
-      </div>
-
-      {/* Score Trends - Full Width, lazy loaded with recharts */}
-      {/* Score Trends show daily average scores over the selected period */}
-      <LazyScoreTrends
-        defaultTimeRange={
-          filters.dateRange === '7d'
-            ? '7d'
-            : filters.dateRange === '30d'
-              ? '30d'
-              : '90d'
-        }
-        showSuiteFilter={true}
-        threshold={CONFIG.DASHBOARD_SCORE_THRESHOLD}
-      />
-
-      {/* Tool Metrics */}
-      <div className="space-y-2">
-        <h2 className="text-lg font-semibold text-gray-900">Tool Execution</h2>
-        <LazyToolMetricsCard
-          days={
-            filters.dateRange === '7d'
-              ? 7
-              : filters.dateRange === '30d'
-                ? 30
-                : 90
+      {/* 2. KPI Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+        <KpiCard
+          label="Agents Active"
+          value="4 / 6"
+          subtitle="2 in staging"
+          icon={
+            <Activity className="w-4 h-4 text-primary-600 dark:text-primary-400" />
           }
+          tone="neutral"
+        />
+        <KpiCard
+          label="Pass Rate"
+          value="94.2%"
+          subtitle="↑ 2.1% vs 7d"
+          icon={
+            <CheckCircle className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+          }
+          tone="positive"
+        />
+        <KpiCard
+          label="Errors (24h)"
+          value="12"
+          subtitle="↑ 3 vs yesterday"
+          icon={
+            <AlertCircle className="w-4 h-4 text-rose-600 dark:text-rose-400" />
+          }
+          tone="negative"
+        />
+        <KpiCard
+          label="Daily Cost"
+          value="$142"
+          subtitle="↓ $8 vs 7d avg"
+          icon={
+            <DollarSign className="w-4 h-4 text-accent-600 dark:text-accent-400" />
+          }
+          tone="positive"
         />
       </div>
 
-      {/* Recent Runs */}
-      <RecentRunsCard
-        runs={recentRuns}
-        isLoading={isLoadingRuns}
-        error={runsError}
-        filters={filters}
-        page={page}
-        hasNextPage={hasNextPage}
-        hasPrevPage={hasPrevPage}
-        onNextPage={loadNextPage}
-        onPrevPage={loadPrevPage}
-      />
-    </div>
-  )
-}
-
-interface RecentRunsCardProps {
-  runs: EvalRun[]
-  isLoading: boolean
-  error: Error | null
-  filters: DashboardFilters
-  page: number
-  hasNextPage: boolean
-  hasPrevPage: boolean
-  onNextPage: () => void
-  onPrevPage: () => void
-}
-
-function RecentRunsCard({
-  runs,
-  isLoading,
-  error,
-  filters,
-  page,
-  hasNextPage,
-  hasPrevPage,
-  onNextPage,
-  onPrevPage,
-}: RecentRunsCardProps) {
-  const hasFilters =
-    filters.status !== 'all' ||
-    filters.suiteId !== 'all' ||
-    filters.dateRange !== '7d'
-
-  return (
-    <div className="card overflow-hidden">
-      <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-lg font-semibold text-gray-900">Recent Runs</h2>
-            <p className="text-sm text-gray-500 mt-0.5">
-              {hasFilters ? 'Filtered results' : 'Latest evaluation runs'}
+      {/* 3. Alerts + AI Insights */}
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+        {/* Active Alerts */}
+        <div className="card p-5">
+          <h2 className="text-sm font-semibold text-content-primary mb-4">
+            Active Alerts
+          </h2>
+          {alerts.length === 0 ? (
+            <p className="text-sm text-content-muted py-6 text-center">
+              No active alerts
             </p>
-          </div>
-          {runs.length > 0 && (
-            <span className="text-sm text-gray-500">
-              {runs.length} run{runs.length !== 1 ? 's' : ''}
-            </span>
-          )}
-        </div>
-      </div>
-
-      {isLoading ? (
-        <RecentRunsSkeleton />
-      ) : error ? (
-        <RecentRunsError error={error} />
-      ) : runs.length > 0 ? (
-        <div className="divide-y divide-gray-100 max-h-[400px] overflow-y-auto">
-          {runs.map((run) => (
-            <RunRow key={run.id} run={run} />
-          ))}
-        </div>
-      ) : (
-        <RecentRunsEmpty hasFilters={hasFilters} />
-      )}
-
-      <div className="flex items-center justify-between p-4 border-t border-gray-100 bg-gray-50/50">
-        <div className="flex items-center gap-2">
-          {(hasPrevPage || hasNextPage) && (
-            <>
-              <button
-                type="button"
-                onClick={onPrevPage}
-                disabled={!hasPrevPage || isLoading}
-                className="inline-flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                <ChevronLeft className="w-4 h-4" />
-                Prev
-              </button>
-              <span className="text-sm text-gray-500">Page {page + 1}</span>
-              <button
-                type="button"
-                onClick={onNextPage}
-                disabled={!hasNextPage || isLoading}
-                className="inline-flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                Next
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            </>
-          )}
-        </div>
-        <Link
-          href="/eval-runs"
-          className="text-primary-600 hover:text-accent-600 text-sm font-medium transition-colors"
-        >
-          View all runs
-        </Link>
-      </div>
-    </div>
-  )
-}
-
-function RecentRunsSkeleton() {
-  return (
-    <div className="divide-y divide-gray-200">
-      {[1, 2, 3, 4, 5].map((i) => (
-        <div key={i} className="p-4 animate-pulse">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <div>
-                <div className="h-4 w-32 bg-gray-200 rounded mb-2" />
-                <div className="h-3 w-24 bg-gray-200 rounded" />
-              </div>
+          ) : (
+            <div className="space-y-3">
+              {alerts.slice(0, 5).map((alert) => {
+                const isCritical = alert.severity === 'critical'
+                const Icon = isCritical ? AlertCircle : AlertTriangle
+                const iconColor = isCritical
+                  ? 'text-rose-500'
+                  : 'text-amber-500'
+                return (
+                  <div
+                    key={alert.id}
+                    className="flex items-start gap-3 rounded-lg border border-border bg-surface-raised p-3"
+                  >
+                    <Icon
+                      className={`w-4 h-4 mt-0.5 flex-shrink-0 ${iconColor}`}
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-content-primary truncate">
+                        {alert.suiteName}
+                      </p>
+                      <p className="text-xs text-content-muted truncate">
+                        {alert.details}
+                      </p>
+                    </div>
+                    <span className="text-xs text-content-muted flex-shrink-0">
+                      {safeFormatDistance(alert.detectedAt)}
+                    </span>
+                  </div>
+                )
+              })}
             </div>
-            <div className="flex items-center space-x-6">
-              <div className="h-6 w-20 bg-gray-200 rounded-full" />
-              <div className="text-right hidden sm:block">
-                <div className="h-4 w-20 bg-gray-200 rounded mb-2" />
-                <div className="h-3 w-16 bg-gray-200 rounded" />
-              </div>
-              <div className="h-3 w-16 bg-gray-200 rounded hidden lg:block" />
-            </div>
+          )}
+          <div className="mt-4 pt-3 border-t border-border">
+            <Link
+              href="/alerts"
+              className="text-sm font-medium text-primary-500 hover:text-accent-500 transition-colors"
+            >
+              View all alerts →
+            </Link>
           </div>
         </div>
-      ))}
-    </div>
-  )
-}
 
-function RecentRunsError({ error }: { error: Error }) {
-  return (
-    <div className="p-6 text-center">
-      <AlertCircle className="w-8 h-8 text-red-400 mx-auto mb-2" />
-      <p className="text-sm text-gray-600">Failed to load recent runs</p>
-      <p className="text-xs text-gray-400 mt-1">{error.message}</p>
-    </div>
-  )
-}
-
-interface RecentRunsEmptyProps {
-  hasFilters: boolean
-}
-
-function RecentRunsEmpty({ hasFilters }: RecentRunsEmptyProps) {
-  if (hasFilters) {
-    return (
-      <div className="p-12 text-center">
-        <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gray-100 flex items-center justify-center">
-          <FileText className="w-8 h-8 text-gray-400" />
-        </div>
-        <h3 className="text-sm font-medium text-gray-900 mb-1">
-          No matching runs
-        </h3>
-        <p className="text-sm text-gray-500">
-          Try adjusting your filters to see more results.
-        </p>
-      </div>
-    )
-  }
-
-  return (
-    <div className="p-12 text-center">
-      <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-primary-100 to-accent-100 flex items-center justify-center">
-        <FileText className="w-8 h-8 text-primary-500" />
-      </div>
-      <h3 className="text-sm font-medium text-gray-900 mb-1">No runs yet</h3>
-      <p className="text-sm text-gray-500 mb-4">
-        Start by creating an evaluation suite and running your first evaluation.
-      </p>
-      <Link
-        href="/eval-runs"
-        className="btn btn-primary inline-flex items-center"
-      >
-        View eval runs
-      </Link>
-    </div>
-  )
-}
-
-interface RunRowProps {
-  run: EvalRun
-}
-
-const RunRow = memo(function RunRow({ run }: RunRowProps) {
-  const { passedCount, totalCount, score, passedColor } = useMemo(() => {
-    const passed = run.summary?.passed ?? 0
-    const total = run.summary?.total_cases ?? 0
-    const avgScore = run.summary?.avg_score
-    const color =
-      passed === total
-        ? 'text-green-600'
-        : passed > 0
-          ? 'text-yellow-600'
-          : 'text-red-600'
-    return {
-      passedCount: passed,
-      totalCount: total,
-      score: avgScore,
-      passedColor: color,
-    }
-  }, [run.summary])
-
-  const timeAgo = useMemo(
-    () => safeFormatDistance(run.created_at),
-    [run.created_at],
-  )
-
-  return (
-    <Link
-      href={`/eval-runs/${run.id}`}
-      className="block p-4 hover:bg-gray-50 transition-colors"
-    >
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-4 min-w-0 flex-1">
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.preventDefault()
-                  e.stopPropagation()
-                  window.location.href = `/eval-runs`
-                }}
-                className="font-medium text-gray-900 hover:text-primary-600 truncate cursor-pointer text-left"
-              >
-                {run.suite_name}
-              </button>
+        {/* AI Insights */}
+        <div className="card p-5">
+          <h2 className="text-sm font-semibold text-content-primary mb-4">
+            AI Insights
+          </h2>
+          <div className="flex flex-col items-center justify-center py-8 text-center">
+            <div className="w-12 h-12 rounded-xl bg-surface-raised flex items-center justify-center mb-3">
+              <Lightbulb className="w-6 h-6 text-content-muted" />
             </div>
-            <p className="text-sm text-gray-500 truncate">
-              {run.agent_version ? `${run.agent_version}` : 'No version'}
+            <p className="text-sm text-content-muted max-w-xs">
+              AI insights will appear here when pattern detection is enabled.
+              This feature will analyze agent behavior and suggest improvements.
             </p>
           </div>
         </div>
-        <div className="flex items-center space-x-6 ml-4 flex-shrink-0">
-          <StatusBadge status={run.status} />
-          <div className="text-right hidden sm:block">
-            {run.summary ? (
-              <>
-                <p className="font-medium text-gray-900">
-                  <span className={passedColor}>{passedCount}</span>
-                  <span className="text-gray-400">/</span>
-                  <span className="text-gray-600">{totalCount}</span>
-                  <HelpTooltip content="Passed / total test cases in this evaluation run" />
-                </p>
-                <p className="text-sm text-gray-500">
-                  <ScoreValue score={score ?? 0} />
-                  <HelpTooltip content="Average score across all scorers (0–1 scale)" />
-                </p>
-              </>
-            ) : (
-              <p className="text-sm text-gray-400">--</p>
-            )}
+      </div>
+
+      {/* 4. Agent Health Table */}
+      <div className="card overflow-hidden">
+        <div className="flex items-center justify-between p-5 border-b border-border bg-surface-raised/60">
+          <h2 className="text-sm font-semibold text-content-primary">
+            Agent Health
+          </h2>
+          <Link
+            href="/agents"
+            className="text-sm font-medium text-primary-500 hover:text-accent-500 transition-colors"
+          >
+            View All →
+          </Link>
+        </div>
+        <table className="w-full">
+          <thead>
+            <tr className="border-b border-border text-xs text-content-muted uppercase tracking-wide bg-surface-raised/50">
+              <th className="text-left px-5 py-3 font-medium">Agent</th>
+              <th className="text-left px-5 py-3 font-medium">Version</th>
+              <th className="text-left px-5 py-3 font-medium">Status</th>
+              <th className="text-right px-5 py-3 font-medium">Pass Rate</th>
+              <th className="text-right px-5 py-3 font-medium">Latency</th>
+              <th className="text-right px-5 py-3 font-medium">Cost/call</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border">
+            {MOCK_AGENTS.map((agent) => (
+              <tr
+                key={agent.id}
+                className="hover:bg-surface-raised/60 transition-colors"
+              >
+                <td className="px-5 py-3">
+                  <Link
+                    href={`/agents/${agent.id}`}
+                    className="text-sm font-medium text-content-primary hover:text-primary-500 transition-colors"
+                  >
+                    {agent.name}
+                  </Link>
+                </td>
+                <td className="px-5 py-3 text-sm text-content-secondary">
+                  {agent.version}
+                </td>
+                <td className="px-5 py-3">
+                  <span className="inline-flex items-center gap-1.5 text-sm text-content-secondary">
+                    <span
+                      className={
+                        STATUS_DOTS[agent.status] ?? 'text-content-muted'
+                      }
+                    >
+                      ●
+                    </span>
+                    <span className="capitalize font-medium">
+                      {agent.status}
+                    </span>
+                  </span>
+                </td>
+                <td className="px-5 py-3 text-sm text-content-primary text-right font-medium">
+                  {agent.passRate !== undefined ? `${agent.passRate}%` : '—'}
+                </td>
+                <td className="px-5 py-3 text-sm text-content-secondary text-right">
+                  {agent.latency}
+                </td>
+                <td className="px-5 py-3 text-sm text-content-secondary text-right">
+                  {agent.costPerCall}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* 5. Bottom row: Score Trends + Running */}
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+        {/* Score Trends */}
+        <LazyScoreTrends
+          defaultTimeRange="7d"
+          showSuiteFilter={false}
+          compact={true}
+          threshold={CONFIG.DASHBOARD_SCORE_THRESHOLD}
+        />
+
+        {/* Running / Active Work */}
+        <div className="card p-5">
+          <h2 className="text-sm font-semibold text-content-primary mb-4">
+            Running
+          </h2>
+          <div className="flex flex-col items-center justify-center py-8 text-center">
+            <div className="w-12 h-12 rounded-xl bg-surface-raised flex items-center justify-center mb-3">
+              <Zap className="w-6 h-6 text-content-muted" />
+            </div>
+            <p className="text-sm font-medium text-content-secondary mb-1">
+              No active work
+            </p>
+            <p className="text-sm text-content-muted max-w-xs mb-4">
+              Start an evaluation run or experiment to see progress here.
+            </p>
+            <Link href="/eval-runs" className="btn btn-primary text-sm">
+              Go to Eval Runs
+            </Link>
           </div>
-          <span className="text-sm text-gray-500 w-24 text-right hidden lg:block">
-            {timeAgo}
-          </span>
         </div>
       </div>
-    </Link>
-  )
-})
 
-const STATUS_CONFIG: Record<
-  EvalRunStatus,
-  { icon: typeof CheckCircle; color: string; bg: string; border: string }
-> = {
-  completed: {
-    icon: CheckCircle,
-    color: 'text-emerald-700',
-    bg: 'bg-emerald-50',
-    border: 'border-emerald-200',
-  },
-  running: {
-    icon: Clock,
-    color: 'text-amber-700',
-    bg: 'bg-amber-50',
-    border: 'border-amber-200',
-  },
-  failed: {
-    icon: XCircle,
-    color: 'text-rose-700',
-    bg: 'bg-rose-50',
-    border: 'border-rose-200',
-  },
-  pending: {
-    icon: Clock,
-    color: 'text-gray-600',
-    bg: 'bg-gray-50',
-    border: 'border-gray-200',
-  },
-  cancelled: {
-    icon: AlertCircle,
-    color: 'text-gray-600',
-    bg: 'bg-gray-50',
-    border: 'border-gray-200',
-  },
+      {/* 6. Recent Activity */}
+      <div className="card p-5">
+        <h2 className="text-sm font-semibold text-content-primary mb-4">
+          Recent Activity
+        </h2>
+        <div className="space-y-2">
+          {MOCK_ACTIVITY.map((item) => {
+            const cfg = ACTIVITY_ICON_MAP[item.type]
+            const Icon = cfg.icon
+            return (
+              <div
+                key={item.id}
+                className="flex items-center gap-3 rounded-lg border border-border bg-surface-raised px-3 py-2.5"
+              >
+                <Icon className={`w-4 h-4 flex-shrink-0 ${cfg.color}`} />
+                <p className="text-sm text-content-secondary flex-1 min-w-0 truncate">
+                  {item.description}
+                </p>
+                <span className="text-xs text-content-muted flex-shrink-0">
+                  {item.time}
+                </span>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    </div>
+  )
 }
 
-const StatusBadge = memo(function StatusBadge({
-  status,
+// =============================================================================
+// KPI Card Component
+// =============================================================================
+
+function KpiCard({
+  label,
+  value,
+  subtitle,
+  icon,
+  tone = 'neutral',
 }: {
-  status: EvalRunStatus
+  label: string
+  value: string
+  subtitle: string
+  icon: React.ReactNode
+  tone?: 'positive' | 'negative' | 'neutral'
 }) {
-  const config = STATUS_CONFIG[status] || STATUS_CONFIG.pending
-  const Icon = config.icon
+  const subtitleTone =
+    tone === 'positive'
+      ? 'text-emerald-600 dark:text-emerald-400'
+      : tone === 'negative'
+        ? 'text-rose-600 dark:text-rose-400'
+        : 'text-content-muted'
 
   return (
-    <span
-      className={`inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-xs font-medium border ${config.bg} ${config.color} ${config.border}`}
-    >
-      <Icon className="w-3 h-3" />
-      <span className="capitalize">{status}</span>
-    </span>
+    <div className="group relative overflow-hidden rounded-2xl border border-border bg-surface-card p-5 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary-500/25 hover:shadow-lg">
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-primary-400/70 via-accent-400/60 to-primary-400/70" />
+      <div className="flex items-start justify-between gap-3">
+        <p className="text-xs text-content-muted uppercase tracking-wide">
+          {label}
+        </p>
+        <div className="rounded-lg border border-border bg-surface-raised/70 p-2">
+          {icon}
+        </div>
+      </div>
+      <p className="mt-3 text-2xl font-bold text-content-primary">{value}</p>
+      <p className={`text-xs mt-1 ${subtitleTone}`}>{subtitle}</p>
+    </div>
   )
-})
+}
 
-const ScoreValue = memo(function ScoreValue({ score }: { score: number }) {
-  const color =
-    score >= 0.8
-      ? 'text-emerald-600'
-      : score >= 0.6
-        ? 'text-amber-600'
-        : 'text-rose-600'
+// =============================================================================
+// Environment Selector
+// =============================================================================
 
-  return <span className={`font-medium ${color}`}>{score.toFixed(2)}</span>
-})
+const ENV_CONFIG: Record<Environment, { label: string; dot: string }> = {
+  production: { label: 'Production', dot: 'bg-emerald-500' },
+  staging: { label: 'Staging', dot: 'bg-amber-500' },
+}
+
+function EnvironmentSelector({
+  value,
+  onChange,
+}: {
+  value: Environment
+  onChange: (env: Environment) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const config = ENV_CONFIG[value]
+  const triggerTone =
+    value === 'production'
+      ? 'border-emerald-300/80 bg-emerald-50 text-emerald-800 hover:bg-emerald-100/80 dark:border-emerald-500/40 dark:bg-emerald-500/15 dark:text-emerald-300 dark:hover:bg-emerald-500/20'
+      : 'border-amber-300/80 bg-amber-50 text-amber-800 hover:bg-amber-100/80 dark:border-amber-500/40 dark:bg-amber-500/15 dark:text-amber-300 dark:hover:bg-amber-500/20'
+
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className={`flex items-center gap-2 px-3.5 py-2 rounded-lg border text-sm font-semibold shadow-sm transition-colors ${triggerTone}`}
+      >
+        <span className={`w-2 h-2 rounded-full ${config.dot}`} />
+        {config.label}
+        <ChevronDown className="w-3.5 h-3.5 opacity-70" />
+      </button>
+
+      {open && (
+        <>
+          <button
+            type="button"
+            aria-label="Close menu"
+            className="fixed inset-0 z-40 cursor-default border-none bg-transparent"
+            onClick={() => setOpen(false)}
+          />
+          <div className="absolute top-full left-0 mt-1 z-50 w-44 bg-surface-card border border-border rounded-lg shadow-lg overflow-hidden">
+            {(Object.keys(ENV_CONFIG) as Environment[]).map((env) => {
+              const cfg = ENV_CONFIG[env]
+              const isActive = env === value
+              return (
+                <button
+                  key={env}
+                  type="button"
+                  onClick={() => {
+                    onChange(env)
+                    setOpen(false)
+                  }}
+                  className={`w-full flex items-center gap-2.5 px-3 py-2.5 text-sm transition-colors ${
+                    isActive
+                      ? 'bg-primary-500/10 text-content-primary'
+                      : 'text-content-secondary hover:bg-surface-overlay'
+                  }`}
+                >
+                  <span className={`w-2 h-2 rounded-full ${cfg.dot}`} />
+                  {cfg.label}
+                </button>
+              )
+            })}
+          </div>
+        </>
+      )}
+    </div>
+  )
+}

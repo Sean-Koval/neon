@@ -16,23 +16,111 @@
   animation: shimmer 2s infinite linear;
 }
 
+/* ==========================================================================
+   Theme Variables — Light (default) & Dark
+   ========================================================================== */
+
+:root {
+  /* Surfaces */
+  --surface-base: #f8fafc;
+  --surface-raised: #ffffff;
+  --surface-card: #ffffff;
+  --surface-overlay: #ffffff;
+
+  /* Borders */
+  --border-default: #e2e8f0;
+  --border-subtle: #f1f5f9;
+
+  /* Text */
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #94a3b8;
+  --text-inverted: #f8fafc;
+
+  /* Card-specific */
+  --card-hover-border: rgba(6, 182, 212, 0.3);
+
+  /* Sidebar (light mode) */
+  --sidebar-bg: #ffffff;
+  --sidebar-border: #e2e8f0;
+  --sidebar-text: #64748b;
+  --sidebar-text-active: #0f172a;
+  --sidebar-hover-bg: #f8fafc;
+  --sidebar-hover-text: #0f172a;
+  --sidebar-active-bg: rgba(6, 182, 212, 0.1);
+  --sidebar-active-border: #22d3ee;
+}
+
+.dark {
+  /* Surfaces */
+  --surface-base: #020617;
+  --surface-raised: #0f172a;
+  --surface-card: #1e293b;
+  --surface-overlay: #334155;
+
+  /* Borders */
+  --border-default: #334155;
+  --border-subtle: #1e293b;
+
+  /* Text */
+  --text-primary: #f8fafc;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --text-inverted: #0f172a;
+
+  /* Card-specific */
+  --card-hover-border: rgba(6, 182, 212, 0.3);
+
+  /* Sidebar (dark mode) */
+  --sidebar-bg: #0f172a;
+  --sidebar-border: #1e293b;
+  --sidebar-text: #94a3b8;
+  --sidebar-text-active: #ffffff;
+  --sidebar-hover-bg: rgba(51, 65, 85, 0.5);
+  --sidebar-hover-text: #ffffff;
+  --sidebar-active-bg: rgba(6, 182, 212, 0.2);
+  --sidebar-active-border: #22d3ee;
+}
+
+/* ==========================================================================
+   Base Layer
+   ========================================================================== */
+
 @layer base {
   body {
-    @apply antialiased;
+    @apply antialiased bg-surface-base text-content-primary;
   }
 }
 
+/* ==========================================================================
+   Component Classes
+   ========================================================================== */
+
 @layer components {
+  /* Cards */
   .card {
-    @apply bg-white rounded-xl border border-gray-200/80 shadow-sm hover:shadow-md transition-shadow;
+    @apply bg-surface-card rounded-xl border border-border shadow-sm hover:shadow-md transition-shadow;
   }
 
   .card-dark {
     @apply bg-dark-800 rounded-xl border border-dark-700 shadow-lg;
   }
 
+  /* Stat cards with subtle gradient top bar */
+  .stat-card {
+    @apply relative bg-surface-card rounded-xl p-6 overflow-hidden
+           border border-border shadow-sm
+           hover:shadow-md transition-all duration-200;
+  }
+
+  .stat-card::before {
+    @apply absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-primary-400 to-accent-400;
+    content: '';
+  }
+
+  /* Buttons */
   .btn {
-    @apply px-4 py-2 rounded-lg font-medium transition-all duration-200;
+    @apply inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg font-medium transition-all duration-200;
   }
 
   .btn-primary {
@@ -42,40 +130,78 @@
   }
 
   .btn-secondary {
-    @apply bg-white text-gray-700 border border-gray-300
-           hover:bg-gray-50 hover:border-primary-300;
+    @apply bg-surface-card text-content-secondary border border-border
+           hover:bg-surface-raised hover:border-primary-500/30;
   }
 
   .btn-ghost {
-    @apply text-gray-600 hover:text-primary-600 hover:bg-primary-50;
+    @apply text-content-secondary hover:text-primary-600 hover:bg-primary-50
+           dark:hover:bg-primary-500/10;
   }
 
+  /* Selects — custom chevron with proper spacing from border */
+  select {
+    @apply appearance-none min-w-[140px] bg-no-repeat cursor-pointer border border-border bg-surface-card text-content-secondary rounded-lg;
+    outline: none;
+    padding-right: 2.5rem !important;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-position: right 0.75rem center;
+  }
+
+  select:focus {
+    @apply border-primary-500/60 ring-2 ring-primary-500/20;
+    outline: none;
+  }
+
+  .dark select {
+    @apply border-slate-700 bg-slate-900/95 text-slate-200;
+    color-scheme: dark;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  }
+
+  .dark select:hover {
+    @apply border-slate-600;
+  }
+
+  .dark select option,
+  .dark select optgroup {
+    background-color: rgb(15 23 42);
+    color: rgb(226 232 240);
+  }
+
+  /* Badges */
   .badge {
     @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
   }
 
   .badge-green {
-    @apply bg-emerald-100 text-emerald-700 border border-emerald-200;
+    @apply bg-emerald-100 text-emerald-700 border border-emerald-200
+           dark:bg-emerald-500/15 dark:text-emerald-400 dark:border-emerald-500/30;
   }
 
   .badge-red {
-    @apply bg-rose-100 text-rose-700 border border-rose-200;
+    @apply bg-rose-100 text-rose-700 border border-rose-200
+           dark:bg-rose-500/15 dark:text-rose-400 dark:border-rose-500/30;
   }
 
   .badge-yellow {
-    @apply bg-amber-100 text-amber-700 border border-amber-200;
+    @apply bg-amber-100 text-amber-700 border border-amber-200
+           dark:bg-amber-500/15 dark:text-amber-400 dark:border-amber-500/30;
   }
 
   .badge-gray {
-    @apply bg-gray-100 text-gray-700 border border-gray-200;
+    @apply bg-gray-100 text-gray-700 border border-gray-200
+           dark:bg-dark-700 dark:text-dark-400 dark:border-dark-600;
   }
 
   .badge-primary {
-    @apply bg-primary-100 text-primary-700 border border-primary-200;
+    @apply bg-primary-100 text-primary-700 border border-primary-200
+           dark:bg-primary-500/10 dark:text-primary-400 dark:border-primary-500/30;
   }
 
   .badge-accent {
-    @apply bg-accent-100 text-accent-700 border border-accent-200;
+    @apply bg-accent-100 text-accent-700 border border-accent-200
+           dark:bg-accent-500/10 dark:text-accent-400 dark:border-accent-500/30;
   }
 
   /* Neon text effects */
@@ -90,29 +216,23 @@
            drop-shadow-[0_0_10px_rgba(6,182,212,0.5)];
   }
 
-  /* Stat cards with subtle gradient borders */
-  .stat-card {
-    @apply relative bg-white rounded-xl p-6 overflow-hidden
-           border border-gray-200/80 shadow-sm
-           hover:shadow-md transition-all duration-200;
-  }
-
-  .stat-card::before {
-    @apply absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-primary-400 to-accent-400;
-    content: '';
-  }
-
   /* Navigation item styles */
   .nav-item {
     @apply flex items-center px-4 py-2.5 text-sm font-medium rounded-lg transition-all duration-200;
   }
 
   .nav-item-active {
-    @apply bg-gradient-to-r from-primary-500/20 to-accent-500/20
-           text-white border-l-2 border-primary-400;
+    background-color: var(--sidebar-active-bg);
+    border-left: 2px solid var(--sidebar-active-border);
+    color: var(--sidebar-text-active);
   }
 
   .nav-item-inactive {
-    @apply text-dark-400 hover:text-white hover:bg-dark-700/50;
+    color: var(--sidebar-text);
+  }
+
+  .nav-item-inactive:hover {
+    color: var(--sidebar-hover-text);
+    background-color: var(--sidebar-hover-bg);
   }
 }

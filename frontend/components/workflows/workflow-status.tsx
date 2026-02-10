@@ -60,7 +60,7 @@ function getStatusInfo(status: WorkflowStatus) {
       return {
         Icon: Loader2,
         color: 'text-blue-500',
-        bgColor: 'bg-blue-50',
+        bgColor: 'bg-blue-50 dark:bg-blue-500/10',
         label: 'Running',
         animate: true,
       }
@@ -68,7 +68,7 @@ function getStatusInfo(status: WorkflowStatus) {
       return {
         Icon: CheckCircle,
         color: 'text-green-500',
-        bgColor: 'bg-green-50',
+        bgColor: 'bg-green-50 dark:bg-emerald-500/10',
         label: 'Completed',
         animate: false,
       }
@@ -76,7 +76,7 @@ function getStatusInfo(status: WorkflowStatus) {
       return {
         Icon: XCircle,
         color: 'text-red-500',
-        bgColor: 'bg-red-50',
+        bgColor: 'bg-red-50 dark:bg-red-500/10',
         label: 'Failed',
         animate: false,
       }
@@ -84,8 +84,8 @@ function getStatusInfo(status: WorkflowStatus) {
     case 'TERMINATED':
       return {
         Icon: XCircle,
-        color: 'text-gray-500',
-        bgColor: 'bg-gray-50',
+        color: 'text-gray-500 dark:text-gray-400',
+        bgColor: 'bg-gray-50 dark:bg-dark-900',
         label: status === 'CANCELLED' ? 'Cancelled' : 'Terminated',
         animate: false,
       }
@@ -93,7 +93,7 @@ function getStatusInfo(status: WorkflowStatus) {
       return {
         Icon: Clock,
         color: 'text-orange-500',
-        bgColor: 'bg-orange-50',
+        bgColor: 'bg-orange-50 dark:bg-orange-500/10',
         label: 'Timed Out',
         animate: false,
       }
@@ -101,15 +101,15 @@ function getStatusInfo(status: WorkflowStatus) {
       return {
         Icon: Pause,
         color: 'text-yellow-500',
-        bgColor: 'bg-yellow-50',
+        bgColor: 'bg-yellow-50 dark:bg-amber-500/10',
         label: 'Awaiting Approval',
         animate: false,
       }
     default:
       return {
         Icon: AlertTriangle,
-        color: 'text-gray-500',
-        bgColor: 'bg-gray-50',
+        color: 'text-gray-500 dark:text-gray-400',
+        bgColor: 'bg-gray-50 dark:bg-dark-900',
         label: 'Unknown',
         animate: false,
       }
@@ -159,7 +159,7 @@ export function WorkflowStatus({
   }, [status, startTime, closeTime])
 
   return (
-    <div className="border rounded-lg p-4">
+    <div className="border dark:border-dark-700 rounded-lg p-4">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
@@ -178,10 +178,10 @@ export function WorkflowStatus({
         {onRefresh && (
           <button
             onClick={onRefresh}
-            className="p-1.5 hover:bg-gray-100 rounded"
+            className="p-1.5 hover:bg-gray-100 dark:hover:bg-dark-700 rounded"
             title="Refresh"
           >
-            <RefreshCw className="w-4 h-4 text-gray-500" />
+            <RefreshCw className="w-4 h-4 text-gray-500 dark:text-gray-400" />
           </button>
         )}
       </div>
@@ -189,7 +189,7 @@ export function WorkflowStatus({
       {/* Info */}
       <div className="space-y-2 text-sm">
         <div className="flex justify-between">
-          <span className="text-gray-500">Workflow ID</span>
+          <span className="text-gray-500 dark:text-gray-400">Workflow ID</span>
           <span className="font-mono text-xs truncate max-w-[200px]">
             {workflowId}
           </span>
@@ -197,24 +197,24 @@ export function WorkflowStatus({
 
         {workflowType && (
           <div className="flex justify-between">
-            <span className="text-gray-500">Type</span>
+            <span className="text-gray-500 dark:text-gray-400">Type</span>
             <span>{workflowType}</span>
           </div>
         )}
 
         <div className="flex justify-between">
-          <span className="text-gray-500">Duration</span>
+          <span className="text-gray-500 dark:text-gray-400">Duration</span>
           <span>{elapsed}</span>
         </div>
 
         <div className="flex justify-between">
-          <span className="text-gray-500">Started</span>
+          <span className="text-gray-500 dark:text-gray-400">Started</span>
           <span>{new Date(startTime).toLocaleString()}</span>
         </div>
 
         {closeTime && (
           <div className="flex justify-between">
-            <span className="text-gray-500">Ended</span>
+            <span className="text-gray-500 dark:text-gray-400">Ended</span>
             <span>{new Date(closeTime).toLocaleString()}</span>
           </div>
         )}
@@ -224,12 +224,12 @@ export function WorkflowStatus({
       {progress && status === 'RUNNING' && (
         <div className="mt-4">
           <div className="flex justify-between text-sm mb-1">
-            <span className="text-gray-500">Progress</span>
+            <span className="text-gray-500 dark:text-gray-400">Progress</span>
             <span>
               {progress.iteration} / {progress.maxIterations}
             </span>
           </div>
-          <div className="w-full bg-gray-200 rounded-full h-2">
+          <div className="w-full bg-gray-200 dark:bg-dark-700 rounded-full h-2">
             <div
               className="bg-blue-500 h-2 rounded-full transition-all"
               style={{
@@ -251,7 +251,7 @@ export function WorkflowStatus({
           </button>
           <button
             onClick={onCancel}
-            className="flex-1 py-2 px-4 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-medium"
+            className="flex-1 py-2 px-4 bg-gray-200 dark:bg-dark-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-dark-600 font-medium"
           >
             Reject
           </button>
@@ -263,7 +263,7 @@ export function WorkflowStatus({
         <div className="mt-4">
           <button
             onClick={onCancel}
-            className="w-full py-2 px-4 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-medium"
+            className="w-full py-2 px-4 bg-gray-200 dark:bg-dark-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-dark-600 font-medium"
           >
             Cancel Workflow
           </button>

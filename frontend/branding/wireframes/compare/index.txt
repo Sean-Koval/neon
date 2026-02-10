@@ -1,0 +1,610 @@
+================================================================================
+COMPARE — app/compare/page.tsx (redesigned)
+================================================================================
+Statistical comparison of two eval runs. Answers: "Is my new version safe
+to ship?"
+Route: /compare
+       /compare?baseline=X&candidate=Y&threshold=0.05
+       /compare?baseline=X&candidate=Y&threshold=0.05&agent=Z&suite=S
+
+LAYOUT: p-8, space-y-6
+DATA: useRuns({ limit: 100 }), useCompare(baseline, candidate, threshold)
+
+DESIGN NOTES:
+
+  1. AUTO-FIRE, NO BUTTON: Comparison triggers automatically when both runs
+     are selected (useCompare already has `enabled` guard). The current
+     "Compare Runs" button is vestigial — remove it. Results appear inline
+     with loading skeleton where the results will render.
+
+  2. COMPACT SELECTION: The selection form is a single card, not a sprawling
+     multi-section layout. Run selectors sit side-by-side with a swap button
+     between them. Agent/suite filters are inline above. The user's goal is
+     RESULTS, not configuring a form.
+
+  3. VISUAL OVERVIEW: A connected dot plot ("dumbbell chart") shows baseline
+     vs candidate scores per case. This communicates patterns that a table
+     cannot: "everything dropped 5%" vs "one outlier tanked."
+
+  4. SCORER GROUPING: Within regressions/improvements, cases are sub-grouped
+     by scorer (accuracy, latency, helpfulness). This answers "which DIMENSION
+     regressed?" not just "which case regressed?"
+
+  5. DRILL-DOWN: Case names are clickable links to /traces?case=X for
+     investigation. Every regression should lead somewhere actionable.
+
+  6. EXPORT + SHARE: Comparison results can be exported as JSON, CSV, or
+     Markdown (for pasting into PR descriptions). "Copy Link" copies the
+     current URL with all params.
+
+  7. DISMISSABLE GUIDANCE: Statistical guidance panel remembers dismissal
+     via localStorage. Experienced users see it once, not every time.
+
+  8. DESIGN TOKENS: All colors use semantic tokens (text-content-primary,
+     bg-surface-card, etc.), not raw gray/dark values.
+
+ENTRY POINTS:
+  - Sidebar nav: /compare (empty — shows selection form)
+  - Eval Runs "Compare Selected": /compare?baseline=X&candidate=Y
+  - Agents Versions tab "Compare": /compare?candidate=X&agent=Z
+    (auto-selects prod baseline for that agent)
+  - Traces diff link: /compare?baseline=X&candidate=Y
+
+================================================================================
+PAGE LAYOUT
+================================================================================
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                                                                             │
+│  ┌─ Page Header ───────────────────────────────────────────────────────┐  │
+│  │                                                                       │  │
+│  │  Compare Runs                           [Export ▾]  [Copy Link]     │  │
+│  │  Identify regressions between agent versions                        │  │
+│  │                                                                       │  │
+│  │  Title: text-2xl font-bold text-content-primary                     │  │
+│  │  Subtitle: text-sm text-content-muted                               │  │
+│  │                                                                       │  │
+│  │  [Export ▾]: dropdown with options (see EXPORT section below)       │  │
+│  │    btn btn-secondary btn-sm                                          │  │
+│  │    Only enabled when comparison results exist                       │  │
+│  │                                                                       │  │
+│  │  [Copy Link]: copies current URL to clipboard                       │  │
+│  │    btn btn-secondary btn-sm, shows "Copied!" toast on click        │  │
+│  │    Only visible when comparison results exist                       │  │
+│  │                                                                       │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+│  ┌─ Selection Card ────────────────────────────────────────────────────┐  │
+│  │                                                                       │  │
+│  │  ┌─ Filters Row ─────────────────────────────────────────────────┐ │  │
+│  │  │                                                                 │ │  │
+│  │  │  ┌────────────────┐  ┌────────────────┐                       │ │  │
+│  │  │  │ Agent:  All ▾  │  │ Suite:  All ▾  │                       │ │  │
+│  │  │  └────────────────┘  └────────────────┘                       │ │  │
+│  │  │                                                                 │ │  │
+│  │  │  Agent filter: combobox with search. Options from distinct     │ │  │
+│  │  │    agent_id values in runs list. Narrows both run selectors.  │ │  │
+│  │  │  Suite filter: combobox with search. Options from distinct     │ │  │
+│  │  │    suite_name values, further filtered by agent if set.       │ │  │
+│  │  │  Both: text-sm, max-w-[200px] each                            │ │  │
+│  │  │                                                                 │ │  │
+│  │  └─────────────────────────────────────────────────────────────────┘ │  │
+│  │                                                                       │  │
+│  │  ┌─ Run Selectors ───────────────────────────────────────────────┐ │  │
+│  │  │                                                                 │ │  │
+│  │  │  ┌─ Baseline ─────────────┐       ┌─ Candidate ────────────┐ │ │  │
+│  │  │  │                         │       │                         │ │ │  │
+│  │  │  │  Baseline               │       │  Candidate              │ │ │  │
+│  │  │  │  ┌───────────────────┐ │       │  ┌───────────────────┐ │ │ │  │
+│  │  │  │  │ booking v2.1   ▾  │ │ [<->] │  │ booking v2.2   ▾  │ │ │ │  │
+│  │  │  │  └───────────────────┘ │       │  └───────────────────┘ │ │ │  │
+│  │  │  │                         │       │                         │ │ │  │
+│  │  │  │  ┌─ Summary ─────────┐ │       │  ┌─ Summary ─────────┐ │ │ │  │
+│  │  │  │  │ booking-basic     │ │       │  │ booking-basic     │ │ │  │
+│  │  │  │  │ v2.1.0            │ │       │  │ v2.2.0            │ │ │  │
+│  │  │  │  │ Score: 91.2%      │ │       │  │ Score: 94.0%      │ │ │  │
+│  │  │  │  │ 18/20 passed      │ │       │  │ 19/20 passed      │ │ │  │
+│  │  │  │  │ Jan 15, 2025      │ │       │  │ Jan 18, 2025      │ │ │  │
+│  │  │  │  └───────────────────┘ │       │  └───────────────────┘ │ │ │  │
+│  │  │  │                         │       │                         │ │ │  │
+│  │  │  └─────────────────────────┘       └─────────────────────────┘ │ │  │
+│  │  │                                                                 │ │  │
+│  │  │  Layout: grid grid-cols-[1fr_auto_1fr] gap-4 items-start       │ │  │
+│  │  │                                                                 │ │  │
+│  │  │  [<->] Swap button: btn btn-ghost, ArrowLeftRight icon w-5 h-5│ │  │
+│  │  │  Swaps baseline and candidate IDs in URL. Self-center align.  │ │  │
+│  │  │  tooltip: "Swap baseline and candidate"                        │ │  │
+│  │  │                                                                 │ │  │
+│  │  │  Run Selector dropdown (existing component, enhanced):        │ │  │
+│  │  │  - Pinned section at top: "Current Production" if agent       │ │  │
+│  │  │    filter is set and a prod run exists for that agent          │ │  │
+│  │  │  - Grouped by suite (existing behavior)                       │ │  │
+│  │  │  - Search within dropdown (existing behavior)                 │ │  │
+│  │  │  - Date range shown per run (existing behavior)               │ │  │
+│  │  │                                                                 │ │  │
+│  │  │  Summary card: inline below each selector                     │ │  │
+│  │  │  - Shows suite, version, score, results, date                 │ │  │
+│  │  │  - bg-surface-base border border-border rounded-lg p-3       │ │  │
+│  │  │  - Only renders when a run is selected                        │ │  │
+│  │  │  - Placeholder when no run: dashed border, "Select a         │ │  │
+│  │  │    baseline/candidate run"                                     │ │  │
+│  │  │                                                                 │ │  │
+│  │  └─────────────────────────────────────────────────────────────────┘ │  │
+│  │                                                                       │  │
+│  │  ┌─ Threshold ────────────────────────────────────────────────────┐ │  │
+│  │  │                                                                 │ │  │
+│  │  │  Regression Threshold                                          │ │  │
+│  │  │  ┌─────┐ ┌─────┐ ┌─────┐ ┌─────┐ ┌─────┐                   │ │  │
+│  │  │  │ 1%  │ │ 5%* │ │ 10% │ │ 15% │ │ 20% │                   │ │  │
+│  │  │  └─────┘ └─────┘ └─────┘ └─────┘ └─────┘                   │ │  │
+│  │  │  * = selected (bg-primary-500 text-white)                     │ │  │
+│  │  │  others: bg-surface-overlay text-content-secondary            │ │  │
+│  │  │  hover: bg-surface-overlay/80                                  │ │  │
+│  │  │                                                                 │ │  │
+│  │  │  Score drops greater than this threshold are flagged.          │ │  │
+│  │  │  text-xs text-content-muted                                    │ │  │
+│  │  │                                                                 │ │  │
+│  │  └─────────────────────────────────────────────────────────────────┘ │  │
+│  │                                                                       │  │
+│  │  card class (bg-surface-card border border-border rounded-xl p-6)   │  │
+│  │                                                                       │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+│  ════════════════════════════════════════════════════════════════════════   │
+│  RESULTS (only visible when comparison data exists)                        │
+│  ════════════════════════════════════════════════════════════════════════   │
+│                                                                             │
+│  ┌─ Verdict Banner ────────────────────────────────────────────────────┐  │
+│  │                                                                       │  │
+│  │  ┌────────────────────────────────────────────────────────────────┐ │  │
+│  │  │                                                                │ │  │
+│  │  │  (ShieldCheck)  No Regressions Detected          +2.1%       │ │  │
+│  │  │                 All 20 cases within threshold     overall     │ │  │
+│  │  │                                                                │ │  │
+│  │  │  ────────────────────────────────────────────────────────────  │ │  │
+│  │  │                                                                │ │  │
+│  │  │     0 Regressions      3 Improvements      17 Unchanged      │ │  │
+│  │  │                                                                │ │  │
+│  │  │  ────────────────────────────────────────────────────────────  │ │  │
+│  │  │                                                                │ │  │
+│  │  │     v2.1.0  ──>  v2.2.0                                      │ │  │
+│  │  │                                                                │ │  │
+│  │  └────────────────────────────────────────────────────────────────┘ │  │
+│  │                                                                       │  │
+│  │  PASS STATE:                                                         │  │
+│  │    bg-emerald-500/10 border border-emerald-500/25 rounded-xl p-6   │  │
+│  │    Icon: ShieldCheck w-10 h-10 text-emerald-500                     │  │
+│  │    Title: text-xl font-bold text-emerald-600 dark:text-emerald-400 │  │
+│  │    Subtitle: text-sm text-emerald-600/80                            │  │
+│  │    Delta: text-3xl font-bold text-emerald-600                       │  │
+│  │    "overall" label: text-xs text-content-muted                      │  │
+│  │                                                                       │  │
+│  │  FAIL STATE:                                                         │  │
+│  │    bg-rose-500/10 border border-rose-500/25 rounded-xl p-6         │  │
+│  │    Icon: ShieldAlert w-10 h-10 text-rose-500                        │  │
+│  │    Title: text-xl font-bold text-rose-600 "REGRESSION DETECTED"    │  │
+│  │    Subtitle: "3 cases dropped below threshold"                      │  │
+│  │    Delta: text-3xl font-bold text-rose-600 "-4.2%"                 │  │
+│  │                                                                       │  │
+│  │  Summary stats: grid-cols-3, text-center                            │  │
+│  │    Count: text-2xl font-bold                                        │  │
+│  │    Label: text-xs text-content-muted                                │  │
+│  │    Regressions count: text-rose-500 if >0, else text-content-muted │  │
+│  │    Improvements count: text-emerald-500 if >0                       │  │
+│  │    Unchanged count: text-content-muted                              │  │
+│  │                                                                       │  │
+│  │  Version comparison: text-sm font-mono text-content-secondary      │  │
+│  │    Shows baseline version --> candidate version                     │  │
+│  │                                                                       │  │
+│  │  DESIGN: No SVG background pattern. No gradient. Clean surface     │  │
+│  │  with colored border and subtle tinted background. Minimalist.     │  │
+│  │                                                                       │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+│  ┌─ Score Delta Chart ─────────────────────────────────────────────────┐  │
+│  │                                                                       │  │
+│  │  Score Comparison                                     [Stats]      │  │
+│  │                                                                       │  │
+│  │  Connected dot plot (dumbbell chart) showing baseline vs candidate │  │
+│  │  scores per case. Reveals patterns a table cannot.                  │  │
+│  │                                                                       │  │
+│  │  ┌────────────────────────────────────────────────────────────────┐ │  │
+│  │  │                     0%       25%       50%       75%      100% │ │  │
+│  │  │                     |         |         |         |         |  │ │  │
+│  │  │                                                                │ │  │
+│  │  │  greet-customer     ─────────────────────────────●────○──────  │ │  │
+│  │  │  parse-booking      ──────────────────────────────●○─────────  │ │  │
+│  │  │  handle-cancel      ────────────────────────○─────────●──────  │ │  │
+│  │  │  search-flights     ──────────────────────────────●──○───────  │ │  │
+│  │  │  edge-timezone      ──────────────●───────────────────○──────  │ │  │
+│  │  │  multi-leg-route    ──────────────────────────────●───○──────  │ │  │
+│  │  │  refund-request     ──────────────────────────────●○─────────  │ │  │
+│  │  │                                                                │ │  │
+│  │  │                     |         |         |         |         |  │ │  │
+│  │  │                                                                │ │  │
+│  │  │  ● baseline (gray-500)                                        │ │  │
+│  │  │  ○ candidate                                                   │ │  │
+│  │  │    emerald line + dot = improvement                            │ │  │
+│  │  │    rose line + dot = regression                                │ │  │
+│  │  │    gray line + dot = unchanged (within threshold)             │ │  │
+│  │  │                                                                │ │  │
+│  │  └────────────────────────────────────────────────────────────────┘ │  │
+│  │                                                                       │  │
+│  │  Implementation:                                                     │  │
+│  │  - Recharts custom chart with XAxis (score 0-100%), YAxis (cases) │  │
+│  │  - Each case: horizontal line connecting baseline dot to candidate │  │
+│  │  - Line color: emerald if candidate > baseline + threshold,       │  │
+│  │    rose if candidate < baseline - threshold, gray otherwise       │  │
+│  │  - Baseline dot: filled circle, gray-500                           │  │
+│  │  - Candidate dot: filled circle, colored by direction              │  │
+│  │  - Hover case row: tooltip with exact values + delta              │  │
+│  │  - Click case row: navigate to trace detail for investigation     │  │
+│  │  - Height: 40px per case, max 400px with scroll                   │  │
+│  │  - If >20 cases: show top 10 regressions + top 10 improvements,  │  │
+│  │    with "Show all N cases" toggle                                  │  │
+│  │                                                                       │  │
+│  │  [Stats] toggle button: btn btn-ghost btn-sm                       │  │
+│  │  When active: shows confidence interval ranges as semi-transparent │  │
+│  │  bars extending from each dot. Toggle state synced with the       │  │
+│  │  results section stats toggle below.                               │  │
+│  │                                                                       │  │
+│  │  card class                                                          │  │
+│  │                                                                       │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+│  ┌─ Detailed Results ──────────────────────────────────────────────────┐  │
+│  │                                                                       │  │
+│  │  ┌─ Regressions Section ──────────────────────────────────────────┐ │  │
+│  │  │                                                                 │ │  │
+│  │  │  ┌─ Section Header ──────────────────────────────────────────┐│ │  │
+│  │  │  │                                                            ││ │  │
+│  │  │  │  (TrendingDown) Regressions  [3]     [Stats]  [Expand]   ││ │  │
+│  │  │  │                                                            ││ │  │
+│  │  │  │  bg-rose-500/10 border-b border-rose-500/25 p-4          ││ │  │
+│  │  │  │  Icon + title: text-rose-600 dark:text-rose-400          ││ │  │
+│  │  │  │  [3]: badge bg-rose-500/20 text-rose-400                 ││ │  │
+│  │  │  │  [Stats]: BarChart3 icon toggle (existing behavior)      ││ │  │
+│  │  │  │  [Expand]: ChevronUp/Down toggle                         ││ │  │
+│  │  │  │                                                            ││ │  │
+│  │  │  └────────────────────────────────────────────────────────────┘│ │  │
+│  │  │                                                                 │ │  │
+│  │  │  ┌─ Scorer Group: accuracy (2 cases) ────────────────────────┐│ │  │
+│  │  │  │                                                            ││ │  │
+│  │  │  │  accuracy                                          2 cases││ │  │
+│  │  │  │  text-[10px] uppercase tracking-wider text-content-muted  ││ │  │
+│  │  │  │  bg-surface-overlay/30 px-4 py-1.5 sticky                 ││ │  │
+│  │  │  │                                                            ││ │  │
+│  │  │  │  ┌─ Case Row ──────────────────────────────────────────┐ ││ │  │
+│  │  │  │  │                                                      │ ││ │  │
+│  │  │  │  │  greet-customer (link)           92.0%  ->  86.8%   │ ││ │  │
+│  │  │  │  │  accuracy                        Baseline   Candidate│ ││ │  │
+│  │  │  │  │                                                      │ ││ │  │
+│  │  │  │  │                                        -5.2%    (!)  │ ││ │  │
+│  │  │  │  │                                        delta  signif │ ││ │  │
+│  │  │  │  │                                                      │ ││ │  │
+│  │  │  │  │  Case name: font-medium text-content-primary         │ ││ │  │
+│  │  │  │  │    CLICKABLE: navigates to                           │ ││ │  │
+│  │  │  │  │    /traces?case_name=greet-customer&run_id=<cand>   │ ││ │  │
+│  │  │  │  │    hover: underline, cursor-pointer                  │ ││ │  │
+│  │  │  │  │  Scorer: text-xs text-content-muted                  │ ││ │  │
+│  │  │  │  │  Baseline score: text-content-secondary              │ ││ │  │
+│  │  │  │  │  Candidate score: font-medium text-content-primary   │ ││ │  │
+│  │  │  │  │  Delta: font-semibold text-rose-500                  │ ││ │  │
+│  │  │  │  │  Significance: compact SignificanceIndicator         │ ││ │  │
+│  │  │  │  │    (!) = significant, (?) = not significant          │ ││ │  │
+│  │  │  │  │                                                      │ ││ │  │
+│  │  │  │  │  Row: p-4 hover:bg-surface-overlay/50 transition    │ ││ │  │
+│  │  │  │  │  divide-y divide-border between rows                 │ ││ │  │
+│  │  │  │  │                                                      │ ││ │  │
+│  │  │  │  └──────────────────────────────────────────────────────┘ ││ │  │
+│  │  │  │                                                            ││ │  │
+│  │  │  │  (more case rows in same scorer group...)                  ││ │  │
+│  │  │  │                                                            ││ │  │
+│  │  │  └────────────────────────────────────────────────────────────┘│ │  │
+│  │  │                                                                 │ │  │
+│  │  │  ┌─ Scorer Group: latency (1 case) ──────────────────────────┐│ │  │
+│  │  │  │                                                            ││ │  │
+│  │  │  │  latency                                           1 case ││ │  │
+│  │  │  │                                                            ││ │  │
+│  │  │  │  ┌─ Case Row ──────────────────────────────────────────┐ ││ │  │
+│  │  │  │  │                                                      │ ││ │  │
+│  │  │  │  │  handle-cancel (link)           78.0%  ->  65.2%    │ ││ │  │
+│  │  │  │  │  latency                        Baseline   Candidate │ ││ │  │
+│  │  │  │  │                                       -12.8%    (!) │ ││ │  │
+│  │  │  │  │                                                      │ ││ │  │
+│  │  │  │  └──────────────────────────────────────────────────────┘ ││ │  │
+│  │  │  │                                                            ││ │  │
+│  │  │  └────────────────────────────────────────────────────────────┘│ │  │
+│  │  │                                                                 │ │  │
+│  │  │  ┌─ Stats Row (visible when [Stats] toggled on) ─────────────┐│ │  │
+│  │  │  │                                                            ││ │  │
+│  │  │  │  Shown below each case row when stats are enabled.        ││ │  │
+│  │  │  │                                                            ││ │  │
+│  │  │  │  ┌──────────────────────────────────────────────────────┐││ │  │
+│  │  │  │  │  [ConfidenceIntervalBar]   [StatisticalBadge]       │││ │  │
+│  │  │  │  │  (existing component)      [EffectSizeBadge]        │││ │  │
+│  │  │  │  │                            (existing components)    │││ │  │
+│  │  │  │  │                                                      │││ │  │
+│  │  │  │  │  mt-3 pt-3 border-t border-border                   │││ │  │
+│  │  │  │  │  CI bar width: 240px (wider than current 180px)     │││ │  │
+│  │  │  │  │                                                      │││ │  │
+│  │  │  │  └──────────────────────────────────────────────────────┘││ │  │
+│  │  │  │                                                            ││ │  │
+│  │  │  └────────────────────────────────────────────────────────────┘│ │  │
+│  │  │                                                                 │ │  │
+│  │  │  card class                                                    │ │  │
+│  │  │                                                                 │ │  │
+│  │  └────────────────────────────────────────────────────────────────┘ │  │
+│  │                                                                       │  │
+│  │  ┌─ Improvements Section ─────────────────────────────────────────┐ │  │
+│  │  │                                                                 │ │  │
+│  │  │  Same structure as Regressions, with:                          │ │  │
+│  │  │  - TrendingUp icon                                             │ │  │
+│  │  │  - bg-emerald-500/10 border-emerald-500/25                    │ │  │
+│  │  │  - text-emerald-600 dark:text-emerald-400                     │ │  │
+│  │  │  - Delta shows "+" prefix, text-emerald-500                   │ │  │
+│  │  │  - Same scorer grouping                                        │ │  │
+│  │  │  - Same clickable case names                                   │ │  │
+│  │  │  - Default: expanded (same as regressions)                    │ │  │
+│  │  │                                                                 │ │  │
+│  │  └─────────────────────────────────────────────────────────────────┘ │  │
+│  │                                                                       │  │
+│  │  ┌─ Unchanged Section ────────────────────────────────────────────┐ │  │
+│  │  │                                                                 │ │  │
+│  │  │  (Minus) Unchanged  [17]                          [Expand]    │ │  │
+│  │  │                                                                 │ │  │
+│  │  │  bg-surface-overlay/50 border-border                           │ │  │
+│  │  │  Default: collapsed (only header visible)                     │ │  │
+│  │  │                                                                 │ │  │
+│  │  │  When expanded, shows the actual unchanged cases:             │ │  │
+│  │  │                                                                 │ │  │
+│  │  │  ┌──────────────────────────────────────────────────────────┐ │ │  │
+│  │  │  │                                                          │ │ │  │
+│  │  │  │  ┌─────────────────┬──────────┬──────────┬───────────┐ │ │ │  │
+│  │  │  │  │ Case            │ Scorer   │ Score    │ Delta     │ │ │ │  │
+│  │  │  │  ├─────────────────┼──────────┼──────────┼───────────┤ │ │ │  │
+│  │  │  │  │ parse-booking   │ accuracy │ 95.0%    │ +0.2%     │ │ │ │  │
+│  │  │  │  │ search-flights  │ accuracy │ 89.1%    │ -0.1%     │ │ │ │  │
+│  │  │  │  │ refund-request  │ accuracy │ 92.3%    │ +0.5%     │ │ │ │  │
+│  │  │  │  │ ...             │          │          │           │ │ │ │  │
+│  │  │  │  └─────────────────┴──────────┴──────────┴───────────┘ │ │ │  │
+│  │  │  │                                                          │ │ │  │
+│  │  │  │  Compact table. No scorer grouping needed.              │ │ │  │
+│  │  │  │  text-sm text-content-secondary                         │ │ │  │
+│  │  │  │  Score: shows candidate score                           │ │ │  │
+│  │  │  │  Delta: text-content-muted (always small)              │ │ │  │
+│  │  │  │                                                          │ │ │  │
+│  │  │  └──────────────────────────────────────────────────────────┘ │ │  │
+│  │  │                                                                 │ │  │
+│  │  │  card class                                                    │ │  │
+│  │  │                                                                 │ │  │
+│  │  └─────────────────────────────────────────────────────────────────┘ │  │
+│  │                                                                       │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+│  ┌─ Statistical Guidance (dismissable) ────────────────────────────────┐  │
+│  │                                                                       │  │
+│  │  (BookOpen) Statistical Guidance                [Dismiss]  [Toggle] │  │
+│  │                                                                       │  │
+│  │  bg-blue-500/10 border border-blue-500/25 rounded-xl               │  │
+│  │                                                                       │  │
+│  │  [Dismiss]: X icon, btn btn-ghost btn-sm                            │  │
+│  │  Stores dismissal in localStorage key: neon.compare.hideGuidance   │  │
+│  │  Once dismissed, panel is hidden until user clicks "Show guidance"  │  │
+│  │  link (rendered below the results when guidance is dismissed).      │  │
+│  │                                                                       │  │
+│  │  [Toggle]: ChevronUp/Down to expand/collapse content (existing)    │  │
+│  │                                                                       │  │
+│  │  Content: same as current StatisticalGuidance component            │  │
+│  │  (significance, effect size, score interpretation, CIs)            │  │
+│  │                                                                       │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+
+================================================================================
+EXPORT DROPDOWN
+================================================================================
+Triggered by [Export ▾] button in page header.
+Only enabled when comparison results exist.
+
+┌──────────────────────────────────┐
+│                                  │
+│  Export As                       │
+│                                  │
+│  (FileJson) JSON                 │
+│  Full comparison data            │
+│                                  │
+│  (FileSpreadsheet) CSV           │
+│  Tabular format for spreadsheets │
+│                                  │
+│  (FileText) Markdown             │
+│  Formatted for PRs and docs      │
+│                                  │
+│  ──────────────────────────────  │
+│                                  │
+│  (Link) Copy Link                │
+│  Shareable URL with params       │
+│                                  │
+└──────────────────────────────────┘
+
+Dropdown: bg-surface-card border border-border rounded-lg shadow-lg
+  w-64, py-2
+Items: px-4 py-2.5 hover:bg-surface-overlay cursor-pointer
+  flex items-center gap-3
+Icon: w-4 h-4 text-content-muted
+Name: text-sm font-medium text-content-primary
+Description: text-xs text-content-muted
+
+JSON export: Downloads CompareResponse as .json file
+CSV export: Downloads flat table (case, scorer, baseline, candidate,
+  delta, significant, effect_size) as .csv
+Markdown export: Generates formatted markdown:
+  ```
+  ## Comparison: v2.1.0 vs v2.2.0
+  **Result: PASS** | Overall delta: +2.1%
+  | Regressions: 0 | Improvements: 3 | Unchanged: 17 |
+
+  ### Improvements
+  | Case | Scorer | Baseline | Candidate | Delta |
+  |------|--------|----------|-----------|-------|
+  | handle-cancel | accuracy | 78.0% | 91.2% | +13.2% |
+  ...
+  ```
+  Copies to clipboard (not download). Shows "Copied!" toast.
+
+
+================================================================================
+LOADING STATE (comparison in progress)
+================================================================================
+Shown inline where results will appear (below selection card).
+Replaces the results section, not a full-page loader.
+
+┌─────────────────────────────────────────────────────────────┐
+│                                                             │
+│  ┌─ Verdict Skeleton ────────────────────────────────────┐ │
+│  │  ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓  (pulse)                      │ │
+│  │  ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓                                    │ │
+│  │  ─────────────────────────────────────────────────     │ │
+│  │  ▓▓▓  ▓▓▓  ▓▓▓  (3 stat cards)                       │ │
+│  └────────────────────────────────────────────────────────┘ │
+│                                                             │
+│  ┌─ Chart Skeleton ──────────────────────────────────────┐ │
+│  │  ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓  (pulse)           │ │
+│  │  ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓                           │ │
+│  │  ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓                    │ │
+│  └────────────────────────────────────────────────────────┘ │
+│                                                             │
+│  ┌─ Results Skeleton ────────────────────────────────────┐ │
+│  │  ▓▓▓▓▓▓▓▓▓▓  (section header pulse)                  │ │
+│  │  ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓  (row pulse)           │ │
+│  │  ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓                         │ │
+│  │  ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓                         │ │
+│  └────────────────────────────────────────────────────────┘ │
+│                                                             │
+│  animate-pulse on all skeleton blocks                       │
+│  bg-surface-overlay rounded                                 │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+
+
+================================================================================
+EMPTY STATE (no runs selected yet)
+================================================================================
+Shown when page loads with no baseline/candidate params.
+Only the selection card is visible. No results section.
+
+(Selection Card renders with empty placeholders in both selectors.)
+
+No additional empty state component needed — the dashed-border
+placeholder cards inside each selector communicate "select a run."
+
+
+================================================================================
+SAME-RUN WARNING
+================================================================================
+Inline warning when user selects the same run for both.
+
+┌─────────────────────────────────────────────────────────────┐
+│                                                             │
+│  (AlertTriangle amber) Select two different runs            │
+│  You've selected the same run for both baseline and         │
+│  candidate.                                                 │
+│                                                             │
+│  text-sm text-amber-600 dark:text-amber-400                │
+│  flex items-center gap-2, mt-2 below selection card        │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+
+
+================================================================================
+ERROR STATE
+================================================================================
+Shown when comparison API call fails.
+
+┌─────────────────────────────────────────────────────────────┐
+│                                                             │
+│  (AlertTriangle)  Comparison Failed                        │
+│  Unable to compare the selected runs.                      │
+│  Error: Connection to ClickHouse timed out                 │
+│                                                             │
+│  [Try Again]                                                │
+│                                                             │
+│  bg-amber-500/10 border border-amber-500/25 rounded-xl p-6│
+│  Icon: AlertTriangle w-10 h-10 text-amber-500              │
+│  Title: text-xl font-bold text-amber-600                   │
+│  Message: text-sm text-amber-600/80                        │
+│  Error detail: text-xs font-mono text-content-muted        │
+│  [Try Again]: btn btn-secondary btn-sm, calls refetch()   │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+
+
+================================================================================
+DATA SOURCES
+================================================================================
+
+  - Runs list: useRuns({ limit: 100 }) — fetches from /api/eval-runs
+  - Agent list for filter: derived from distinct agent_id in runs
+  - Suite list for filter: derived from distinct suite_name in runs
+  - Comparison: useCompare(baseline, candidate, threshold)
+    → POST /api/compare → ClickHouse queries
+  - CompareResponse: { baseline, candidate, passed, overall_delta,
+    regressions[], improvements[], unchanged, threshold }
+  - RegressionItem: { case_name, scorer, baseline_score, candidate_score,
+    delta, significance?, effectSize?, *ConfidenceInterval? }
+
+URL PARAMS (all optional, all synced to URL via shallow routing):
+  - baseline: run ID
+  - candidate: run ID
+  - threshold: number (default 0.05)
+  - agent: agent ID filter
+  - suite: suite name filter
+
+
+================================================================================
+BEHAVIORAL NOTES
+================================================================================
+
+  1. AUTO-COMPARE: When both baseline and candidate are set (and different),
+     useCompare fires automatically. No manual "Compare" button.
+     React Query staleTime is 5 minutes, so repeated renders don't re-fetch.
+
+  2. SWAP: The swap button exchanges baseline and candidate URL params.
+     Since the comparison is cached by (baseline, candidate) pair,
+     the swapped comparison may trigger a new API call.
+
+  3. SCORER GROUPING: Within regressions/improvements, cases are grouped
+     by their `scorer` field. Each scorer group has a sticky header with
+     the scorer name and count. This answers "which dimension regressed?"
+     Example: "3 accuracy regressions, 1 latency regression" is more
+     actionable than "4 regressions."
+
+  4. CASE DRILL-DOWN: Clicking a case name navigates to the traces page
+     filtered to that case. URL: /traces?case_name=X&run_id=Y
+     This enables the investigation workflow: "case X regressed" →
+     click → see the actual trace → find the failing span.
+
+  5. THRESHOLD CHANGE: Changing threshold updates URL params and triggers
+     a new comparison (different threshold = different query key in
+     React Query, so it re-fetches).
+
+  6. AGENT FILTER: When agent filter is set, the run selectors only show
+     runs for that agent. Also enables "Current Production" pinned
+     option in baseline selector (if agent has a prod environment).
+
+  7. DISMISSABLE GUIDANCE: Statistical guidance panel checks
+     localStorage('neon.compare.hideGuidance'). If true, panel is
+     hidden and a small "Show statistical guidance" text link appears
+     below the results. Clicking it removes the localStorage key
+     and re-shows the panel.
+
+  8. EXPORT TIMING: Export/Copy Link buttons only appear when comparison
+     results exist. They disappear when results are loading or errored.
+
+  9. RESPONSIVE: On mobile (< lg breakpoint):
+     - Run selectors stack vertically (grid-cols-1)
+     - Swap button rotates 90deg (vertical arrows)
+     - Score delta chart scrolls horizontally
+     - Case rows stack (case info above, scores below)

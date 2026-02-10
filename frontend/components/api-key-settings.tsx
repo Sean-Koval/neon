@@ -66,22 +66,22 @@ export function ApiKeySettings() {
   }, [clearApiKey])
 
   return (
-    <div className="card p-6">
+    <div className="card p-6 dark:border dark:border-slate-700/80 dark:bg-slate-900/72">
       <div className="flex items-center space-x-3 mb-4">
-        <Key className="w-5 h-5 text-gray-500" />
-        <h3 className="text-lg font-medium text-gray-900">API Key</h3>
+        <Key className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+        <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">API Key</h3>
       </div>
 
       {isAuthenticated ? (
         <div className="space-y-4">
-          <div className="flex items-center space-x-2 text-green-600">
+          <div className="flex items-center space-x-2 text-green-600 dark:text-emerald-400">
             <Check className="w-4 h-4" />
             <span className="text-sm">API key configured</span>
           </div>
           <button
             type="button"
             onClick={handleClear}
-            className="text-sm text-red-600 hover:text-red-700"
+            className="text-sm text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300"
           >
             Clear API key
           </button>
@@ -91,7 +91,7 @@ export function ApiKeySettings() {
           <div>
             <label
               htmlFor="api-key"
-              className="block text-sm font-medium text-gray-700 mb-1"
+              className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
             >
               Enter your API key
             </label>
@@ -101,24 +101,24 @@ export function ApiKeySettings() {
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               placeholder="ae_live_..."
-              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full border border-gray-300 dark:border-slate-700/80 rounded-md px-3 py-2 text-sm dark:bg-dark-800 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               autoComplete="off"
               spellCheck={false}
             />
-            <p className="mt-1 text-xs text-gray-500">
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
               Format: ae_&lt;environment&gt;_&lt;key&gt;
             </p>
           </div>
 
           {error && (
-            <div className="flex items-center space-x-2 text-red-600 text-sm">
+            <div className="flex items-center space-x-2 text-red-600 dark:text-red-400 text-sm">
               <AlertCircle className="w-4 h-4" />
               <span>{error}</span>
             </div>
           )}
 
           {success && (
-            <div className="flex items-center space-x-2 text-green-600 text-sm">
+            <div className="flex items-center space-x-2 text-green-600 dark:text-emerald-400 text-sm">
               <Check className="w-4 h-4" />
               <span>API key saved successfully</span>
             </div>
@@ -149,17 +149,17 @@ export function ApiKeyPrompt() {
   }
 
   return (
-    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+    <div className="bg-yellow-50 dark:bg-amber-500/10 border border-yellow-200 dark:border-amber-500/25 rounded-lg p-4 mb-6">
       <div className="flex items-start space-x-3">
-        <AlertCircle className="w-5 h-5 text-yellow-600 mt-0.5" />
+        <AlertCircle className="w-5 h-5 text-yellow-600 dark:text-amber-400 mt-0.5" />
         <div>
-          <h4 className="text-sm font-medium text-yellow-800">
+          <h4 className="text-sm font-medium text-yellow-800 dark:text-amber-300">
             API Key Required
           </h4>
-          <p className="mt-1 text-sm text-yellow-700">
+          <p className="mt-1 text-sm text-yellow-700 dark:text-amber-400">
             Configure your API key to access evaluation data. You can set it in
             the environment variable{' '}
-            <code className="text-xs bg-yellow-100 px-1 py-0.5 rounded">
+            <code className="text-xs bg-yellow-100 dark:bg-amber-500/20 px-1 py-0.5 rounded">
               NEXT_PUBLIC_API_KEY
             </code>{' '}
             or use the settings page.

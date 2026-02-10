@@ -1,0 +1,682 @@
+================================================================================
+EXPERIMENTS LIST — app/experiments/page.tsx (NEW)
+================================================================================
+A/B testing and progressive rollout command center.
+Route: /experiments
+
+DESIGN NOTES:
+  1. Two distinct experiment types with different card layouts:
+     A/B Test: two-variant comparison with statistical significance.
+     Progressive Rollout: staged deployment with quality gates.
+     Cards must be visually distinct at a glance so users never confuse them.
+
+  2. Experiments wrap Temporal workflows (abTestWorkflow,
+     progressiveRolloutWorkflow) but Temporal is invisible to users.
+     No workflow IDs, no Temporal UI links. Users see experiment names,
+     agents, scores, and status.
+
+  3. The Create Experiment Dialog is the most important flow on this page.
+     It must collect: experiment type, agent, variants, dataset (suite or
+     custom), scorers, and type-specific config (significance threshold
+     for A/B, stages + minimum score for rollout).
+
+  4. Running experiments poll for progress via Temporal queries
+     (abTestProgress, rolloutProgress). The UI must show live progress
+     without manual refresh.
+
+  5. Reuse existing compare infrastructure: StatisticalBadge,
+     EffectSizeBadge, ConfidenceIntervalBar, StatisticalGuidance
+     components from frontend/components/compare/.
+
+  6. Experiments are the bridge between "Evaluate" and "Improve" —
+     they answer "is this change actually better?" before deploying.
+
+  7. Cards link to detail pages. Running experiments sort to top.
+     Completed experiments show the winner and effect size inline
+     so users don't need to click through for the answer.
+
+================================================================================
+
+LAYOUT: p-6, space-y-6
+DATA: trpc.experiments.list (new endpoint — queries Temporal + PG metadata)
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                                                                             │
+│  ┌─ Page Header ────────────────────────────────────────────────────────┐  │
+│  │                                                                       │  │
+│  │  Experiments                                    [+ New Experiment]    │  │
+│  │  A/B tests and progressive rollouts for your agents                  │  │
+│  │                                                                       │  │
+│  │  Title: text-2xl font-bold text-content-primary                      │  │
+│  │  Subtitle: text-content-secondary                                    │  │
+│  │  Button: btn btn-primary                                              │  │
+│  │  No icon in title (clean, Linear-style)                              │  │
+│  │                                                                       │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+│  ┌─ Summary Stats (grid-cols-4 gap-4) ────────────────────────────────┐  │
+│  │                                                                       │  │
+│  │  ┌─────────────────┐ ┌─────────────────┐ ┌─────────────────┐        │  │
+│  │  │ Total            │ │ Running          │ │ Success Rate     │        │  │
+│  │  │ Experiments      │ │                  │ │                  │        │  │
+│  │  │ 14               │ │ 2                │ │ 78%              │        │  │
+│  │  │                  │ │  animate-pulse   │ │ (7/9 completed)  │        │  │
+│  │  └─────────────────┘ └─────────────────┘ └─────────────────┘        │  │
+│  │  ┌─────────────────┐                                                  │  │
+│  │  │ Avg Improvement  │  stat-card class                                │  │
+│  │  │                  │                                                  │  │
+│  │  │ +4.2%            │  "Success Rate": % of completed experiments    │  │
+│  │  │ across winners   │  where the candidate beat baseline. Colored:   │  │
+│  │  └─────────────────┘  >=75% emerald, >=50% amber, <50% rose.        │  │
+│  │                                                                       │  │
+│  │                       "Avg Improvement": mean score delta of winners. │  │
+│  │                       Colored: >=5% emerald, >=2% amber, <2% gray.  │  │
+│  │                                                                       │  │
+│  │                       "Running" card: clickable, scrolls to first    │  │
+│  │                       running experiment below.                       │  │
+│  │                                                                       │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+│  ┌─ Filter Bar ────────────────────────────────────────────────────────┐  │
+│  │                                                                       │  │
+│  │  ┌───────────────────────────────────────┐  ┌────────────────────┐  │  │
+│  │  │ (SearchIcon) Search experiments...     │  │ All Types      ▾  │  │  │
+│  │  └───────────────────────────────────────┘  └────────────────────┘  │  │
+│  │                                                                       │  │
+│  │  ┌────────────────────┐  ┌────────────────────┐  ┌──────────────┐  │  │
+│  │  │ All Status      ▾  │  │ All Agents      ▾  │  │ Newest    ▾  │  │  │
+│  │  └────────────────────┘  └────────────────────┘  └──────────────┘  │  │
+│  │                                                                       │  │
+│  │  Search: client-side filter by experiment name, agent name           │  │
+│  │  Types: All / A/B Test / Progressive Rollout                        │  │
+│  │  Status: All / Running / Completed / Paused / Failed / Aborted      │  │
+│  │  Agents: dynamically populated from experiment agent fields          │  │
+│  │  Sort: Newest (default) / Oldest / Name A-Z / Score ↓ / Score ↑    │  │
+│  │    "Newest" = running first then by most recent start/end time       │  │
+│  │    "Score ↓" = highest improvement first (completed only)            │  │
+│  │                                                                       │  │
+│  │  All filters URL-synced via shallow routing:                         │  │
+│  │    ?type=ab_test&status=running&agent=booking-agent&sort=newest      │  │
+│  │  Search: debounced 300ms, pl-9 (icon inset)                         │  │
+│  │  Selects: bg-surface-card border border-border rounded-lg text-sm   │  │
+│  │                                                                       │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+│                                                                             │
+│  ┌─ Experiments List (space-y-4) ──────────────────────────────────────┐  │
+│  │                                                                       │  │
+│  │  Sort order: Running first (sorted by start time desc), then         │  │
+│  │  Paused, then Completed/Failed/Aborted (sorted by end time desc).    │  │
+│  │                                                                       │  │
+│  │  ════════════════════════════════════════════════════════════════     │  │
+│  │  CARD VARIANT: A/B Test (Running)                                    │  │
+│  │  ════════════════════════════════════════════════════════════════     │  │
+│  │                                                                       │  │
+│  │  ┌───────────────────────────────────────────────────────────────┐  │  │
+│  │  │                                                                │  │  │
+│  │  │  ┌─ Header ──────────────────────────────────────────────┐   │  │  │
+│  │  │  │                                                        │   │  │  │
+│  │  │  │  prompt-v3-test                          [⋯]           │   │  │  │
+│  │  │  │  booking-agent                  A/B Test   ▶ Running  │   │  │  │
+│  │  │  │  Started 4h ago                                        │   │  │  │
+│  │  │  │                                                        │   │  │  │
+│  │  │  │  Name: text-lg font-semibold text-content-primary      │   │  │  │
+│  │  │  │  Agent: text-sm text-content-muted, link to /agents/X │   │  │  │
+│  │  │  │  Type badge: bg-primary-500/10 text-primary-400        │   │  │  │
+│  │  │  │    text-[11px] font-medium rounded-full px-2.5 py-0.5 │   │  │  │
+│  │  │  │  Status badge: bg-blue-500/10 text-blue-400            │   │  │  │
+│  │  │  │    with animated pulse dot                              │   │  │  │
+│  │  │  │  Time: text-xs text-content-muted                      │   │  │  │
+│  │  │  │                                                        │   │  │  │
+│  │  │  │  [⋯] overflow menu (top-right, only on running/paused │   │  │  │
+│  │  │  │  cards): btn btn-ghost btn-sm, w-8 h-8, MoreHorizontal│   │  │  │
+│  │  │  │  icon. Opens dropdown with:                             │   │  │  │
+│  │  │  │    "Pause" — pauses the experiment                     │   │  │  │
+│  │  │  │    "Abort" — opens abort confirmation dialog           │   │  │  │
+│  │  │  │  e.stopPropagation() to prevent card link navigation.  │   │  │  │
+│  │  │  │  Menu styling: bg-surface-card border border-border     │   │  │  │
+│  │  │  │    rounded-lg shadow-lg py-1, items px-3 py-1.5        │   │  │  │
+│  │  │  │    text-sm, Abort item: text-status-error               │   │  │  │
+│  │  │  │                                                        │   │  │  │
+│  │  │  └────────────────────────────────────────────────────────┘   │  │  │
+│  │  │                                                                │  │  │
+│  │  │  ┌─ Variants ────────────────────────────────────────────┐   │  │  │
+│  │  │  │                                                        │   │  │  │
+│  │  │  │  A: booking-agent v2.1 (baseline)                     │   │  │  │
+│  │  │  │  B: booking-agent v2.1 + prompt-v3 (candidate)        │   │  │  │
+│  │  │  │                                                        │   │  │  │
+│  │  │  │  text-sm text-content-secondary                        │   │  │  │
+│  │  │  │  "A:" / "B:" labels: font-mono text-content-muted     │   │  │  │
+│  │  │  │                                                        │   │  │  │
+│  │  │  └────────────────────────────────────────────────────────┘   │  │  │
+│  │  │                                                                │  │  │
+│  │  │  ┌─ Progress ────────────────────────────────────────────┐   │  │  │
+│  │  │  │                                                        │   │  │  │
+│  │  │  │  [=========================>                  ] 67%    │   │  │  │
+│  │  │  │  670 / 1,000 samples                                  │   │  │  │
+│  │  │  │                                                        │   │  │  │
+│  │  │  │  Progress bar: h-2 rounded-full                        │   │  │  │
+│  │  │  │  Track: bg-surface-overlay                              │   │  │  │
+│  │  │  │  Fill: bg-primary-500                                   │   │  │  │
+│  │  │  │  Percentage: text-sm font-medium text-content-primary  │   │  │  │
+│  │  │  │  Sample count: text-xs text-content-muted              │   │  │  │
+│  │  │  │                                                        │   │  │  │
+│  │  │  └────────────────────────────────────────────────────────┘   │  │  │
+│  │  │                                                                │  │  │
+│  │  │  ┌─ Live Metrics (grid-cols-3 gap-4) ────────────────────┐   │  │  │
+│  │  │  │                                                        │   │  │  │
+│  │  │  │  ┌──────────────┐ ┌──────────────┐ ┌───────────────┐ │   │  │  │
+│  │  │  │  │ Score A       │ │ Score B       │ │ Significance  │ │   │  │  │
+│  │  │  │  │ 0.91          │ │ 0.94          │ │ p = 0.023     │ │   │  │  │
+│  │  │  │  │ (baseline)    │ │ +3.3% ↑      │ │ significant   │ │   │  │  │
+│  │  │  │  └──────────────┘ └──────────────┘ └───────────────┘ │   │  │  │
+│  │  │  │                                                        │   │  │  │
+│  │  │  │  Score A: text-content-secondary                       │   │  │  │
+│  │  │  │  Score B: colored by delta sign                        │   │  │  │
+│  │  │  │    positive: text-status-success                       │   │  │  │
+│  │  │  │    negative: text-status-error                         │   │  │  │
+│  │  │  │    neutral: text-content-secondary                     │   │  │  │
+│  │  │  │  Significance: colored by p-value                      │   │  │  │
+│  │  │  │    p < 0.05: text-status-success "significant"        │   │  │  │
+│  │  │  │    p < 0.10: text-status-warning "marginal"           │   │  │  │
+│  │  │  │    p >= 0.10: text-content-muted "not yet"            │   │  │  │
+│  │  │  │                                                        │   │  │  │
+│  │  │  └────────────────────────────────────────────────────────┘   │  │  │
+│  │  │                                                                │  │  │
+│  │  │  card class (bg-surface-card border border-border             │  │  │
+│  │  │  rounded-xl p-5). Hover: border-primary-500/30 shadow-md.    │  │  │
+│  │  │  Entire card is a <Link> to /experiments/[id].                │  │  │
+│  │  │                                                                │  │  │
+│  │  └───────────────────────────────────────────────────────────────┘  │  │
+│  │                                                                       │  │
+│  │                                                                       │  │
+│  │  ════════════════════════════════════════════════════════════════     │  │
+│  │  CARD VARIANT: Progressive Rollout (Running)                         │  │
+│  │  ════════════════════════════════════════════════════════════════     │  │
+│  │                                                                       │  │
+│  │  ┌───────────────────────────────────────────────────────────────┐  │  │
+│  │  │                                                                │  │  │
+│  │  │  ┌─ Header ──────────────────────────────────────────────┐   │  │  │
+│  │  │  │                                                        │   │  │  │
+│  │  │  │  model-upgrade                                         │   │  │  │
+│  │  │  │  research-agent             Rollout      Stage 2/4    │   │  │  │
+│  │  │  │  Started 6h ago                                        │   │  │  │
+│  │  │  │                                                        │   │  │  │
+│  │  │  │  Type badge: bg-accent-500/10 text-accent-400          │   │  │  │
+│  │  │  │    "Rollout" (not "Progressive Rollout" — too long)    │   │  │  │
+│  │  │  │  Stage: text-sm font-medium text-content-primary       │   │  │  │
+│  │  │  │                                                        │   │  │  │
+│  │  │  └────────────────────────────────────────────────────────┘   │  │  │
+│  │  │                                                                │  │  │
+│  │  │  ┌─ Upgrade Description ─────────────────────────────────┐   │  │  │
+│  │  │  │                                                        │   │  │  │
+│  │  │  │  gemini-2.0-flash  →  gemini-2.5-flash               │   │  │  │
+│  │  │  │                                                        │   │  │  │
+│  │  │  │  Current version → New version                         │   │  │  │
+│  │  │  │  Arrow: text-content-muted mx-2                        │   │  │  │
+│  │  │  │  Versions: font-mono text-sm                           │   │  │  │
+│  │  │  │                                                        │   │  │  │
+│  │  │  └────────────────────────────────────────────────────────┘   │  │  │
+│  │  │                                                                │  │  │
+│  │  │  ┌─ Stage Pipeline ──────────────────────────────────────┐   │  │  │
+│  │  │  │                                                        │   │  │  │
+│  │  │  │  ┌──────┐    ┌──────┐    ┌──────┐    ┌──────┐        │   │  │  │
+│  │  │  │  │  10% │ →  │  25% │ →  │  50% │ →  │ 100% │        │   │  │  │
+│  │  │  │  │  ✓   │    │  ▶   │    │  ○   │    │  ○   │        │   │  │  │
+│  │  │  │  │ 0.96 │    │ 0.95 │    │  --  │    │  --  │        │   │  │  │
+│  │  │  │  └──────┘    └──────┘    └──────┘    └──────┘        │   │  │  │
+│  │  │  │                                                        │   │  │  │
+│  │  │  │  Completed stages: border-status-success bg-status-   │   │  │  │
+│  │  │  │    success/5, checkmark icon                           │   │  │  │
+│  │  │  │  Active stage: border-primary-500 bg-primary-500/5,   │   │  │  │
+│  │  │  │    animated pulse dot                                  │   │  │  │
+│  │  │  │  Pending stages: border-border bg-surface-overlay/30, │   │  │  │
+│  │  │  │    empty circle                                        │   │  │  │
+│  │  │  │  Arrows: text-content-muted, → between each stage     │   │  │  │
+│  │  │  │  Score beneath each stage: text-xs font-mono           │   │  │  │
+│  │  │  │    colored by minimumScore threshold                   │   │  │  │
+│  │  │  │                                                        │   │  │  │
+│  │  │  └────────────────────────────────────────────────────────┘   │  │  │
+│  │  │                                                                │  │  │
+│  │  │  ┌─ Gate ────────────────────────────────────────────────┐   │  │  │
+│  │  │  │                                                        │   │  │  │
+│  │  │  │  Gate: Score >= 0.90 to advance                       │   │  │  │
+│  │  │  │                                                        │   │  │  │
+│  │  │  │  text-xs text-content-muted                            │   │  │  │
+│  │  │  │  "0.90" colored: meeting gate = emerald, else amber   │   │  │  │
+│  │  │  │                                                        │   │  │  │
+│  │  │  └────────────────────────────────────────────────────────┘   │  │  │
+│  │  │                                                                │  │  │
+│  │  │  card class. Link to /experiments/[id].                       │  │  │
+│  │  │                                                                │  │  │
+│  │  └───────────────────────────────────────────────────────────────┘  │  │
+│  │                                                                       │  │
+│  │                                                                       │  │
+│  │  ════════════════════════════════════════════════════════════════     │  │
+│  │  CARD VARIANT: Completed A/B Test                                    │  │
+│  │  ════════════════════════════════════════════════════════════════     │  │
+│  │                                                                       │  │
+│  │  ┌───────────────────────────────────────────────────────────────┐  │  │
+│  │  │                                                                │  │  │
+│  │  │  prompt-v2-test                                                │  │  │
+│  │  │  booking-agent                      A/B Test   ✓ Completed    │  │  │
+│  │  │                                                                │  │  │
+│  │  │  Winner: Variant B                        Completed 2d ago    │  │  │
+│  │  │  +5.1% improvement · p = 0.001 · large effect               │  │  │
+│  │  │                                                                │  │  │
+│  │  │  Winner line: text-sm font-medium text-status-success         │  │  │
+│  │  │  Stats: text-xs text-content-muted                            │  │  │
+│  │  │  "large effect" from EffectSize.magnitude                     │  │  │
+│  │  │  Status badge: bg-status-success/10 text-status-success       │  │  │
+│  │  │                                                                │  │  │
+│  │  │  If winner = "tie": "No significant difference" in amber     │  │  │
+│  │  │                                                                │  │  │
+│  │  └───────────────────────────────────────────────────────────────┘  │  │
+│  │                                                                       │  │
+│  │                                                                       │  │
+│  │  ════════════════════════════════════════════════════════════════     │  │
+│  │  CARD VARIANT: Completed Rollout                                     │  │
+│  │  ════════════════════════════════════════════════════════════════     │  │
+│  │                                                                       │  │
+│  │  ┌───────────────────────────────────────────────────────────────┐  │  │
+│  │  │                                                                │  │  │
+│  │  │  model-upgrade-2                                               │  │  │
+│  │  │  research-agent                   Rollout      ✓ Completed    │  │  │
+│  │  │                                                                │  │  │
+│  │  │  Reached: 100% (4/4 stages)               Completed 1w ago   │  │  │
+│  │  │  Final score: 0.94 (gate: 0.90)                               │  │  │
+│  │  │                                                                │  │  │
+│  │  │  For aborted rollouts:                                        │  │  │
+│  │  │  Status badge: bg-status-error/10 text-status-error           │  │  │
+│  │  │  "Aborted at stage 3/4 — score dropped to 0.72"             │  │  │
+│  │  │                                                                │  │  │
+│  │  └───────────────────────────────────────────────────────────────┘  │  │
+│  │                                                                       │  │
+│  │                                                                       │  │
+│  │  ════════════════════════════════════════════════════════════════     │  │
+│  │  CARD VARIANT: Failed / Aborted                                      │  │
+│  │  ════════════════════════════════════════════════════════════════     │  │
+│  │                                                                       │  │
+│  │  ┌───────────────────────────────────────────────────────────────┐  │  │
+│  │  │                                                                │  │  │
+│  │  │  latency-optimization                                         │  │  │
+│  │  │  support-agent                    A/B Test     ✗ Failed       │  │  │
+│  │  │                                                                │  │  │
+│  │  │  Error: Variant B eval run timed out           Failed 3d ago  │  │  │
+│  │  │                                                                │  │  │
+│  │  │  Status badge: bg-status-error/10 text-status-error           │  │  │
+│  │  │  Error text: text-sm text-status-error, first line only       │  │  │
+│  │  │  border-l-2 border-status-error on the card (subtle accent)   │  │  │
+│  │  │                                                                │  │  │
+│  │  └───────────────────────────────────────────────────────────────┘  │  │
+│  │                                                                       │  │
+│  │                                                                       │  │
+│  │  ════════════════════════════════════════════════════════════════     │  │
+│  │  LOAD MORE                                                           │  │
+│  │  ════════════════════════════════════════════════════════════════     │  │
+│  │                                                                       │  │
+│  │  ┌───────────────────────────────────────────────────────────────┐  │  │
+│  │  │                                                                │  │  │
+│  │  │  Showing 20 of 47 experiments                                 │  │  │
+│  │  │                                                                │  │  │
+│  │  │                    [Load More]                                  │  │  │
+│  │  │                                                                │  │  │
+│  │  │  Count: text-sm text-content-muted, centered                  │  │  │
+│  │  │  Button: btn btn-secondary btn-sm, centered                   │  │  │
+│  │  │  Loads 20 more, appends to list (does not replace).            │  │  │
+│  │  │  Hidden when all experiments are loaded.                       │  │  │
+│  │  │  Initial load: 20 experiments. Subsequent: 20 per batch.       │  │  │
+│  │  │  Uses cursor-based pagination via trpc.experiments.list        │  │  │
+│  │  │  { cursor, limit: 20 }.                                        │  │  │
+│  │  │                                                                │  │  │
+│  │  └───────────────────────────────────────────────────────────────┘  │  │
+│  │                                                                       │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+
+================================================================================
+CREATE EXPERIMENT DIALOG
+================================================================================
+Triggered by [+ New Experiment] button.
+Component: components/experiments/create-experiment-dialog.tsx
+
+POSITION: fixed inset-0, centered, z-50
+SIZE: max-w-2xl (672px), max-h-[85vh] overflow-y-auto
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                          (backdrop: bg-black/50)                             │
+│                                                                              │
+│   ┌──────────────────────────────────────────────────────────────────┐      │
+│   │                                                                    │      │
+│   │  New Experiment                                        [X close]  │      │
+│   │                                                                    │      │
+│   │  ─── (border-b border-border) ──────────────────────────────────  │      │
+│   │                                                                    │      │
+│   │  ┌─ Experiment Type ───────────────────────────────────────────┐ │      │
+│   │  │                                                              │ │      │
+│   │  │  ┌─────────────────────────┐  ┌────────────────────────┐   │ │      │
+│   │  │  │                         │  │                        │   │ │      │
+│   │  │  │  ● A/B Test             │  │  ○ Progressive Rollout │   │ │      │
+│   │  │  │                         │  │                        │   │ │      │
+│   │  │  │  Run two variants in    │  │  Stage deployment      │   │ │      │
+│   │  │  │  parallel and compare   │  │  with quality gates    │   │ │      │
+│   │  │  │  statistically.         │  │  at each stage.        │   │ │      │
+│   │  │  │                         │  │                        │   │ │      │
+│   │  │  └─────────────────────────┘  └────────────────────────┘   │ │      │
+│   │  │                                                              │ │      │
+│   │  │  Radio cards: selected has border-primary-500                │ │      │
+│   │  │  bg-primary-500/5. Unselected has border-border.            │ │      │
+│   │  │  Each: rounded-xl p-4, cursor-pointer                       │ │      │
+│   │  │                                                              │ │      │
+│   │  └──────────────────────────────────────────────────────────────┘ │      │
+│   │                                                                    │      │
+│   │  ┌─ Basics ────────────────────────────────────────────────────┐ │      │
+│   │  │                                                              │ │      │
+│   │  │  Experiment Name *                                           │ │      │
+│   │  │  ┌──────────────────────────────────────────────────────┐  │ │      │
+│   │  │  │ prompt-v3-test                                        │  │ │      │
+│   │  │  └──────────────────────────────────────────────────────┘  │ │      │
+│   │  │  text-xs text-content-muted: "A short name for this       │ │      │
+│   │  │  experiment. Used in listings and notifications."          │ │      │
+│   │  │  Auto-suggestion: When agent is selected, placeholder     │ │      │
+│   │  │  updates to "{agent}-{type}-{date}" pattern, e.g.         │ │      │
+│   │  │  "booking-agent-ab-2024-01-15". User can type over it.    │ │      │
+│   │  │                                                              │ │      │
+│   │  │  Agent *                                                     │ │      │
+│   │  │  ┌──────────────────────────────────────────────────────┐  │ │      │
+│   │  │  │ (SearchIcon) Select agent...                      ▾  │  │ │      │
+│   │  │  └──────────────────────────────────────────────────────┘  │ │      │
+│   │  │  Searchable combobox. Populates from trpc.agents.list.    │ │      │
+│   │  │  Shows agent name + current version + health dot.          │ │      │
+│   │  │  text-xs text-content-muted: "The agent to experiment on" │ │      │
+│   │  │                                                              │ │      │
+│   │  │  Empty state (no agents registered):                        │ │      │
+│   │  │  Combobox disabled, placeholder: "No agents registered"    │ │      │
+│   │  │  Helper text changes to: "Register an agent first to       │ │      │
+│   │  │  run experiments." with link to /agents (text-primary-500  │ │      │
+│   │  │  hover:underline). Start Experiment button disabled.       │ │      │
+│   │  │                                                              │ │      │
+│   │  └──────────────────────────────────────────────────────────────┘ │      │
+│   │                                                                    │      │
+│   │                                                                    │      │
+│   │  ════════════════════════════════════════════════════════════════  │      │
+│   │  VARIANT CONFIG: A/B Test (shown when type = A/B Test)           │      │
+│   │  ════════════════════════════════════════════════════════════════  │      │
+│   │                                                                    │      │
+│   │  ┌─ Variants ──────────────────────────────────────────────────┐ │      │
+│   │  │                                                              │ │      │
+│   │  │  Variant A (Baseline)                                       │ │      │
+│   │  │  ┌──────────────────────────┐  ┌────────────────────────┐  │ │      │
+│   │  │  │ Version: v2.1.0      ▾  │  │ Prompt: (current)   ▾ │  │ │      │
+│   │  │  └──────────────────────────┘  └────────────────────────┘  │ │      │
+│   │  │  Auto-filled from agent's current production version.      │ │      │
+│   │  │  Version dropdown: agent versions from CH traces.          │ │      │
+│   │  │  Prompt dropdown: from trpc.prompts.list filtered to agent.│ │      │
+│   │  │                                                              │ │      │
+│   │  │  Variant B (Candidate)                                      │ │      │
+│   │  │  ┌──────────────────────────┐  ┌────────────────────────┐  │ │      │
+│   │  │  │ Version: v2.1.0      ▾  │  │ Prompt: prompt-v3   ▾ │  │ │      │
+│   │  │  └──────────────────────────┘  └────────────────────────┘  │ │      │
+│   │  │  "What are you changing?" — The variant B fields are the   │ │      │
+│   │  │  thing being tested. At least one field must differ from A.│ │      │
+│   │  │                                                              │ │      │
+│   │  └──────────────────────────────────────────────────────────────┘ │      │
+│   │                                                                    │      │
+│   │  ┌─ Statistical Config ────────────────────────────────────────┐ │      │
+│   │  │                                                              │ │      │
+│   │  │  Significance Threshold        Sample Size                  │ │      │
+│   │  │  ┌───────────────────┐        ┌───────────────────┐        │ │      │
+│   │  │  │ 0.05 (5%)      ▾ │        │ 1000              │        │ │      │
+│   │  │  └───────────────────┘        └───────────────────┘        │ │      │
+│   │  │                                                              │ │      │
+│   │  │  Threshold options: 0.01, 0.05 (default), 0.10              │ │      │
+│   │  │  Sample size: total across both variants (500 each)         │ │      │
+│   │  │  text-xs text-content-muted: "Lower threshold = higher     │ │      │
+│   │  │  confidence but requires more samples."                     │ │      │
+│   │  │                                                              │ │      │
+│   │  └──────────────────────────────────────────────────────────────┘ │      │
+│   │                                                                    │      │
+│   │                                                                    │      │
+│   │  ════════════════════════════════════════════════════════════════  │      │
+│   │  VARIANT CONFIG: Progressive Rollout (shown when type = Rollout) │      │
+│   │  ════════════════════════════════════════════════════════════════  │      │
+│   │                                                                    │      │
+│   │  ┌─ Versions ──────────────────────────────────────────────────┐ │      │
+│   │  │                                                              │ │      │
+│   │  │  Current Version                 New Version                │ │      │
+│   │  │  ┌──────────────────────────┐   ┌──────────────────────┐   │ │      │
+│   │  │  │ v2.1.0 (prod)        ▾  │   │ v2.2.0           ▾  │   │ │      │
+│   │  │  └──────────────────────────┘   └──────────────────────┘   │ │      │
+│   │  │                                                              │ │      │
+│   │  └──────────────────────────────────────────────────────────────┘ │      │
+│   │                                                                    │      │
+│   │  ┌─ Rollout Stages ────────────────────────────────────────────┐ │      │
+│   │  │                                                              │ │      │
+│   │  │  Stages (traffic percentage at each step)                   │ │      │
+│   │  │  ┌──────┐  ┌──────┐  ┌──────┐  ┌──────┐                   │ │      │
+│   │  │  │ 10%  │  │ 25%  │  │ 50%  │  │ 100% │   [+ Add Stage]  │ │      │
+│   │  │  └──────┘  └──────┘  └──────┘  └──────┘                   │ │      │
+│   │  │                                                              │ │      │
+│   │  │  Default: [10, 25, 50, 100]. Editable inline.              │ │      │
+│   │  │  [+ Add Stage] inserts before 100%. Max 6 stages.           │ │      │
+│   │  │  Each input: w-16, type=number, min=1 max=100               │ │      │
+│   │  │  Last stage must be 100 (enforced, read-only).              │ │      │
+│   │  │                                                              │ │      │
+│   │  │  Minimum Score (gate)            Stage Duration              │ │      │
+│   │  │  ┌───────────────────┐          ┌───────────────────┐       │ │      │
+│   │  │  │ 0.90              │          │ 1 hour         ▾  │       │ │      │
+│   │  │  └───────────────────┘          └───────────────────┘       │ │      │
+│   │  │                                                              │ │      │
+│   │  │  Minimum Score: abort if score drops below this.            │ │      │
+│   │  │  Stage Duration options: 15min, 30min, 1h, 2h, 6h, 24h     │ │      │
+│   │  │  text-xs text-content-muted: "How long to observe at each  │ │      │
+│   │  │  stage before advancing. Rollout aborts automatically if    │ │      │
+│   │  │  score drops below the minimum."                            │ │      │
+│   │  │                                                              │ │      │
+│   │  └──────────────────────────────────────────────────────────────┘ │      │
+│   │                                                                    │      │
+│   │                                                                    │      │
+│   │  ════════════════════════════════════════════════════════════════  │      │
+│   │  SHARED CONFIG (both types)                                       │      │
+│   │  ════════════════════════════════════════════════════════════════  │      │
+│   │                                                                    │      │
+│   │  ┌─ Dataset ───────────────────────────────────────────────────┐ │      │
+│   │  │                                                              │ │      │
+│   │  │  ┌─────────────────────────┐  ┌─────────────────────────┐  │ │      │
+│   │  │  │  ● From Suite           │  │  ○ Custom Dataset        │  │ │      │
+│   │  │  └─────────────────────────┘  └─────────────────────────┘  │ │      │
+│   │  │                                                              │ │      │
+│   │  │  [From Suite] (default):                                    │ │      │
+│   │  │  ┌──────────────────────────────────────────────────────┐  │ │      │
+│   │  │  │ (SearchIcon) Select suite...                      ▾  │  │ │      │
+│   │  │  └──────────────────────────────────────────────────────┘  │ │      │
+│   │  │  Searchable combobox from trpc.suites.list.                │ │      │
+│   │  │  On select: shows "12 test cases · 3 scorers" preview.     │ │      │
+│   │  │  Scorers auto-populated from suite config.                 │ │      │
+│   │  │                                                              │ │      │
+│   │  │  [Custom Dataset]:                                          │ │      │
+│   │  │  ┌──────────────────────────────────────────────────────┐  │ │      │
+│   │  │  │ [{"input":"Book a flight to NYC",                     │  │ │      │
+│   │  │  │   "expected":"Flight booked successfully"},           │  │ │      │
+│   │  │  │  {"input":"Cancel booking #123",                      │  │ │      │
+│   │  │  │   "expected":"Booking cancelled"}]                    │  │ │      │
+│   │  │  └──────────────────────────────────────────────────────┘  │ │      │
+│   │  │  textarea with JSON validation. Shows count on parse.      │ │      │
+│   │  │  Placeholder: 2-line JSON example (grayed, disappears     │ │      │
+│   │  │  on focus). On valid parse: "✓ 24 test cases" in emerald  │ │      │
+│   │  │  below textarea. On invalid JSON: "✗ Invalid JSON" in     │ │      │
+│   │  │  rose with line/column of parse error.                     │ │      │
+│   │  │                                                              │ │      │
+│   │  └──────────────────────────────────────────────────────────────┘ │      │
+│   │                                                                    │      │
+│   │  ┌─ Scorers ───────────────────────────────────────────────────┐ │      │
+│   │  │                                                              │ │      │
+│   │  │  Scorers                                                    │ │      │
+│   │  │  ┌──────────────────────────────────────────────────────┐  │ │      │
+│   │  │  │ [accuracy] [latency] [tool_selection]  |add scorer| │  │ │      │
+│   │  │  └──────────────────────────────────────────────────────┘  │ │      │
+│   │  │  Auto-populated when suite selected. Editable.             │ │      │
+│   │  │  Tag input with autocomplete from known scorers.           │ │      │
+│   │  │  At least 1 scorer required.                               │ │      │
+│   │  │                                                              │ │      │
+│   │  └──────────────────────────────────────────────────────────────┘ │      │
+│   │                                                                    │      │
+│   │  ─── (border-t border-border) ──────────────────────────────────  │      │
+│   │                                                                    │      │
+│   │                                    [Cancel]  [Start Experiment]    │      │
+│   │                                                                    │      │
+│   │  Cancel: btn btn-secondary                                        │      │
+│   │  Start: btn btn-primary                                            │      │
+│   │  On submit: calls trpc.experiments.create (new endpoint)          │      │
+│   │    which starts abTestWorkflow or progressiveRolloutWorkflow.      │      │
+│   │  On success: navigate to /experiments/[id]                        │      │
+│   │  On error: inline error message below Start button.               │      │
+│   │  Validation: name required, agent required, dataset required,     │      │
+│   │    at least 1 scorer, variants must differ (A/B), stages valid.   │      │
+│   │                                                                    │      │
+│   └──────────────────────────────────────────────────────────────────┘      │
+│                                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+
+================================================================================
+STATES
+================================================================================
+
+LOADING STATE:
+  ┌─────────────────────────────────────────────────────────────────┐
+  │                                                                 │
+  │  ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐             │
+  │  │ ░░░░░░░ │ │ ░░░░░░░ │ │ ░░░░░░░ │ │ ░░░░░░░ │  stats     │
+  │  └─────────┘ └─────────┘ └─────────┘ └─────────┘             │
+  │                                                                 │
+  │  ┌─────────────────────────────────────────────────────────┐  │
+  │  │ ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ │  │
+  │  │ ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░          │  │
+  │  │ ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░                   │  │  card
+  │  └─────────────────────────────────────────────────────────┘  │
+  │  ┌─────────────────────────────────────────────────────────┐  │
+  │  │ ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ │  │
+  │  │ ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░          │  │  card
+  │  └─────────────────────────────────────────────────────────┘  │
+  │                                                                 │
+  │  4 stat skeletons (h-20) + 2 card skeletons (h-40).            │
+  │  animate-pulse, bg-surface-overlay rounded-xl.                  │
+  │                                                                 │
+  └─────────────────────────────────────────────────────────────────┘
+
+EMPTY STATE (no experiments exist):
+  ┌─────────────────────────────────────────────────────────────────┐
+  │                                                                 │
+  │       (TestTubes icon, w-12 h-12, text-content-muted)          │
+  │                                                                 │
+  │       No experiments yet                                        │
+  │       Create an A/B test to compare agent variants,             │
+  │       or set up a progressive rollout with quality gates.       │
+  │                                                                 │
+  │       [+ Create First Experiment]                               │
+  │                                                                 │
+  │       Title: text-lg font-medium text-content-secondary        │
+  │       Body: text-sm text-content-muted, max-w-md mx-auto       │
+  │       Button: btn btn-primary                                   │
+  │       Centered vertically in remaining space (min-h-[400px])   │
+  │                                                                 │
+  └─────────────────────────────────────────────────────────────────┘
+
+EMPTY STATE (filters produce no results):
+  ┌─────────────────────────────────────────────────────────────────┐
+  │                                                                 │
+  │       (SearchX icon, w-12 h-12, text-content-muted)            │
+  │                                                                 │
+  │       No matching experiments                                   │
+  │       Try adjusting your filters.                               │
+  │       [Clear Filters]                                           │
+  │                                                                 │
+  └─────────────────────────────────────────────────────────────────┘
+
+ERROR STATE:
+  ┌─────────────────────────────────────────────────────────────────┐
+  │                                                                 │
+  │       (AlertTriangle icon, w-12 h-12, text-status-error)       │
+  │                                                                 │
+  │       Failed to load experiments                                │
+  │       {error.message}                                           │
+  │       [Retry]                                                   │
+  │                                                                 │
+  └─────────────────────────────────────────────────────────────────┘
+
+
+================================================================================
+DATA SOURCES
+================================================================================
+
+  trpc.experiments.list (NEW — to be created):
+    - Source: Temporal workflow list + PG experiment metadata
+    - PG table: experiments { id, name, type, agent_id, config JSONB,
+      status, created_at, completed_at, result JSONB }
+    - Status derived from Temporal workflow status mapped to:
+      running, completed, paused, failed, aborted
+    - Progress for running experiments: Temporal query
+      (abTestProgress or rolloutProgress)
+    - Returns: Array<Experiment> with nested progress for running ones
+
+  trpc.experiments.create (NEW — to be created):
+    - Input: CreateExperimentInput { name, type, agentId, config,
+      dataset, scorers }
+    - Starts Temporal workflow (abTestWorkflow or
+      progressiveRolloutWorkflow)
+    - Creates PG metadata row
+    - Returns: { id, workflowId }
+
+  trpc.agents.list — for agent combobox in create dialog
+  trpc.suites.list — for suite combobox in create dialog
+
+  Summary stats computed client-side from the experiments list:
+    - Total: experiments.length
+    - Running: experiments.filter(e => e.status === 'running').length
+    - Success rate: completed with winner / total completed
+    - Avg improvement: mean of winner improvements across completed
+
+================================================================================
+BEHAVIORAL NOTES
+================================================================================
+
+  1. Running experiments poll for progress every 3 seconds via
+     refetchInterval. Completed/failed experiments use staleTime: 5min.
+
+  2. Cards update in-place as progress changes. No page reload needed.
+     React Query's refetchInterval handles this.
+
+  3. "Start Experiment" button in the dialog is disabled until all
+     required fields are filled and validated. Shows a spinner while
+     the Temporal workflow is being started.
+
+  4. Create dialog sections toggle based on experiment type selection.
+     Switching type clears the type-specific fields but preserves
+     shared fields (name, agent, dataset, scorers).
+
+  5. Filters persist across page visits via URL search params.
+     Navigating away and back restores the filter state.
+
+  6. Default sort: running first (by start time desc), then paused,
+     then completed/failed/aborted (by end time desc). Overridable
+     via the sort dropdown. Sort selection persisted in URL params.
+
+  7. Agent name in card header is a link to /agents/[agentId] but
+     clicking the card body navigates to /experiments/[id].
+     stopPropagation on the agent link prevents double-navigation.
+     The [⋯] overflow menu also uses stopPropagation.
+
+  8. The stage pipeline visualization in rollout cards uses CSS flexbox
+     with connecting arrows. No SVG or canvas needed. Each stage is
+     a fixed-width box with border color indicating state.
+
+  9. Load More appends 20 experiments per batch using cursor-based
+     pagination. Cursor is the last experiment's createdAt timestamp.
+     React Query's getNextPageParam handles infinite query.
+
+ 10. Overflow menu on running/paused cards provides quick Pause/Abort
+     actions without navigating to the detail page. Paused cards show
+     Resume/Abort instead. Completed/failed cards have no menu.

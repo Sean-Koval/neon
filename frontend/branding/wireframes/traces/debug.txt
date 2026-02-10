@@ -1,0 +1,311 @@
+================================================================================
+TRACE DEBUGGER — app/traces/[id]/debug/page.tsx
+================================================================================
+Interactive debugger with span tree, timeline, detail panel, and RCA analysis.
+Route: /traces/[id]/debug
+
+LAYOUT: Full-width (no p-6 padding, uses all available horizontal space)
+DATA: useTrace(traceId)
+
+DESIGN NOTES:
+
+  1. The debugger is a power-user tool for deep investigation. It uses all
+     available screen width — no page padding, no sidebar (sidebar auto-
+     collapses when entering debug mode).
+
+  2. Three-panel layout: span tree (left), timeline (top-right), span detail
+     (bottom-right). All panels are resizable via drag handles.
+
+  3. RCA Analysis: the "RCA Analysis" button runs root cause analysis on
+     the trace. This uses the existing rca-overlay component to highlight
+     the failure chain: root cause span → intermediate spans → symptom span.
+     The result is an overlay on the timeline showing the error propagation
+     path with explanatory text.
+
+  4. Export formats: JSON (full trace + spans), OpenTelemetry (OTLP JSON),
+     and CSV (span summary table). Export downloads immediately (no modal).
+
+  5. The debugger shares data with the detail page (same useTrace hook).
+     Navigating between detail and debug preserves the loaded trace data
+     in React Query cache.
+
+  6. Span selection is synchronized across all three panels. Clicking a
+     span in the tree highlights it in the timeline and loads its details
+     in the detail panel.
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                                                                             │
+│  ┌─ Debugger Header ──────────────────────────────────────────────────┐   │
+│  │                                                                       │  │
+│  │  ← Back  │  Trace Debugger: abc-12345678                            │  │
+│  │                                                                       │  │
+│  │  "← Back": navigates to /traces/[id] (detail page).                │  │
+│  │  Trace ID: font-mono text-sm text-content-muted.                    │  │
+│  │                                                                       │  │
+│  │  Right side actions:                                                  │  │
+│  │  [RCA Analysis]  [Export ▾]  [Copy Trace ID]                        │  │
+│  │                                                                       │  │
+│  │  "RCA Analysis": btn btn-secondary btn-sm.                           │  │
+│  │    Click -> runs root cause analysis.                                 │  │
+│  │    While running: shows spinner + "Analyzing..."                     │  │
+│  │    Result: opens RCA overlay on the timeline (see below).            │  │
+│  │    Disabled if trace has no errors (tooltip: "No errors to analyze")│  │
+│  │                                                                       │  │
+│  │  "Export ▾": btn btn-secondary btn-sm, dropdown menu.               │  │
+│  │    Options:                                                           │  │
+│  │      Export as JSON     — full trace + spans, downloads .json file   │  │
+│  │      Export as OTLP     — OpenTelemetry format, downloads .json file │  │
+│  │      Export as CSV      — span summary table, downloads .csv file   │  │
+│  │    Each option triggers immediate download. No confirmation dialog.  │  │
+│  │    File name: trace-{traceId}-{format}.{ext}                        │  │
+│  │                                                                       │  │
+│  │  "Copy Trace ID": btn btn-ghost btn-sm. Copies full traceId.       │  │
+│  │                                                                       │  │
+│  │  Header: h-12, bg-surface-card, border-b border-border.             │  │
+│  │  Compact — every pixel matters in the debugger.                      │  │
+│  │                                                                       │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+│  ┌─────────────────┬────────────────────────────────────────────────────┐  │
+│  │                 │                                                     │  │
+│  │  SPAN TREE      │  SPAN TIMELINE                                    │  │
+│  │  w-80 (320px)   │  flex-1                                           │  │
+│  │  min-w-[240px]  │                                                     │  │
+│  │  max-w-[480px]  │  ┌─ Timeline ──────────────────────────────────┐  │  │
+│  │  resizable      │  │                                              │  │  │
+│  │                 │  │  Waterfall timeline with zoom controls        │  │  │
+│  │  ┌───────────┐ │  │  (existing span-timeline component)          │  │  │
+│  │  │Search...  │ │  │                                              │  │  │
+│  │  └───────────┘ │  │  0ms              1.6s                  3.2s │  │  │
+│  │                 │  │  |────────────────|──────────────────────|  │  │  │
+│  │  ▼ root         │  │                                              │  │  │
+│  │    ▼ llm_call   │  │  root ──────────────────────────────────── │  │  │
+│  │      (gpt-4o)   │  │    ├ llm_call ────────────── 1.2s          │  │  │
+│  │      1.2s  ok   │  │    ├ web_search ──── 0.8s                  │  │  │
+│  │    ► web_search │  │    ├ llm_call ──────── 0.9s                │  │  │
+│  │      0.8s  ok   │  │    └ summarize ─ 0.3s                      │  │  │
+│  │    ▼ llm_call   │  │                                              │  │  │
+│  │      (claude)   │  │  Zoom controls (bottom-right of timeline):  │  │  │
+│  │      0.9s  ok   │  │  [+] [-] [Fit] [Reset]                     │  │  │
+│  │    ► summarize  │  │                                              │  │  │
+│  │      0.3s  ok   │  │  Click span → updates detail panel below    │  │  │
+│  │                 │  │  Hover span → tooltip with name + duration  │  │  │
+│  │  Tree shows:    │  │                                              │  │  │
+│  │  - ▼/► expand  │  │  Bar colors by span type:                    │  │  │
+│  │  - Span name    │  │    generation: accent-500                    │  │  │
+│  │  - (model) for  │  │    tool: emerald-500                         │  │  │
+│  │    LLM calls   │  │    retrieval: blue-500                       │  │  │
+│  │  - Duration     │  │    event: amber-500                          │  │  │
+│  │  - Status icon  │  │    error: rose-500                           │  │  │
+│  │  - text-xs      │  │                                              │  │  │
+│  │                 │  └──────────────────────────────────────────────┘  │  │
+│  │  Search: filter │                                                     │  │
+│  │  spans by name  │  ┌─ Span Detail Panel ──────────────────────────┐  │  │
+│  │  or type.       │  │                                              │  │  │
+│  │  Matching spans │  │  Span: llm_call                              │  │  │
+│  │  highlighted,   │  │  Type: generation · Model: gpt-4o           │  │  │
+│  │  non-matching   │  │  Component: reasoning                        │  │  │
+│  │  dimmed.        │  │  Duration: 1.2s · Status: ok                │  │  │
+│  │                 │  │                                              │  │  │
+│  │  Selected span  │  │  ┌─ Tabs ────────────────────────────────┐ │  │  │
+│  │  = bg-accent-   │  │  │ I/O*  |  Attributes  |  Raw JSON     │ │  │  │
+│  │  500/10 +       │  │  └───────────────────────────────────────┘ │  │  │
+│  │  border-l-2     │  │                                              │  │  │
+│  │  accent-500     │  │  TAB: I/O                                   │  │  │
+│  │                 │  │                                              │  │  │
+│  │  Click span →   │  │  Input:                                      │  │  │
+│  │  highlights in  │  │  ┌──────────────────────────────────────┐  │  │  │
+│  │  timeline +     │  │  │ {                                     │  │  │
+│  │  detail panel   │  │  │   "messages": [                       │  │  │
+│  │                 │  │  │     { "role": "user",                 │  │  │
+│  │  Error spans:   │  │  │       "content": "Find papers..." }  │  │  │
+│  │  text-status-   │  │  │   ]                                   │  │  │
+│  │  error, XCircle │  │  │ }                                     │  │  │
+│  │  icon           │  │  └──────────────────────────────────────┘  │  │  │
+│  │                 │  │  [Copy Input]                                │  │  │
+│  │                 │  │                                              │  │  │
+│  │                 │  │  Output:                                     │  │  │
+│  │                 │  │  ┌──────────────────────────────────────┐  │  │  │
+│  │                 │  │  │ "I found 5 relevant papers on..."    │  │  │
+│  │                 │  │  └──────────────────────────────────────┘  │  │  │
+│  │                 │  │  [Copy Output]                               │  │  │
+│  │                 │  │                                              │  │  │
+│  │                 │  │  I/O blocks: bg-surface-overlay rounded-lg│  │  │
+│  │                 │  │  p-3, font-mono text-xs,                   │  │  │
+│  │                 │  │  max-h-[300px] overflow-y-auto.            │  │  │
+│  │                 │  │  JSON is syntax-highlighted.               │  │  │
+│  │                 │  │                                              │  │  │
+│  │                 │  │  TAB: Attributes                            │  │  │
+│  │                 │  │                                              │  │  │
+│  │                 │  │  Key-value grid: text-xs font-mono.        │  │  │
+│  │                 │  │  tokens_in: 1,234                          │  │  │
+│  │                 │  │  tokens_out: 567                            │  │  │
+│  │                 │  │  cost: $0.004                               │  │  │
+│  │                 │  │  model: gpt-4o                              │  │  │
+│  │                 │  │  temperature: 0.7                           │  │  │
+│  │                 │  │  All span.attributes + model_parameters.  │  │  │
+│  │                 │  │                                              │  │  │
+│  │                 │  │  TAB: Raw JSON                              │  │  │
+│  │                 │  │                                              │  │  │
+│  │                 │  │  Full span record as JSON.                  │  │  │
+│  │                 │  │  Syntax-highlighted, collapsible sections. │  │  │
+│  │                 │  │  [Copy Raw]  [Download .json]              │  │  │
+│  │                 │  │                                              │  │  │
+│  │                 │  │  (existing span-detail-panel component)    │  │  │
+│  │                 │  │                                              │  │  │
+│  │                 │  └──────────────────────────────────────────────┘  │  │
+│  │                 │                                                     │  │
+│  └─────────────────┴────────────────────────────────────────────────────┘  │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+
+════════════════════════════════════════════════════════════════════════════════
+RCA ANALYSIS OVERLAY (triggered by [RCA Analysis] button)
+════════════════════════════════════════════════════════════════════════════════
+
+  When the user clicks [RCA Analysis], the system analyzes the error trace
+  and overlays the results on the timeline. Uses existing rca-overlay component.
+
+  ┌──────────────────────────────────────────────────────────────────────────┐
+  │                                                                          │
+  │  ┌─ RCA Result Banner ───────────────────────────────────────────────┐ │
+  │  │                                                                     │ │
+  │  │  Root Cause Analysis                                     [Dismiss]│ │
+  │  │                                                                     │ │
+  │  │  Root cause: tool "web_search" failed with HTTP 503              │ │
+  │  │  in span web_search (booking-agent)                              │ │
+  │  │                                                                     │ │
+  │  │  Impact chain:                                                     │ │
+  │  │  web_search (503) → llm_call (no context) → root (error)       │ │
+  │  │                                                                     │ │
+  │  │  3 spans affected. Total error duration: 2.1s                    │ │
+  │  │                                                                     │ │
+  │  │  bg-rose-500/5 border border-rose-500/20 rounded-xl p-4.        │ │
+  │  │  Placed between header and timeline.                              │ │
+  │  │  "Dismiss" removes the overlay but doesn't re-run analysis.     │ │
+  │  │                                                                     │ │
+  │  └─────────────────────────────────────────────────────────────────────┘ │
+  │                                                                          │
+  │  Timeline overlay:                                                       │
+  │  - Root cause span: thick rose-500 border, pulsing glow                │
+  │  - Affected spans: rose-500/30 background tint                         │
+  │  - Error propagation arrows: dashed rose-500 lines between affected    │
+  │    spans showing the failure chain                                      │
+  │  - Unaffected spans: dimmed (opacity-40)                               │
+  │                                                                          │
+  │  Span tree overlay:                                                      │
+  │  - Root cause span: rose dot indicator, bold text                      │
+  │  - Affected spans: rose background tint                                │
+  │  - Unaffected: normal styling                                           │
+  │                                                                          │
+  └──────────────────────────────────────────────────────────────────────────┘
+
+
+LOADING STATE:
+
+  ┌──────────────────────────────────────────────────────────┐
+  │                                                          │
+  │  ┌──────────────────────────────────────────────────┐  │
+  │  │ ← Back  │  Trace Debugger: ░░░░░░░░░░░░░░      │  │
+  │  └──────────────────────────────────────────────────┘  │
+  │                                                          │
+  │  ┌────────────┬─────────────────────────────────────┐  │
+  │  │            │                                       │  │
+  │  │ ░░░░░░░░░ │  ┌─────────────────────────────────┐│  │
+  │  │ ░░░░░░░░░ │  │ ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░││  │
+  │  │ ░░░░░░░░░ │  │ ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░││  │
+  │  │ ░░░░░░░░░ │  │ ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░││  │
+  │  │ ░░░░░░░░░ │  └─────────────────────────────────┘│  │
+  │  │            │                                       │  │
+  │  │            │  ┌─────────────────────────────────┐│  │
+  │  │            │  │ ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░││  │
+  │  │            │  │ ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░││  │
+  │  │            │  └─────────────────────────────────┘│  │
+  │  │            │                                       │  │
+  │  └────────────┴─────────────────────────────────────┘  │
+  │                                                          │
+  │  Three-panel skeleton: tree shimmer, timeline shimmer, │
+  │  detail panel shimmer.                                  │
+  │                                                          │
+  └──────────────────────────────────────────────────────────┘
+
+ERROR STATE:
+
+  ┌──────────────────────────────────────────────────────────┐
+  │                                                          │
+  │  ← Back  │  Trace Debugger                               │
+  │                                                          │
+  │        (AlertTriangle icon, w-10 h-10, text-status-     │
+  │         error)                                           │
+  │                                                          │
+  │        Failed to load trace for debugging               │
+  │        text-base font-medium text-content-primary        │
+  │                                                          │
+  │        [Retry]  [View Trace Detail]                      │
+  │                                                          │
+  │  "View Trace Detail" links to /traces/[id] as fallback. │
+  │                                                          │
+  └──────────────────────────────────────────────────────────┘
+
+DATA SOURCES:
+
+  useTrace(traceId)
+    Hook: frontend/hooks/use-traces.ts
+    tRPC: traces.get
+    Returns: TraceWithSpans { trace: Trace, spans: SpanWithChildren[] }
+    Stale time: 1 minute
+    Shared cache with trace detail page.
+
+  Existing components used:
+    - span-tree.tsx: Hierarchical span tree (left panel)
+    - span-timeline.tsx: Waterfall timeline (top-right panel)
+    - span-detail-panel.tsx: Span detail with I/O (bottom-right panel)
+    - rca-overlay.tsx: Root cause analysis overlay
+    - trace-debugger.tsx: Container orchestrating all three panels
+
+BEHAVIORAL NOTES:
+
+  1. Panel resizing: All three panels are resizable via drag handles.
+     The left panel (span tree) has a vertical drag handle on its right
+     edge. The timeline/detail split has a horizontal drag handle.
+     Panel sizes are saved to localStorage and restored on next visit.
+
+  2. Span synchronization: Clicking a span in any panel highlights it
+     in all panels. The tree scrolls to show the selected span, the
+     timeline scrolls to center it, and the detail panel loads its data.
+
+  3. Keyboard navigation: Arrow keys navigate the span tree (up/down
+     to move, left/right to collapse/expand). Enter selects a span.
+     This is the primary reason the debugger is a separate page —
+     keyboard focus stays in the debugger without sidebar interference.
+
+  4. Search in tree: The search input at the top of the span tree
+     filters spans by name or type. Matching spans are highlighted;
+     non-matching spans are dimmed but still visible (to preserve
+     tree context). Clear search to restore full visibility.
+
+  5. RCA Analysis: Only enabled when the trace has at least one error
+     span. Analysis is client-side (traverses the span tree to find
+     error propagation paths). Not an API call — instantaneous.
+
+  6. Export: Downloads happen immediately in the browser. No server
+     round-trip for export. JSON includes full Trace + all Spans.
+     CSV includes: spanId, name, type, duration, status, model,
+     tokens, cost (one row per span).
+
+  7. Sidebar auto-collapse: When entering the debugger, the main app
+     sidebar collapses to icon-only mode to maximize debugger width.
+     On exit (← Back), sidebar restores to its previous state.
+
+  8. Deep link: /traces/[id]/debug?span=[spanId] opens the debugger
+     with a specific span pre-selected and highlighted.
+
+  9. Copy buttons: Each I/O block has a [Copy] button that copies
+     the content as plain text. If the content is JSON, it copies
+     formatted (pretty-printed) JSON.
+
+  10. Raw JSON tab: Shows the complete SpanRecord as received from
+      the API. Useful for debugging instrumentation issues. Sections
+      are collapsible (input, output, attributes all start collapsed
+      if they're large).

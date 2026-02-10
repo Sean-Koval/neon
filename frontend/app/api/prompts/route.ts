@@ -139,7 +139,7 @@ export const POST = withRateLimit(async function POST(request: NextRequest) {
       body.name,
     )
     const version = existingVersion + 1
-    const now = new Date().toISOString()
+    const now = new Date().toISOString().replace('T', ' ').replace('Z', '')
 
     const promptId = uuidv4()
     const record: PromptRecord = {

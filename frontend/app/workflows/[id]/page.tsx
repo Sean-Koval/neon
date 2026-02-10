@@ -50,7 +50,7 @@ export default function WorkflowDetailPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-screen">
-        <RefreshCw className="w-8 h-8 animate-spin text-gray-400" />
+        <RefreshCw className="w-8 h-8 animate-spin text-gray-400 dark:text-gray-500" />
       </div>
     )
   }
@@ -92,17 +92,17 @@ export default function WorkflowDetailPage() {
     <div className="p-6 max-w-2xl mx-auto">
       {/* Header */}
       <div className="flex items-center gap-4 mb-6">
-        <Link href="/workflows" className="p-2 hover:bg-gray-100 rounded-lg">
+        <Link href="/workflows" className="p-2 hover:bg-gray-100 dark:hover:bg-dark-700 rounded-lg">
           <ArrowLeft className="w-5 h-5" />
         </Link>
         <div className="flex-1">
           <h1 className="text-xl font-bold">Workflow Details</h1>
-          <p className="text-sm text-gray-500 font-mono">{workflowId}</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400 font-mono">{workflowId}</p>
         </div>
         <button
           type="button"
           onClick={() => refetch()}
-          className="p-2 hover:bg-gray-100 rounded-lg"
+          className="p-2 hover:bg-gray-100 dark:hover:bg-dark-700 rounded-lg"
         >
           <RefreshCw className="w-5 h-5" />
         </button>
@@ -126,7 +126,7 @@ export default function WorkflowDetailPage() {
       {/* Timeline would go here */}
       <div className="mt-6">
         <h3 className="font-medium mb-3">Execution Timeline</h3>
-        <div className="border rounded-lg p-4 text-gray-500 text-center">
+        <div className="border dark:border-dark-700 rounded-lg p-4 text-gray-500 dark:text-gray-400 text-center">
           Timeline visualization coming soon
         </div>
       </div>

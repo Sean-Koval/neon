@@ -35,7 +35,7 @@ const CATEGORY_ICON = {
 const CATEGORY_COLOR = {
   root_cause: 'text-rose-600',
   contributing_factor: 'text-amber-600',
-  systemic_issue: 'text-blue-600',
+  systemic_issue: 'text-blue-600 dark:text-blue-400',
 }
 
 const TREND_CONFIG = {
@@ -48,8 +48,8 @@ const TREND_CONFIG = {
   stable: {
     label: 'Stable',
     icon: TrendingUp,
-    color: 'text-gray-600',
-    bg: 'bg-gray-50',
+    color: 'text-gray-600 dark:text-gray-300',
+    bg: 'bg-gray-50 dark:bg-dark-800',
   },
   degrading: {
     label: 'Degrading',
@@ -66,13 +66,13 @@ export function RcaSummaryCard() {
 
   return (
     <div className="card overflow-hidden">
-      <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white">
+      <div className="p-6 border-b border-gray-200 dark:border-dark-700 bg-gradient-to-r from-gray-50 dark:from-dark-900 to-white dark:to-dark-800">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-lg font-semibold text-gray-900">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
               Root Cause Analysis
             </h2>
-            <p className="text-sm text-gray-500 mt-0.5">
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
               Top failure patterns from {data.totalAnalyses} analyses
             </p>
           </div>
@@ -98,11 +98,11 @@ export function RcaSummaryCard() {
               >
                 <div className="flex items-center gap-2 min-w-0">
                   <Icon className={`w-4 h-4 ${color} flex-shrink-0`} />
-                  <span className="text-sm text-gray-700 truncate">
+                  <span className="text-sm text-gray-700 dark:text-gray-300 truncate">
                     {pattern.name}
                   </span>
                 </div>
-                <span className="text-sm font-medium text-gray-900 ml-3">
+                <span className="text-sm font-medium text-gray-900 dark:text-gray-100 ml-3">
                   {pattern.frequency}
                 </span>
               </div>
@@ -110,13 +110,13 @@ export function RcaSummaryCard() {
           })}
         </div>
 
-        <div className="pt-3 border-t border-gray-100">
+        <div className="pt-3 border-t border-gray-100 dark:border-dark-700">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5">
               <Shield className="w-4 h-4 text-blue-500" />
-              <span className="text-sm text-gray-600">Systemic issues</span>
+              <span className="text-sm text-gray-600 dark:text-gray-300">Systemic issues</span>
             </div>
-            <span className="text-sm font-semibold text-gray-900">
+            <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">
               {data.systemicIssuesCount}
             </span>
           </div>

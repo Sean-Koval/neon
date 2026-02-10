@@ -1,0 +1,452 @@
+================================================================================
+TRACES LIST — app/traces/page.tsx
+================================================================================
+All execution traces across all agents, with filtering, search, and bulk actions.
+Route: /traces
+Also used as filtered sub-view at /agents/[id]?tab=traces (see agents/detail-traces.txt)
+
+LAYOUT: p-6, space-y-6
+DATA: useTraces(filters), useTraceCount(projectId, startDate, endDate)
+
+DESIGN NOTES:
+
+  1. TraceSummary from the API includes: traceId, name, timestamp, durationMs,
+     status (unset | ok | error), totalTokens, toolCalls, llmCalls,
+     agentId?, agentVersion?. Score is NOT on TraceSummary — it comes from
+     ScoreRecord joined by trace_id. The table must fetch scores separately
+     or the tRPC endpoint must be extended to include avg score per trace.
+
+  2. Filters are URL-synced via searchParams (shallow routing). Sharing a
+     URL shares the exact filter state. usePersistedFilters saves last-used
+     filters to localStorage as fallback.
+
+  3. The table uses cursor-based pagination ("Load More" button) rather than
+     page numbers. ClickHouse traces are append-only and high-volume; offset
+     pagination is expensive. The hook uses limit + offset internally but the
+     UI presents a "Load More" pattern.
+
+  4. The search bar does double duty: free-text search (trace ID, agent name,
+     span name) AND future NL query. Phase 1 implements free-text only.
+     NL query (Phase 4) will be indicated by a small AI sparkle icon that
+     appears when the query looks like natural language vs a trace ID.
+
+  5. Multi-agent traces are detected by having spans with different agentId
+     values. These get a "multi-agent" badge and default to Graph view on
+     the detail page.
+
+  6. Loop detection: a trace is flagged as "loop suspected" when its span
+     count exceeds 2x the median span count for that agent. This is
+     computed server-side and included as a boolean flag in the response.
+
+  7. "Compare Selected" requires exactly 2 checkboxes. "Create Test Cases"
+     works with 1+ selections.
+
+  8. Cost is derived from totalCostUsd on the Trace record. If null (no
+     cost data), the column shows "--".
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                                                                             │
+│  ┌─ Page Header ───────────────────────────────────────────────────────┐  │
+│  │                                                                       │  │
+│  │  Traces                                                              │  │
+│  │  text-2xl font-bold text-content-primary                             │  │
+│  │                                                                       │  │
+│  │  View and analyze agent execution traces                             │  │
+│  │  text-sm text-content-muted, mt-1                                    │  │
+│  │                                                                       │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+│  ┌─ Summary Stats (grid-cols-4 gap-4) ─────────────────────────────────┐  │
+│  │                                                                       │  │
+│  │  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐ ┌──────────────┐│  │
+│  │  │ Total Traces │ │ Error Rate   │ │ Avg Duration │ │ Avg Cost     ││  │
+│  │  │ 12,847       │ │ 3.2%         │ │ 2.4s         │ │ $0.14        ││  │
+│  │  │              │ │              │ │              │ │              ││  │
+│  │  │ +840 (7d)    │ │ ▂▃▂▅▇ (7d)  │ │ ▇▆▅▄▃ (7d)  │ │ per trace    ││  │
+│  │  └──────────────┘ └──────────────┘ └──────────────┘ └──────────────┘│  │
+│  │                                                                       │  │
+│  │  stat-card class.                                                    │  │
+│  │  Total Traces: count from useTraceCount within selected time range.  │  │
+│  │  Error Rate: % of traces with status='error'. Colored:               │  │
+│  │    <1% emerald, 1-5% amber, >5% rose.                               │  │
+│  │  Avg Duration: mean durationMs across filtered traces.               │  │
+│  │    Colored: <1s emerald, 1-5s amber, >5s rose.                       │  │
+│  │  Avg Cost: mean totalCostUsd. Shows "--" if no cost data.            │  │
+│  │  Sparklines: 7d mini trend (text-[10px], inline).                    │  │
+│  │                                                                       │  │
+│  │  Stats update when filters change.                                   │  │
+│  │                                                                       │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+│  ┌─ Search + Filters ─────────────────────────────────────────────────┐   │
+│  │                                                                       │  │
+│  │  ┌──────────────────────────────────────────────────────────────┐    │  │
+│  │  │ (SearchIcon) Search by trace ID, agent, or span name...      │    │  │
+│  │  └──────────────────────────────────────────────────────────────┘    │  │
+│  │                                                                       │  │
+│  │  Search bar: w-full, h-10, border border-border rounded-lg           │  │
+│  │  bg-surface-input, text-sm, pl-10 (icon offset).                     │  │
+│  │  Debounced 300ms. Searches traceId, name, agentId.                   │  │
+│  │  Min 2 chars to trigger search.                                      │  │
+│  │                                                                       │  │
+│  │  ┌────────────┐ ┌────────────┐ ┌────────────┐ ┌──────────────────┐ │  │
+│  │  │ Status  ▾  │ │ Agent   ▾  │ │ Duration ▾ │ │ Last 7 days   ▾  │ │  │
+│  │  └────────────┘ └────────────┘ └────────────┘ └──────────────────┘ │  │
+│  │                                                                       │  │
+│  │  ┌────────────┐                                                      │  │
+│  │  │ Clear All  │  Visible only when any filter is active.             │  │
+│  │  └────────────┘  btn btn-ghost btn-sm text-content-muted             │  │
+│  │                                                                       │  │
+│  │  Filter dropdowns (all select, single-choice):                       │  │
+│  │                                                                       │  │
+│  │  STATUS:                                                              │  │
+│  │    All Statuses (default)                                             │  │
+│  │    Success (ok)     — filters status='ok'                             │  │
+│  │    Error            — filters status='error'                          │  │
+│  │    Unset            — filters status='unset'                          │  │
+│  │                                                                       │  │
+│  │  AGENT:                                                               │  │
+│  │    All Agents (default)                                               │  │
+│  │    (dynamically populated from distinct agentId values)               │  │
+│  │    e.g. booking-agent, research-agent, support-agent                  │  │
+│  │    Shows agent name, not ID. Sorted alphabetically.                   │  │
+│  │    Agent list fetched from useAgents() or from trace distinct values. │  │
+│  │                                                                       │  │
+│  │  DURATION:                                                            │  │
+│  │    Any Duration (default)                                             │  │
+│  │    < 1 second        — durationMs < 1000                              │  │
+│  │    1-5 seconds       — 1000 <= durationMs < 5000                      │  │
+│  │    5-30 seconds      — 5000 <= durationMs < 30000                     │  │
+│  │    > 30 seconds      — durationMs >= 30000                            │  │
+│  │    Timeout           — status_message contains 'timeout'              │  │
+│  │                                                                       │  │
+│  │  TIME RANGE:                                                          │  │
+│  │    Last 1 hour                                                        │  │
+│  │    Last 6 hours                                                       │  │
+│  │    Last 24 hours                                                      │  │
+│  │    Last 7 days (default)                                              │  │
+│  │    Last 30 days                                                       │  │
+│  │    Custom...          — opens date picker popover                      │  │
+│  │                                                                       │  │
+│  │  All filters combine with AND logic.                                  │  │
+│  │  Active filters show as filled/highlighted dropdown.                  │  │
+│  │  Each dropdown: btn btn-secondary btn-sm, w-auto min-w-[120px].      │  │
+│  │                                                                       │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+│  ┌─ Active Filter Pills (shown when filters active) ──────────────────┐  │
+│  │                                                                       │  │
+│  │  Status: Error [x]  ·  Agent: booking-agent [x]  ·  Last 24h [x]   │  │
+│  │                                                                       │  │
+│  │  Removable pills. text-xs. bg-surface-overlay rounded-full px-3 py-1│  │
+│  │  Each [x] removes that filter and refetches.                         │  │
+│  │  Only shown when at least one non-default filter is active.          │  │
+│  │                                                                       │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+│  ┌─ Trace Table ──────────────────────────────────────────────────────┐   │
+│  │                                                                       │  │
+│  │  ┌──┬──────────────┬──────────────┬────────┬──────┬────────┬──────┐ │  │
+│  │  │  │ Trace        │ Agent        │ Status │ Spans│Duration│ Cost │ │  │
+│  │  │  │              │              │        │      │        │      │ │  │
+│  │  ├──┼──────────────┼──────────────┼────────┼──────┼────────┼──────┤ │  │
+│  │  │☐ │ abc-1234...  │ booking      │  ok    │ 12   │ 3.2s   │$0.12 │ │  │
+│  │  │  │              │ v2.1         │        │      │ 2m ago │      │ │  │
+│  │  ├──┼──────────────┼──────────────┼────────┼──────┼────────┼──────┤ │  │
+│  │  │☐ │ def-5678...  │ research     │  error │ 8    │timeout │$0.31 │ │  │
+│  │  │  │              │ v1.3         │        │      │ 5m ago │      │ │  │
+│  │  ├──┼──────────────┼──────────────┼────────┼──────┼────────┼──────┤ │  │
+│  │  │☐ │ ghi-9012...  │ booking      │  ok    │ 15   │ 4.1s   │$0.18 │ │  │
+│  │  │  │ multi-agent  │ + research   │        │      │ 12m ago│      │ │  │
+│  │  ├──┼──────────────┼──────────────┼────────┼──────┼────────┼──────┤ │  │
+│  │  │☐ │ jkl-3456...  │ support      │  ok    │ 6    │ 1.8s   │$0.06 │ │  │
+│  │  │  │              │ v3.0         │        │      │ 30m ago│      │ │  │
+│  │  ├──┼──────────────┼──────────────┼────────┼──────┼────────┼──────┤ │  │
+│  │  │☐ │ mno-7890...  │ booking      │  ok    │ 22   │ 8.5s   │$0.42 │ │  │
+│  │  │  │ loop!        │ v2.1         │        │      │ 1h ago │      │ │  │
+│  │  └──┴──────────────┴──────────────┴────────┴──────┴────────┴──────┘ │  │
+│  │                                                                       │  │
+│  │  Table header:                                                        │  │
+│  │  text-[11px] uppercase tracking-wider text-content-muted              │  │
+│  │  font-medium. All columns sortable (click to toggle asc/desc).        │  │
+│  │  Active sort: text-content-primary with arrow indicator.              │  │
+│  │  Default sort: timestamp desc (newest first).                         │  │
+│  │                                                                       │  │
+│  │  COLUMN DETAILS:                                                      │  │
+│  │                                                                       │  │
+│  │  Checkbox:                                                            │  │
+│  │    For multi-select. Header checkbox = select all visible.            │  │
+│  │    Enables bulk action bar when >=1 selected.                         │  │
+│  │                                                                       │  │
+│  │  Trace:                                                               │  │
+│  │    Line 1: first 8 chars of traceId + ellipsis. font-mono text-sm.   │  │
+│  │    Line 2 (optional badges):                                          │  │
+│  │      "multi-agent" — badge-blue, shown when trace has spans from     │  │
+│  │        multiple distinct agentId values.                              │  │
+│  │      "loop!" — badge-red text-[10px], shown when span count >2x     │  │
+│  │        the agent's median span count. Tooltip: "Possible retry loop  │  │
+│  │        detected — span count is unusually high for this agent."       │  │
+│  │    Click trace ID -> navigate to /traces/[traceId].                   │  │
+│  │                                                                       │  │
+│  │  Agent:                                                               │  │
+│  │    Line 1: agent name (from agentId). text-sm text-content-primary.  │  │
+│  │    Line 2: version (from agentVersion). text-xs text-content-muted.  │  │
+│  │    If multi-agent: shows primary agent + "+ other" count.             │  │
+│  │    Shows "--" if agentId is null.                                      │  │
+│  │    Click agent name -> navigate to /agents/[agentId].                 │  │
+│  │                                                                       │  │
+│  │  Status:                                                              │  │
+│  │    Colored icon + text:                                               │  │
+│  │    ok    = CheckCircle icon, text-status-success                      │  │
+│  │    error = XCircle icon, text-status-error                            │  │
+│  │    unset = MinusCircle icon, text-content-muted                       │  │
+│  │                                                                       │  │
+│  │  Spans:                                                               │  │
+│  │    Span count (llmCalls + toolCalls or total from trace).             │  │
+│  │    text-sm, text-content-secondary.                                   │  │
+│  │    Colored amber if >2x agent median (loop indicator).                │  │
+│  │                                                                       │  │
+│  │  Duration:                                                            │  │
+│  │    Line 1: formatted duration.                                        │  │
+│  │      <1000ms: "342ms"                                                 │  │
+│  │      1-60s: "3.2s"                                                    │  │
+│  │      >60s: "1m 23s"                                                   │  │
+│  │      Timeout: "timeout" in text-status-error                          │  │
+│  │    Line 2: relative timestamp ("2m ago", "1h ago", "3d ago").         │  │
+│  │      text-xs text-content-muted.                                      │  │
+│  │    Duration colored: <1s emerald, 1-5s default, >5s amber, >30s rose.│  │
+│  │                                                                       │  │
+│  │  Cost:                                                                │  │
+│  │    totalCostUsd formatted as $X.XX. text-sm text-content-secondary.  │  │
+│  │    Shows "--" if null/undefined.                                       │  │
+│  │    Colored: <$0.10 default, $0.10-$1.00 amber, >$1.00 rose.          │  │
+│  │                                                                       │  │
+│  │  Row behavior:                                                        │  │
+│  │    Hover: bg-surface-overlay/50                                       │  │
+│  │    Click (not on checkbox/link): navigate to /traces/[traceId]       │  │
+│  │    Cursor: pointer                                                    │  │
+│  │                                                                       │  │
+│  │  card class (bg-surface-card border border-border rounded-xl)         │  │
+│  │                                                                       │  │
+│  │  ┌─ Load More ────────────────────────────────────────────────────┐ │  │
+│  │  │                                                                   │ │  │
+│  │  │  Showing 50 of 12,847 traces                    [Load More]      │ │  │
+│  │  │                                                                   │ │  │
+│  │  │  text-sm text-content-muted.                                     │ │  │
+│  │  │  "Load More": btn btn-secondary btn-sm.                          │ │  │
+│  │  │  Loads next 50. Appends to existing list (infinite scroll style).│ │  │
+│  │  │  Hidden when all traces are loaded.                              │ │  │
+│  │  │  Shows spinner while loading next batch.                         │ │  │
+│  │  │                                                                   │ │  │
+│  │  └───────────────────────────────────────────────────────────────────┘ │  │
+│  │                                                                       │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+│  ┌─ Bulk Action Bar (sticky bottom, shown when >=1 selected) ──────────┐  │
+│  │                                                                       │  │
+│  │  2 selected   [Compare Selected]  [Create Test Cases]  [Deselect All]│  │
+│  │                                                                       │  │
+│  │  Position: sticky bottom-0. bg-surface-card border-t border-border.  │  │
+│  │  p-3, flex items-center justify-between.                              │  │
+│  │  Slides up with transition when selection count goes from 0 to 1.    │  │
+│  │                                                                       │  │
+│  │  "N selected": text-sm font-medium text-content-primary.            │  │
+│  │                                                                       │  │
+│  │  "Compare Selected": btn btn-secondary btn-sm.                       │  │
+│  │    Enabled only when exactly 2 traces selected.                       │  │
+│  │    Disabled state: opacity-50, cursor-not-allowed.                    │  │
+│  │    Tooltip when disabled: "Select exactly 2 traces to compare"       │  │
+│  │    Click -> navigates to /traces/diff?a=[traceId1]&b=[traceId2]     │  │
+│  │                                                                       │  │
+│  │  "Create Test Cases": btn btn-secondary btn-sm.                      │  │
+│  │    Enabled when >=1 trace selected.                                   │  │
+│  │    Click -> opens modal to convert selected traces into eval cases.  │  │
+│  │    Each trace becomes a test case with the trace's input as case     │  │
+│  │    input and the trace's output as expected output. User selects     │  │
+│  │    which suite to add cases to.                                       │  │
+│  │                                                                       │  │
+│  │  "Deselect All": btn btn-ghost btn-sm text-content-muted.           │  │
+│  │    Clears all checkboxes and hides the bar.                           │  │
+│  │                                                                       │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+LOADING STATE:
+
+  ┌──────────────────────────────────────────────────────────┐
+  │                                                          │
+  │  Traces                                                  │
+  │  View and analyze agent execution traces                │
+  │                                                          │
+  │  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐  │
+  │  │ ░░░░░░░  │ │ ░░░░░░░  │ │ ░░░░░░░  │ │ ░░░░░░░  │  │
+  │  │ ░░░░     │ │ ░░░░     │ │ ░░░░     │ │ ░░░░     │  │
+  │  └──────────┘ └──────────┘ └──────────┘ └──────────┘  │
+  │                                                          │
+  │  ┌──────────────────────────────────────────────────┐  │
+  │  │ ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  │  │
+  │  └──────────────────────────────────────────────────┘  │
+  │                                                          │
+  │  ┌──────────────────────────────────────────────────┐  │
+  │  │  ░░░░░░░░  ░░░░░░░░  ░░░░  ░░░  ░░░░░  ░░░░░  │  │
+  │  │  ░░░░░░░░  ░░░░░░░░  ░░░░  ░░░  ░░░░░  ░░░░░  │  │
+  │  │  ░░░░░░░░  ░░░░░░░░  ░░░░  ░░░  ░░░░░  ░░░░░  │  │
+  │  │  ░░░░░░░░  ░░░░░░░░  ░░░░  ░░░  ░░░░░  ░░░░░  │  │
+  │  │  ░░░░░░░░  ░░░░░░░░  ░░░░  ░░░  ░░░░░  ░░░░░  │  │
+  │  │  ░░░░░░░░  ░░░░░░░░  ░░░░  ░░░  ░░░░░  ░░░░░  │  │
+  │  │  ░░░░░░░░  ░░░░░░░░  ░░░░  ░░░  ░░░░░  ░░░░░  │  │
+  │  │  ░░░░░░░░  ░░░░░░░░  ░░░░  ░░░  ░░░░░  ░░░░░  │  │
+  │  └──────────────────────────────────────────────────┘  │
+  │                                                          │
+  │  4 stat cards shimmer, search bar renders immediately,  │
+  │  table shows 8 skeleton rows with column-width blocks.  │
+  │  Uses Skeleton component (animate-pulse bg-surface-     │
+  │  overlay rounded).                                      │
+  │                                                          │
+  └──────────────────────────────────────────────────────────┘
+
+EMPTY STATE (no traces at all):
+
+  ┌──────────────────────────────────────────────────────────┐
+  │                                                          │
+  │        (Activity icon, w-12 h-12, text-content-muted)   │
+  │                                                          │
+  │        No traces yet                                     │
+  │        text-lg font-medium text-content-primary          │
+  │                                                          │
+  │        Traces appear automatically when your agents     │
+  │        execute via the SDK. Send your first trace:      │
+  │        text-sm text-content-muted, max-w-sm, centered   │
+  │                                                          │
+  │        ┌──────────────────────────────────────────┐     │
+  │        │ from neon_sdk import Neon                  │     │
+  │        │ neon = Neon(api_key="...")                 │     │
+  │        │ with neon.trace("my-agent"):              │     │
+  │        │     result = agent.run(input)             │     │
+  │        └──────────────────────────────────────────┘     │
+  │        font-mono text-xs bg-surface-overlay rounded     │
+  │        p-4, max-w-md                                     │
+  │                                                          │
+  │        [View SDK Docs]                                   │
+  │        btn btn-secondary btn-sm                          │
+  │                                                          │
+  │  Replaces entire content below page header.             │
+  │  Stats strip still shows with all zeros.                │
+  │                                                          │
+  └──────────────────────────────────────────────────────────┘
+
+EMPTY STATE (filters applied, no matches):
+
+  ┌──────────────────────────────────────────────────────────┐
+  │                                                          │
+  │        (SearchX icon, w-10 h-10, text-content-muted)   │
+  │                                                          │
+  │        No traces match your filters                     │
+  │        text-base font-medium text-content-primary        │
+  │                                                          │
+  │        Try adjusting the status, agent, or time range   │
+  │        filters, or clear all filters.                   │
+  │        text-sm text-content-muted                        │
+  │                                                          │
+  │        [Clear All Filters]                               │
+  │        btn btn-secondary btn-sm                          │
+  │                                                          │
+  │  Shown inside the table card area.                      │
+  │                                                          │
+  └──────────────────────────────────────────────────────────┘
+
+ERROR STATE:
+
+  ┌──────────────────────────────────────────────────────────┐
+  │                                                          │
+  │        (AlertTriangle icon, w-10 h-10, text-status-     │
+  │         error)                                           │
+  │                                                          │
+  │        Failed to load traces                             │
+  │        text-base font-medium text-content-primary        │
+  │                                                          │
+  │        Could not connect to the trace store.            │
+  │        text-sm text-content-muted                        │
+  │                                                          │
+  │        [Retry]                                           │
+  │        btn btn-secondary btn-sm. Calls refetch().       │
+  │                                                          │
+  └──────────────────────────────────────────────────────────┘
+
+DATA SOURCES:
+
+  useTraces(filters)
+    Hook: frontend/hooks/use-traces.ts
+    tRPC: traces.list
+    Backend: ClickHouse traces table via Moose API
+    Returns: TraceSummary[]
+    Stale time: 30 seconds
+    Filters: status, startDate, endDate, agentId, search, limit, offset
+
+  useTraceCount(projectId, startDate, endDate)
+    Hook: frontend/hooks/use-traces.ts
+    tRPC: traces.count
+    Returns: { count: number }
+    Stale time: 1 minute
+
+  useTraceSearch(query)
+    Hook: frontend/hooks/use-traces.ts
+    tRPC: traces.search
+    Returns: TraceSummary[]
+    Stale time: 30 seconds
+    Min query length: 2 characters
+
+  TraceSummary fields:
+    traceId, name, timestamp, durationMs, status,
+    totalTokens, toolCalls, llmCalls, agentId?, agentVersion?
+
+  Trace fields (superset of TraceSummary):
+    + totalInputTokens, totalOutputTokens, totalCostUsd?,
+      metadata, workflowId?, workflowRunId?
+
+BEHAVIORAL NOTES:
+
+  1. URL state: All filter selections are synced to URL searchParams.
+     Example: /traces?status=error&agent=booking-agent&range=24h
+     This makes filtered views shareable and bookmarkable.
+
+  2. Filter persistence: usePersistedFilters saves the last-used filter
+     combination to localStorage. On page load, URL params take priority;
+     if none, localStorage values are restored.
+
+  3. Debounced search: Search input debounces 300ms before triggering
+     the API call. Shows a small spinner in the search icon position
+     while the request is in flight.
+
+  4. Load More pagination: Initial load fetches 50 traces. "Load More"
+     appends the next 50. The count in "Showing X of Y" updates as
+     more are loaded. Scroll position is preserved on load.
+
+  5. Sort persistence: Sort column + direction is included in URL params.
+     Default: timestamp desc. Clicking a header toggles between asc/desc.
+     Sorting triggers a new API call (server-side sort).
+
+  6. Checkbox state: Checkboxes are local UI state (not URL-synced).
+     Cleared when filters change or page refreshes.
+
+  7. Multi-agent detection: The "multi-agent" badge is derived from
+     the trace having spans with different agentId values. This must
+     be computed server-side or by a dedicated field in the API response.
+
+  8. Agent link: Clicking agent name navigates to /agents/[agentId].
+     If agentId is not a registered agent, the link still works
+     (agents page handles unknown agents gracefully).
+
+  9. Cost display: totalCostUsd may be null if the agent doesn't
+     report cost. Column shows "--" with a tooltip: "Cost tracking
+     not available for this trace."
+
+  10. Responsive: On screens < 1024px (lg breakpoint), the Cost column
+      is hidden. On screens < 768px (md), Spans column is also hidden.
+      Stats strip wraps to grid-cols-2.
+
+  11. Refresh: Data auto-refreshes every 30 seconds (staleTime). No
+      manual refresh button needed — React Query handles background
+      refetching. If the user wants immediate refresh, they can
+      re-apply any filter.

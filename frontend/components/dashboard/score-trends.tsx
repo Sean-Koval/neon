@@ -22,7 +22,6 @@ import {
   ChartSkeleton,
   LazyTrendChart,
 } from '@/components/charts/lazy-charts'
-import { CONFIG } from '@/lib/config'
 import {
   downloadData,
   exportToCSV,
@@ -34,6 +33,7 @@ import {
   type TimeRange,
   useScoreTrends,
 } from '@/hooks/use-scores'
+import { CONFIG } from '@/lib/config'
 
 // =============================================================================
 // Types
@@ -69,7 +69,7 @@ function TimeRangeSelector({ value, onChange }: TimeRangeSelectorProps) {
   ]
 
   return (
-    <div className="flex gap-1 bg-gray-100 p-1 rounded-lg">
+    <div className="flex gap-1 bg-surface-raised p-1 rounded-lg border border-border">
       {options.map((opt) => (
         <button
           type="button"
@@ -79,8 +79,8 @@ function TimeRangeSelector({ value, onChange }: TimeRangeSelectorProps) {
             px-3 py-1.5 text-sm font-medium rounded-md transition-all duration-200
             ${
               value === opt.value
-                ? 'bg-white text-gray-900 shadow-sm'
-                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                ? 'bg-surface-card text-content-primary shadow-sm border border-border'
+                : 'text-content-secondary hover:text-content-primary hover:bg-surface-overlay'
             }
           `}
         >
@@ -107,7 +107,7 @@ function TrendIcon({ direction }: { direction: 'up' | 'down' | 'stable' }) {
   if (direction === 'down') {
     return <ArrowDown className="w-4 h-4 text-rose-500" />
   }
-  return <Minus className="w-4 h-4 text-gray-400" />
+  return <Minus className="w-4 h-4 text-content-muted" />
 }
 
 function StatisticsPanel({ stats, isLoading }: StatisticsPanelProps) {
@@ -115,9 +115,12 @@ function StatisticsPanel({ stats, isLoading }: StatisticsPanelProps) {
     return (
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {['mean', 'stddev', 'trend', 'count'].map((key) => (
-          <div key={key} className="bg-gray-50 rounded-lg p-3 animate-pulse">
-            <div className="h-3 w-12 bg-gray-200 rounded mb-2" />
-            <div className="h-6 w-16 bg-gray-200 rounded" />
+          <div
+            key={key}
+            className="bg-surface-raised rounded-lg p-3 animate-pulse border border-border/70"
+          >
+            <div className="h-3 w-12 bg-gray-200 dark:bg-dark-700 rounded mb-2" />
+            <div className="h-6 w-16 bg-gray-200 dark:bg-dark-700 rounded" />
           </div>
         ))}
       </div>
@@ -135,16 +138,19 @@ function StatisticsPanel({ stats, isLoading }: StatisticsPanelProps) {
       subValue: `CV: ${(stats.cv * 100).toFixed(1)}%`,
       color:
         stats.mean >= 0.8
-          ? 'text-emerald-600'
+          ? 'text-emerald-600 dark:text-emerald-400'
           : stats.mean >= 0.6
-            ? 'text-amber-600'
-            : 'text-rose-600',
+            ? 'text-amber-600 dark:text-amber-400'
+            : 'text-rose-600 dark:text-rose-400',
     },
     {
       label: 'Std Deviation',
       value: stats.stdDev.toFixed(3),
       subValue: `Range: ${(stats.max - stats.min).toFixed(2)}`,
-      color: stats.stdDev < 0.1 ? 'text-emerald-600' : 'text-amber-600',
+      color:
+        stats.stdDev < 0.1
+          ? 'text-emerald-600 dark:text-emerald-400'
+          : 'text-amber-600 dark:text-amber-400',
     },
     {
       label: 'Trend',
@@ -157,16 +163,16 @@ function StatisticsPanel({ stats, isLoading }: StatisticsPanelProps) {
       icon: <TrendIcon direction={stats.trendDirection} />,
       color:
         stats.trendDirection === 'up'
-          ? 'text-emerald-600'
+          ? 'text-emerald-600 dark:text-emerald-400'
           : stats.trendDirection === 'down'
-            ? 'text-rose-600'
-            : 'text-gray-600',
+            ? 'text-rose-600 dark:text-rose-400'
+            : 'text-content-secondary',
     },
     {
       label: 'Data Points',
       value: stats.count.toString(),
       subValue: `Min: ${stats.min.toFixed(2)} / Max: ${stats.max.toFixed(2)}`,
-      color: 'text-gray-700',
+      color: 'text-content-secondary',
     },
   ]
 
@@ -175,9 +181,11 @@ function StatisticsPanel({ stats, isLoading }: StatisticsPanelProps) {
       {items.map((item) => (
         <div
           key={item.label}
-          className="bg-gray-50 rounded-lg p-3 border border-gray-100"
+          className="bg-surface-raised rounded-lg p-3 border border-border/70"
         >
-          <p className="text-xs font-medium text-gray-500 mb-1">{item.label}</p>
+          <p className="text-xs font-medium text-content-muted mb-1">
+            {item.label}
+          </p>
           <div className="flex items-center gap-1.5">
             {item.icon}
             <span className={`text-lg font-semibold ${item.color}`}>
@@ -185,7 +193,7 @@ function StatisticsPanel({ stats, isLoading }: StatisticsPanelProps) {
             </span>
           </div>
           {item.subValue && (
-            <p className="text-xs text-gray-400 mt-0.5">{item.subValue}</p>
+            <p className="text-xs text-content-muted mt-0.5">{item.subValue}</p>
           )}
         </div>
       ))}
@@ -206,23 +214,23 @@ function RegressionsAlert({ regressions, onDismiss }: RegressionsAlertProps) {
   if (regressions.length === 0) return null
 
   return (
-    <div className="bg-rose-50 border border-rose-200 rounded-lg p-4">
+    <div className="bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/25 rounded-lg p-4">
       <div className="flex items-start gap-3">
-        <div className="p-1.5 bg-rose-100 rounded-lg">
-          <AlertTriangle className="w-5 h-5 text-rose-600" />
+        <div className="p-1.5 bg-rose-100 dark:bg-rose-500/20 rounded-lg">
+          <AlertTriangle className="w-5 h-5 text-rose-600 dark:text-rose-400" />
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between gap-2">
-            <h4 className="font-semibold text-rose-800">
+            <h4 className="font-semibold text-rose-800 dark:text-rose-300">
               {regressions.length} Regression{regressions.length > 1 ? 's' : ''}{' '}
               Detected
             </h4>
             <button
               type="button"
               onClick={onDismiss}
-              className="p-1 hover:bg-rose-100 rounded transition-colors"
+              className="p-1 hover:bg-rose-100 dark:hover:bg-rose-500/20 rounded transition-colors"
             >
-              <X className="w-4 h-4 text-rose-600" />
+              <X className="w-4 h-4 text-rose-600 dark:text-rose-400" />
             </button>
           </div>
           <div className="mt-2 space-y-2">
@@ -231,19 +239,21 @@ function RegressionsAlert({ regressions, onDismiss }: RegressionsAlertProps) {
                 key={reg.date}
                 className="flex items-center justify-between text-sm"
               >
-                <span className="text-rose-700">{reg.date}</span>
-                <span className="font-medium text-rose-800">
+                <span className="text-rose-700 dark:text-rose-400">
+                  {reg.date}
+                </span>
+                <span className="font-medium text-rose-800 dark:text-rose-300">
                   {reg.previousScore.toFixed(2)}{' '}
                   <ArrowRight className="w-3 h-3 inline" />{' '}
                   {reg.score.toFixed(2)}
-                  <span className="ml-1 text-rose-600">
+                  <span className="ml-1 text-rose-600 dark:text-rose-400">
                     (-{reg.percentageDrop.toFixed(1)}%)
                   </span>
                 </span>
               </div>
             ))}
             {regressions.length > 3 && (
-              <p className="text-xs text-rose-600">
+              <p className="text-xs text-rose-600 dark:text-rose-400">
                 +{regressions.length - 3} more regressions
               </p>
             )}
@@ -278,7 +288,7 @@ function SuiteBreakdown({
       <button
         type="button"
         onClick={() => setIsExpanded(!isExpanded)}
-        className="flex items-center gap-2 text-sm font-medium text-gray-700 hover:text-primary-600 transition-colors"
+        className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-primary-600 transition-colors"
       >
         <Layers className="w-4 h-4" />
         By Suite ({suites.length})
@@ -297,11 +307,11 @@ function SuiteBreakdown({
               ${
                 !selectedSuite
                   ? 'bg-primary-50 border-primary-200 ring-1 ring-primary-300'
-                  : 'bg-gray-50 border-gray-200 hover:border-gray-300'
+                  : 'bg-gray-50 dark:bg-dark-900 border-gray-200 dark:border-dark-700 hover:border-gray-300 dark:hover:border-dark-600'
               }
             `}
           >
-            <span className="text-sm font-medium text-gray-700">
+            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
               All Suites
             </span>
           </button>
@@ -316,12 +326,12 @@ function SuiteBreakdown({
                 ${
                   selectedSuite === suite.suiteId
                     ? 'bg-primary-50 border-primary-200 ring-1 ring-primary-300'
-                    : 'bg-gray-50 border-gray-200 hover:border-gray-300'
+                    : 'bg-gray-50 dark:bg-dark-900 border-gray-200 dark:border-dark-700 hover:border-gray-300 dark:hover:border-dark-600'
                 }
               `}
             >
               <div className="flex items-start justify-between gap-2">
-                <span className="text-sm font-medium text-gray-700 truncate">
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300 truncate">
                   {suite.suiteName}
                 </span>
                 <TrendIcon direction={suite.trendDirection} />
@@ -330,15 +340,15 @@ function SuiteBreakdown({
                 <span
                   className={`text-lg font-semibold ${
                     suite.avgScore >= 0.8
-                      ? 'text-emerald-600'
+                      ? 'text-emerald-600 dark:text-emerald-400'
                       : suite.avgScore >= 0.6
-                        ? 'text-amber-600'
-                        : 'text-rose-600'
+                        ? 'text-amber-600 dark:text-amber-400'
+                        : 'text-rose-600 dark:text-rose-400'
                   }`}
                 >
                   {suite.avgScore.toFixed(2)}
                 </span>
-                <span className="text-xs text-gray-400">
+                <span className="text-xs text-gray-400 dark:text-gray-500">
                   {suite.runCount} runs
                 </span>
               </div>
@@ -382,7 +392,7 @@ function ExportMenu({ data, statistics, regressions }: ExportMenuProps) {
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-content-secondary hover:text-content-primary hover:bg-surface-overlay rounded-lg transition-colors"
       >
         <Download className="w-4 h-4" />
         Export
@@ -399,18 +409,18 @@ function ExportMenu({ data, statistics, regressions }: ExportMenuProps) {
               if (e.key === 'Escape') setIsOpen(false)
             }}
           />
-          <div className="absolute right-0 top-full mt-1 w-40 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-20">
+          <div className="absolute right-0 top-full mt-1 w-40 bg-surface-card border border-border rounded-lg shadow-lg py-1 z-20">
             <button
               type="button"
               onClick={handleExportCSV}
-              className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+              className="w-full text-left px-4 py-2 text-sm text-content-secondary hover:bg-surface-overlay transition-colors"
             >
               Export as CSV
             </button>
             <button
               type="button"
               onClick={handleExportJSON}
-              className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+              className="w-full text-left px-4 py-2 text-sm text-content-secondary hover:bg-surface-overlay transition-colors"
             >
               Export as JSON
             </button>
@@ -445,59 +455,61 @@ function DrillDownModal({ point, onClose }: DrillDownModalProps) {
           }
         }}
       />
-      <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4 max-h-[80vh] flex flex-col">
-        <div className="flex items-center justify-between p-4 border-b border-gray-200">
+      <div className="relative bg-surface-card rounded-xl shadow-2xl w-full max-w-lg mx-4 max-h-[80vh] flex flex-col border border-border">
+        <div className="flex items-center justify-between p-4 border-b border-border">
           <div>
-            <h3 className="font-semibold text-gray-900">{point.displayDate}</h3>
-            <p className="text-sm text-gray-500">
+            <h3 className="font-semibold text-content-primary">
+              {point.displayDate}
+            </h3>
+            <p className="text-sm text-content-muted">
               {point.runCount} run{point.runCount !== 1 ? 's' : ''}
             </p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            className="p-2 hover:bg-surface-overlay rounded-lg transition-colors"
           >
-            <X className="w-5 h-5 text-gray-500" />
+            <X className="w-5 h-5 text-content-muted" />
           </button>
         </div>
 
         <div className="p-4 space-y-4 overflow-y-auto">
           {/* Score Summary */}
           <div className="grid grid-cols-3 gap-3">
-            <div className="bg-gray-50 rounded-lg p-3 text-center">
-              <p className="text-xs text-gray-500 mb-1">Average</p>
+            <div className="bg-surface-raised rounded-lg p-3 text-center border border-border/70">
+              <p className="text-xs text-content-muted mb-1">Average</p>
               <p
                 className={`text-xl font-bold ${
                   point.avgScore >= 0.8
-                    ? 'text-emerald-600'
+                    ? 'text-emerald-600 dark:text-emerald-400'
                     : point.avgScore >= 0.6
-                      ? 'text-amber-600'
-                      : 'text-rose-600'
+                      ? 'text-amber-600 dark:text-amber-400'
+                      : 'text-rose-600 dark:text-rose-400'
                 }`}
               >
                 {point.avgScore.toFixed(3)}
               </p>
             </div>
-            <div className="bg-gray-50 rounded-lg p-3 text-center">
-              <p className="text-xs text-gray-500 mb-1">Min</p>
-              <p className="text-xl font-bold text-gray-700">
+            <div className="bg-surface-raised rounded-lg p-3 text-center border border-border/70">
+              <p className="text-xs text-content-muted mb-1">Min</p>
+              <p className="text-xl font-bold text-content-secondary">
                 {point.minScore.toFixed(3)}
               </p>
             </div>
-            <div className="bg-gray-50 rounded-lg p-3 text-center">
-              <p className="text-xs text-gray-500 mb-1">Max</p>
-              <p className="text-xl font-bold text-gray-700">
+            <div className="bg-surface-raised rounded-lg p-3 text-center border border-border/70">
+              <p className="text-xs text-content-muted mb-1">Max</p>
+              <p className="text-xl font-bold text-content-secondary">
                 {point.maxScore.toFixed(3)}
               </p>
             </div>
           </div>
 
           {point.isRegression && (
-            <div className="bg-rose-50 border border-rose-200 rounded-lg p-3">
+            <div className="bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/25 rounded-lg p-3">
               <div className="flex items-center gap-2">
-                <AlertTriangle className="w-4 h-4 text-rose-600" />
-                <span className="text-sm font-medium text-rose-700">
+                <AlertTriangle className="w-4 h-4 text-rose-600 dark:text-rose-400" />
+                <span className="text-sm font-medium text-rose-700 dark:text-rose-400">
                   Regression detected ({(point.delta * 100).toFixed(1)}% drop)
                 </span>
               </div>
@@ -506,7 +518,7 @@ function DrillDownModal({ point, onClose }: DrillDownModalProps) {
 
           {/* Run Links */}
           <div>
-            <h4 className="text-sm font-medium text-gray-700 mb-2">
+            <h4 className="text-sm font-medium text-content-secondary mb-2">
               Individual Runs
             </h4>
             <div className="space-y-1 max-h-[200px] overflow-y-auto">
@@ -514,19 +526,19 @@ function DrillDownModal({ point, onClose }: DrillDownModalProps) {
                 <Link
                   key={runId}
                   href={`/eval-runs/${runId}`}
-                  className="flex items-center justify-between p-2 rounded-lg hover:bg-gray-50 transition-colors group"
+                  className="flex items-center justify-between p-2 rounded-lg hover:bg-surface-overlay transition-colors group"
                 >
-                  <span className="text-sm text-gray-600 font-mono truncate">
+                  <span className="text-sm text-content-secondary font-mono truncate">
                     {runId.slice(0, 8)}...
                   </span>
-                  <ExternalLink className="w-4 h-4 text-gray-400 group-hover:text-primary-500 transition-colors" />
+                  <ExternalLink className="w-4 h-4 text-content-muted group-hover:text-primary-500 transition-colors" />
                 </Link>
               ))}
             </div>
           </div>
         </div>
 
-        <div className="p-4 border-t border-gray-200 bg-gray-50 rounded-b-xl">
+        <div className="p-4 border-t border-border bg-surface-raised rounded-b-xl">
           <button
             type="button"
             onClick={onClose}
@@ -582,20 +594,22 @@ export function ScoreTrends({
       <div className={`card ${className}`}>
         <div className="p-6">
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-lg font-semibold text-gray-900">
+            <h2 className="text-lg font-semibold text-content-primary">
               Score Trends
             </h2>
           </div>
-          <div className="h-[300px] bg-rose-50 rounded-lg flex flex-col items-center justify-center">
+          <div className="h-[300px] bg-rose-50 dark:bg-rose-500/10 rounded-lg flex flex-col items-center justify-center">
             <AlertTriangle className="w-10 h-10 text-rose-400 mb-3" />
-            <p className="font-medium text-rose-600">Failed to load data</p>
+            <p className="font-medium text-rose-600 dark:text-rose-400">
+              Failed to load data
+            </p>
             <p className="text-sm text-rose-500 mt-1">
               {error?.message ?? 'Unknown error'}
             </p>
             <button
               type="button"
               onClick={() => refetch()}
-              className="mt-4 btn btn-secondary inline-flex items-center gap-2"
+              className="mt-4 btn btn-secondary"
             >
               <RefreshCw className="w-4 h-4" />
               Retry
@@ -607,19 +621,20 @@ export function ScoreTrends({
   }
 
   return (
-    <div className={`card overflow-hidden ${className}`}>
+    <div className={`card overflow-hidden relative ${className}`}>
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-primary-400/70 via-accent-400/60 to-primary-400/70" />
       {/* Header */}
-      <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white">
+      <div className="p-6 border-b border-border bg-gradient-to-r from-surface-raised to-surface-card">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-gradient-to-br from-primary-50 to-accent-50">
-              <TrendingUp className="w-5 h-5 text-primary-500" />
+            <div className="p-2 rounded-lg border border-border bg-gradient-to-br from-primary-50 to-accent-50 dark:from-primary-900/30 dark:to-accent-900/30">
+              <TrendingUp className="w-5 h-5 text-primary-500 dark:text-primary-400" />
             </div>
             <div>
-              <h2 className="text-lg font-semibold text-gray-900">
+              <h2 className="text-lg font-semibold text-content-primary">
                 Score Trends
               </h2>
-              <p className="text-sm text-gray-500">
+              <p className="text-sm text-content-muted">
                 {selectedSuite ? 'Filtered by suite' : 'All evaluations'}
               </p>
             </div>
@@ -635,7 +650,7 @@ export function ScoreTrends({
             <button
               type="button"
               onClick={() => refetch()}
-              className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+              className="p-2 text-content-muted hover:text-content-primary hover:bg-surface-overlay rounded-lg transition-colors"
               title="Refresh data"
             >
               <RefreshCw className="w-4 h-4" />

@@ -1,0 +1,554 @@
+================================================================================
+EVAL RUN DETAIL — app/eval-runs/[id]/page.tsx
+================================================================================
+Single eval run with real-time progress, scorer breakdown, score distribution,
+contextual actions, and per-case results with trace links.
+
+Route: /eval-runs/[id]
+Layout: p-8, max-w-6xl mx-auto, space-y-6
+Data: useWorkflowRun(id), useWorkflowRunStatus(id), useRealtimeRun(id)
+
+DESIGN NOTES:
+
+  1. THREE-PHASE LAYOUT — The page has 3 visual phases depending on
+     run status. RUNNING: progress hero card + live results streaming
+     in. COMPLETED: summary cards + score breakdown + full results.
+     FAILED: error explanation + partial results (if any).
+
+  2. NO TEMPORAL INTERNALS — No workflowId, no Temporal UI links,
+     no internal status codes. Users see: run ID, agent name, suite
+     name, scores. Temporal is the execution engine, not the product.
+
+  3. SCORER BREAKDOWN IS THE HEADLINE — The most important thing
+     after pass rate is *which scorers* are dragging the average down.
+     The scorer breakdown section answers this in 2 seconds: horizontal
+     bars per scorer, sorted worst-first.
+
+  4. SCORE DISTRIBUTION MATTERS — A pass rate of 80% means very
+     different things depending on distribution. Bimodal (many 0.95 +
+     many 0.3) vs uniform (all ~0.8). A histogram makes this visible.
+
+  5. RERUN IS FIRST-CLASS — After any completed or failed run, the
+     most natural action is "do it again." The rerun button clones
+     all settings and starts a new run in one click.
+
+  6. REAL-TIME IS VISIBLE — When a run is in progress, the connection
+     method (WebSocket live vs polling) is shown as a small indicator.
+     Results stream into the table as they complete (newest at top
+     during running, reordered by case index on completion).
+
+  7. CASE NAMES FROM SUITES — When a run uses a suite, cases show
+     their suite-defined name ("Basic booking", "Edge: no availability")
+     instead of "Case #1". For custom runs without suite, fall back to
+     "Case #N" labels.
+
+================================================================================
+PAGE LAYOUT — COMPLETED RUN
+================================================================================
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  p-8, max-w-6xl mx-auto                                                    │
+│                                                                             │
+│  ┌─ Back Link ──────────────────────────────────────────────────────────┐  │
+│  │                                                                       │  │
+│  │  <- Back to Eval Runs                                                │  │
+│  │                                                                       │  │
+│  │  Link to /eval-runs                                                  │  │
+│  │  text-sm text-content-muted hover:text-content-primary               │  │
+│  │  flex items-center gap-1, ChevronLeft icon w-4 h-4                   │  │
+│  │                                                                       │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+│  ┌─ Run Header ─────────────────────────────────────────────────────────┐  │
+│  │                                                                       │  │
+│  │  ┌────────────────────────────────────────────────────────────────┐  │  │
+│  │  │                                                                │  │  │
+│  │  │  booking-suite                             (v) Completed      │  │  │
+│  │  │  booking-agent v2.1.0                                         │  │  │
+│  │  │  Started 1h ago · Duration 4m 12s · 100 cases                │  │  │
+│  │  │                                                                │  │  │
+│  │  │  [Rerun]  [Compare with Previous]  [Export ▾]                │  │  │
+│  │  │                                                                │  │  │
+│  │  └────────────────────────────────────────────────────────────────┘  │  │
+│  │                                                                       │  │
+│  │  Layout: flex justify-between items-start                            │  │
+│  │                                                                       │  │
+│  │  Left side:                                                          │  │
+│  │    Suite name: text-2xl font-bold text-content-primary               │  │
+│  │      Linked: click → /suites/[suiteId]                              │  │
+│  │    Agent + version: text-sm text-content-muted                      │  │
+│  │      Agent linked: click → /agents/[agentId]                        │  │
+│  │      Version: font-mono                                              │  │
+│  │    Meta line: text-sm text-content-muted                            │  │
+│  │      Started: relative time (hover: full datetime tooltip)          │  │
+│  │      Duration: computed from startTime→closeTime                    │  │
+│  │      Cases: total from progress                                     │  │
+│  │      Separated by middot                                            │  │
+│  │                                                                       │  │
+│  │  Right side:                                                         │  │
+│  │    StatusBadge: same component as list page                         │  │
+│  │    Larger variant: text-sm px-3 py-1.5 (vs text-xs on list)        │  │
+│  │                                                                       │  │
+│  │  Actions row: flex gap-2, mt-3                                      │  │
+│  │                                                                       │  │
+│  │  "Rerun": btn btn-secondary btn-sm                                  │  │
+│  │    (RotateCcw icon) Clones this run's config (same suite, agent,    │  │
+│  │    version, scorers, parallelism) and starts a new run.             │  │
+│  │    Confirms first: "Start a new run with the same settings?"        │  │
+│  │    On success → navigates to the new run's detail page.             │  │
+│  │                                                                       │  │
+│  │  "Compare with Previous": btn btn-secondary btn-sm                  │  │
+│  │    (GitCompare icon) Only shown if a previous run exists for the    │  │
+│  │    same suite+agent. Navigates to:                                  │  │
+│  │    /compare?baseline=[previousRunId]&candidate=[thisRunId]          │  │
+│  │    Disabled with tooltip if no previous run found.                  │  │
+│  │                                                                       │  │
+│  │  "Export": dropdown btn btn-secondary btn-sm (ChevronDown icon)     │  │
+│  │    Options:                                                          │  │
+│  │      Export JSON — full results as JSON download                    │  │
+│  │      Export CSV — flattened case × scorer matrix                    │  │
+│  │      Copy Link — copies /eval-runs/[id] to clipboard               │  │
+│  │    Same dropdown pattern as Compare page export.                    │  │
+│  │                                                                       │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+│  ┌─ Results Summary (grid-cols-4 gap-4) ────────────────────────────────┐  │
+│  │                                                                       │  │
+│  │  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐ ┌──────────────┐│  │
+│  │  │ Pass Rate    │ │ Avg Score    │ │ Avg Latency  │ │ Total Cost   ││  │
+│  │  │ 94%          │ │ 0.87         │ │ 2.1s         │ │ $4.20        ││  │
+│  │  │ 94/100 pass  │ │              │ │ P99: 8.2s    │ │ $0.04/case   ││  │
+│  │  └──────────────┘ └──────────────┘ └──────────────┘ └──────────────┘│  │
+│  │                                                                       │  │
+│  │  stat-card class (bg-surface-card border border-border               │  │
+│  │  rounded-xl p-4)                                                     │  │
+│  │                                                                       │  │
+│  │  Pass Rate:                                                          │  │
+│  │    Value: text-2xl font-bold                                         │  │
+│  │    Colored: >=90% text-status-success, >=70% text-status-warning,   │  │
+│  │             <70% text-status-error                                   │  │
+│  │    Sub: "94/100 pass" text-xs text-content-muted                    │  │
+│  │                                                                       │  │
+│  │  Avg Score:                                                          │  │
+│  │    Value: text-2xl font-bold, same color thresholds                 │  │
+│  │    Computed: mean of all per-case average scores                    │  │
+│  │                                                                       │  │
+│  │  Avg Latency:                                                        │  │
+│  │    Value: text-2xl font-bold text-content-primary                   │  │
+│  │    Sub: "P99: 8.2s" text-xs text-content-muted                     │  │
+│  │    If agent has SLA maxP50Latency, color by threshold              │  │
+│  │                                                                       │  │
+│  │  Total Cost:                                                         │  │
+│  │    Value: text-2xl font-bold text-content-primary                   │  │
+│  │    Sub: "$0.04/case" text-xs text-content-muted                    │  │
+│  │    Computed from sum of token costs across all cases                │  │
+│  │    If agent has SLA maxCostPerCall, color by threshold             │  │
+│  │                                                                       │  │
+│  │  Labels: text-[11px] uppercase tracking-wider text-content-muted    │  │
+│  │                                                                       │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+│  ┌─ Scorer Breakdown (grid-cols-2 gap-6) ───────────────────────────────┐  │
+│  │                                                                       │  │
+│  │  ┌─ Per-Scorer Pass Rates ────────────┐  ┌─ Score Distribution ────┐ │  │
+│  │  │                                     │  │                         │ │  │
+│  │  │  Scorer Results                     │  │  Score Distribution     │ │  │
+│  │  │                                     │  │                         │ │  │
+│  │  │  tool_selection                     │  │  (histogram)            │ │  │
+│  │  │  ████████████████████████████  98%  │  │                         │ │  │
+│  │  │  98/100 pass · avg 0.94             │  │     ▁                   │ │  │
+│  │  │                                     │  │    ██                   │ │  │
+│  │  │  response_quality                   │  │   ████                  │ │  │
+│  │  │  ███████████████████████████░  92%  │  │  ██████                │ │  │
+│  │  │  92/100 pass · avg 0.86             │  │  ████████              │ │  │
+│  │  │                                     │  │ ██████████ ▂           │ │  │
+│  │  │  latency                            │  │ 0.0  0.5   1.0        │ │  │
+│  │  │  ████████████████████████░░░  88%   │  │                         │ │  │
+│  │  │  88/100 pass · avg 0.81             │  │  X-axis: score (0-1)   │ │  │
+│  │  │                                     │  │  Y-axis: case count    │ │  │
+│  │  │  Bar colors:                        │  │  10 bins, h-[180px]    │ │  │
+│  │  │    >=90% emerald                    │  │  Bar: bg-primary-500   │ │  │
+│  │  │    >=70% amber                      │  │  Uses recharts         │ │  │
+│  │  │    <70% rose                        │  │  BarChart component    │ │  │
+│  │  │                                     │  │                         │ │  │
+│  │  │  Sorted: worst scorer first.        │  │  Hover bar: tooltip    │ │  │
+│  │  │  The failing scorer is what         │  │  showing "0.80-0.89:   │ │  │
+│  │  │  you need to see first.             │  │  24 cases"             │ │  │
+│  │  │                                     │  │                         │ │  │
+│  │  │  Bar: h-2 rounded-full             │  │  If bimodal (gap >3    │ │  │
+│  │  │  bg track: bg-surface-base          │  │  empty bins between    │ │  │
+│  │  │  Each scorer is a row with:        │  │  peaks), show warning: │ │  │
+│  │  │    name (text-sm font-medium)      │  │  "Bimodal distribution │ │  │
+│  │  │    bar + percentage                │  │  detected — scores     │ │  │
+│  │  │    sub-label (pass/total + avg)    │  │  cluster at extremes." │ │  │
+│  │  │                                     │  │                         │ │  │
+│  │  │  card class                         │  │  card class             │ │  │
+│  │  │                                     │  │                         │ │  │
+│  │  └─────────────────────────────────────┘  └─────────────────────────┘ │  │
+│  │                                                                       │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+│  ┌─ Test Results ───────────────────────────────────────────────────────┐  │
+│  │                                                                       │  │
+│  │  card class (bg-surface-card border border-border rounded-xl)        │  │
+│  │                                                                       │  │
+│  │  ┌─ Results Header ──────────────────────────────────────────────┐  │  │
+│  │  │                                                                │  │  │
+│  │  │  Results                                                       │  │  │
+│  │  │  100 cases · 94 passed · 6 failed                             │  │  │
+│  │  │                                                                │  │  │
+│  │  │          [All (100)]  [Passed (94)]  [Failed (6)]             │  │  │
+│  │  │          ===========                                           │  │  │
+│  │  │                                                                │  │  │
+│  │  │                                  [Expand All]  [Collapse All] │  │  │
+│  │  │                                                                │  │  │
+│  │  │  Title: text-lg font-semibold text-content-primary            │  │  │
+│  │  │  Summary: text-sm text-content-muted                          │  │  │
+│  │  │    "94 passed" in text-status-success                         │  │  │
+│  │  │    "6 failed" in text-status-error                            │  │  │
+│  │  │                                                                │  │  │
+│  │  │  Filter tabs: inline pill buttons                             │  │  │
+│  │  │    Active: bg-surface-overlay text-content-primary font-medium│  │  │
+│  │  │    Inactive: text-content-muted hover:text-content-secondary  │  │  │
+│  │  │    Count in parentheses updates as results stream in          │  │  │
+│  │  │                                                                │  │  │
+│  │  │  Expand/Collapse: btn btn-ghost btn-sm, text-content-muted   │  │  │
+│  │  │                                                                │  │  │
+│  │  └────────────────────────────────────────────────────────────────┘  │  │
+│  │                                                                       │  │
+│  │  ┌─ Results Table ────────────────────────────────────────────────┐  │  │
+│  │  │                                                                │  │  │
+│  │  │  ┌───┬──────────────────┬────────┬───────┬───────┬──────────┐ │  │  │
+│  │  │  │ > │ Test Case        │ Status │ Score │ Lat.  │ Trace    │ │  │  │
+│  │  │  ├───┼──────────────────┼────────┼───────┼───────┼──────────┤ │  │  │
+│  │  │  │ > │ Basic booking    │ (v) OK │ 0.95  │ 1.8s  │ View ->  │ │  │  │
+│  │  │  │ v │ No availability  │ (x) !! │ 0.42  │ 3.1s  │ View ->  │ │  │  │
+│  │  │  │   │                  │        │       │       │          │ │  │  │
+│  │  │  │   │ ┌─ Expanded Detail ──────────────────────────────┐  │ │  │  │
+│  │  │  │   │ │                                                 │  │ │  │  │
+│  │  │  │   │ │  Scores:                                       │  │ │  │  │
+│  │  │  │   │ │  ┌────────────────┐ ┌────────────────┐         │  │ │  │  │
+│  │  │  │   │ │  │ tool_selection │ │ response_qual  │         │  │ │  │  │
+│  │  │  │   │ │  │ 0.55           │ │ 0.31           │         │  │ │  │  │
+│  │  │  │   │ │  │ "Wrong tool    │ │ "Output missed │         │  │ │  │  │
+│  │  │  │   │ │  │  selected for  │ │  key details   │         │  │ │  │  │
+│  │  │  │   │ │  │  date parsing" │ │  about pricing"│         │  │ │  │  │
+│  │  │  │   │ │  └────────────────┘ └────────────────┘         │  │ │  │  │
+│  │  │  │   │ │  ┌────────────────┐                            │  │ │  │  │
+│  │  │  │   │ │  │ latency        │                            │  │ │  │  │
+│  │  │  │   │ │  │ 0.40           │                            │  │ │  │  │
+│  │  │  │   │ │  │ "3.1s exceeds  │                            │  │ │  │  │
+│  │  │  │   │ │  │  2s threshold" │                            │  │ │  │  │
+│  │  │  │   │ │  └────────────────┘                            │  │ │  │  │
+│  │  │  │   │ │                                                 │  │ │  │  │
+│  │  │  │   │ │  Iterations: 3 · Trace: abc-1234-5678          │  │ │  │  │
+│  │  │  │   │ │                                                 │  │ │  │  │
+│  │  │  │   │ │  Score cards: grid grid-cols-2 lg:grid-cols-3  │  │ │  │  │
+│  │  │  │   │ │  gap-3                                         │  │ │  │  │
+│  │  │  │   │ │  Each card: bg-surface-base rounded-lg p-3     │  │ │  │  │
+│  │  │  │   │ │  border border-border                          │  │ │  │  │
+│  │  │  │   │ │    Scorer name: text-sm font-medium            │  │ │  │  │
+│  │  │  │   │ │    Score: ScoreBadge (existing component)      │  │ │  │  │
+│  │  │  │   │ │    Reason: text-xs text-content-muted          │  │ │  │  │
+│  │  │  │   │ │      line-clamp-2, expand on click             │  │ │  │  │
+│  │  │  │   │ │                                                 │  │ │  │  │
+│  │  │  │   │ │  Meta: text-xs text-content-muted              │  │ │  │  │
+│  │  │  │   │ │    Iterations: from result.iterations          │  │ │  │  │
+│  │  │  │   │ │    Trace ID: font-mono, linked to              │  │ │  │  │
+│  │  │  │   │ │    /traces/[traceId]                           │  │ │  │  │
+│  │  │  │   │ │                                                 │  │ │  │  │
+│  │  │  │   │ └─────────────────────────────────────────────────┘  │ │  │  │
+│  │  │  │   │                                                      │ │  │  │
+│  │  │  │ > │ Multi-leg flight  │ (v) OK │ 0.88  │ 2.4s  │ View ->│ │  │  │
+│  │  │  │ > │ Cancellation      │ (v) OK │ 0.91  │ 1.5s  │ View ->│ │  │  │
+│  │  │  │ > │ Edge: past date   │ (v) OK │ 0.95  │ 1.2s  │ View ->│ │  │  │
+│  │  │  │ > │ Edge: huge group  │ (x) !! │ 0.38  │ 8.5s  │ View ->│ │  │  │
+│  │  │  └───┴──────────────────┴────────┴───────┴───────┴──────────┘ │  │  │
+│  │  │                                                                │  │  │
+│  │  │  TABLE COLUMN DETAILS:                                        │  │  │
+│  │  │                                                                │  │  │
+│  │  │  Expand chevron (w-8):                                        │  │  │
+│  │  │    > = collapsed (ChevronRight, w-4 h-4)                     │  │  │
+│  │  │    v = expanded (ChevronDown, w-4 h-4)                       │  │  │
+│  │  │    text-content-muted, clickable                              │  │  │
+│  │  │                                                                │  │  │
+│  │  │  Test Case (flex-1, min-w-0):                                 │  │  │
+│  │  │    Case name from suite definition. If no suite, "Case #N".  │  │  │
+│  │  │    text-sm font-medium text-content-primary                   │  │  │
+│  │  │    Truncated with ellipsis if too long                        │  │  │
+│  │  │                                                                │  │  │
+│  │  │  Status (w-16):                                               │  │  │
+│  │  │    Passed: CheckCircle (emerald) + "OK" text                 │  │  │
+│  │  │    Failed: XCircle (rose) + "!!" text                        │  │  │
+│  │  │    icon w-4 h-4 + text-xs font-medium                       │  │  │
+│  │  │                                                                │  │  │
+│  │  │  Score (w-16):                                                │  │  │
+│  │  │    Average of all scorer values for this case.                │  │  │
+│  │  │    ScoreBadge component (existing): colored by threshold     │  │  │
+│  │  │    >=0.8 emerald, >=0.6 amber, <0.6 rose                    │  │  │
+│  │  │                                                                │  │  │
+│  │  │  Latency (w-16):                                              │  │  │
+│  │  │    text-sm text-content-secondary                             │  │  │
+│  │  │    Colored rose if >SLA maxP50Latency                        │  │  │
+│  │  │    Falls back to text-content-muted if no SLA                │  │  │
+│  │  │                                                                │  │  │
+│  │  │  Trace (w-16):                                                │  │  │
+│  │  │    "View ->" link, text-sm text-primary-500                  │  │  │
+│  │  │    hover:text-primary-600                                    │  │  │
+│  │  │    Click → /traces/[traceId]                                 │  │  │
+│  │  │    stopPropagation (don't toggle expand)                     │  │  │
+│  │  │    ExternalLink icon w-3.5 h-3.5 inline                     │  │  │
+│  │  │                                                                │  │  │
+│  │  │  Row styling:                                                 │  │  │
+│  │  │    px-4 py-3 border-b border-border last:border-b-0         │  │  │
+│  │  │    hover:bg-surface-overlay/50 cursor-pointer                │  │  │
+│  │  │    Click entire row → toggles expand                         │  │  │
+│  │  │    Failed rows: bg-status-error/3 (very subtle tint)         │  │  │
+│  │  │                                                                │  │  │
+│  │  │  Expanded detail:                                             │  │  │
+│  │  │    bg-surface-base border-t border-border                    │  │  │
+│  │  │    px-4 py-4 (indented under row)                            │  │  │
+│  │  │    Animates open: transition-all max-h with overflow hidden  │  │  │
+│  │  │                                                                │  │  │
+│  │  └────────────────────────────────────────────────────────────────┘  │  │
+│  │                                                                       │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+
+================================================================================
+PAGE LAYOUT — RUNNING RUN (differences from completed)
+================================================================================
+
+When status is RUNNING, the page layout changes:
+
+1. PROGRESS HERO replaces Results Summary:
+
+  ┌─ Progress Card (hero) ──────────────────────────────────────────────────┐
+  │                                                                          │
+  │  (Loader2 spin, blue)  Running                        (dot) Live       │
+  │  run-abc123                                                              │
+  │                                                                          │
+  │  [=========================>                              ] 45%          │
+  │  45/100 cases completed                                                  │
+  │                                                                          │
+  │  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐ ┌──────────────┐  │
+  │  │ Completed    │ │ Passed       │ │ Failed       │ │ Elapsed      │  │
+  │  │ 45           │ │ 40           │ │ 5            │ │ 2m 34s       │  │
+  │  └──────────────┘ └──────────────┘ └──────────────┘ └──────────────┘  │
+  │                                                                          │
+  │                                      [Pause]  [Cancel]                  │
+  │                                                                          │
+  │  Uses EvalRunProgress component (existing).                             │
+  │  Status-colored card:                                                    │
+  │    bg: bg-status-info/5                                                 │
+  │    border: border-status-info/20                                        │
+  │    rounded-xl p-5                                                       │
+  │                                                                          │
+  │  Connection indicator:                                                   │
+  │    ConnectionDot component (existing)                                   │
+  │    "Live" = WebSocket, "Polling" = polling fallback                    │
+  │    text-xs text-content-muted, next to status label                    │
+  │                                                                          │
+  │  Progress bar:                                                           │
+  │    h-3 rounded-full bg-white/50                                        │
+  │    Fill: bg-status-info, transition-all duration-500                    │
+  │                                                                          │
+  │  Stats: grid-cols-4 gap-4                                               │
+  │    bg-white/50 rounded-lg p-3                                          │
+  │    Values update in real-time                                           │
+  │                                                                          │
+  │  Controls: flex gap-2, right-aligned                                    │
+  │    Pause: btn-warning btn-sm (Pause icon)                              │
+  │    Cancel: btn-danger btn-sm (Square icon), confirms first             │
+  │    Both disabled during mutation (show Loader2 spin)                   │
+  │                                                                          │
+  └──────────────────────────────────────────────────────────────────────────┘
+
+2. SCORER BREAKDOWN is hidden while running (not enough data yet).
+   It appears once >=10 cases have completed, with a note:
+   "Partial — based on N/M completed cases"
+
+3. RESULTS TABLE streams cases as they complete:
+   - New results appear at the TOP of the table (most recent first)
+   - Each new result animates in (fade + slide from top)
+   - When run completes, table re-sorts by case index (natural order)
+   - "Waiting for results..." placeholder shown while 0 results
+
+4. HEADER actions change:
+   - "Rerun" hidden (run is still in progress)
+   - "Compare with Previous" hidden
+   - "Cancel Run" shown instead (destructive, confirms first)
+
+
+================================================================================
+PAGE LAYOUT — FAILED RUN (differences from completed)
+================================================================================
+
+When status is FAILED:
+
+1. ERROR CARD replaces progress hero:
+
+  ┌─ Error Card ────────────────────────────────────────────────────────────┐
+  │                                                                          │
+  │  (XCircle, rose)  Failed                                                │
+  │  run-abc123                                                              │
+  │                                                                          │
+  │  Completed 67 of 100 cases before failure.                              │
+  │                                                                          │
+  │  Error: Temporal activity timeout after 300s.                           │
+  │  The agent did not respond within the configured timeout.               │
+  │                                                                          │
+  │  bg-status-error/5 border border-status-error/20                        │
+  │  rounded-xl p-5                                                         │
+  │                                                                          │
+  │  Error message: font-mono text-sm text-status-error                    │
+  │  Explanation: text-sm text-content-secondary                            │
+  │  If error contains "ECONNREFUSED" or "timeout", show                   │
+  │  human-readable explanation below the raw error.                        │
+  │                                                                          │
+  └──────────────────────────────────────────────────────────────────────────┘
+
+2. PARTIAL RESULTS shown below error card:
+   - Results Summary cards reflect partial data
+   - "Based on 67 of 100 cases" disclaimer below stat cards
+   - Scorer Breakdown shows partial bars with "(partial)" label
+   - Results table shows completed cases, with empty rows grayed out
+
+3. HEADER actions:
+   - "Rerun" is PRIMARY action (most common next step after failure)
+   - "Compare with Previous" still available
+   - "Cancel" hidden (already terminal)
+
+
+================================================================================
+STATES
+================================================================================
+
+LOADING STATE:
+  Full-page centered spinner.
+  Loader2 w-8 h-8 animate-spin text-content-muted.
+  "Loading run..." text-sm text-content-muted below.
+
+ERROR STATE (run not found):
+
+  ┌──────────────────────────────────────────────────────────┐
+  │                                                          │
+  │        (XCircle, w-12 h-12, text-status-error)          │
+  │                                                          │
+  │        Run not found                                     │
+  │        This eval run doesn't exist or has been removed. │
+  │                                                          │
+  │        [Back to Eval Runs]                               │
+  │                                                          │
+  │  Centered, py-24                                         │
+  │  Link: text-primary-500 hover:text-primary-600           │
+  │                                                          │
+  └──────────────────────────────────────────────────────────┘
+
+COMPLETED — NO RESULTS:
+  (Run completed but produced 0 results — unusual edge case)
+
+  ┌──────────────────────────────────────────────────────────┐
+  │                                                          │
+  │        (FileQuestion icon, w-10 h-10)                   │
+  │                                                          │
+  │        No results                                        │
+  │        This run completed but produced no case results. │
+  │        This may indicate a configuration issue.         │
+  │                                                          │
+  └──────────────────────────────────────────────────────────┘
+
+RUNNING — WAITING FOR FIRST RESULT:
+
+  ┌──────────────────────────────────────────────────────────┐
+  │                                                          │
+  │        (Loader2 spin, w-8 h-8, text-status-info)        │
+  │                                                          │
+  │        Running evaluation cases...                       │
+  │        Results will appear here as cases complete.       │
+  │                                                          │
+  └──────────────────────────────────────────────────────────┘
+
+
+================================================================================
+DATA SOURCES
+================================================================================
+
+  - Run detail: useWorkflowRun(id) → GET /api/eval-runs/[id]
+    Returns WorkflowStatusResponse with full progress + results
+
+  - Lightweight polling: useWorkflowRunStatus(id) → GET /api/eval-runs/[id]/status
+    Returns WorkflowStatusPoll { id, status, isRunning, isComplete,
+    isFailed, progress: { completed, total, passed, failed,
+    percentComplete }, summary?, error? }
+
+  - Real-time: useRealtimeRun(id) → WebSocket or SSE
+    Returns { status, connectionStatus, isWebSocket }
+    Priority: WebSocket > SSE > Polling (automatic fallback)
+
+  - Previous run lookup: derived from useWorkflowRuns with same
+    suite+agent filter, sorted by startTime desc, skip current run.
+    Used for "Compare with Previous" button enablement.
+
+  - Score distribution: computed client-side from results[].scores[]
+    Bucketed into 10 bins (0-0.1, 0.1-0.2, ..., 0.9-1.0)
+
+  - Scorer breakdown: computed client-side by aggregating
+    results[].scores[] grouped by scorer name.
+    Pass = score >= threshold (0.7 default, or from suite config).
+
+  - Cost/latency: from ClickHouse trace data joined by traceId.
+    Not in WorkflowStatusResponse currently — needs API enrichment
+    or client-side fetch per-case via useTrace(traceId).
+
+
+================================================================================
+BEHAVIORAL NOTES
+================================================================================
+
+  1. Real-time connection strategy:
+     WebSocket preferred (useRealtimeRun). If WebSocket fails,
+     falls back to polling (useWorkflowRunStatus, 2s interval).
+     ConnectionDot shows green=connected, amber=reconnecting,
+     red=disconnected.
+
+  2. Result streaming order:
+     During RUNNING: newest results at top (reverse chronological).
+     After COMPLETED: re-sort by caseIndex ascending (natural order).
+     This matches user expectation: "show me what just happened"
+     during execution, "show me in order" after completion.
+
+  3. Expand state is local (useState Set<number>). Not persisted.
+     "Failed" filter auto-expands all failed rows (useful for
+     debugging: click Failed tab → all failures visible at once).
+
+  4. "Rerun" creates a new run with identical config. It does NOT
+     re-use the same run ID. The new run gets its own ID and
+     appears separately in the list. After starting, navigate to
+     the new run's detail page.
+
+  5. "Compare with Previous" finds the most recent COMPLETED run
+     for the same suite + agent combination. If no previous run
+     exists, the button is disabled with tooltip "No previous run
+     for this suite and agent."
+
+  6. Export JSON includes: run metadata (id, agent, suite, status,
+     timing) + all case results with scores + scorer reasons.
+     Export CSV flattens to: case_name, status, score_avg, plus
+     one column per scorer (tool_selection, response_quality, etc).
+
+  7. Score Distribution histogram only renders for completed runs
+     with >=5 cases. Below that threshold, the chart is replaced
+     with a simple list of score values.
+
+  8. ErrorBoundary wraps EvalRunProgress and EvalRunResults
+     independently. If one crashes, the other still renders.
+     Fallback: rose-tinted card with "Something went wrong" + retry.
+
+  9. The back button uses router.back() (not Link to /eval-runs)
+     so it preserves the user's filter state on the list page.
+     But the "Back to Eval Runs" text link uses <Link> as fallback
+     if there's no history (direct navigation to this page).
+

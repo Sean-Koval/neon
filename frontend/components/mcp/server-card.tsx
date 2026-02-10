@@ -45,30 +45,30 @@ function getStatusConfig(status: MCPServerStatus) {
     healthy: {
       icon: CheckCircle,
       label: 'Healthy',
-      color: 'text-emerald-600',
-      bgColor: 'bg-emerald-50',
-      borderColor: 'border-emerald-200',
+      color: 'text-emerald-600 dark:text-emerald-400',
+      bgColor: 'bg-emerald-50 dark:bg-emerald-500/10',
+      borderColor: 'border-emerald-200 dark:border-emerald-500/25',
     },
     degraded: {
       icon: AlertCircle,
       label: 'Degraded',
-      color: 'text-amber-600',
-      bgColor: 'bg-amber-50',
-      borderColor: 'border-amber-200',
+      color: 'text-amber-600 dark:text-amber-400',
+      bgColor: 'bg-amber-50 dark:bg-amber-500/10',
+      borderColor: 'border-amber-200 dark:border-amber-500/25',
     },
     unhealthy: {
       icon: XCircle,
       label: 'Unhealthy',
-      color: 'text-rose-600',
-      bgColor: 'bg-rose-50',
-      borderColor: 'border-rose-200',
+      color: 'text-rose-600 dark:text-rose-400',
+      bgColor: 'bg-rose-50 dark:bg-rose-500/10',
+      borderColor: 'border-rose-200 dark:border-rose-500/25',
     },
     unknown: {
       icon: AlertCircle,
       label: 'Unknown',
-      color: 'text-gray-500',
-      bgColor: 'bg-gray-50',
-      borderColor: 'border-gray-200',
+      color: 'text-gray-500 dark:text-gray-400',
+      bgColor: 'bg-gray-50 dark:bg-dark-900',
+      borderColor: 'border-gray-200 dark:border-dark-700',
     },
   }
 
@@ -88,20 +88,20 @@ function getTransportConfig(transport: MCPTransport) {
     stdio: {
       icon: Terminal,
       label: 'stdio',
-      color: 'text-gray-600',
-      bgColor: 'bg-gray-100',
+      color: 'text-gray-600 dark:text-gray-300',
+      bgColor: 'bg-gray-100 dark:bg-dark-800',
     },
     http: {
       icon: Globe,
       label: 'HTTP',
-      color: 'text-blue-600',
-      bgColor: 'bg-blue-50',
+      color: 'text-blue-600 dark:text-blue-400',
+      bgColor: 'bg-blue-50 dark:bg-blue-500/10',
     },
     websocket: {
       icon: Wifi,
       label: 'WebSocket',
-      color: 'text-purple-600',
-      bgColor: 'bg-purple-50',
+      color: 'text-purple-600 dark:text-purple-400',
+      bgColor: 'bg-purple-50 dark:bg-purple-500/10',
     },
   }
 
@@ -154,7 +154,7 @@ export function MCPServerCard({
   return (
     <div
       className={clsx(
-        'bg-white border rounded-lg overflow-hidden transition-all',
+        'bg-white dark:bg-dark-800 border rounded-lg overflow-hidden transition-all',
         statusConfig.borderColor,
         isSelected && 'ring-2 ring-primary-500',
         onClick && 'cursor-pointer hover:shadow-md',
@@ -165,11 +165,11 @@ export function MCPServerCard({
       <div className={clsx('px-4 py-3 border-b', statusConfig.bgColor)}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Server className="w-5 h-5 text-gray-500" />
+            <Server className="w-5 h-5 text-gray-500 dark:text-gray-400" />
             <div>
-              <h3 className="font-semibold text-gray-900">{server.serverId}</h3>
+              <h3 className="font-semibold text-gray-900 dark:text-gray-100">{server.serverId}</h3>
               {server.serverUrl && (
-                <p className="text-xs text-gray-500 truncate max-w-[200px]">
+                <p className="text-xs text-gray-500 dark:text-gray-400 truncate max-w-[200px]">
                   {server.serverUrl}
                 </p>
               )}
@@ -193,29 +193,29 @@ export function MCPServerCard({
       {/* Quick Stats */}
       <div className="px-4 py-3 grid grid-cols-3 gap-4">
         <div>
-          <p className="text-xs text-gray-500 mb-1">Calls</p>
-          <p className="text-lg font-semibold text-gray-900">
+          <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Calls</p>
+          <p className="text-lg font-semibold text-gray-900 dark:text-gray-100">
             {formatNumber(server.callCount)}
           </p>
         </div>
         <div>
-          <p className="text-xs text-gray-500 mb-1">Error Rate</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Error Rate</p>
           <p
             className={clsx(
               'text-lg font-semibold',
               server.errorRate > 0.1
-                ? 'text-rose-600'
+                ? 'text-rose-600 dark:text-rose-400'
                 : server.errorRate > 0.01
-                  ? 'text-amber-600'
-                  : 'text-emerald-600',
+                  ? 'text-amber-600 dark:text-amber-400'
+                  : 'text-emerald-600 dark:text-emerald-400',
             )}
           >
             {(server.errorRate * 100).toFixed(1)}%
           </p>
         </div>
         <div>
-          <p className="text-xs text-gray-500 mb-1">Avg Latency</p>
-          <p className="text-lg font-semibold text-gray-900">
+          <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Avg Latency</p>
+          <p className="text-lg font-semibold text-gray-900 dark:text-gray-100">
             {formatLatency(server.avgLatencyMs)}
           </p>
         </div>
@@ -228,7 +228,7 @@ export function MCPServerCard({
           e.stopPropagation()
           setIsExpanded(!isExpanded)
         }}
-        className="w-full px-4 py-2 border-t flex items-center justify-between text-sm text-gray-600 hover:bg-gray-50"
+        className="w-full px-4 py-2 border-t dark:border-dark-700 flex items-center justify-between text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-dark-700"
       >
         <span className="flex items-center gap-2">
           <Activity className="w-4 h-4" />
@@ -243,7 +243,7 @@ export function MCPServerCard({
 
       {/* Expanded Details */}
       {isExpanded && (
-        <div className="px-4 py-3 border-t bg-gray-50 space-y-4">
+        <div className="px-4 py-3 border-t dark:border-dark-700 bg-gray-50 dark:bg-dark-900 space-y-4">
           {/* Transport & Protocol */}
           <div className="flex flex-wrap gap-2">
             <span
@@ -257,11 +257,11 @@ export function MCPServerCard({
               {transportConfig.label}
             </span>
             {server.protocolVersion && (
-              <span className="px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-600">
+              <span className="px-2 py-1 rounded text-xs font-medium bg-gray-100 dark:bg-dark-800 text-gray-600 dark:text-gray-300">
                 v{server.protocolVersion}
               </span>
             )}
-            <span className="flex items-center gap-1 px-2 py-1 rounded text-xs bg-gray-100 text-gray-600">
+            <span className="flex items-center gap-1 px-2 py-1 rounded text-xs bg-gray-100 dark:bg-dark-800 text-gray-600 dark:text-gray-300">
               <Clock className="w-3 h-3" />
               {formatTimeAgo(server.lastSeen)}
             </span>
@@ -269,28 +269,28 @@ export function MCPServerCard({
 
           {/* Latency Breakdown */}
           <div>
-            <p className="text-xs text-gray-500 mb-2">Latency Percentiles</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">Latency Percentiles</p>
             <div className="grid grid-cols-4 gap-2 text-sm">
               <div className="text-center">
-                <p className="text-gray-500 text-xs">P50</p>
+                <p className="text-gray-500 dark:text-gray-400 text-xs">P50</p>
                 <p className="font-medium">
                   {formatLatency(server.p50LatencyMs)}
                 </p>
               </div>
               <div className="text-center">
-                <p className="text-gray-500 text-xs">Avg</p>
+                <p className="text-gray-500 dark:text-gray-400 text-xs">Avg</p>
                 <p className="font-medium">
                   {formatLatency(server.avgLatencyMs)}
                 </p>
               </div>
               <div className="text-center">
-                <p className="text-gray-500 text-xs">P95</p>
+                <p className="text-gray-500 dark:text-gray-400 text-xs">P95</p>
                 <p className="font-medium">
                   {formatLatency(server.p95LatencyMs)}
                 </p>
               </div>
               <div className="text-center">
-                <p className="text-gray-500 text-xs">P99</p>
+                <p className="text-gray-500 dark:text-gray-400 text-xs">P99</p>
                 <p className="font-medium">
                   {formatLatency(server.p99LatencyMs)}
                 </p>
@@ -300,25 +300,25 @@ export function MCPServerCard({
 
           {/* Tools */}
           <div>
-            <p className="text-xs text-gray-500 mb-2">
+            <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
               Tools ({server.tools.length})
             </p>
             <div className="space-y-1">
               {server.tools.map((tool) => (
                 <div
                   key={tool.toolId}
-                  className="flex items-center justify-between text-sm bg-white rounded px-2 py-1.5"
+                  className="flex items-center justify-between text-sm bg-white dark:bg-dark-800 rounded px-2 py-1.5"
                 >
-                  <span className="font-mono text-gray-700">{tool.toolId}</span>
-                  <div className="flex items-center gap-3 text-xs text-gray-500">
+                  <span className="font-mono text-gray-700 dark:text-gray-300">{tool.toolId}</span>
+                  <div className="flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400">
                     <span>{formatNumber(tool.callCount)} calls</span>
                     <span
                       className={clsx(
                         tool.successRate < 0.9
-                          ? 'text-rose-600'
+                          ? 'text-rose-600 dark:text-rose-400'
                           : tool.successRate < 0.99
-                            ? 'text-amber-600'
-                            : 'text-emerald-600',
+                            ? 'text-amber-600 dark:text-amber-400'
+                            : 'text-emerald-600 dark:text-emerald-400',
                       )}
                     >
                       {(tool.successRate * 100).toFixed(0)}%
@@ -333,12 +333,12 @@ export function MCPServerCard({
           {/* Capabilities */}
           {server.capabilities && server.capabilities.length > 0 && (
             <div>
-              <p className="text-xs text-gray-500 mb-2">Capabilities</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">Capabilities</p>
               <div className="flex flex-wrap gap-1">
                 {server.capabilities.map((cap) => (
                   <span
                     key={cap}
-                    className="px-2 py-0.5 text-xs bg-indigo-50 text-indigo-700 rounded"
+                    className="px-2 py-0.5 text-xs bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 rounded"
                   >
                     {cap}
                   </span>
@@ -358,24 +358,24 @@ export function MCPServerCard({
 
 export function MCPServerCardSkeleton() {
   return (
-    <div className="bg-white border rounded-lg overflow-hidden animate-pulse">
-      <div className="px-4 py-3 border-b bg-gray-50">
+    <div className="bg-white dark:bg-dark-800 border dark:border-dark-700 rounded-lg overflow-hidden animate-pulse">
+      <div className="px-4 py-3 border-b dark:border-dark-700 bg-gray-50 dark:bg-dark-900">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-5 h-5 bg-gray-200 rounded" />
+            <div className="w-5 h-5 bg-gray-200 dark:bg-dark-700 rounded" />
             <div>
-              <div className="h-4 w-24 bg-gray-200 rounded" />
-              <div className="h-3 w-32 bg-gray-200 rounded mt-1" />
+              <div className="h-4 w-24 bg-gray-200 dark:bg-dark-700 rounded" />
+              <div className="h-3 w-32 bg-gray-200 dark:bg-dark-700 rounded mt-1" />
             </div>
           </div>
-          <div className="h-6 w-16 bg-gray-200 rounded" />
+          <div className="h-6 w-16 bg-gray-200 dark:bg-dark-700 rounded" />
         </div>
       </div>
       <div className="px-4 py-3 grid grid-cols-3 gap-4">
         {[1, 2, 3].map((i) => (
           <div key={i}>
-            <div className="h-3 w-10 bg-gray-200 rounded mb-1" />
-            <div className="h-6 w-12 bg-gray-200 rounded" />
+            <div className="h-3 w-10 bg-gray-200 dark:bg-dark-700 rounded mb-1" />
+            <div className="h-6 w-12 bg-gray-200 dark:bg-dark-700 rounded" />
           </div>
         ))}
       </div>

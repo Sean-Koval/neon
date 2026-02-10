@@ -29,15 +29,15 @@ export default function SettingsPage() {
   return (
     <div className="p-6 max-w-4xl">
       {/* Header */}
-      <div className="mb-8">
+      <div className="mb-6">
         <h1 className="text-2xl font-bold">Settings</h1>
-        <p className="text-gray-500">
+        <p className="text-gray-500 dark:text-gray-400">
           Configure your project, API keys, and infrastructure connections
         </p>
       </div>
 
       {/* Tab Navigation */}
-      <div className="border-b mb-6">
+      <div className="border-b border-border dark:border-slate-700/80 mb-6">
         <nav className="flex gap-6" aria-label="Settings tabs">
           {tabs.map((tab) => (
             <button
@@ -48,7 +48,7 @@ export default function SettingsPage() {
                 'flex items-center gap-2 pb-3 border-b-2 text-sm font-medium transition-colors',
                 activeTab === tab.id
                   ? 'border-primary-500 text-primary-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300',
+                  : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-dark-600',
               )}
             >
               <tab.icon className="w-4 h-4" />

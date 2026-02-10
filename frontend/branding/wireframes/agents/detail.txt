@@ -1,0 +1,199 @@
+================================================================================
+AGENT DETAIL — app/agents/[id]/page.tsx (tabbed detail view)
+================================================================================
+Agent-centric detail page with 5 tabs: Overview, Skills, Tools, Versions, Traces
+Route: /agents/[id] or /agents/[id]?tab=overview
+
+LAYOUT: p-8, space-y-6
+DATA: trpc.agents.get(id), useSkillEvalSummaries, useMCPHealth, useTraces
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                                                                             │
+│  ← Back to Registry                                    (link to /agents)   │
+│  text-sm text-content-muted hover:text-content-primary                     │
+│  flex items-center gap-1, ChevronLeft icon w-4 h-4                         │
+│                                                                             │
+│  ┌─ Agent Header ──────────────────────────────────────────────────────┐  │
+│  │                                                                       │  │
+│  │  ┌──────────────────────────────────────────────────────────────┐   │  │
+│  │  │                                                              │   │  │
+│  │  │  Research Agent                   ● healthy                  │   │  │
+│  │  │  research-agent · v2.1.0                    [Edit Metadata]  │   │  │
+│  │  │                                                              │   │  │
+│  │  │  Name: text-2xl font-bold text-content-primary               │   │  │
+│  │  │  ID + version: text-sm text-content-muted                    │   │  │
+│  │  │  Health: dot + label (same as card)                          │   │  │
+│  │  │  Edit: btn btn-secondary btn-sm, opens AgentMetadataModal    │   │  │
+│  │  │                                                              │   │  │
+│  │  └──────────────────────────────────────────────────────────────┘   │  │
+│  │                                                                       │  │
+│  │  ┌─ Quick Stats (grid-cols-4 gap-4) ────────────────────────────┐  │  │
+│  │  │                                                                │  │  │
+│  │  │  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐          │  │  │
+│  │  │  │ Traces (7d)  │ │ Avg Score    │ │ Error Rate   │          │  │  │
+│  │  │  │ 8,230        │ │ 0.87         │ │ 1.2%         │          │  │  │
+│  │  │  └──────────────┘ └──────────────┘ └──────────────┘          │  │  │
+│  │  │  ┌──────────────┐                                             │  │  │
+│  │  │  │ P50 Latency  │  stat-card class                           │  │  │
+│  │  │  │ 3.2s         │  Values colored by SLA threshold           │  │  │
+│  │  │  └──────────────┘  if agent has SLA targets configured       │  │  │
+│  │  │                                                                │  │  │
+│  │  └────────────────────────────────────────────────────────────────┘  │  │
+│  │                                                                       │  │
+│  │  ┌─ Context Row ────────────────────────────────────────────────┐  │  │
+│  │  │                                                                │  │  │
+│  │  │  Envs: [DEV] [STAGING] [PROD]     Model: gemini-2.5-flash   │  │  │
+│  │  │  Team: Platform                    Tags: [prod] [booking]    │  │  │
+│  │  │  Last seen: 2m ago                                            │  │  │
+│  │  │                                                                │  │  │
+│  │  │  Environments: colored badges (same as card)                  │  │  │
+│  │  │  Model: extracted from most recent trace's model field        │  │  │
+│  │  │  Team: from agents.team (Postgres enrichment)                 │  │  │
+│  │  │  Tags: from agents.metadata.tags                              │  │  │
+│  │  │  Last seen: from max(timestamp) in CH traces for this agent   │  │  │
+│  │  │                                                                │  │  │
+│  │  └────────────────────────────────────────────────────────────────┘  │  │
+│  │                                                                       │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+│  ┌─ Tab Bar ────────────────────────────────────────────────────────────┐  │
+│  │                                                                       │  │
+│  │  Overview*  |  Skills  |  Tools  |  Versions  |  Traces              │  │
+│  │  =========                                                            │  │
+│  │  (* = active, underline with border-b-2 border-primary-500)          │  │
+│  │                                                                       │  │
+│  │  Tab styling:                                                         │  │
+│  │  - Container: flex gap-0, border-b border-border                     │  │
+│  │  - Tab: px-4 py-2.5 text-sm font-medium cursor-pointer              │  │
+│  │  - Active: text-content-primary, border-b-2 border-primary-500       │  │
+│  │  - Inactive: text-content-muted hover:text-content-secondary         │  │
+│  │  - Tab state synced to URL ?tab= param (shallow routing)             │  │
+│  │                                                                       │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+│                                                                             │
+│  ════════════════════════════════════════════════════════════════════════   │
+│  TAB: Overview                                                              │
+│  ════════════════════════════════════════════════════════════════════════   │
+│                                                                             │
+│  ┌─ Agent Info (grid-cols-2 gap-6) ────────────────────────────────────┐  │
+│  │                                                                       │  │
+│  │  ┌─ Details Card ───────────────┐  ┌─ System Prompt Preview ──────┐ │  │
+│  │  │                              │  │                               │ │  │
+│  │  │  Agent ID                    │  │  "You are a research         │ │  │
+│  │  │  research-agent              │  │  assistant that helps users  │ │  │
+│  │  │                              │  │  find and synthesize         │ │  │
+│  │  │  Created                     │  │  information from multiple  │ │  │
+│  │  │  Dec 15, 2024               │  │  sources. You should        │ │  │
+│  │  │                              │  │  always cite your..."       │ │  │
+│  │  │  Description                 │  │                               │ │  │
+│  │  │  Research assistant for      │  │  (truncated at 5 lines)      │ │  │
+│  │  │  multi-source synthesis      │  │  [View Full Prompt]          │ │  │
+│  │  │                              │  │                               │ │  │
+│  │  │  SLA Targets                 │  │  Source: Detected from most  │ │  │
+│  │  │  Pass: >=90%  Err: <=5%     │  │  recent trace's system      │ │  │
+│  │  │  P50: <=5s    Cost: <=$0.50 │  │  message span. May differ   │ │  │
+│  │  │  (from agents.metadata.sla) │  │  from /prompts if modified  │ │  │
+│  │  │                              │  │  outside the platform.       │ │  │
+│  │  │  Associated Suites          │  │                               │ │  │
+│  │  │  booking-basic              │  │  Styling:                     │ │  │
+│  │  │  booking-edge-cases         │  │  font-mono text-sm            │ │  │
+│  │  │  (links to /suites/[id])    │  │  bg-surface-base              │ │  │
+│  │  │                              │  │  border border-border         │ │  │
+│  │  │  card class                  │  │  rounded-lg p-4              │ │  │
+│  │  │  dl layout with dt/dd pairs │  │  text-content-secondary       │ │  │
+│  │  │                              │  │                               │ │  │
+│  │  └──────────────────────────────┘  └───────────────────────────────┘ │  │
+│  │                                                                       │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+│  ┌─ Cost Breakdown (grid-cols-2 gap-6) ────────────────────────────────┐  │
+│  │                                                                       │  │
+│  │  ┌─ Cost Attribution ──────────────┐  ┌─ Cost Trend (7d) ─────────┐ │  │
+│  │  │                                 │  │                             │ │  │
+│  │  │  Daily Cost: $18.40             │  │  (recharts area chart)     │ │  │
+│  │  │                                 │  │                             │ │  │
+│  │  │  ┌───────────────────────────┐  │  │  ╱╲                        │ │  │
+│  │  │  │ Model Inference   $14.20  │  │  │ ╱  ╲╱╲──                  │ │  │
+│  │  │  │ ████████████████░░░  77%  │  │  │                             │ │  │
+│  │  │  │                           │  │  │  Height: ~120px             │ │  │
+│  │  │  │ Tool Execution    $3.10   │  │  │  Color: primary-500/20 fill│ │  │
+│  │  │  │ ████░░░░░░░░░░░░░  17%   │  │  │  primary-500 stroke        │ │  │
+│  │  │  │                           │  │  │                             │ │  │
+│  │  │  │ Retries/Overhead  $1.10   │  │  │  Data: aggregate daily     │ │  │
+│  │  │  │ █░░░░░░░░░░░░░░░░   6%   │  │  │  cost from token counts    │ │  │
+│  │  │  └───────────────────────────┘  │  │  and tool invocation data  │ │  │
+│  │  │                                 │  │                             │ │  │
+│  │  │  card class                     │  │  card class                 │ │  │
+│  │  │  Breakdown bars:                │  │                             │ │  │
+│  │  │  h-2 rounded-full              │  │                             │ │  │
+│  │  │  Model: bg-primary-500          │  │                             │ │  │
+│  │  │  Tool: bg-accent-500            │  │                             │ │  │
+│  │  │  Retries: bg-amber-500          │  │                             │ │  │
+│  │  │                                 │  │                             │ │  │
+│  │  └─────────────────────────────────┘  └─────────────────────────────┘ │  │
+│  │                                                                       │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+│  ┌─ Health Trends (grid-cols-2 gap-6) ─────────────────────────────────┐  │
+│  │                                                                       │  │
+│  │  ┌─ Score Trend (7d) ─────────────┐  ┌─ Latency Trend (7d) ──────┐ │  │
+│  │  │                                 │  │                             │ │  │
+│  │  │  (recharts line chart)          │  │  (recharts line chart)     │ │  │
+│  │  │  ╱╲  ╱──╲                       │  │  ╲╱╲╱──                    │ │  │
+│  │  │ ╱  ╲╱    ╲──                    │  │                             │ │  │
+│  │  │                                 │  │  Height: ~150px             │ │  │
+│  │  │  Height: ~150px                 │  │  Same style as score       │ │  │
+│  │  │  Uses LazyScoreTrends with      │  │  Color: amber-500          │ │  │
+│  │  │  agentId filter                 │  │                             │ │  │
+│  │  │  Color: primary-500             │  │  Data: daily avg latency   │ │  │
+│  │  │                                 │  │  from CH traces grouped    │ │  │
+│  │  │  SLA target line: dashed        │  │  by date                   │ │  │
+│  │  │  horizontal at sla.minPassRate  │  │  SLA target line at        │ │  │
+│  │  │  if configured                  │  │  sla.maxP50Latency         │ │  │
+│  │  │                                 │  │                             │ │  │
+│  │  │  card class                     │  │  card class                 │ │  │
+│  │  │                                 │  │                             │ │  │
+│  │  └─────────────────────────────────┘  └─────────────────────────────┘ │  │
+│  │                                                                       │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+│  ┌─ Recent Activity ───────────────────────────────────────────────────┐  │
+│  │                                                                       │  │
+│  │  Recent Activity                                                     │  │
+│  │                                                                       │  │
+│  │  ┌────────────────────────────────────────────────────────────────┐ │  │
+│  │  │  (CheckCircle, emerald)  Eval run v2.1 completed — 94% pass  │ │  │
+│  │  │                                                       2h ago  │ │  │
+│  │  ├────────────────────────────────────────────────────────────────┤ │  │
+│  │  │  (Rocket, accent)        Version 2.1.0 deployed to prod      │ │  │
+│  │  │                                                       1d ago  │ │  │
+│  │  ├────────────────────────────────────────────────────────────────┤ │  │
+│  │  │  (AlertTriangle, amber)  Error rate spike: 1.2% -> 3.8%      │ │  │
+│  │  │                                                       2d ago  │ │  │
+│  │  ├────────────────────────────────────────────────────────────────┤ │  │
+│  │  │  (CheckCircle, emerald)  Eval run v2.0 completed — 91% pass  │ │  │
+│  │  │                                                       3d ago  │ │  │
+│  │  └────────────────────────────────────────────────────────────────┘ │  │
+│  │                                                                       │  │
+│  │  card class                                                           │  │
+│  │  Same format as Command Center recent activity                       │  │
+│  │  Filtered to this agent only                                         │  │
+│  │  Each row: icon (colored) + message + relative time                  │  │
+│  │  Rows link to relevant detail pages (eval run, trace, etc)           │  │
+│  │  Max 10 items, "View all" link if more                               │  │
+│  │                                                                       │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+DATA SOURCES:
+  - Agent metadata: trpc.agents.get(id) — PG + CH join
+  - System prompt: extracted from most recent trace's first system
+    message span (CH query: SELECT system_prompt FROM spans
+    WHERE agent_id = X AND span_type = 'llm_call' ORDER BY timestamp DESC LIMIT 1)
+  - Cost breakdown: computed from CH spans — sum token_cost for model,
+    sum tool_cost for tools, difference = retries/overhead
+  - Health trends: CH time-series query grouped by day
+  - Recent activity: composite query from eval_runs + deployments + alerts
+  - SLA targets: from agents.metadata.sla (Postgres)

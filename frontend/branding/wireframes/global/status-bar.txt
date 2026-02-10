@@ -1,0 +1,66 @@
+================================================================================
+STATUS BAR — components/status-bar.tsx
+================================================================================
+Floating bar at bottom of screen showing actively running work.
+Only visible when at least one eval run or experiment is actively running.
+
+POSITION: fixed bottom-4 left-1/2 -translate-x-1/2 (centered)
+Z-INDEX: z-40 (below modals, above content)
+SIZE: auto width (min-w-[400px], max-w-[700px])
+
+HIDDEN STATE (no running work):
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                          (nothing rendered)                                  │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+VISIBLE STATE (work is running):
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                                                                              │
+│                                                                              │
+│          ┌──────────────────────────────────────────────────┐               │
+│          │ ▶ 2 running │ Eval: booking-suite 45% │ Exp: v3 67% │           │
+│          └──────────────────────────────────────────────────┘               │
+│                                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+DETAILED VIEW (3+ items or hover/click to expand):
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                                                                              │
+│      ┌─────────────────────────────────────────────────────────────┐        │
+│      │ ▶ 3 active tasks                                    [×]    │        │
+│      │                                                             │        │
+│      │  ⚡ Eval: booking-suite-v2   [=====>         ] 45%         │        │
+│      │     45/100 cases · 40 pass · 5 fail · 1m elapsed           │        │
+│      │                                                             │        │
+│      │  🧪 Experiment: prompt-v3   [=========>     ] 67%          │        │
+│      │     Stage 3/4 · Score: A=0.91 B=0.94 · 12m elapsed        │        │
+│      │                                                             │        │
+│      │  🔄 Auto-Improve: search-agent  Iteration 3               │        │
+│      │     Curate → Optimize → [Evaluate] → Deploy               │        │
+│      │                                                             │        │
+│      └─────────────────────────────────────────────────────────────┘        │
+│                                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+STYLING:
+  - Container: bg-surface-card/95 backdrop-blur-lg, border border-border,
+    rounded-full (collapsed) or rounded-xl (expanded), shadow-lg
+  - Collapsed text: text-sm text-content-secondary, font-medium
+  - Running indicator (▶): text-emerald-400 animate-pulse
+  - Separator (│): text-border
+  - Progress bars: h-1.5, bg-dark-700, fill bg-primary-500
+  - Close button: text-content-muted hover:text-content-primary
+
+BEHAVIOR:
+  - Collapsed by default: shows summary count + abbreviated items
+  - Click/hover to expand into detailed view
+  - Click [×] to dismiss (re-appears on page navigation)
+  - Items link to their detail pages (eval run detail, experiment detail)
+  - Auto-updates via polling (every 5s for running evals, 15s for experiments)
+  - Slides up with animation (translate-y + opacity) when work starts
+  - Slides down to dismiss when all work completes
+
+DATA SOURCES:
+  - useWorkflowRuns({ status: 'RUNNING' }) — active eval runs
+  - Experiments query (future) — active experiments
+  - Training loop query (future) — active auto-improve iterations

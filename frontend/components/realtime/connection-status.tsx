@@ -31,27 +31,27 @@ function getStatusDisplay(status: ConnectionStatus) {
     case 'connected':
       return {
         icon: Wifi,
-        color: 'text-green-600',
-        bgColor: 'bg-green-50',
-        borderColor: 'border-green-200',
+        color: 'text-green-600 dark:text-emerald-400',
+        bgColor: 'bg-green-50 dark:bg-emerald-500/10',
+        borderColor: 'border-green-200 dark:border-emerald-500/25',
         label: 'Connected',
         pulse: false,
       }
     case 'connecting':
       return {
         icon: RefreshCw,
-        color: 'text-blue-600',
-        bgColor: 'bg-blue-50',
-        borderColor: 'border-blue-200',
+        color: 'text-blue-600 dark:text-blue-400',
+        bgColor: 'bg-blue-50 dark:bg-blue-500/10',
+        borderColor: 'border-blue-200 dark:border-blue-500/25',
         label: 'Connecting',
         pulse: true,
       }
     case 'reconnecting':
       return {
         icon: RefreshCw,
-        color: 'text-yellow-600',
-        bgColor: 'bg-yellow-50',
-        borderColor: 'border-yellow-200',
+        color: 'text-yellow-600 dark:text-amber-400',
+        bgColor: 'bg-yellow-50 dark:bg-amber-500/10',
+        borderColor: 'border-yellow-200 dark:border-amber-500/25',
         label: 'Reconnecting',
         pulse: true,
       }
@@ -67,9 +67,9 @@ function getStatusDisplay(status: ConnectionStatus) {
     case 'error':
       return {
         icon: AlertCircle,
-        color: 'text-red-600',
-        bgColor: 'bg-red-50',
-        borderColor: 'border-red-200',
+        color: 'text-red-600 dark:text-red-400',
+        bgColor: 'bg-red-50 dark:bg-red-500/10',
+        borderColor: 'border-red-200 dark:border-red-500/25',
         label: 'Connection Error',
         pulse: false,
       }
@@ -146,7 +146,7 @@ export function ConnectionStatusIndicator({
       {(status === 'disconnected' || status === 'error') && onReconnect && (
         <button
           onClick={onReconnect}
-          className="text-xs text-blue-600 hover:text-blue-800 hover:underline ml-1"
+          className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:underline ml-1"
         >
           Retry
         </button>

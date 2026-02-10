@@ -39,10 +39,11 @@ function flattenWithTiming(
   function process(spanList: Span[], depth: number) {
     for (const span of spanList) {
       const startTime = new Date(span.timestamp).getTime()
+      const duration = Number(span.duration_ms) || 0
       result.push({
         span,
         startOffset: startTime - baseTime,
-        duration: span.duration_ms,
+        duration,
         depth,
       })
       if (span.children) {
@@ -59,17 +60,20 @@ function flattenWithTiming(
  * Calculate timeline metrics from both traces
  */
 function calculateMetrics(baseline: Span[], candidate: Span[]) {
-  const allSpans = [
-    ...flattenWithTiming(baseline, 0),
-    ...flattenWithTiming(candidate, 0),
-  ]
-  if (allSpans.length === 0)
+  const baselineRaw = flattenWithTiming(baseline, 0)
+  const candidateRaw = flattenWithTiming(candidate, 0)
+  const allRaw = [...baselineRaw, ...candidateRaw]
+  if (allRaw.length === 0)
     return { totalDuration: 1000, baselineStart: 0, candidateStart: 0 }
 
   const baselineStart =
-    baseline.length > 0 ? new Date(baseline[0].timestamp).getTime() : 0
+    baselineRaw.length > 0
+      ? Math.min(...baselineRaw.map((s) => new Date(s.span.timestamp).getTime()))
+      : 0
   const candidateStart =
-    candidate.length > 0 ? new Date(candidate[0].timestamp).getTime() : 0
+    candidateRaw.length > 0
+      ? Math.min(...candidateRaw.map((s) => new Date(s.span.timestamp).getTime()))
+      : 0
 
   const baselineSpans = flattenWithTiming(baseline, baselineStart)
   const candidateSpans = flattenWithTiming(candidate, candidateStart)
@@ -100,6 +104,16 @@ function formatDuration(ms: number): string {
   return `${(ms / 60000).toFixed(1)}m`
 }
 
+function formatSignedDuration(ms: number): string {
+  if (Math.abs(ms) < 1) return '0ms'
+  const abs = formatDuration(Math.abs(ms))
+  return `${ms > 0 ? '+' : '-'}${abs}`
+}
+
+function sumDuration(spans: Array<{ duration: number }>) {
+  return spans.reduce((total, s) => total + s.duration, 0)
+}
+
 /**
  * Timeline bar for a single span
  */
@@ -107,31 +121,31 @@ function TimelineBar({
   span,
   offsetPercent,
   widthPercent,
-  opacity,
-  isCandidate,
+  lane,
 }: {
   span: Span
   offsetPercent: number
   widthPercent: number
-  opacity: number
-  isCandidate: boolean
+  lane: 'baseline' | 'candidate'
 }) {
   const typeConfig = getSpanTypeConfig(span.span_type)
+  const isCandidate = lane === 'candidate'
+  const duration = Number(span.duration_ms) || 0
 
   return (
     <div
       className={clsx(
-        'absolute h-3 rounded-sm transition-opacity',
-        span.status === 'error' ? 'bg-red-400' : typeConfig.barColor,
-        isCandidate ? 'top-0' : 'bottom-0',
+        'absolute h-3 rounded-sm transition-opacity ring-1 ring-black/5 dark:ring-white/10',
+        span.status === 'error' ? 'bg-rose-500' : typeConfig.barColor,
+        isCandidate ? 'top-1.5' : 'bottom-1.5',
       )}
       style={{
         left: `${Math.min(offsetPercent, 99)}%`,
         width: `${Math.max(widthPercent, 0.3)}%`,
         minWidth: '3px',
-        opacity,
+        opacity: isCandidate ? 1 : 0.72,
       }}
-      title={`${span.name}: ${formatDuration(span.duration_ms)}`}
+      title={`${span.name}: ${formatDuration(duration)}`}
     />
   )
 }
@@ -141,16 +155,16 @@ function TimelineBar({
  */
 function TimelineLegend() {
   return (
-    <div className="flex flex-wrap items-center gap-4 text-xs">
+    <div className="flex flex-wrap items-center gap-4 text-xs text-content-secondary">
       <div className="flex items-center gap-2">
-        <div className="w-4 h-3 bg-gray-400 rounded-sm opacity-50" />
-        <span className="text-gray-600">Baseline (bottom)</span>
+        <div className="w-4 h-3 bg-violet-500/70 rounded-sm" />
+        <span>Baseline lane</span>
       </div>
       <div className="flex items-center gap-2">
-        <div className="w-4 h-3 bg-gray-600 rounded-sm" />
-        <span className="text-gray-600">Candidate (top)</span>
+        <div className="w-4 h-3 bg-emerald-500/80 rounded-sm" />
+        <span>Candidate lane</span>
       </div>
-      <div className="border-l pl-4 flex items-center gap-3">
+      <div className="border-l border-border dark:border-slate-700/80 pl-4 flex items-center gap-3">
         <div className="flex items-center gap-1">
           <div className="w-3 h-3 bg-purple-500 rounded-sm" />
           <span>LLM</span>
@@ -185,29 +199,52 @@ export function TimelineOverlay({
     0,
   )
 
+  const durationDelta = diff.candidate.duration_ms - diff.baseline.duration_ms
+  const deltaTone =
+    durationDelta > 100
+      ? 'text-rose-600 dark:text-rose-400'
+      : durationDelta < -100
+        ? 'text-emerald-600 dark:text-emerald-400'
+        : 'text-content-secondary'
+
   return (
-    <div className="bg-white rounded-lg border overflow-hidden">
+    <div className="bg-surface-card rounded-xl border border-border overflow-hidden shadow-sm">
       {/* Header */}
-      <div className="px-4 py-3 border-b bg-gray-50 flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-gray-700">
-          Timeline Overlay
-        </h3>
-        <div className="text-sm text-gray-500">
-          Total: {formatDuration(metrics.totalDuration)}
+      <div className="px-4 py-3 border-b border-border dark:border-slate-700/80 bg-surface-raised/70 dark:bg-slate-900/85 flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <h3 className="text-sm font-semibold text-content-primary">
+            Timeline Overlay
+          </h3>
+          <p className="text-xs text-content-secondary">
+            Shared time axis by depth. Top lane is candidate, bottom lane is baseline.
+          </p>
+        </div>
+        <div className="flex items-center gap-2 text-xs">
+          <span className="rounded-md border border-border dark:border-slate-700/80 bg-surface-card px-2 py-1 text-content-secondary">
+            Baseline {formatDuration(diff.baseline.duration_ms)}
+          </span>
+          <span className="rounded-md border border-border dark:border-slate-700/80 bg-surface-card px-2 py-1 text-content-secondary">
+            Candidate {formatDuration(diff.candidate.duration_ms)}
+          </span>
+          <span className={clsx('rounded-md border border-border dark:border-slate-700/80 bg-surface-card px-2 py-1 font-medium', deltaTone)}>
+            {formatSignedDuration(durationDelta)}
+          </span>
         </div>
       </div>
 
       {/* Timeline content */}
       <div className="p-4">
         {/* Time scale */}
-        <div className="flex justify-between text-xs text-gray-400 mb-2 px-1">
+        <div className="flex justify-between text-xs text-gray-400 dark:text-slate-400 mb-2 px-1">
           <span>0ms</span>
+          <span>{formatDuration(metrics.totalDuration / 4)}</span>
           <span>{formatDuration(metrics.totalDuration / 2)}</span>
+          <span>{formatDuration((metrics.totalDuration * 3) / 4)}</span>
           <span>{formatDuration(metrics.totalDuration)}</span>
         </div>
 
         {/* Timeline rows by depth */}
-        <div className="space-y-1">
+        <div className="space-y-2">
           {Array.from({ length: maxDepth + 1 }, (_, depth) => {
             const baselineAtDepth = baselineSpans.filter(
               (s) => s.depth === depth,
@@ -220,50 +257,73 @@ export function TimelineOverlay({
               return null
             }
 
+            const baselineAtDepthTotal = sumDuration(baselineAtDepth)
+            const candidateAtDepthTotal = sumDuration(candidateAtDepth)
+            const laneDelta = candidateAtDepthTotal - baselineAtDepthTotal
+
             return (
-              <div
-                key={depth}
-                className="relative h-8 bg-gray-50 rounded"
-                style={{ marginLeft: `${depth * 16}px` }}
-              >
-                {/* Baseline spans (bottom half) */}
-                {baselineAtDepth.map(({ span, startOffset, duration }) => {
-                  const offsetPercent =
-                    (startOffset / metrics.totalDuration) * 100
-                  const widthPercent = (duration / metrics.totalDuration) * 100
-                  return (
-                    <TimelineBar
-                      key={`baseline-${span.span_id}`}
-                      span={span}
-                      offsetPercent={offsetPercent}
-                      widthPercent={widthPercent}
-                      opacity={0.5}
-                      isCandidate={false}
-                    />
-                  )
-                })}
+              <div key={depth} className="grid grid-cols-[72px_minmax(0,1fr)_96px] items-center gap-2">
+                <div className="text-[11px] font-medium text-content-secondary">
+                  Depth L{depth}
+                </div>
+                <div
+                  className="relative h-10 rounded-md border border-border dark:border-slate-700/80 bg-surface-raised/70 dark:bg-slate-900/70"
+                  style={{ marginLeft: `${depth * 10}px` }}
+                >
+                  {/* Vertical guide lines */}
+                  <div className="absolute inset-y-0 left-1/4 w-px bg-border/80 dark:bg-slate-700/70" />
+                  <div className="absolute inset-y-0 left-2/4 w-px bg-border/80 dark:bg-slate-700/70" />
+                  <div className="absolute inset-y-0 left-3/4 w-px bg-border/80 dark:bg-slate-700/70" />
+                  {/* Lane separator */}
+                  <div className="absolute left-0 right-0 top-1/2 h-px bg-border/70 dark:bg-slate-700/70" />
 
-                {/* Candidate spans (top half) */}
-                {candidateAtDepth.map(({ span, startOffset, duration }) => {
-                  const offsetPercent =
-                    (startOffset / metrics.totalDuration) * 100
-                  const widthPercent = (duration / metrics.totalDuration) * 100
-                  return (
-                    <TimelineBar
-                      key={`candidate-${span.span_id}`}
-                      span={span}
-                      offsetPercent={offsetPercent}
-                      widthPercent={widthPercent}
-                      opacity={1}
-                      isCandidate={true}
-                    />
-                  )
-                })}
+                  {baselineAtDepth.map(({ span, startOffset, duration }) => {
+                    const offsetPercent =
+                      (startOffset / metrics.totalDuration) * 100
+                    const widthPercent = (duration / metrics.totalDuration) * 100
+                    return (
+                      <TimelineBar
+                        key={`baseline-${span.span_id}`}
+                        span={span}
+                        offsetPercent={offsetPercent}
+                        widthPercent={widthPercent}
+                        lane="baseline"
+                      />
+                    )
+                  })}
 
-                {/* Depth label */}
+                  {candidateAtDepth.map(({ span, startOffset, duration }) => {
+                    const offsetPercent =
+                      (startOffset / metrics.totalDuration) * 100
+                    const widthPercent = (duration / metrics.totalDuration) * 100
+                    return (
+                      <TimelineBar
+                        key={`candidate-${span.span_id}`}
+                        span={span}
+                        offsetPercent={offsetPercent}
+                        widthPercent={widthPercent}
+                        lane="candidate"
+                      />
+                    )
+                  })}
+                </div>
+                <div className="text-right text-[11px]">
+                  <span
+                    className={clsx(
+                      'inline-flex items-center rounded-md px-2 py-0.5 border border-border dark:border-slate-700/80 bg-surface-card',
+                      laneDelta > 0
+                        ? 'text-rose-600 dark:text-rose-400'
+                        : laneDelta < 0
+                          ? 'text-emerald-600 dark:text-emerald-400'
+                          : 'text-content-secondary',
+                    )}
+                  >
+                    {formatSignedDuration(laneDelta)}
+                  </span>
+                </div>
                 {depth === 0 && (
-                  <div className="absolute -left-4 top-1/2 -translate-y-1/2 text-[10px] text-gray-400">
-                    L{depth}
+                  <div className="col-span-3 -mt-1 text-[10px] text-content-muted">
+                    candidate (top) vs baseline (bottom)
                   </div>
                 )}
               </div>
@@ -273,14 +333,14 @@ export function TimelineOverlay({
 
         {/* Duration comparison */}
         <div className="mt-4 grid grid-cols-2 gap-4 text-sm">
-          <div className="flex items-center justify-between px-3 py-2 bg-gray-50 rounded">
-            <span className="text-gray-500">Baseline</span>
+          <div className="flex items-center justify-between px-3 py-2 bg-surface-raised/70 rounded">
+            <span className="text-gray-500 dark:text-gray-400">Baseline</span>
             <span className="font-medium">
               {formatDuration(diff.baseline.duration_ms)}
             </span>
           </div>
-          <div className="flex items-center justify-between px-3 py-2 bg-gray-50 rounded">
-            <span className="text-gray-500">Candidate</span>
+          <div className="flex items-center justify-between px-3 py-2 bg-surface-raised/70 rounded">
+            <span className="text-gray-500 dark:text-gray-400">Candidate</span>
             <span className="font-medium">
               {formatDuration(diff.candidate.duration_ms)}
             </span>
@@ -288,7 +348,7 @@ export function TimelineOverlay({
         </div>
 
         {/* Legend */}
-        <div className="mt-4 pt-4 border-t">
+        <div className="mt-4 pt-4 border-t border-border">
           <TimelineLegend />
         </div>
       </div>

@@ -1,0 +1,217 @@
+================================================================================
+AGENTS LIST — app/agents/page.tsx
+================================================================================
+The agent-centric hub. Every agent is a first-class entity.
+Auto-discovered from incoming traces, enriched with metadata.
+Route: /agents
+
+LAYOUT: p-8, space-y-6
+DATA: trpc.agents.list (ClickHouse auto-discovery + Postgres enrichment)
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                                                                             │
+│  ┌─ Page Header ────────────────────────────────────────────────────────┐  │
+│  │                                                                       │  │
+│  │  Agent Registry                                  [+ Register Agent]  │  │
+│  │  Agents are auto-discovered from incoming traces.                    │  │
+│  │  Enrich them with metadata for better organization.                  │  │
+│  │                                                                       │  │
+│  │  Icon: Bot (lucide), w-7 h-7, text-primary-500                      │  │
+│  │  Title: text-2xl font-bold text-content-primary                      │  │
+│  │  Subtitle: text-content-secondary                                    │  │
+│  │  Button: btn btn-primary, opens RegisterAgentModal (see modal.txt)  │  │
+│  │                                                                       │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+│  ┌─ Registry Summary (grid-cols-5 gap-4) ──────────────────────────────┐  │
+│  │                                                                       │  │
+│  │  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐                 │  │
+│  │  │ Total Agents │ │ Healthy      │ │ Degraded     │                 │  │
+│  │  │              │ │              │ │              │                 │  │
+│  │  │     6        │ │     4        │ │     1        │                 │  │
+│  │  │              │ │  emerald dot │ │  amber dot   │                 │  │
+│  │  └──────────────┘ └──────────────┘ └──────────────┘                 │  │
+│  │  ┌──────────────┐ ┌──────────────┐                                  │  │
+│  │  │ Failing      │ │ Stale        │                                  │  │
+│  │  │              │ │ (>24h idle)  │                                  │  │
+│  │  │     1        │ │     0        │                                  │  │
+│  │  │  rose dot    │ │  gray dot    │                                  │  │
+│  │  └──────────────┘ └──────────────┘                                  │  │
+│  │                                                                       │  │
+│  │  Uses stat-card class. Each card shows count + colored status dot.   │  │
+│  │  "Stale" = agents with no traces in last 24 hours.                  │  │
+│  │  Cards are clickable — filters the list below to that status.       │  │
+│  │                                                                       │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+│  ┌─ Filter Bar ─────────────────────────────────────────────────────────┐  │
+│  │                                                                       │  │
+│  │  ┌────────────────────────────────────────────┐  ┌────────────────┐  │  │
+│  │  │ (SearchIcon) Search agents by name, ID,    │  │ All Teams  ▾  │  │  │
+│  │  │              or tag...                      │  └────────────────┘  │  │
+│  │  └────────────────────────────────────────────┘                      │  │
+│  │                                                                       │  │
+│  │  ┌────────────────┐ ┌────────────────┐ ┌────────────────┐           │  │
+│  │  │ All Envs   ▾  │ │ All Status ▾  │ │ Sort: Health ▾ │           │  │
+│  │  └────────────────┘ └────────────────┘ └────────────────┘           │  │
+│  │                                                                       │  │
+│  │  ┌──────────────────────────────────────────────┐  ┌───┐ ┌───┐     │  │
+│  │  │ Tags: [production] [customer-facing] [x]     │  │▦▦▦│ │═══│     │  │
+│  │  │       (active tag filters, click x to remove)│  │▦▦▦│ │═══│     │  │
+│  │  └──────────────────────────────────────────────┘  └───┘ └───┘     │  │
+│  │                                                     Grid  Table     │  │
+│  │                                                                       │  │
+│  │  Search: client-side filter by name, ID, description, tags          │  │
+│  │  Teams: dynamically populated from agents.team field                │  │
+│  │  Environment: dev / staging / prod                                   │  │
+│  │  Status: healthy / degraded / failing / stale                       │  │
+│  │  Sort: health (worst-first) / name / score / latency / error rate   │  │
+│  │  Tags: click tag in any card to add as filter, or type in search    │  │
+│  │  View toggle: grid (default) / table (compact list)                 │  │
+│  │                                                                       │  │
+│  │  Search input: w-full max-w-sm, pl-9 (icon inset), bg-surface-card │  │
+│  │  Selects: bg-surface-card border border-border rounded-lg text-sm   │  │
+│  │  View toggle: icon buttons, active has bg-surface-overlay           │  │
+│  │                                                                       │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+│                                                                             │
+│  ════════════════════════════════════════════════════════════════════════   │
+│  VIEW: Grid (default)                                                       │
+│  grid-cols-1 md:grid-cols-2 xl:grid-cols-3, gap-4                          │
+│  ════════════════════════════════════════════════════════════════════════   │
+│                                                                             │
+│  ┌─ Agent Card ──────────────────────────────────────────────────────────┐ │
+│  │                                                                        │ │
+│  │  ┌────────────────────────────────────────────────────────────────┐  │ │
+│  │  │                                                                │  │ │
+│  │  │  booking-agent                                   ● healthy    │  │ │
+│  │  │  v2.1 (prod) · v2.2 (staging)                                │  │ │
+│  │  │                                                                │  │ │
+│  │  │  ┌────────┐ ┌─────────┐ ┌──────┐                             │  │ │
+│  │  │  │  DEV   │ │ STAGING │ │ PROD │   gemini-2.5-flash          │  │ │
+│  │  │  │  (dim) │ │ (amber) │ │(green│   (model from latest trace) │  │ │
+│  │  │  └────────┘ └─────────┘ └──────┘                             │  │ │
+│  │  │                                                                │  │ │
+│  │  │  ┌───────────┐ ┌───────────┐ ┌───────────┐ ┌───────────┐    │  │ │
+│  │  │  │ Pass Rate │ │ Latency   │ │ Error Rate│ │ Cost/Call │    │  │ │
+│  │  │  │ 94%     ↑ │ │ 421ms   ↓ │ │ 1.2%    ─ │ │ $0.12   ↓ │    │  │ │
+│  │  │  └───────────┘ └───────────┘ └───────────┘ └───────────┘    │  │ │
+│  │  │                                                                │  │ │
+│  │  │  Tags: [customer-facing] [production]                         │  │ │
+│  │  │                                                                │  │ │
+│  │  │  ─── (border-t border-border) ────────────────────────────── │  │ │
+│  │  │                                                                │  │ │
+│  │  │  Last seen: 2m ago    Last eval: 2h ago    Team: Platform    │  │ │
+│  │  │                                                                │  │ │
+│  │  └────────────────────────────────────────────────────────────────┘  │ │
+│  │                                                                        │ │
+│  │  Card styling:                                                         │ │
+│  │  - Container: card class (bg-surface-card border border-border         │ │
+│  │    rounded-xl p-6)                                                     │ │
+│  │  - Hover: border-primary-500/30, shadow-md, transition-all             │ │
+│  │  - Entire card is a <Link> to /agents/[id]                            │ │
+│  │  - Header: name (text-lg font-semibold text-content-primary)          │ │
+│  │    + health dot + label (top-right)                                    │ │
+│  │  - Version line: text-sm text-content-muted                           │ │
+│  │  - Environment badges: inline row, always show all 3 envs             │ │
+│  │    Active: colored (dev=blue, staging=amber, prod=green)              │ │
+│  │    Inactive: dimmed (bg-surface-overlay/50 text-content-muted)        │ │
+│  │  - Model: text-xs text-content-muted, right-aligned with env badges   │ │
+│  │  - Metrics grid (2x2): label text-[10px] uppercase tracking-wider,   │ │
+│  │    value text-content-primary font-medium, trend arrow icon           │ │
+│  │    ↑ = ArrowUp (green), ↓ = ArrowDown (red), ─ = Minus (gray)       │ │
+│  │  - Tags: tag pills, text-[10px] bg-primary-500/10 text-primary-400   │ │
+│  │    border border-primary-500/20 rounded-full px-2 py-0.5             │ │
+│  │    Clickable — adds tag to filter bar                                 │ │
+│  │  - Footer: text-xs text-content-muted, pipe-separated                 │ │
+│  │    "Last seen" uses relative time (2m ago, 3h ago, 2d ago)            │ │
+│  │    If last seen > 24h: text-amber-400 + "(stale)" suffix             │ │
+│  │                                                                        │ │
+│  │  Health status dot styling:                                            │ │
+│  │    healthy:  w-2 h-2 rounded-full bg-emerald-400                      │ │
+│  │    degraded: w-2 h-2 rounded-full bg-amber-400                        │ │
+│  │    failing:  w-2 h-2 rounded-full bg-rose-400                         │ │
+│  │    stale:    w-2 h-2 rounded-full bg-gray-500 (no traces >24h)        │ │
+│  │                                                                        │ │
+│  └────────────────────────────────────────────────────────────────────────┘ │
+│                                                                             │
+│                                                                             │
+│  ════════════════════════════════════════════════════════════════════════   │
+│  VIEW: Table (compact, toggled via view switch)                             │
+│  ════════════════════════════════════════════════════════════════════════   │
+│                                                                             │
+│  ┌─ Agent Table ─────────────────────────────────────────────────────────┐ │
+│  │                                                                        │ │
+│  │  ┌──┬───────────────┬────────┬──────┬───────┬────────┬──────┬──────┐ │ │
+│  │  │  │ Agent         │ Status │ Env  │ Score │ Errors │ P50  │ Seen │ │ │
+│  │  ├──┼───────────────┼────────┼──────┼───────┼────────┼──────┼──────┤ │ │
+│  │  │☐ │ booking-agent │ ● ok  │ P S  │ 94% ↑│ 1.2%  │ 421ms│ 2m   │ │ │
+│  │  │☐ │ research-agen │ ● ok  │ P S D│ 87% ↑│ 1.2%  │ 3.2s │ 5m   │ │ │
+│  │  │☐ │ code-review   │ ◐ deg │ S D  │ 73% ↓│ 6.1%  │ 5.4s │ 12m  │ │ │
+│  │  │☐ │ support-agent │ ○ fail│ P    │ 58% ↓│ 12.3% │ 2.1s │ 1h   │ │ │
+│  │  │☐ │ doc-gen       │ ● ok  │ P S D│ 82% ─│ 2.1%  │ 4.5s │ 30m  │ │ │
+│  │  │☐ │ api-integ     │ ● ok  │ D    │ 79% ↑│ 3.2%  │ 1.8s │ 3h   │ │ │
+│  │  └──┴───────────────┴────────┴──────┴───────┴────────┴──────┴──────┘ │ │
+│  │                                                                        │ │
+│  │  Table features:                                                       │ │
+│  │  - Checkbox column for multi-select (enables "Compare Selected")      │ │
+│  │  - All columns sortable (click header to toggle asc/desc)             │ │
+│  │  - "Agent" column: name truncated, click row to navigate              │ │
+│  │  - "Env" column: abbreviated P/S/D with color dots                    │ │
+│  │  - "Status" column: dot + abbreviated label                           │ │
+│  │  - "Seen" column: relative time, amber if >24h                        │ │
+│  │  - Row hover: bg-surface-overlay/50                                    │ │
+│  │  - Click row: navigate to /agents/[id]                                │ │
+│  │                                                                        │ │
+│  │  ┌─ Bulk Actions (shown when 2+ rows selected) ──────────────────┐  │ │
+│  │  │                                                                 │  │ │
+│  │  │  2 agents selected   [Compare]  [Add Tags]  [Clear Selection] │  │ │
+│  │  │                                                                 │  │ │
+│  │  │  "Compare" opens a side-by-side metrics comparison view        │  │ │
+│  │  │  "Add Tags" opens a popover to batch-tag selected agents       │  │ │
+│  │  │                                                                 │  │ │
+│  │  └─────────────────────────────────────────────────────────────────┘  │ │
+│  │                                                                        │ │
+│  └────────────────────────────────────────────────────────────────────────┘ │
+│                                                                             │
+│                                                                             │
+│  ┌─ Empty State ────────────────────────────────────────────────────────┐  │
+│  │                                                                       │  │
+│  │  (when no agents match filters):                                     │  │
+│  │                                                                       │  │
+│  │           (Bot icon, w-12 h-12, text-content-muted)                  │  │
+│  │                                                                       │  │
+│  │           No agents found                                             │  │
+│  │           No agents match your current filters.                       │  │
+│  │           Try adjusting your search criteria.                         │  │
+│  │           text-lg font-medium text-content-secondary (title)         │  │
+│  │           text-sm text-content-muted (body)                          │  │
+│  │                                                                       │  │
+│  │  (when truly empty — no agents exist):                               │  │
+│  │                                                                       │  │
+│  │           (Bot icon, w-16 h-16, text-content-muted)                  │  │
+│  │                                                                       │  │
+│  │           No agents discovered yet                                    │  │
+│  │           Agents appear automatically when they send traces           │  │
+│  │           via the SDK. Get started:                                   │  │
+│  │                                                                       │  │
+│  │           ┌─────────────────────────────────────────────┐            │  │
+│  │           │  import { trace } from "@neon/sdk"          │            │  │
+│  │           │                                              │            │  │
+│  │           │  const result = await trace({                │            │  │
+│  │           │    agentId: "my-agent",                      │            │  │
+│  │           │    input: "Hello",                           │            │  │
+│  │           │  }, async (ctx) => {                         │            │  │
+│  │           │    return ctx.llm("gpt-4o", ...)             │            │  │
+│  │           │  })                                          │            │  │
+│  │           └─────────────────────────────────────────────┘            │  │
+│  │           font-mono text-xs bg-surface-card border border-border    │  │
+│  │           rounded-lg p-4                                             │  │
+│  │                                                                       │  │
+│  │           [View SDK Docs]                                             │  │
+│  │           btn btn-secondary, links to docs                           │  │
+│  │                                                                       │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘

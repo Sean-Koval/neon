@@ -26,18 +26,18 @@ import { cn } from '@/lib/utils'
 function getStatusInfo(status: WorkflowStatus) {
   switch (status) {
     case 'RUNNING':
-      return { Icon: Play, color: 'text-blue-500', bg: 'bg-blue-50' }
+      return { Icon: Play, color: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-50 dark:bg-blue-500/10' }
     case 'COMPLETED':
-      return { Icon: CheckCircle, color: 'text-green-500', bg: 'bg-green-50' }
+      return { Icon: CheckCircle, color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-green-50 dark:bg-emerald-500/10' }
     case 'FAILED':
-      return { Icon: XCircle, color: 'text-red-500', bg: 'bg-red-50' }
+      return { Icon: XCircle, color: 'text-red-600 dark:text-red-400', bg: 'bg-red-50 dark:bg-red-500/10' }
     case 'CANCELLED':
     case 'TERMINATED':
-      return { Icon: XCircle, color: 'text-gray-500', bg: 'bg-gray-50' }
+      return { Icon: XCircle, color: 'text-gray-500 dark:text-gray-400', bg: 'bg-gray-50 dark:bg-dark-900' }
     case 'TIMED_OUT':
-      return { Icon: Clock, color: 'text-orange-500', bg: 'bg-orange-50' }
+      return { Icon: Clock, color: 'text-orange-500', bg: 'bg-orange-50 dark:bg-orange-500/10' }
     default:
-      return { Icon: Clock, color: 'text-gray-500', bg: 'bg-gray-50' }
+      return { Icon: Clock, color: 'text-gray-500 dark:text-gray-400', bg: 'bg-gray-50 dark:bg-dark-900' }
   }
 }
 
@@ -69,13 +69,13 @@ export default function WorkflowsPage() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold">Workflows</h1>
-          <p className="text-gray-500">Manage Temporal workflow executions</p>
+          <p className="text-gray-500 dark:text-gray-400">Manage Temporal workflow executions</p>
         </div>
 
         <div className="flex items-center gap-2">
           <button
             onClick={() => refetch()}
-            className="p-2 hover:bg-gray-100 rounded-lg"
+            className="p-2 hover:bg-gray-100 dark:hover:bg-dark-700 rounded-lg"
             title="Refresh"
           >
             <RefreshCw className="w-5 h-5" />
@@ -90,7 +90,7 @@ export default function WorkflowsPage() {
           onChange={(e) =>
             setStatusFilter((e.target.value as WorkflowStatus) || undefined)
           }
-          className="px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+          className="px-4 py-2 border dark:border-dark-700 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-dark-800 dark:text-gray-100"
         >
           <option value="">All Status</option>
           <option value="RUNNING">Running</option>
@@ -99,16 +99,16 @@ export default function WorkflowsPage() {
           <option value="CANCELLED">Cancelled</option>
         </select>
 
-        <button className="flex items-center gap-2 px-4 py-2 border rounded-lg hover:bg-gray-50">
+        <button className="flex items-center gap-2 px-4 py-2 border dark:border-dark-700 rounded-lg hover:bg-gray-50 dark:hover:bg-dark-700">
           <Filter className="w-4 h-4" />
           More Filters
         </button>
       </div>
 
       {/* Workflows list */}
-      <div className="border rounded-lg overflow-hidden">
+      <div className="border dark:border-dark-700 rounded-lg overflow-hidden">
         {/* Header */}
-        <div className="flex items-center bg-gray-50 px-4 py-3 border-b text-sm font-medium text-gray-500">
+        <div className="flex items-center bg-gray-50 dark:bg-dark-900 px-4 py-3 border-b dark:border-dark-700 text-sm font-medium text-gray-500 dark:text-gray-400">
           <div className="flex-1">Workflow</div>
           <div className="w-32 text-center">Type</div>
           <div className="w-24 text-center">Status</div>
@@ -118,15 +118,15 @@ export default function WorkflowsPage() {
 
         {/* Loading state */}
         {isLoading && (
-          <div className="flex items-center justify-center py-12 text-gray-500">
-            <RefreshCw className="w-5 h-5 animate-spin mr-2" />
+          <div className="flex items-center justify-center py-12 text-gray-500 dark:text-gray-400">
+            <RefreshCw className="w-5 h-5 animate-spin" />
             Loading workflows...
           </div>
         )}
 
         {/* Empty state */}
         {!isLoading && (!workflows || workflows.length === 0) && (
-          <div className="flex flex-col items-center justify-center py-12 text-gray-500">
+          <div className="flex flex-col items-center justify-center py-12 text-gray-500 dark:text-gray-400">
             <Clock className="w-8 h-8 mb-2" />
             <p>No workflows found</p>
             <p className="text-sm">Workflows will appear here when started</p>
@@ -141,19 +141,19 @@ export default function WorkflowsPage() {
             <Link
               key={workflow.workflowId}
               href={`/workflows/${workflow.workflowId}`}
-              className="flex items-center px-4 py-3 border-b hover:bg-gray-50 cursor-pointer"
+              className="flex items-center px-4 py-3 border-b dark:border-dark-700 hover:bg-gray-50 dark:hover:bg-dark-700 cursor-pointer"
             >
               <div className="flex-1 min-w-0">
                 <div className="font-medium truncate">
                   {workflow.workflowId}
                 </div>
-                <div className="text-sm text-gray-500 font-mono truncate">
+                <div className="text-sm text-gray-500 dark:text-gray-400 font-mono truncate">
                   {workflow.runId}
                 </div>
               </div>
 
               <div className="w-32 text-center">
-                <span className="text-sm text-gray-600">{workflow.type}</span>
+                <span className="text-sm text-gray-600 dark:text-gray-300">{workflow.type}</span>
               </div>
 
               <div className="w-24 flex justify-center">
@@ -169,12 +169,12 @@ export default function WorkflowsPage() {
                 </span>
               </div>
 
-              <div className="w-32 text-right text-sm text-gray-500">
+              <div className="w-32 text-right text-sm text-gray-500 dark:text-gray-400">
                 {formatRelativeTime(workflow.startTime)}
               </div>
 
               <div className="w-8 flex justify-center">
-                <ChevronRight className="w-4 h-4 text-gray-400" />
+                <ChevronRight className="w-4 h-4 text-gray-400 dark:text-gray-500" />
               </div>
             </Link>
           )

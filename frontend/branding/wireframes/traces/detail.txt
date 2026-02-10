@@ -1,0 +1,510 @@
+================================================================================
+TRACE DETAIL — app/traces/[id]/page.tsx
+================================================================================
+Single trace with multiple view modes, span detail panel, and cost summary.
+Route: /traces/[id]
+
+LAYOUT: p-6, space-y-6
+DATA: useTrace(traceId), useTraceScores(traceId)
+
+DESIGN NOTES:
+
+  1. The Trace type includes: traceId, projectId, name, timestamp, endTime?,
+     durationMs, status (unset | ok | error), metadata, agentId?, agentVersion?,
+     workflowId?, workflowRunId?, totalInputTokens, totalOutputTokens,
+     totalCostUsd?, toolCallCount, llmCallCount.
+
+  2. TraceWithSpans bundles: { trace: Trace, spans: SpanWithChildren[] }.
+     SpanWithChildren includes children[] for tree rendering.
+
+  3. Span types and their icons:
+     - span_type "generation" (LLM call): Brain icon
+     - span_type "tool": Wrench icon
+     - span_type "retrieval": Database icon
+     - span_type "event": Zap icon
+     - span_type "span" (generic): Activity icon
+     Component types add context: prompt, retrieval, tool, reasoning,
+     planning, memory, routing, skill, mcp, other.
+
+  4. Multi-agent detection: if the trace's spans have 2+ distinct agentId
+     values, the trace is multi-agent. Default view switches to Graph.
+
+  5. Score data comes from ScoreRecord (separate from trace). Scores are
+     per-trace (span_id null) or per-span. Per-trace scores show in the
+     header. Per-span scores show in the span detail panel.
+
+  6. Lazy loading: SpanSummary (no input/output payloads) loads first for
+     timeline rendering. SpanDetails (input, output, tool_input, tool_output,
+     attributes) load on-demand when a span is clicked.
+
+  7. The span detail panel is a fixed right sidebar that slides in on span
+     click and pushes the main content. On mobile, it becomes a bottom sheet.
+
+  8. "Create Test Case" converts the trace into an eval test case. Opens a
+     modal to select target suite, with the trace's root span input as case
+     input and output as expected output.
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                                                                             │
+│  ← Back to Traces                                                          │
+│  text-sm text-content-muted hover:text-content-primary                     │
+│  Click -> navigates to /traces (preserves last filter state)               │
+│                                                                             │
+│  ┌─ Trace Header ─────────────────────────────────────────────────────┐   │
+│  │                                                                       │  │
+│  │  Trace abc-12345678                                    ✓ Completed  │  │
+│  │  text-xl font-bold font-mono text-content-primary      Status badge │  │
+│  │                                                                       │  │
+│  │  booking-agent v2.1 · 12 spans · 3.2s · $0.12                      │  │
+│  │  text-sm text-content-muted                                          │  │
+│  │                                                                       │  │
+│  │  Agent name is a link to /agents/[agentId].                          │  │
+│  │  Spans count = total span count from the trace.                      │  │
+│  │  Duration formatted: <1s "342ms", 1-60s "3.2s", >60s "1m 23s".     │  │
+│  │  Cost = totalCostUsd. Shows "--" if null.                            │  │
+│  │                                                                       │  │
+│  │  Status badge:                                                        │  │
+│  │    ok    = "Completed" badge-green, CheckCircle icon                  │  │
+│  │    error = "Error" badge-red, XCircle icon                            │  │
+│  │    unset = "In Progress" badge-gray, Loader icon (animated)          │  │
+│  │                                                                       │  │
+│  │  Started: 2 minutes ago                                               │  │
+│  │  text-xs text-content-muted. Relative time, title attr = ISO date.  │  │
+│  │                                                                       │  │
+│  │  [Create Test Case]  [Debug →]  [Copy Trace ID]                      │  │
+│  │                                                                       │  │
+│  │  "Create Test Case": btn btn-secondary btn-sm                        │  │
+│  │    Opens CreateTestCaseModal (see below).                             │  │
+│  │  "Debug →": btn btn-secondary btn-sm                                 │  │
+│  │    Navigates to /traces/[id]/debug.                                   │  │
+│  │  "Copy Trace ID": btn btn-ghost btn-sm                               │  │
+│  │    Copies full traceId to clipboard. Shows "Copied!" toast.          │  │
+│  │                                                                       │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+│  ┌─ Trace Stats (grid-cols-5 gap-4) ──────────────────────────────────┐   │
+│  │                                                                       │  │
+│  │  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐ │  │
+│  │  │ LLM Calls│ │Tool Calls│ │ Tokens   │ │ Cost     │ │ Score    │ │  │
+│  │  │ 4        │ │ 3        │ │ 2,847    │ │ $0.12    │ │ 0.92     │ │  │
+│  │  └──────────┘ └──────────┘ └──────────┘ └──────────┘ └──────────┘ │  │
+│  │                                                                       │  │
+│  │  stat-card class, smaller variant (p-3).                             │  │
+│  │  LLM Calls: llmCallCount from trace.                                 │  │
+│  │  Tool Calls: toolCallCount from trace.                                │  │
+│  │  Tokens: totalInputTokens + totalOutputTokens. Formatted: 2,847.    │  │
+│  │    Tooltip: "Input: 1,834 / Output: 1,013"                           │  │
+│  │  Cost: totalCostUsd. "$0.12". Shows "--" if null.                    │  │
+│  │  Score: avg of per-trace ScoreRecords. Colored:                      │  │
+│  │    >=0.85 emerald, >=0.7 amber, <0.7 rose.                           │  │
+│  │    Shows "--" if no scores. Tooltip lists individual scorer scores.  │  │
+│  │                                                                       │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+│  ┌─ View Selector ────────────────────────────────────────────────────┐   │
+│  │                                                                       │  │
+│  │  Timeline*  |  Graph  |  Decisions  |  Multi-Agent                   │  │
+│  │  ═════════                                                            │  │
+│  │                                                                       │  │
+│  │  Tab bar: border-b border-border.                                    │  │
+│  │  Active tab: text-content-primary font-medium, border-b-2            │  │
+│  │    border-accent-500.                                                 │  │
+│  │  Inactive: text-content-muted hover:text-content-secondary.          │  │
+│  │                                                                       │  │
+│  │  View modes:                                                          │  │
+│  │  - Timeline: waterfall view (existing trace-timeline component)      │  │
+│  │    Default for single-agent traces.                                   │  │
+│  │  - Graph: node-based DAG (uses @xyflow/react)                        │  │
+│  │    Default for multi-agent traces.                                    │  │
+│  │  - Decisions: decision tree view (existing decision-tree component)  │  │
+│  │  - Multi-Agent: swimlane view (existing execution-flow component)    │  │
+│  │    Only visible when trace has multiple agents.                       │  │
+│  │                                                                       │  │
+│  │  Auto-detect: if trace has spans from 2+ agents, default to Graph.  │  │
+│  │  View selection persisted in URL: /traces/[id]?view=graph            │  │
+│  │                                                                       │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+│  ┌─ VIEW: Timeline (default for single-agent) ────────────────────────┐   │
+│  │                                                                       │  │
+│  │  ┌───────────────────────────────────────────────────────────────┐  │  │
+│  │  │                                                                 │  │  │
+│  │  │  Waterfall timeline (existing trace-timeline component)        │  │  │
+│  │  │                                                                 │  │  │
+│  │  │  0ms                              1.6s                    3.2s │  │  │
+│  │  │  |─────────────────────────────────|──────────────────────────|│  │  │
+│  │  │                                                                 │  │  │
+│  │  │  root ─────────────────────────────────────────────────────────│  │  │
+│  │  │    ├ llm_call ──────────────── 1.2s                            │  │  │
+│  │  │    ├ tool:web_search ─── 0.8s                                  │  │  │
+│  │  │    ├ llm_call ──────── 0.9s                                    │  │  │
+│  │  │    └ tool:summarize ─ 0.3s                                     │  │  │
+│  │  │                                                                 │  │  │
+│  │  │  Bar colors by span type:                                       │  │  │
+│  │  │    generation (LLM): accent-500                                │  │  │
+│  │  │    tool: emerald-500                                            │  │  │
+│  │  │    retrieval: blue-500                                          │  │  │
+│  │  │    event: amber-500                                             │  │  │
+│  │  │    span (generic): gray-400                                     │  │  │
+│  │  │  Error spans: rose-500 bar with XCircle icon.                  │  │  │
+│  │  │                                                                 │  │  │
+│  │  │  Click any span -> shows Span Detail Panel on the right         │  │  │
+│  │  │  Hover: bar highlights, tooltip shows name + duration           │  │  │
+│  │  │                                                                 │  │  │
+│  │  └───────────────────────────────────────────────────────────────┘  │  │
+│  │                                                                       │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+│  ┌─ VIEW: Agent Graph (default for multi-agent) ──────────────────────┐   │
+│  │                                                                       │  │
+│  │  ┌───────────────────────────────────────────────────────────────┐  │  │
+│  │  │                                                                 │  │  │
+│  │  │  Node-based DAG using @xyflow/react                            │  │  │
+│  │  │                                                                 │  │  │
+│  │  │          ┌──────────────┐                                      │  │  │
+│  │  │          │  booking     │  (green border = success)           │  │  │
+│  │  │          │  agent       │                                      │  │  │
+│  │  │          └──────┬───────┘                                      │  │  │
+│  │  │                 │                                               │  │  │
+│  │  │          ┌──────┴───────┐                                      │  │  │
+│  │  │          │  LLM Call   │  (accent = LLM)                      │  │  │
+│  │  │          │  gpt-4o     │                                       │  │  │
+│  │  │          │  1.2s       │                                       │  │  │
+│  │  │          └──────┬───────┘                                      │  │  │
+│  │  │           ╱            ╲                                       │  │  │
+│  │  │  ┌───────┴──────┐  ┌───┴──────────┐                           │  │  │
+│  │  │  │  search     │  │  research   │  (red border = error)      │  │  │
+│  │  │  │  web_search │  │  agent      │                             │  │  │
+│  │  │  │  0.8s ok    │  │  handoff    │                             │  │  │
+│  │  │  └──────────────┘  └──────┬───────┘                           │  │  │
+│  │  │                           │                                    │  │  │
+│  │  │                    ┌──────┴───────┐                            │  │  │
+│  │  │                    │  LLM Call   │                             │  │  │
+│  │  │                    │  claude      │                            │  │  │
+│  │  │                    │  0.9s        │                            │  │  │
+│  │  │                    └──────────────┘                            │  │  │
+│  │  │                                                                 │  │  │
+│  │  │  Node types & visual:                                           │  │  │
+│  │  │    Agent: rounded-xl, primary-500 border, bold name             │  │  │
+│  │  │    LLM: rounded-lg, accent-500 border, shows model + duration  │  │  │
+│  │  │    Tool: rounded-md, dark-600 border, shows tool name + status │  │  │
+│  │  │  Border color by status:                                        │  │  │
+│  │  │    emerald = success, rose = error, amber = slow (>5s)          │  │  │
+│  │  │  Node size: proportional to duration                            │  │  │
+│  │  │                                                                 │  │  │
+│  │  │  Edge styling:                                                  │  │  │
+│  │  │    Solid: data flow                                             │  │  │
+│  │  │    Dashed: agent handoff                                        │  │  │
+│  │  │    Red: error propagation                                       │  │  │
+│  │  │                                                                 │  │  │
+│  │  │  Controls: zoom in/out, fit view, minimap toggle (bottom-right)│  │  │
+│  │  │  Click node -> Span Detail Panel slides in from right           │  │  │
+│  │  │  Height: min-h-[500px], auto-layout with dagre                 │  │  │
+│  │  │                                                                 │  │  │
+│  │  └───────────────────────────────────────────────────────────────┘  │  │
+│  │                                                                       │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+│  ┌─ VIEW: Decisions ──────────────────────────────────────────────────┐   │
+│  │                                                                       │  │
+│  │  Existing decision-tree component (decision-tree.tsx).               │  │
+│  │  Shows trace as a decision tree with branching paths.                │  │
+│  │  Each node: decision point, child branches = outcomes.               │  │
+│  │  Generated via traceToDecisionTree() utility.                        │  │
+│  │  Best for understanding "why did the agent do X?"                    │  │
+│  │                                                                       │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+│  ┌─ VIEW: Multi-Agent ────────────────────────────────────────────────┐   │
+│  │                                                                       │  │
+│  │  Existing execution-flow component (multi-agent/execution-flow.tsx).│  │
+│  │  Swimlane view: one lane per agent, showing parallel execution.     │  │
+│  │  Generated via analyzeMultiAgentTrace() utility.                     │  │
+│  │  Only visible when trace has 2+ distinct agents.                     │  │
+│  │                                                                       │  │
+│  │  Failure cascade detection (failure-cascade.tsx):                     │  │
+│  │  If an error propagates across agents, shows root cause + impact.   │  │
+│  │  Displayed as a callout above the swimlane: "Root cause: tool       │  │
+│  │  web_search failed in research-agent → cascaded to booking-agent"  │  │
+│  │                                                                       │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+│  ┌─ Span Detail Panel (right sidebar, shown on span click) ───────────┐  │
+│  │                                                                       │  │
+│  │  ┌──────────────────────────────────────────┐                        │  │
+│  │  │ Span: llm_call                    [x]   │  Fixed right sidebar   │  │
+│  │  │                                          │  w-96 (384px)          │  │
+│  │  │ Type: generation · Model: gpt-4o        │  bg-surface-card       │  │
+│  │  │ Component: reasoning                     │  border-l border-border│  │
+│  │  │ Duration: 1.2s · Status: ok             │  shadow-lg             │  │
+│  │  │                                          │                        │  │
+│  │  │ ┌─ Tabs ──────────────────────────────┐ │  Tabs: I/O | Attrs |  │  │
+│  │  │ │ I/O*  |  Attributes  |  Scores     │ │  Scores               │  │
+│  │  │ └────────────────────────────────────┘ │                        │  │
+│  │  │                                          │                        │  │
+│  │  │ TAB: I/O                                │                        │  │
+│  │  │                                          │                        │  │
+│  │  │ Input:                                   │  Lazy-loaded via      │  │
+│  │  │ ┌──────────────────────────────────────┐│  SpanDetails endpoint │  │
+│  │  │ │ "Find recent papers on multi-agent   ││  on first click.      │  │
+│  │  │ │  coordination..."                    ││                        │  │
+│  │  │ └──────────────────────────────────────┘│  bg-surface-overlay   │  │
+│  │  │                                          │  rounded-lg p-3       │  │
+│  │  │ Output:                                  │  font-mono text-xs    │  │
+│  │  │ ┌──────────────────────────────────────┐│  max-h-[200px]        │  │
+│  │  │ │ "I found 5 relevant papers..."       ││  overflow-y-auto      │  │
+│  │  │ └──────────────────────────────────────┘│                        │  │
+│  │  │                                          │  [Copy] button on    │  │
+│  │  │ For tool spans, shows:                   │  each I/O block.     │  │
+│  │  │   Tool Input (toolInput) + Tool Output  │                        │  │
+│  │  │                                          │                        │  │
+│  │  │ TAB: Attributes                         │                        │  │
+│  │  │                                          │                        │  │
+│  │  │ tokens_in: 1,234                        │  Key-value pairs.     │  │
+│  │  │ tokens_out: 567                          │  text-xs font-mono.  │  │
+│  │  │ cost: $0.004                             │  Grid: key (muted)   │  │
+│  │  │ model_params.temperature: 0.7           │  + value (primary).  │  │
+│  │  │                                          │                        │  │
+│  │  │ TAB: Scores (if ScoreRecords exist)     │                        │  │
+│  │  │                                          │                        │  │
+│  │  │ tool_selection: 0.95  ████████████████░│  Per-scorer bar.      │  │
+│  │  │ reasoning:      0.88  █████████████░░░░│  Colored by threshold.│  │
+│  │  │ grounding:      0.72  ███████████░░░░░░│  >=0.85 emerald       │  │
+│  │  │                                          │  >=0.7 amber          │  │
+│  │  │                                          │  <0.7 rose            │  │
+│  │  │                                          │                        │  │
+│  │  │ MCP Context (if mcpContext exists):      │                        │  │
+│  │  │ Server: web-search-mcp                  │                        │  │
+│  │  │ Tool: search                             │                        │  │
+│  │  │ Transport: http                          │                        │  │
+│  │  │                                          │                        │  │
+│  │  │ Decision (if decisionMetadata exists):  │                        │  │
+│  │  │ Retry: 2/3                               │                        │  │
+│  │  │ Fallback: true                           │                        │  │
+│  │  │ Approval: granted                        │                        │  │
+│  │  │                                          │                        │  │
+│  │  │ [View in Debugger →]                    │  Link to debug page  │  │
+│  │  │                                          │  with this span       │  │
+│  │  │                                          │  pre-selected.        │  │
+│  │  └──────────────────────────────────────────┘                        │  │
+│  │                                                                       │  │
+│  │  Panel behavior:                                                      │  │
+│  │  - Slides in from right with transition (200ms ease).                │  │
+│  │  - Main content area shrinks to accommodate (flex layout).           │  │
+│  │  - Close [x] or click outside to dismiss.                             │  │
+│  │  - ESC key also closes.                                               │  │
+│  │  - On mobile (<768px): full-screen bottom sheet instead.             │  │
+│  │                                                                       │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+│  ┌─ Related Traces ───────────────────────────────────────────────────┐   │
+│  │                                                                       │  │
+│  │  Related Traces                                                      │  │
+│  │  text-base font-semibold text-content-primary                        │  │
+│  │                                                                       │  │
+│  │  ┌──────────────┬────────┬────────┬──────┐                          │  │
+│  │  │ Trace        │ Status │Duration│ Time │                          │  │
+│  │  ├──────────────┼────────┼────────┼──────┤                          │  │
+│  │  │ xyz-8901...  │ ok     │ 2.8s   │ 5m   │                          │  │
+│  │  │ uvw-6789...  │ error  │ 4.1s   │ 12m  │                          │  │
+│  │  │ rst-4567...  │ ok     │ 3.0s   │ 1h   │                          │  │
+│  │  └──────────────┴────────┴────────┴──────┘                          │  │
+│  │                                                                       │  │
+│  │  Shows up to 5 recent traces from the same agent.                    │  │
+│  │  Excludes the current trace.                                          │  │
+│  │  Data: useTraces({ agentId, limit: 5 }) filtered by current trace.  │  │
+│  │  Click row -> navigate to /traces/[traceId].                         │  │
+│  │  card class. Collapsible section (default expanded).                 │  │
+│  │                                                                       │  │
+│  │  Hidden if agentId is null (can't find related traces).             │  │
+│  │                                                                       │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+CREATE TEST CASE MODAL:
+
+  Triggered by [Create Test Case] button in header.
+
+  ┌────────────────────────────────────────────────────────────┐
+  │                                                            │
+  │  Create Test Case from Trace                    [x close] │
+  │  text-lg font-semibold                                     │
+  │                                                            │
+  │  ── border-b ─────────────────────────────────────────────│
+  │                                                            │
+  │  Target Suite                                              │
+  │  ┌──────────────────────────────────────────────────────┐ │
+  │  │ Select a suite...                                ▾   │ │
+  │  └──────────────────────────────────────────────────────┘ │
+  │  Dropdown populated from suites.list. Shows suite name   │
+  │  + case count. Required field.                            │
+  │                                                            │
+  │  Case Name                                                 │
+  │  ┌──────────────────────────────────────────────────────┐ │
+  │  │ booking-agent-trace-abc12345                          │ │
+  │  └──────────────────────────────────────────────────────┘ │
+  │  Auto-generated from agent name + trace ID prefix.       │
+  │  Editable.                                                │
+  │                                                            │
+  │  Input (from trace root span)                             │
+  │  ┌──────────────────────────────────────────────────────┐ │
+  │  │ { "query": "Find flights from NYC to LAX..." }       │ │
+  │  └──────────────────────────────────────────────────────┘ │
+  │  font-mono text-xs bg-surface-overlay rounded p-3.       │
+  │  Pre-filled from root span input. Read-only preview.     │
+  │  max-h-[150px] overflow-y-auto.                          │
+  │                                                            │
+  │  Expected Output (from trace root span)                   │
+  │  ┌──────────────────────────────────────────────────────┐ │
+  │  │ { "flights": [...] }                                  │ │
+  │  └──────────────────────────────────────────────────────┘ │
+  │  Pre-filled from root span output. Editable.             │
+  │                                                            │
+  │  Expected Tools                                            │
+  │  ┌──────────────────────────────────────────────────────┐ │
+  │  │ ☑ web_search  ☑ summarize                            │ │
+  │  └──────────────────────────────────────────────────────┘ │
+  │  Auto-detected from trace's tool spans. Checkboxes.      │
+  │  User can uncheck tools they don't want to require.      │
+  │                                                            │
+  │                           [Cancel]  [Create Case]         │
+  │                                                            │
+  │  Standard modal: max-w-lg, backdrop bg-black/50.         │
+  │  "Create Case": btn btn-primary. Calls suites.createCase.│
+  │  On success: toast "Test case created" + link to suite.  │
+  │                                                            │
+  └────────────────────────────────────────────────────────────┘
+
+LOADING STATE:
+
+  ┌──────────────────────────────────────────────────────────┐
+  │                                                          │
+  │  ← Back to Traces                                       │
+  │                                                          │
+  │  ┌──────────────────────────────────────────────────┐  │
+  │  │ ░░░░░░░░░░░░░░░░░░░░░░░░░░                      │  │
+  │  │ ░░░░░░░░░░ · ░░░░ · ░░░░                         │  │
+  │  │ ░░░░░ ░░░░░░░░                                    │  │
+  │  └──────────────────────────────────────────────────┘  │
+  │                                                          │
+  │  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐  │
+  │  │ ░░░░░░░  │ │ ░░░░░░░  │ │ ░░░░░░░  │ │ ░░░░░░░  │  │
+  │  └──────────┘ └──────────┘ └──────────┘ └──────────┘  │
+  │                                                          │
+  │  ░░░░░░░  |  ░░░░░  |  ░░░░░░░░  |  ░░░░░░░░░         │
+  │                                                          │
+  │  ┌──────────────────────────────────────────────────┐  │
+  │  │                                                    │  │
+  │  │  ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  │  │
+  │  │    ░░░░░░░░░░░░░░░░                              │  │
+  │  │    ░░░░░░░░░░░░                                   │  │
+  │  │    ░░░░░░░░░░░░░░░░░░                             │  │
+  │  │    ░░░░░░░░░                                      │  │
+  │  │                                                    │  │
+  │  └──────────────────────────────────────────────────┘  │
+  │                                                          │
+  │  Header skeleton, stat cards shimmer, tab bar skeleton, │
+  │  timeline placeholder with 5 span-width skeleton bars. │
+  │                                                          │
+  └──────────────────────────────────────────────────────────┘
+
+ERROR STATE:
+
+  ┌──────────────────────────────────────────────────────────┐
+  │                                                          │
+  │  ← Back to Traces                                       │
+  │                                                          │
+  │        (AlertTriangle icon, w-10 h-10, text-status-     │
+  │         error)                                           │
+  │                                                          │
+  │        Failed to load trace                              │
+  │        text-base font-medium text-content-primary        │
+  │                                                          │
+  │        The trace data could not be retrieved.            │
+  │        text-sm text-content-muted                        │
+  │                                                          │
+  │        [Retry]  [Back to Traces]                         │
+  │                                                          │
+  └──────────────────────────────────────────────────────────┘
+
+NOT FOUND STATE:
+
+  ┌──────────────────────────────────────────────────────────┐
+  │                                                          │
+  │  ← Back to Traces                                       │
+  │                                                          │
+  │        (SearchX icon, w-10 h-10, text-content-muted)   │
+  │                                                          │
+  │        Trace not found                                   │
+  │        text-base font-medium text-content-primary        │
+  │                                                          │
+  │        The trace abc-12345678 does not exist or         │
+  │        may have been deleted.                            │
+  │        text-sm text-content-muted                        │
+  │                                                          │
+  │        [Back to Traces]                                  │
+  │                                                          │
+  └──────────────────────────────────────────────────────────┘
+
+DATA SOURCES:
+
+  useTrace(traceId)
+    Hook: frontend/hooks/use-traces.ts
+    tRPC: traces.get
+    Backend: ClickHouse traces + spans tables
+    Returns: TraceWithSpans { trace: Trace, spans: SpanWithChildren[] }
+    Stale time: 1 minute
+    Lazy loading: SpanSummary first, SpanDetails on click
+
+  useTraceScores(traceId)
+    Backend: ClickHouse scores table
+    Returns: ScoreRecord[] (filtered by trace_id, span_id null = trace-level)
+    Stale time: 30 seconds
+
+  Span types: span | generation | tool | retrieval | event
+  Component types: prompt | retrieval | tool | reasoning | planning |
+                   memory | routing | skill | mcp | other
+  Decision metadata: wasUserInitiated, isFallback, retryCount,
+                     originalSpanId, requiredApproval, approvalGranted
+  MCP context: serverId, serverUrl, toolId, protocolVersion, transport
+  Skill selection: selectedSkill, skillCategory, selectionConfidence,
+                   selectionReason, alternativesConsidered
+
+BEHAVIORAL NOTES:
+
+  1. View persistence: Selected view mode is saved in URL query param
+     (?view=graph). Navigating away and back preserves the view.
+
+  2. Span selection: Clicking a span in any view opens the detail panel.
+     The selected span is highlighted in all views simultaneously (if
+     multiple views were somehow visible).
+
+  3. Lazy loading: The initial load fetches SpanSummary (no large payloads).
+     When a span is clicked, SpanDetails (input, output, tool_input,
+     tool_output, attributes) are fetched on-demand. A small spinner
+     appears in the detail panel while loading.
+
+  4. Deep linking: Direct links to a span work via
+     /traces/[id]?span=[spanId]. On load, the span detail panel opens
+     automatically for the specified span.
+
+  5. Graph interactions: Nodes are draggable. Double-click a node to
+     zoom-to-fit that subtree. Scroll to zoom. Pan with click+drag
+     on background.
+
+  6. Cost aggregation: The header cost is totalCostUsd from the Trace
+     record. The stat card shows the same value. Individual span costs
+     are in the span detail panel's Attributes tab.
+
+  7. Related traces: The "Related Traces" section at the bottom shows
+     recent traces from the same agent. This helps users compare
+     execution patterns. Hidden if agentId is null.
+
+  8. Error boundary: The page wraps content in an error boundary. If
+     a view mode crashes (e.g., reactflow error), only that view
+     shows the error — user can switch to a different view.
+
+  9. Multi-agent label: When trace has 2+ agents, the header shows
+     "booking-agent v2.1 + 1 more agent" with a tooltip listing all
+     agent names.

@@ -38,14 +38,14 @@ export function AlertConfig({ suiteId, suiteName, current }: AlertConfigProps) {
   return (
     <div className="card p-4">
       <div className="flex items-center gap-2 mb-3">
-        <Settings className="w-4 h-4 text-gray-500" />
-        <h3 className="text-sm font-medium text-gray-900">{suiteName}</h3>
+        <Settings className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+        <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100">{suiteName}</h3>
       </div>
       <form onSubmit={handleSubmit} className="space-y-3">
         <div>
           <label
             htmlFor={`abs-${suiteId}`}
-            className="block text-xs font-medium text-gray-600 mb-1"
+            className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1"
           >
             Absolute minimum score (0-1)
           </label>
@@ -57,13 +57,13 @@ export function AlertConfig({ suiteId, suiteName, current }: AlertConfigProps) {
             step="0.05"
             value={absoluteMin}
             onChange={(e) => setAbsoluteMin(Number(e.target.value))}
-            className="w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-primary-400 focus:ring-1 focus:ring-primary-400 outline-none"
+            className="w-full rounded-md border border-gray-300 dark:border-dark-600 px-3 py-1.5 text-sm focus:border-primary-400 focus:ring-1 focus:ring-primary-400 outline-none dark:bg-dark-800 dark:text-gray-100"
           />
         </div>
         <div>
           <label
             htmlFor={`drop-${suiteId}`}
-            className="block text-xs font-medium text-gray-600 mb-1"
+            className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1"
           >
             Drop % from average to trigger alert (0-1)
           </label>
@@ -75,13 +75,13 @@ export function AlertConfig({ suiteId, suiteName, current }: AlertConfigProps) {
             step="0.05"
             value={dropPercent}
             onChange={(e) => setDropPercent(Number(e.target.value))}
-            className="w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-primary-400 focus:ring-1 focus:ring-primary-400 outline-none"
+            className="w-full rounded-md border border-gray-300 dark:border-dark-600 px-3 py-1.5 text-sm focus:border-primary-400 focus:ring-1 focus:ring-primary-400 outline-none dark:bg-dark-800 dark:text-gray-100"
           />
         </div>
         <div>
           <label
             htmlFor={`win-${suiteId}`}
-            className="block text-xs font-medium text-gray-600 mb-1"
+            className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1"
           >
             Historical window size (runs)
           </label>
@@ -93,13 +93,13 @@ export function AlertConfig({ suiteId, suiteName, current }: AlertConfigProps) {
             step="1"
             value={windowSize}
             onChange={(e) => setWindowSize(Number(e.target.value))}
-            className="w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-primary-400 focus:ring-1 focus:ring-primary-400 outline-none"
+            className="w-full rounded-md border border-gray-300 dark:border-dark-600 px-3 py-1.5 text-sm focus:border-primary-400 focus:ring-1 focus:ring-primary-400 outline-none dark:bg-dark-800 dark:text-gray-100"
           />
         </div>
         <button
           type="submit"
           disabled={isPending}
-          className="btn btn-primary inline-flex items-center gap-1.5 text-sm"
+          className="btn btn-primary text-sm"
         >
           <Save className="w-3.5 h-3.5" />
           {isPending ? 'Saving...' : 'Save'}

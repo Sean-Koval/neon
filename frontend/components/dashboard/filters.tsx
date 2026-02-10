@@ -27,8 +27,8 @@ function FilterButton({ label, value, isActive, onClick }: FilterButtonProps) {
         px-3 py-1.5 text-sm font-medium rounded-lg transition-all duration-200
         ${
           isActive
-            ? 'bg-primary-100 text-primary-700 border border-primary-200'
-            : 'bg-gray-100 text-gray-600 border border-transparent hover:bg-gray-200'
+            ? 'bg-primary-100 dark:bg-primary-500/20 text-primary-700 dark:text-primary-400 border border-primary-200 dark:border-primary-500/25'
+            : 'bg-gray-100 dark:bg-dark-800 text-gray-600 dark:text-gray-300 border border-transparent hover:bg-gray-200 dark:hover:bg-dark-700'
         }
       `}
     >
@@ -54,7 +54,7 @@ function FilterSelect({
 }: FilterSelectProps) {
   return (
     <div className="relative">
-      <label className="block text-xs font-medium text-gray-500 mb-1">
+      <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
         {label}
       </label>
       <div className="relative">
@@ -67,8 +67,8 @@ function FilterSelect({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           className={`
-            w-full appearance-none rounded-lg border border-gray-200 bg-white
-            py-2 pr-8 text-sm font-medium text-gray-700
+            w-full appearance-none rounded-lg border border-gray-200 dark:border-dark-700 bg-white dark:bg-dark-800
+            py-2 pr-8 text-sm font-medium text-gray-700 dark:text-gray-100
             hover:border-primary-300 focus:border-primary-500 focus:ring-1 focus:ring-primary-500
             transition-colors cursor-pointer
             ${icon ? 'pl-9' : 'pl-3'}
@@ -80,7 +80,7 @@ function FilterSelect({
             </option>
           ))}
         </select>
-        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-gray-500 pointer-events-none" />
       </div>
     </div>
   )
@@ -140,7 +140,7 @@ export function DashboardFiltersBar({
       {/* Quick filter pills for date range */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-gray-600">Time Range:</span>
+          <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Time Range:</span>
           <div className="flex gap-1">
             {dateRangeOptions.map((opt) => (
               <FilterButton
@@ -163,8 +163,8 @@ export function DashboardFiltersBar({
             transition-all duration-200
             ${
               isExpanded || hasActiveFilters
-                ? 'bg-primary-50 text-primary-700 border border-primary-200'
-                : 'text-gray-600 hover:bg-gray-100'
+                ? 'bg-primary-50 dark:bg-primary-500/10 text-primary-700 dark:text-primary-400 border border-primary-200 dark:border-primary-500/25'
+                : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-dark-700'
             }
           `}
         >
@@ -186,7 +186,7 @@ export function DashboardFiltersBar({
 
       {/* Expanded filters */}
       {isExpanded && (
-        <div className="p-4 bg-gray-50 rounded-lg border border-gray-200 animate-in slide-in-from-top-2 duration-200">
+        <div className="p-4 bg-gray-50 dark:bg-dark-900 rounded-lg border border-gray-200 dark:border-dark-700 animate-in slide-in-from-top-2 duration-200">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <FilterSelect
               label="Status"
@@ -226,10 +226,10 @@ export function DashboardFiltersBar({
           </div>
 
           {hasActiveFilters && (
-            <div className="mt-4 pt-3 border-t border-gray-200 flex justify-end">
+            <div className="mt-4 pt-3 border-t border-gray-200 dark:border-dark-700 flex justify-end">
               <button
                 onClick={clearFilters}
-                className="inline-flex items-center gap-1 text-sm text-gray-600 hover:text-gray-900"
+                className="inline-flex items-center gap-1 text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100"
               >
                 <X className="w-4 h-4" />
                 Clear all filters

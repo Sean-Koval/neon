@@ -17,7 +17,7 @@ function Skeleton({
 }) {
   return (
     <div
-      className={clsx('animate-pulse rounded bg-gray-200', className)}
+      className={clsx('animate-pulse rounded bg-gray-200 dark:bg-dark-700', className)}
       style={style}
     />
   )
@@ -59,7 +59,7 @@ function TimelineSkeleton() {
   return (
     <div className="border rounded-lg overflow-hidden">
       {/* Timeline header */}
-      <div className="flex items-center bg-gray-100 border-b px-3 py-2">
+      <div className="flex items-center bg-gray-100 dark:bg-dark-800 border-b px-3 py-2">
         <Skeleton className="h-4 w-16" />
         <div className="flex-1 mx-4">
           <Skeleton className="h-4 w-20" />
@@ -71,7 +71,7 @@ function TimelineSkeleton() {
       {[1, 2, 3, 4, 5].map((i) => (
         <div
           key={i}
-          className="flex items-center border-b border-gray-100 px-3 py-2.5"
+          className="flex items-center border-b border-gray-100 dark:border-dark-700 px-3 py-2.5"
         >
           <div className="flex items-center gap-2 min-w-[200px] sm:min-w-[280px]">
             <Skeleton className="w-4 h-4 rounded" />

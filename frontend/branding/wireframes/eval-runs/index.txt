@@ -1,0 +1,466 @@
+================================================================================
+EVAL RUNS LIST — app/eval-runs/page.tsx
+================================================================================
+All evaluation runs across agents and suites. The central execution log
+for the Evaluate phase of the Monitor → Evaluate → Improve loop.
+
+Route: /eval-runs
+Layout: p-8, space-y-6
+Data: useWorkflowRuns(filters), useRuns() for enrichment
+
+DESIGN NOTES:
+
+  1. SCORE IS THE HEADLINE — Every completed run shows its pass rate and
+     avg score inline. Users scan this column first when deciding what
+     to investigate. Score replaces workflowId as the primary signal.
+
+  2. TEMPORAL IS INVISIBLE — No workflow IDs, no Temporal UI links.
+     Users don't care about orchestration internals. The run ID is the
+     only identifier exposed.
+
+  3. SUITE-FIRST START FLOW — The start dialog defaults to suite
+     selection (pick suite → agent auto-fills → go). Manual test case
+     input is secondary, hidden behind a "Custom" tab. This connects
+     the Suites page to the execution pipeline.
+
+  4. VERSION TRACKING — The agent version column answers "which build
+     am I testing?" at a glance. Critical for the eval → deploy cycle.
+
+  5. BULK COMPARE — Checkbox + sticky action bar at the bottom enables
+     A/B comparison without navigating away. Max 2 selections enforced.
+
+  6. RUNNING RUNS SURFACE FIRST — Active runs sort to the top with a
+     distinct visual treatment (pulsing status dot, progress bar inline).
+     Users always want to see what's happening right now.
+
+  7. NO PAGINATION YET — Use virtual scroll (tanstack-virtual) for
+     performance. Runs list rarely exceeds 500 items. If it does,
+     add cursor-based pagination later.
+
+================================================================================
+PAGE LAYOUT
+================================================================================
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  p-8                                                                        │
+│                                                                             │
+│  ┌─ Header ─────────────────────────────────────────────────────────────┐  │
+│  │                                                                       │  │
+│  │  Eval Runs                                               [New Run]   │  │
+│  │  Evaluation execution history                                        │  │
+│  │                                                                       │  │
+│  │  Title: text-2xl font-bold text-content-primary                      │  │
+│  │  Subtitle: text-sm text-content-muted                                │  │
+│  │  "New Run": btn btn-primary, opens StartEvalRunDialog                │  │
+│  │  No refresh button — React Query handles background refetch          │  │
+│  │                                                                       │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+│  ┌─ Filters ────────────────────────────────────────────────────────────┐  │
+│  │                                                                       │  │
+│  │  ┌──────────────────────────────┐ ┌──────────┐ ┌──────────┐         │  │
+│  │  │ (Search) Search runs...      │ │ Status ▾ │ │ Suite ▾  │         │  │
+│  │  └──────────────────────────────┘ └──────────┘ └──────────┘         │  │
+│  │                                                                       │  │
+│  │  ┌──────────┐ ┌─────────────┐                                       │  │
+│  │  │ Agent ▾  │ │ Last 30d ▾  │                                       │  │
+│  │  └──────────┘ └─────────────┘                                       │  │
+│  │                                                                       │  │
+│  │  Filter bar: flex flex-wrap gap-3                                    │  │
+│  │                                                                       │  │
+│  │  Search: w-64, pl-9 (icon inset), text-sm                           │  │
+│  │    Searches run ID, suite name, agent name                           │  │
+│  │    Debounced 300ms                                                   │  │
+│  │    bg-surface-base border border-border rounded-lg                   │  │
+│  │    placeholder: text-content-muted                                   │  │
+│  │                                                                       │  │
+│  │  Status: select, text-sm                                             │  │
+│  │    Options: All / Running / Completed / Failed / Cancelled           │  │
+│  │    Persisted in localStorage via usePersistedFilters                 │  │
+│  │    bg-surface-base border border-border rounded-lg                   │  │
+│  │                                                                       │  │
+│  │  Suite: select, text-sm                                              │  │
+│  │    Options: All + dynamic list from useRuns → getUniqueSuites()     │  │
+│  │    Same styling as Status                                            │  │
+│  │                                                                       │  │
+│  │  Agent: select, text-sm                                              │  │
+│  │    Options: All + dynamic list from trpc.agents.list                 │  │
+│  │    Same styling as Status                                            │  │
+│  │                                                                       │  │
+│  │  Time range: select, text-sm                                         │  │
+│  │    Options: Last 24h / 7d / 30d / All time                          │  │
+│  │    Same styling as Status                                            │  │
+│  │                                                                       │  │
+│  │  All filters sync to URL search params (shallow routing)            │  │
+│  │  "Clear filters" link appears when any non-default filter is set    │  │
+│  │                                                                       │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+│  ┌─ Summary Strip (flex gap-6, text-sm text-content-muted) ─────────────┐ │
+│  │                                                                       │  │
+│  │  142 runs  ·  3 running  ·  89.2% avg pass rate  ·  $234 total cost  │  │
+│  │                                                                       │  │
+│  │  Counts reflect current filter state.                                │  │
+│  │  "3 running" colored text-status-info if >0.                        │  │
+│  │  Avg pass rate colored by threshold (emerald/amber/rose).           │  │
+│  │  Only shows when runs are loaded (not during loading).              │  │
+│  │                                                                       │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+│  ┌─ Runs Table ─────────────────────────────────────────────────────────┐  │
+│  │                                                                       │  │
+│  │  card class (bg-surface-card border border-border rounded-xl)        │  │
+│  │                                                                       │  │
+│  │  ┌──┬──────────┬──────────┬──────────┬─────────┬───────┬───────────┐│  │
+│  │  │  │ Run      │ Agent    │ Suite    │ Status  │ Score │ Started   ││  │
+│  │  ├──┼──────────┼──────────┼──────────┼─────────┼───────┼───────────┤│  │
+│  │  │☐ │ run-abc1 │ booking  │ booking  │(*)Run   │       │ 2m ago    ││  │
+│  │  │  │          │ v2.1.0   │ -suite   │[===> ]  │  --   │           ││  │
+│  │  │  │          │          │          │ 45/100  │       │           ││  │
+│  │  ├──┼──────────┼──────────┼──────────┼─────────┼───────┼───────────┤│  │
+│  │  │☐ │ run-def4 │ booking  │ booking  │(v)Done  │ 94%   │ 1h ago    ││  │
+│  │  │  │          │ v2.1.0   │ -suite   │ 100/100 │ 0.87  │           ││  │
+│  │  ├──┼──────────┼──────────┼──────────┼─────────┼───────┼───────────┤│  │
+│  │  │☐ │ run-ghi7 │ research │ research │(x)Fail  │ 67%   │ 3h ago    ││  │
+│  │  │  │          │ v1.3.0   │ -edge    │  67/100 │ 0.52  │           ││  │
+│  │  ├──┼──────────┼──────────┼──────────┼─────────┼───────┼───────────┤│  │
+│  │  │☐ │ run-jkl0 │ support  │ support  │(-)Canc  │  --   │ 1d ago    ││  │
+│  │  │  │          │ v3.0.0   │ -basic   │  22/50  │       │           ││  │
+│  │  └──┴──────────┴──────────┴──────────┴─────────┴───────┴───────────┘│  │
+│  │                                                                       │  │
+│  │  TABLE COLUMN DETAILS:                                               │  │
+│  │                                                                       │  │
+│  │  Checkbox (w-10):                                                    │  │
+│  │    For bulk compare selection. Max 2 checked at once.                │  │
+│  │    When a 3rd is checked, the oldest selection unchecks.             │  │
+│  │    Only enabled for COMPLETED runs (greyed out for running/failed).  │  │
+│  │    accent-primary when checked.                                      │  │
+│  │                                                                       │  │
+│  │  Run (flex-1, min-w-0):                                              │  │
+│  │    Run ID: text-sm font-medium text-content-primary, truncated      │  │
+│  │    Shows first 8 chars of run ID, font-mono                         │  │
+│  │                                                                       │  │
+│  │  Agent (w-28):                                                       │  │
+│  │    Row 1: agent name, text-sm font-medium text-content-primary      │  │
+│  │    Row 2: version, text-xs text-content-muted font-mono             │  │
+│  │    Linked: click agent name → /agents/[agentId]                     │  │
+│  │                                                                       │  │
+│  │  Suite (w-28):                                                       │  │
+│  │    Suite name, text-sm text-content-secondary                        │  │
+│  │    Linked: click → /suites/[suiteId]                                │  │
+│  │                                                                       │  │
+│  │  Status (w-32):                                                      │  │
+│  │    StatusBadge component (existing):                                 │  │
+│  │      RUNNING: Loader2 spin + blue bg, plus inline progress bar      │  │
+│  │        Progress bar: h-1 below badge, shows completed/total         │  │
+│  │        "45/100" text-xs text-content-muted below bar                │  │
+│  │      COMPLETED: CheckCircle + emerald bg                            │  │
+│  │        "100/100" below                                               │  │
+│  │      FAILED: XCircle + rose bg                                      │  │
+│  │        "67/100" below (how far it got)                              │  │
+│  │      CANCELLED: Square + gray bg                                    │  │
+│  │        "22/50" below                                                │  │
+│  │      TIMED_OUT: Clock + amber bg                                    │  │
+│  │                                                                       │  │
+│  │  Score (w-20):                                                       │  │
+│  │    Only shown for COMPLETED runs. "--" for running/failed/cancelled. │  │
+│  │    Row 1: Pass rate as percentage, text-sm font-semibold            │  │
+│  │      Colored: >=90% emerald, >=70% amber, <70% rose                │  │
+│  │    Row 2: Avg score (0-1), text-xs text-content-muted              │  │
+│  │                                                                       │  │
+│  │  Started (w-28, text-right):                                         │  │
+│  │    Relative time: text-sm text-content-muted                        │  │
+│  │    Hover tooltip: full datetime                                     │  │
+│  │                                                                       │  │
+│  │  Table header:                                                       │  │
+│  │    bg-surface-base border-b border-border                           │  │
+│  │    text-[11px] uppercase tracking-wider text-content-muted          │  │
+│  │    font-medium                                                       │  │
+│  │    All columns sortable (click header toggles asc/desc)             │  │
+│  │    Sort indicator: ChevronUp/ChevronDown icon, w-3 h-3             │  │
+│  │    Default sort: started desc (newest first)                        │  │
+│  │    EXCEPTION: Running runs always sort to top regardless            │  │
+│  │                                                                       │  │
+│  │  Row styling:                                                        │  │
+│  │    px-4 py-3.5 border-b border-border last:border-b-0              │  │
+│  │    hover:bg-surface-overlay/50 cursor-pointer transition-colors     │  │
+│  │    Click row → /eval-runs/[id]                                      │  │
+│  │    Running rows: left border-l-2 border-status-info                 │  │
+│  │                                                                       │  │
+│  │  Running runs auto-refresh:                                          │  │
+│  │    refetchInterval: 5000 when any run has status RUNNING            │  │
+│  │    refetchInterval: undefined otherwise (rely on staleTime)         │  │
+│  │                                                                       │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+│  ┌─ Bulk Actions Bar (sticky bottom, shown when 1+ selected) ──────────┐  │
+│  │                                                                       │  │
+│  │  ┌────────────────────────────────────────────────────────────────┐  │  │
+│  │  │                                                                │  │  │
+│  │  │  2 selected     [Compare Selected]      [Deselect All]        │  │  │
+│  │  │                                                                │  │  │
+│  │  └────────────────────────────────────────────────────────────────┘  │  │
+│  │                                                                       │  │
+│  │  Position: sticky bottom-0, z-10                                    │  │
+│  │  bg-surface-card border-t border-border shadow-lg                   │  │
+│  │  px-6 py-3 flex items-center justify-between                       │  │
+│  │                                                                       │  │
+│  │  "N selected": text-sm font-medium text-content-primary             │  │
+│  │                                                                       │  │
+│  │  "Compare Selected":                                                │  │
+│  │    btn btn-primary btn-sm                                           │  │
+│  │    Enabled when exactly 2 COMPLETED runs are checked                │  │
+│  │    Disabled state: btn-disabled + tooltip "Select 2 completed runs" │  │
+│  │    Click → /compare?baseline=[first]&candidate=[second]             │  │
+│  │    First selected = baseline, second = candidate                    │  │
+│  │                                                                       │  │
+│  │  "Deselect All":                                                    │  │
+│  │    btn btn-ghost btn-sm text-content-muted                          │  │
+│  │    Click → clears all checkboxes                                    │  │
+│  │                                                                       │  │
+│  │  Slides up with transition-transform when selections change         │  │
+│  │  from 0 to 1+. Slides down on deselect all.                        │  │
+│  │                                                                       │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+
+================================================================================
+START EVAL RUN DIALOG
+================================================================================
+Triggered by [New Run] button. Modal dialog.
+Position: fixed inset-0, z-50
+Size: max-w-xl (576px), max-h-[85vh]
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                        (backdrop: bg-black/50)                               │
+│                                                                              │
+│   ┌──────────────────────────────────────────────────────────────────┐      │
+│   │                                                                    │      │
+│   │  Start Eval Run                                        [X close]  │      │
+│   │                                                                    │      │
+│   │  ─── (border-b border-border) ──────────────────────────────────  │      │
+│   │                                                                    │      │
+│   │  ┌─ Source Tabs ──────────────────────────────────────────────┐  │      │
+│   │  │                                                            │  │      │
+│   │  │   Suite*    |    Custom                                    │  │      │
+│   │  │   ======                                                   │  │      │
+│   │  │                                                            │  │      │
+│   │  │   Tab styling: same as agent detail tabs                  │  │      │
+│   │  │   * = active (default)                                     │  │      │
+│   │  │                                                            │  │      │
+│   │  └────────────────────────────────────────────────────────────┘  │      │
+│   │                                                                    │      │
+│   │  ════════════════════════════════════════════════════════════════  │      │
+│   │  TAB: Suite (default)                                              │      │
+│   │  ════════════════════════════════════════════════════════════════  │      │
+│   │                                                                    │      │
+│   │  ┌─ Suite Selection ─────────────────────────────────────────┐  │      │
+│   │  │                                                            │  │      │
+│   │  │  Suite                                                     │  │      │
+│   │  │  ┌──────────────────────────────────────────────────────┐ │  │      │
+│   │  │  │ (Search) Select a suite...                        ▾  │ │  │      │
+│   │  │  └──────────────────────────────────────────────────────┘ │  │      │
+│   │  │                                                            │  │      │
+│   │  │  Dropdown items:                                          │  │      │
+│   │  │    booking-suite        12 cases · 3 scorers              │  │      │
+│   │  │    research-edge-cases   8 cases · 2 scorers              │  │      │
+│   │  │    support-basic        20 cases · 4 scorers              │  │      │
+│   │  │                                                            │  │      │
+│   │  │  Searchable combobox (type to filter).                    │  │      │
+│   │  │  Data: from trpc.suites.list or useSuites() hook.        │  │      │
+│   │  │  Shows case count + scorer count per suite.               │  │      │
+│   │  │  Required field.                                          │  │      │
+│   │  │                                                            │  │      │
+│   │  └────────────────────────────────────────────────────────────┘  │      │
+│   │                                                                    │      │
+│   │  ┌─ Agent Config ────────────────────────────────────────────┐  │      │
+│   │  │                                                            │  │      │
+│   │  │  Agent                          Version                   │  │      │
+│   │  │  ┌────────────────────────┐    ┌──────────────────┐      │  │      │
+│   │  │  │ (Search) Select...  ▾  │    │ latest           │      │  │      │
+│   │  │  └────────────────────────┘    └──────────────────┘      │  │      │
+│   │  │                                                            │  │      │
+│   │  │  Agent: searchable combobox from trpc.agents.list         │  │      │
+│   │  │    Auto-fills if suite has a default agent                │  │      │
+│   │  │    Required field.                                        │  │      │
+│   │  │  Version: text input, default "latest"                    │  │      │
+│   │  │    Shows dropdown of known versions if agent is selected  │  │      │
+│   │  │  grid-cols-2 gap-4                                        │  │      │
+│   │  │                                                            │  │      │
+│   │  └────────────────────────────────────────────────────────────┘  │      │
+│   │                                                                    │      │
+│   │  ┌─ Suite Preview (shown after suite selection) ─────────────┐  │      │
+│   │  │                                                            │  │      │
+│   │  │  booking-suite                                             │  │      │
+│   │  │  12 cases · 3 scorers · Est. ~2 min                       │  │      │
+│   │  │                                                            │  │      │
+│   │  │  Scorers: tool_selection, response_quality, latency       │  │      │
+│   │  │                                                            │  │      │
+│   │  │  bg-surface-base rounded-lg p-3 border border-border      │  │      │
+│   │  │  text-sm text-content-secondary                            │  │      │
+│   │  │  Scorer names as inline badges (badge-muted)              │  │      │
+│   │  │  Estimated time: cases * avg_latency heuristic            │  │      │
+│   │  │                                                            │  │      │
+│   │  └────────────────────────────────────────────────────────────┘  │      │
+│   │                                                                    │      │
+│   │  ════════════════════════════════════════════════════════════════  │      │
+│   │  TAB: Custom (manual test cases)                                   │      │
+│   │  ════════════════════════════════════════════════════════════════  │      │
+│   │                                                                    │      │
+│   │  (Same as current StartEvalRunDialog implementation:               │      │
+│   │   Agent ID + Version inputs, manual test case rows with            │      │
+│   │   input/expected fields, Add Case button, scorer checkboxes.)     │      │
+│   │                                                                    │      │
+│   │  Only difference: agent input becomes searchable combobox         │      │
+│   │  instead of raw text input. Scorer list is dynamic from           │      │
+│   │  backend instead of hardcoded DEFAULT_SCORERS.                    │      │
+│   │                                                                    │      │
+│   │  ════════════════════════════════════════════════════════════════  │      │
+│   │  Execution Options (shared by both tabs)                           │      │
+│   │  ════════════════════════════════════════════════════════════════  │      │
+│   │                                                                    │      │
+│   │  ┌─ Options ─────────────────────────────────────────────────┐  │      │
+│   │  │                                                            │  │      │
+│   │  │  [x] Run in parallel         Workers: [5]                 │  │      │
+│   │  │                                                            │  │      │
+│   │  │  Parallel checkbox + number input (1-20), inline.         │  │      │
+│   │  │  Collapsed section, not prominent.                        │  │      │
+│   │  │  text-sm                                                   │  │      │
+│   │  │                                                            │  │      │
+│   │  └────────────────────────────────────────────────────────────┘  │      │
+│   │                                                                    │      │
+│   │  ─── (border-t border-border, bg-surface-base) ─────────────────  │      │
+│   │                                                                    │      │
+│   │  ┌─ Footer ──────────────────────────────────────────────────┐  │      │
+│   │  │                                                            │  │      │
+│   │  │                              [Cancel]  [Start Eval Run]   │  │      │
+│   │  │                                                            │  │      │
+│   │  │  Cancel: btn btn-ghost                                    │  │      │
+│   │  │  Start: btn btn-primary, disabled until required fields   │  │      │
+│   │  │    filled. Shows Loader2 spin during mutation.            │  │      │
+│   │  │  Keyboard: Enter submits, Escape closes                   │  │      │
+│   │  │                                                            │  │      │
+│   │  │  Error state: if startMutation.error, show inline alert   │  │      │
+│   │  │  above footer with error message. Special case:           │  │      │
+│   │  │    ECONNREFUSED/Temporal → "Temporal unavailable.         │  │      │
+│   │  │    Run docker compose up -d to start services."           │  │      │
+│   │  │                                                            │  │      │
+│   │  └────────────────────────────────────────────────────────────┘  │      │
+│   │                                                                    │      │
+│   └──────────────────────────────────────────────────────────────────┘      │
+│                                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+
+================================================================================
+STATES
+================================================================================
+
+LOADING STATE:
+  Table body replaced with 5 skeleton rows.
+  Each skeleton row: 6 shimmer bars matching column widths.
+  skeleton class (h-4 rounded bg-surface-base animate-pulse).
+
+EMPTY STATE (no runs at all):
+
+  ┌──────────────────────────────────────────────────────────┐
+  │                                                          │
+  │        (Play icon, w-12 h-12, text-content-muted)       │
+  │                                                          │
+  │        No eval runs yet                                  │
+  │        Run your first evaluation to start tracking       │
+  │        agent quality across versions.                    │
+  │                                                          │
+  │        [Start First Run]                                 │
+  │                                                          │
+  │  text-center py-16                                       │
+  │  Title: text-base font-medium text-content-primary       │
+  │  Body: text-sm text-content-muted max-w-sm mx-auto       │
+  │  Button: btn btn-primary btn-sm, opens start dialog      │
+  │                                                          │
+  └──────────────────────────────────────────────────────────┘
+
+EMPTY STATE (filters return no results):
+
+  ┌──────────────────────────────────────────────────────────┐
+  │                                                          │
+  │        (Search icon, w-10 h-10, text-content-muted)     │
+  │                                                          │
+  │        No matching runs                                  │
+  │        Try adjusting your filters.                       │
+  │                                                          │
+  │        [Clear Filters]                                   │
+  │                                                          │
+  └──────────────────────────────────────────────────────────┘
+
+ERROR STATE (Temporal unavailable):
+
+  ┌──────────────────────────────────────────────────────────┐
+  │                                                          │
+  │        (AlertCircle, w-12 h-12, text-status-error)      │
+  │                                                          │
+  │        Failed to load eval runs                          │
+  │        Temporal workflow service is unavailable.          │
+  │        Ensure docker compose up -d is running.           │
+  │                                                          │
+  │        [Retry]                                           │
+  │                                                          │
+  │  bg-status-error/5 border border-status-error/20         │
+  │  rounded-xl p-8 text-center                              │
+  │                                                          │
+  └──────────────────────────────────────────────────────────┘
+
+
+================================================================================
+DATA SOURCES
+================================================================================
+
+  - Run list: useWorkflowRuns(filters) → GET /api/eval-runs
+    WorkflowStatusResponse { id, workflowId, status, startTime, closeTime,
+    progress?: EvalRunProgress, result?, error? }
+    staleTime: 30s for completed runs, 5s refetchInterval for running
+
+  - Suite list (for filters + start dialog):
+    trpc.suites.list or useSuites() → Suites from Postgres
+
+  - Agent list (for filters + start dialog):
+    trpc.agents.list → Agent registry
+
+  - Run enrichment: join run.agentId → agents table for name/version
+
+  - Start run: useStartWorkflowRun() → POST /api/eval-runs
+    Accepts StartEvalRunRequest { projectId, agentId, agentVersion,
+    dataset: { items }, scorers, parallel, parallelism }
+
+
+================================================================================
+BEHAVIORAL NOTES
+================================================================================
+
+  1. Running runs always sort to top, regardless of sort column.
+     Within the "running" group, sort by startTime desc.
+
+  2. Checkbox state is local (useState Set<string>). Not persisted.
+     Unchecks all when navigating away and back.
+
+  3. Suite tab in start dialog is only available if at least 1 suite
+     exists. If no suites, show only Custom tab with a hint:
+     "Create a suite in the Suites page for faster eval runs."
+
+  4. After successfully starting a run, dialog closes and the list
+     refetches. The new run appears at the top (running → top sort).
+
+  5. The search input filters client-side for <500 runs. For >500,
+     add server-side search param to the API.
+
+  6. Agent name and suite name in the table are links (stop
+     propagation on click to prevent row navigation).
+
+  7. The "Summary Strip" updates reactively as filters change.
+     Pass rate is computed client-side from visible runs.
+
+  8. Keyboard: up/down arrows navigate rows (focus ring),
+     Enter on focused row navigates to detail.
+

@@ -117,7 +117,7 @@ export function RunSelector({
     <div ref={containerRef} className="relative">
       <span
         id={labelId}
-        className="block text-sm font-medium text-gray-700 mb-2"
+        className="mb-2 block text-sm font-medium text-content-secondary"
       >
         {label}
       </span>
@@ -132,17 +132,21 @@ export function RunSelector({
           'w-full flex items-center justify-between px-3 py-2 text-left',
           'border rounded-lg transition-colors',
           disabled
-            ? 'bg-gray-50 border-gray-200 cursor-not-allowed'
-            : 'bg-white border-gray-300 hover:border-gray-400',
+            ? 'cursor-not-allowed border-border bg-surface-raised/60 text-content-muted'
+            : 'border-border bg-surface-card hover:border-primary-500/40',
           isOpen && 'ring-2 ring-primary-500 border-primary-500',
         )}
       >
-        <span className={clsx('truncate', !selectedRun && 'text-gray-400')}>
+        <span
+          className={clsx('truncate', !selectedRun && 'text-content-muted')}
+        >
           {selectedRun ? (
             <span className="flex items-center gap-2">
-              <span className="font-medium">{selectedRun.suite_name}</span>
-              <span className="text-gray-400">-</span>
-              <span className="text-gray-600">
+              <span className="font-medium text-content-primary">
+                {selectedRun.suite_name}
+              </span>
+              <span className="text-content-muted">-</span>
+              <span className="text-content-secondary">
                 {selectedRun.agent_version || selectedRun.id.slice(0, 8)}
               </span>
             </span>
@@ -155,14 +159,14 @@ export function RunSelector({
             <button
               type="button"
               onClick={handleClear}
-              className="p-1 text-gray-400 hover:text-gray-600 rounded"
+              className="rounded p-1 text-content-muted hover:text-content-primary"
             >
               <X className="w-4 h-4" />
             </button>
           )}
           <ChevronDown
             className={clsx(
-              'w-4 h-4 text-gray-400 transition-transform',
+              'h-4 w-4 text-content-muted transition-transform',
               isOpen && 'rotate-180',
             )}
           />
@@ -171,18 +175,18 @@ export function RunSelector({
 
       {/* Dropdown */}
       {isOpen && (
-        <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden">
+        <div className="absolute z-50 mt-1 w-full overflow-hidden rounded-lg border border-border bg-surface-card shadow-lg dark:border-slate-700/80 dark:bg-slate-900">
           {/* Search input */}
-          <div className="p-2 border-b border-gray-100">
+          <div className="border-b border-border/70 p-2 dark:border-slate-700/70">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-content-muted" />
               <input
                 ref={inputRef}
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search runs..."
-                className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                className="w-full rounded-md border border-border bg-surface-card py-2 pl-9 pr-3 text-sm text-content-primary placeholder:text-content-muted focus:outline-none focus:ring-2 focus:ring-primary-500"
               />
             </div>
           </div>
@@ -190,14 +194,14 @@ export function RunSelector({
           {/* Options list */}
           <div className="max-h-72 overflow-y-auto">
             {searchFilteredGroups.length === 0 ? (
-              <div className="px-4 py-6 text-center text-gray-500 text-sm">
+              <div className="px-4 py-6 text-center text-sm text-content-muted">
                 No runs found
               </div>
             ) : (
               searchFilteredGroups.map((group) => (
                 <div key={group.suiteId}>
                   {/* Suite group header */}
-                  <div className="px-3 py-1.5 bg-gray-50 text-xs font-semibold text-gray-500 uppercase tracking-wide sticky top-0">
+                  <div className="sticky top-0 bg-surface-raised/80 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-content-muted backdrop-blur-sm dark:bg-slate-950/75">
                     {group.suiteName}
                   </div>
 
@@ -239,14 +243,14 @@ function RunOption({ run, isSelected, onSelect }: RunOptionProps) {
       type="button"
       onClick={onSelect}
       className={clsx(
-        'w-full px-3 py-2 text-left hover:bg-gray-50 transition-colors',
-        isSelected && 'bg-primary-50',
+        'w-full px-3 py-2 text-left transition-colors hover:bg-surface-raised/60 dark:hover:bg-slate-800/60',
+        isSelected && 'bg-primary-500/10',
       )}
     >
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 min-w-0">
           {statusIcon}
-          <span className="font-medium text-gray-900 truncate">
+          <span className="truncate font-medium text-content-primary">
             {run.agent_version || run.id.slice(0, 8)}
           </span>
         </div>
@@ -255,17 +259,17 @@ function RunOption({ run, isSelected, onSelect }: RunOptionProps) {
             className={clsx(
               'text-sm font-medium',
               run.summary.avg_score >= 0.8
-                ? 'text-green-600'
+                ? 'text-green-600 dark:text-emerald-400'
                 : run.summary.avg_score >= 0.6
-                  ? 'text-yellow-600'
-                  : 'text-red-600',
+                  ? 'text-yellow-600 dark:text-amber-400'
+                  : 'text-red-600 dark:text-red-400',
             )}
           >
             {(run.summary.avg_score * 100).toFixed(0)}%
           </span>
         )}
       </div>
-      <div className="flex items-center gap-2 mt-0.5 text-xs text-gray-500">
+      <div className="mt-0.5 flex items-center gap-2 text-xs text-content-muted">
         <Calendar className="w-3 h-3" />
         <span>
           {safeFormat(run.created_at, 'MMM d, yyyy')} (
@@ -284,16 +288,16 @@ interface RunSummaryCardProps {
 export function RunSummaryCard({ run, label }: RunSummaryCardProps) {
   if (!run) {
     return (
-      <div className="border border-dashed border-gray-300 rounded-lg p-4 text-center text-gray-400">
+      <div className="rounded-lg border border-dashed border-border p-4 text-center text-content-muted dark:border-slate-700/80">
         Select a {label.toLowerCase()} run to see details
       </div>
     )
   }
 
   return (
-    <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
-      <div className="flex items-center justify-between mb-3">
-        <h4 className="text-sm font-semibold text-gray-900">{label}</h4>
+    <div className="rounded-lg border border-border bg-surface-raised/50 p-4 dark:border-slate-700/80 dark:bg-slate-950/40">
+      <div className="mb-3 flex items-center justify-between">
+        <h4 className="text-sm font-semibold text-content-primary">{label}</h4>
         <span
           className={clsx(
             'badge',
@@ -306,46 +310,52 @@ export function RunSummaryCard({ run, label }: RunSummaryCardProps) {
 
       <div className="space-y-2">
         <div className="flex items-center justify-between text-sm">
-          <span className="text-gray-500">Suite</span>
-          <span className="font-medium text-gray-900">{run.suite_name}</span>
+          <span className="text-content-muted">Suite</span>
+          <span className="font-medium text-content-primary">
+            {run.suite_name}
+          </span>
         </div>
         <div className="flex items-center justify-between text-sm">
-          <span className="text-gray-500">Version</span>
-          <span className="font-medium text-gray-900">
+          <span className="text-content-muted">Version</span>
+          <span className="font-medium text-content-primary">
             {run.agent_version || run.id.slice(0, 8)}
           </span>
         </div>
         {run.summary && (
           <>
             <div className="flex items-center justify-between text-sm">
-              <span className="text-gray-500">Score</span>
+              <span className="text-content-muted">Score</span>
               <span
                 className={clsx(
                   'font-medium',
                   run.summary.avg_score >= 0.8
-                    ? 'text-green-600'
+                    ? 'text-green-600 dark:text-emerald-400'
                     : run.summary.avg_score >= 0.6
-                      ? 'text-yellow-600'
-                      : 'text-red-600',
+                      ? 'text-yellow-600 dark:text-amber-400'
+                      : 'text-red-600 dark:text-red-400',
                 )}
               >
                 {(run.summary.avg_score * 100).toFixed(1)}%
               </span>
             </div>
             <div className="flex items-center justify-between text-sm">
-              <span className="text-gray-500">Results</span>
-              <span className="font-medium text-gray-900">
-                <span className="text-green-600">{run.summary.passed}</span>
+              <span className="text-content-muted">Results</span>
+              <span className="font-medium text-content-primary">
+                <span className="text-green-600 dark:text-emerald-400">
+                  {run.summary.passed}
+                </span>
                 {' / '}
-                <span className="text-gray-600">{run.summary.total_cases}</span>
+                <span className="text-content-secondary">
+                  {run.summary.total_cases}
+                </span>
                 {' passed'}
               </span>
             </div>
           </>
         )}
         <div className="flex items-center justify-between text-sm">
-          <span className="text-gray-500">Date</span>
-          <span className="text-gray-900">
+          <span className="text-content-muted">Date</span>
+          <span className="text-content-primary">
             {safeFormat(run.created_at, 'MMM d, yyyy h:mm a')}
           </span>
         </div>
@@ -373,7 +383,7 @@ export function ThresholdSelector({
 }: ThresholdSelectorProps) {
   return (
     <fieldset>
-      <legend className="block text-sm font-medium text-gray-700 mb-2">
+      <legend className="mb-2 block text-sm font-medium text-content-secondary">
         Regression Threshold
         <HelpTooltip content="Minimum score drop to flag as a regression. Lower values catch smaller changes but may increase noise." />
       </legend>
@@ -387,14 +397,14 @@ export function ThresholdSelector({
               'px-3 py-1.5 text-sm font-medium rounded-md transition-colors',
               value === option.value
                 ? 'bg-primary-600 text-white'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200',
+                : 'bg-surface-raised text-content-secondary hover:bg-surface-raised/80 dark:bg-slate-800/70 dark:hover:bg-slate-700/70',
             )}
           >
             {option.label}
           </button>
         ))}
       </div>
-      <p className="mt-1.5 text-xs text-gray-500">
+      <p className="mt-1.5 text-xs text-content-muted">
         Score drops greater than this threshold are flagged as regressions
       </p>
     </fieldset>
@@ -412,7 +422,7 @@ export function SuiteFilter({ suites, value, onChange }: SuiteFilterProps) {
     <div>
       <label
         htmlFor="suite-filter"
-        className="block text-sm font-medium text-gray-700 mb-2"
+        className="mb-2 block text-sm font-medium text-content-secondary"
       >
         Filter by Suite
       </label>
@@ -420,7 +430,7 @@ export function SuiteFilter({ suites, value, onChange }: SuiteFilterProps) {
         id="suite-filter"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+        className="w-full rounded-lg border border-border bg-surface-card px-3 py-2 text-sm text-content-secondary focus:border-primary-500/50 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
       >
         <option value="">All Suites</option>
         {suites.map((suite) => (

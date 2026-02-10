@@ -864,7 +864,29 @@ export interface UseRealtimeReturn {
 export interface PromptVariable {
   name: string
   description?: string
-  type: 'string' | 'number' | 'boolean' | 'object' | 'array'
+  type?:
+    | 'string'
+    | 'number'
+    | 'boolean'
+    | 'object'
+    | 'array'
+    | 'string_array'
+    | 'enum'
+    | 'messages'
+    | 'tool_result'
+    | 'agent_output'
+    | 'context'
+  source?:
+    | 'input'
+    | 'system'
+    | 'memory'
+    | 'tool'
+    | 'agent'
+    | 'runtime'
+    | 'unknown'
+  rendering?: 'text' | 'json' | 'join_lines' | 'messages'
+  enum_values?: string[]
+  schema?: Record<string, unknown>
   required?: boolean
   default?: unknown
 }
@@ -959,6 +981,7 @@ export interface PromptVersionEntry {
   commit_message?: string
   created_by?: string
   created_at: string
+  variant?: string
   changes?: string[]
 }
 

@@ -34,11 +34,11 @@ export class QueryErrorBoundary extends Component<Props, State> {
 
       return (
         <div className="flex min-h-[400px] items-center justify-center p-8">
-          <div className="rounded-lg border border-red-200 bg-red-50 p-6 text-center">
-            <h2 className="mb-2 text-lg font-semibold text-red-800">
+          <div className="rounded-lg border border-red-200 dark:border-red-500/25 bg-red-50 dark:bg-red-500/10 p-6 text-center">
+            <h2 className="mb-2 text-lg font-semibold text-red-800 dark:text-red-400">
               Something went wrong
             </h2>
-            <p className="mb-4 text-sm text-red-600">
+            <p className="mb-4 text-sm text-red-600 dark:text-red-400">
               {this.state.error?.message || 'An unexpected error occurred'}
             </p>
             <button

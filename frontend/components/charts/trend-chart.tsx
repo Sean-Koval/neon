@@ -56,11 +56,11 @@ export interface ChartSkeletonProps {
 
 const colorSchemes = {
   primary: {
-    line: '#0284c7', // sky-600
+    line: '#06b6d4', // cyan-500
     area: 'url(#colorPrimary)',
-    dot: '#0284c7',
-    regression: '#dc2626', // red-600
-    gradient: { start: '#0ea5e9', end: '#0284c7' },
+    dot: '#0891b2',
+    regression: '#e11d48', // rose-600
+    gradient: { start: '#22d3ee', end: '#06b6d4' },
   },
   success: {
     line: '#059669', // emerald-600
@@ -247,21 +247,24 @@ export function ChartSkeleton({
   return (
     <div className={`animate-pulse ${className}`}>
       <div
-        className="bg-gray-100 rounded-lg flex items-end justify-around p-4 gap-2"
+        className="bg-gray-100 dark:bg-dark-800 rounded-lg flex items-end justify-around p-4 gap-2"
         style={{ height }}
       >
         {/* Animated bar placeholders */}
         {[40, 65, 55, 80, 70, 85, 75, 60, 72].map((h) => (
           <div
             key={h}
-            className="bg-gray-200 rounded-t w-8 transition-all"
+            className="bg-gray-200 dark:bg-dark-700 rounded-t w-8 transition-all"
             style={{ height: `${h}%` }}
           />
         ))}
       </div>
       <div className="flex justify-between mt-3 px-2">
         {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day) => (
-          <div key={day} className="h-3 w-8 bg-gray-200 rounded" />
+          <div
+            key={day}
+            className="h-3 w-8 bg-gray-200 dark:bg-dark-700 rounded"
+          />
         ))}
       </div>
     </div>
@@ -275,10 +278,10 @@ export function ChartSkeleton({
 export function ChartEmptyState({ className = '' }: { className?: string }) {
   return (
     <div
-      className={`h-[300px] bg-gray-50 rounded-lg flex flex-col items-center justify-center text-gray-500 ${className}`}
+      className={`h-[300px] bg-gray-50 dark:bg-dark-900 rounded-lg flex flex-col items-center justify-center text-gray-500 dark:text-gray-400 ${className}`}
     >
       <svg
-        className="w-12 h-12 mb-3 text-gray-300"
+        className="w-12 h-12 mb-3 text-gray-300 dark:text-dark-600"
         fill="none"
         stroke="currentColor"
         viewBox="0 0 24 24"
@@ -292,7 +295,7 @@ export function ChartEmptyState({ className = '' }: { className?: string }) {
         />
       </svg>
       <p className="font-medium">No Score Data</p>
-      <p className="text-sm text-gray-400 mt-1">
+      <p className="text-sm text-gray-400 dark:text-gray-500 mt-1">
         Run evaluations to see score trends
       </p>
     </div>
@@ -371,8 +374,8 @@ export function TrendChart({
           {/* Gradient Definitions */}
           <defs>
             <linearGradient id="colorPrimary" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#0ea5e9" stopOpacity={0.3} />
-              <stop offset="95%" stopColor="#0ea5e9" stopOpacity={0} />
+              <stop offset="5%" stopColor="#22d3ee" stopOpacity={0.35} />
+              <stop offset="95%" stopColor="#22d3ee" stopOpacity={0.04} />
             </linearGradient>
             <linearGradient id="colorSuccess" x1="0" y1="0" x2="0" y2="1">
               <stop offset="5%" stopColor="#34d399" stopOpacity={0.3} />

@@ -49,63 +49,63 @@ function getStatusInfo(status: WorkflowStatus) {
     case 'RUNNING':
       return {
         Icon: Loader2,
-        color: 'text-blue-600',
-        bgColor: 'bg-blue-50',
-        borderColor: 'border-blue-200',
+        color: 'text-blue-600 dark:text-blue-400',
+        bgColor: 'bg-blue-50 dark:bg-blue-500/10',
+        borderColor: 'border-blue-200 dark:border-blue-500/25',
         label: 'Running',
         animate: true,
       }
     case 'COMPLETED':
       return {
         Icon: CheckCircle,
-        color: 'text-green-600',
-        bgColor: 'bg-green-50',
-        borderColor: 'border-green-200',
+        color: 'text-green-600 dark:text-emerald-400',
+        bgColor: 'bg-green-50 dark:bg-emerald-500/10',
+        borderColor: 'border-green-200 dark:border-emerald-500/25',
         label: 'Completed',
         animate: false,
       }
     case 'FAILED':
       return {
         Icon: XCircle,
-        color: 'text-red-600',
-        bgColor: 'bg-red-50',
-        borderColor: 'border-red-200',
+        color: 'text-red-600 dark:text-red-400',
+        bgColor: 'bg-red-50 dark:bg-red-500/10',
+        borderColor: 'border-red-200 dark:border-red-500/25',
         label: 'Failed',
         animate: false,
       }
     case 'CANCELLED':
       return {
         Icon: Square,
-        color: 'text-gray-600',
-        bgColor: 'bg-gray-50',
-        borderColor: 'border-gray-200',
+        color: 'text-gray-600 dark:text-gray-300',
+        bgColor: 'bg-gray-50 dark:bg-dark-900',
+        borderColor: 'border-gray-200 dark:border-dark-700',
         label: 'Cancelled',
         animate: false,
       }
     case 'TERMINATED':
       return {
         Icon: XCircle,
-        color: 'text-gray-600',
-        bgColor: 'bg-gray-50',
-        borderColor: 'border-gray-200',
+        color: 'text-gray-600 dark:text-gray-300',
+        bgColor: 'bg-gray-50 dark:bg-dark-900',
+        borderColor: 'border-gray-200 dark:border-dark-700',
         label: 'Terminated',
         animate: false,
       }
     case 'TIMED_OUT':
       return {
         Icon: Clock,
-        color: 'text-orange-600',
-        bgColor: 'bg-orange-50',
-        borderColor: 'border-orange-200',
+        color: 'text-orange-600 dark:text-orange-400',
+        bgColor: 'bg-orange-50 dark:bg-orange-500/10',
+        borderColor: 'border-orange-200 dark:border-orange-500/25',
         label: 'Timed Out',
         animate: false,
       }
     default:
       return {
         Icon: AlertTriangle,
-        color: 'text-gray-600',
-        bgColor: 'bg-gray-50',
-        borderColor: 'border-gray-200',
+        color: 'text-gray-600 dark:text-gray-300',
+        bgColor: 'bg-gray-50 dark:bg-dark-900',
+        borderColor: 'border-gray-200 dark:border-dark-700',
         label: 'Unknown',
         animate: false,
       }
@@ -176,7 +176,7 @@ export function EvalRunProgress({
               </h3>
               {connectionStatus && status.isRunning && (
                 <div
-                  className="flex items-center gap-1 text-xs text-gray-500"
+                  className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400"
                   title={`${connectionStatus === 'connected' ? (isWebSocket ? 'Live updates via WebSocket' : 'Polling for updates') : connectionStatus}`}
                 >
                   <ConnectionDot status={connectionStatus} />
@@ -184,7 +184,7 @@ export function EvalRunProgress({
                 </div>
               )}
             </div>
-            <p className="text-sm text-gray-500 font-mono">{runId}</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400 font-mono">{runId}</p>
           </div>
         </div>
 
@@ -195,7 +195,7 @@ export function EvalRunProgress({
               <button
                 onClick={onPause}
                 disabled={isPausing}
-                className="flex items-center gap-1 px-3 py-1.5 text-sm bg-yellow-100 text-yellow-700 rounded-md hover:bg-yellow-200 disabled:opacity-50"
+                className="flex items-center gap-1 px-3 py-1.5 text-sm bg-yellow-100 dark:bg-amber-500/20 text-yellow-700 dark:text-amber-400 rounded-md hover:bg-yellow-200 dark:hover:bg-amber-500/20 disabled:opacity-50"
               >
                 {isPausing ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
@@ -209,7 +209,7 @@ export function EvalRunProgress({
               <button
                 onClick={onCancel}
                 disabled={isCancelling}
-                className="flex items-center gap-1 px-3 py-1.5 text-sm bg-red-100 text-red-700 rounded-md hover:bg-red-200 disabled:opacity-50"
+                className="flex items-center gap-1 px-3 py-1.5 text-sm bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-400 rounded-md hover:bg-red-200 dark:hover:bg-red-500/20 disabled:opacity-50"
               >
                 {isCancelling ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
@@ -227,7 +227,7 @@ export function EvalRunProgress({
       {progress && (
         <div className="mb-4">
           <div className="flex justify-between text-sm mb-2">
-            <span className="text-gray-600">
+            <span className="text-gray-600 dark:text-gray-300">
               {progress.completed} of {progress.total} cases
             </span>
             <span className="font-medium">{percentComplete}%</span>
@@ -250,34 +250,34 @@ export function EvalRunProgress({
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <div className="bg-white/50 rounded-lg p-3">
-          <p className="text-xs text-gray-500 uppercase tracking-wide">
+          <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">
             Completed
           </p>
-          <p className="text-xl font-semibold text-gray-900">
+          <p className="text-xl font-semibold text-gray-900 dark:text-gray-100">
             {progress?.completed ?? 0}
           </p>
         </div>
         <div className="bg-white/50 rounded-lg p-3">
-          <p className="text-xs text-gray-500 uppercase tracking-wide">
+          <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">
             Passed
           </p>
-          <p className="text-xl font-semibold text-green-600">
+          <p className="text-xl font-semibold text-green-600 dark:text-emerald-400">
             {progress?.passed ?? 0}
           </p>
         </div>
         <div className="bg-white/50 rounded-lg p-3">
-          <p className="text-xs text-gray-500 uppercase tracking-wide">
+          <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">
             Failed
           </p>
-          <p className="text-xl font-semibold text-red-600">
+          <p className="text-xl font-semibold text-red-600 dark:text-red-400">
             {progress?.failed ?? 0}
           </p>
         </div>
         <div className="bg-white/50 rounded-lg p-3">
-          <p className="text-xs text-gray-500 uppercase tracking-wide">
+          <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">
             Elapsed
           </p>
-          <p className="text-xl font-semibold text-gray-900">
+          <p className="text-xl font-semibold text-gray-900 dark:text-gray-100">
             {formatDuration(elapsedMs)}
           </p>
         </div>
@@ -285,16 +285,16 @@ export function EvalRunProgress({
 
       {/* Summary (when completed) */}
       {status.summary && status.isComplete && (
-        <div className="mt-4 pt-4 border-t border-green-200">
+        <div className="mt-4 pt-4 border-t border-green-200 dark:border-emerald-500/25">
           <div className="flex items-center justify-between">
-            <span className="text-gray-600">Average Score</span>
+            <span className="text-gray-600 dark:text-gray-300">Average Score</span>
             <span
               className={`text-lg font-bold ${
                 status.summary.avgScore >= 0.8
-                  ? 'text-green-600'
+                  ? 'text-green-600 dark:text-emerald-400'
                   : status.summary.avgScore >= 0.6
-                    ? 'text-yellow-600'
-                    : 'text-red-600'
+                    ? 'text-yellow-600 dark:text-amber-400'
+                    : 'text-red-600 dark:text-red-400'
               }`}
             >
               {(status.summary.avgScore * 100).toFixed(1)}%
@@ -305,8 +305,8 @@ export function EvalRunProgress({
 
       {/* Error message */}
       {status.error && (
-        <div className="mt-4 p-3 bg-red-100 border border-red-200 rounded-lg">
-          <p className="text-sm text-red-800">{status.error}</p>
+        <div className="mt-4 p-3 bg-red-100 dark:bg-red-500/20 border border-red-200 dark:border-red-500/25 rounded-lg">
+          <p className="text-sm text-red-800 dark:text-red-300">{status.error}</p>
         </div>
       )}
     </div>

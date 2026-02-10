@@ -10,11 +10,13 @@ import { TRPCError } from "@trpc/server";
 import { v4 as uuidv4 } from "uuid";
 import { router, publicProcedure } from "../trpc";
 import {
+  deletePromptByName,
   getLatestPromptVersion,
   getPromptById,
   getPromptByName,
   getPromptVersionHistory,
   insertPrompt,
+  listPromptVariants,
   listPrompts,
   type PromptRecord,
 } from "@/lib/clickhouse";
@@ -61,6 +63,14 @@ function isUuid(id: string): boolean {
 }
 
 /**
+ * ClickHouse-safe UTC datetime string (DateTime/DateTime64 parser-friendly).
+ * Example: 2026-02-10 00:01:30.055
+ */
+function toClickHouseDateTime(value = new Date()): string {
+  return value.toISOString().replace("T", " ").replace("Z", "");
+}
+
+/**
  * Handle ClickHouse connection errors consistently.
  */
 function handleClickHouseError(error: unknown, operation: string): never {
@@ -92,7 +102,28 @@ const promptMessageSchema = z.object({
 const promptVariableSchema = z.object({
   name: z.string(),
   description: z.string().optional(),
-  default: z.string().optional(),
+  type: z
+    .enum([
+      "string",
+      "number",
+      "boolean",
+      "object",
+      "array",
+      "string_array",
+      "enum",
+      "messages",
+      "tool_result",
+      "agent_output",
+      "context",
+    ])
+    .optional(),
+  source: z
+    .enum(["input", "system", "memory", "tool", "agent", "runtime", "unknown"])
+    .optional(),
+  rendering: z.enum(["text", "json", "join_lines", "messages"]).optional(),
+  enum_values: z.array(z.string()).optional(),
+  schema: z.record(z.string(), z.unknown()).optional(),
+  default: z.unknown().optional(),
   required: z.boolean().optional(),
 });
 
@@ -146,6 +177,7 @@ export const promptsRouter = router({
       z.object({
         projectId: z.string().default("default"),
         name: z.string().min(1),
+        variant: z.string().default("control"),
         description: z.string().optional(),
         type: z.enum(["text", "chat"]),
         template: z.string().optional(),
@@ -162,9 +194,10 @@ export const promptsRouter = router({
         const existingVersion = await getLatestPromptVersion(
           input.projectId,
           input.name,
+          input.variant,
         );
         const version = existingVersion + 1;
-        const now = new Date().toISOString();
+        const now = toClickHouseDateTime();
 
         const promptId = uuidv4();
         const record: PromptRecord = {
@@ -185,7 +218,7 @@ export const promptsRouter = router({
           created_at: now,
           updated_at: now,
           parent_version_id: "",
-          variant: "control",
+          variant: input.variant,
         };
 
         await insertPrompt(record);
@@ -207,6 +240,7 @@ export const promptsRouter = router({
         id: z.string(),
         projectId: z.string().default("default"),
         version: z.number().optional(),
+        variant: z.string().optional(),
         history: z.boolean().optional(),
       }),
     )
@@ -217,6 +251,8 @@ export const promptsRouter = router({
           const records = await getPromptVersionHistory(
             input.projectId,
             input.id,
+            20,
+            input.variant,
           );
           if (records.length === 0) {
             throw new TRPCError({
@@ -231,6 +267,7 @@ export const promptsRouter = router({
             commit_message: r.commit_message || undefined,
             created_by: r.created_by || undefined,
             created_at: r.created_at,
+            variant: r.variant || undefined,
           }));
 
           return { items: history, name: input.id };
@@ -245,6 +282,7 @@ export const promptsRouter = router({
             input.projectId,
             input.id,
             input.version,
+            input.variant,
           );
         }
 
@@ -279,6 +317,7 @@ export const promptsRouter = router({
         config: promptConfigSchema.optional(),
         tags: z.array(z.string()).optional(),
         is_production: z.boolean().optional(),
+        variant: z.string().optional(),
         commit_message: z.string().optional(),
       }),
     )
@@ -289,7 +328,12 @@ export const promptsRouter = router({
         if (isUuid(input.id)) {
           existing = await getPromptById(input.projectId, input.id);
         } else {
-          existing = await getPromptByName(input.projectId, input.id);
+          existing = await getPromptByName(
+            input.projectId,
+            input.id,
+            undefined,
+            input.variant,
+          );
         }
 
         if (!existing) {
@@ -301,8 +345,12 @@ export const promptsRouter = router({
 
         // Get next version number
         const newVersion =
-          (await getLatestPromptVersion(input.projectId, existing.name)) + 1;
-        const now = new Date().toISOString();
+          (await getLatestPromptVersion(
+            input.projectId,
+            existing.name,
+            input.variant ?? existing.variant,
+          )) + 1;
+        const now = toClickHouseDateTime();
 
         // Create new version with updates
         const newPromptId = uuidv4();
@@ -339,7 +387,7 @@ export const promptsRouter = router({
           created_at: now,
           updated_at: now,
           parent_version_id: existing.prompt_id,
-          variant: existing.variant,
+          variant: input.variant ?? existing.variant,
         };
 
         await insertPrompt(record);
@@ -349,6 +397,147 @@ export const promptsRouter = router({
         if (error instanceof TRPCError) throw error;
         logger.error({ err: error }, "Error updating prompt");
         handleClickHouseError(error, "update prompt");
+      }
+    }),
+
+  /**
+   * Delete all versions of a prompt by name.
+   */
+  delete: publicProcedure
+    .input(
+      z.object({
+        id: z.string(),
+        projectId: z.string().default("default"),
+      }),
+    )
+    .mutation(async ({ input }) => {
+      try {
+        let existing: PromptRecord | null;
+        if (isUuid(input.id)) {
+          existing = await getPromptById(input.projectId, input.id);
+        } else {
+          existing = await getPromptByName(input.projectId, input.id);
+        }
+
+        if (!existing) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: `Prompt "${input.id}" not found`,
+          });
+        }
+
+        await deletePromptByName(input.projectId, existing.name);
+        return { success: true, name: existing.name };
+      } catch (error) {
+        if (error instanceof TRPCError) throw error;
+        logger.error({ err: error }, "Error deleting prompt");
+        handleClickHouseError(error, "delete prompt");
+      }
+    }),
+
+  /**
+   * List available variants (latest version per variant) for a prompt name.
+   */
+  listVariants: publicProcedure
+    .input(
+      z.object({
+        id: z.string(),
+        projectId: z.string().default("default"),
+      }),
+    )
+    .query(async ({ input }) => {
+      try {
+        let name = input.id;
+        if (isUuid(input.id)) {
+          const existing = await getPromptById(input.projectId, input.id);
+          if (!existing) {
+            throw new TRPCError({
+              code: "NOT_FOUND",
+              message: `Prompt "${input.id}" not found`,
+            });
+          }
+          name = existing.name;
+        }
+
+        const records = await listPromptVariants(input.projectId, name);
+        return {
+          items: records.map(transformPrompt),
+          name,
+        };
+      } catch (error) {
+        if (error instanceof TRPCError) throw error;
+        logger.error({ err: error }, "Error listing prompt variants");
+        handleClickHouseError(error, "list prompt variants");
+      }
+    }),
+
+  /**
+   * Create a new variant by branching from an existing prompt version.
+   */
+  createVariant: publicProcedure
+    .input(
+      z.object({
+        id: z.string(),
+        projectId: z.string().default("default"),
+        variant: z.string().min(1),
+        commit_message: z.string().optional(),
+      }),
+    )
+    .mutation(async ({ input }) => {
+      try {
+        const normalizedVariant = input.variant.trim().toLowerCase();
+
+        let source: PromptRecord | null;
+        if (isUuid(input.id)) {
+          source = await getPromptById(input.projectId, input.id);
+        } else {
+          source = await getPromptByName(input.projectId, input.id);
+        }
+
+        if (!source) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: `Prompt "${input.id}" not found`,
+          });
+        }
+
+        const newVersion =
+          (await getLatestPromptVersion(
+            input.projectId,
+            source.name,
+            normalizedVariant,
+          )) + 1;
+        const now = toClickHouseDateTime();
+
+        const record: PromptRecord = {
+          project_id: input.projectId,
+          prompt_id: uuidv4(),
+          name: source.name,
+          description: source.description,
+          type: source.type,
+          template: source.template,
+          messages: source.messages,
+          variables: source.variables,
+          config: source.config,
+          tags: source.tags,
+          is_production: 0,
+          version: newVersion,
+          commit_message:
+            input.commit_message ||
+            `Create ${normalizedVariant} variant from ${source.variant || "control"} v${source.version}`,
+          created_by: source.created_by,
+          created_at: now,
+          updated_at: now,
+          parent_version_id: source.prompt_id,
+          variant: normalizedVariant,
+        };
+
+        await insertPrompt(record);
+        return transformPrompt(record);
+      } catch (error) {
+        if (error instanceof TRPCError) throw error;
+        logger.error({ err: error }, "Error creating prompt variant");
+        handleClickHouseError(error, "create prompt variant");
       }
     }),
 });

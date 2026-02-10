@@ -29,7 +29,7 @@ export function Skeleton({
   animation = 'pulse',
   style: customStyle,
 }: SkeletonProps) {
-  const baseClasses = 'bg-gray-200'
+  const baseClasses = 'bg-gray-200 dark:bg-dark-700'
 
   const variantClasses = {
     rectangular: 'rounded',
@@ -41,7 +41,7 @@ export function Skeleton({
   const animationClasses = {
     pulse: 'animate-pulse',
     shimmer:
-      'animate-shimmer bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 bg-[length:200%_100%]',
+      'animate-shimmer bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 dark:from-dark-700 dark:via-dark-600 dark:to-dark-700 bg-[length:200%_100%]',
     none: '',
   }
 
@@ -199,13 +199,13 @@ export function SkeletonTable({
   return (
     <div className={clsx('card overflow-hidden', className)}>
       {showHeader && (
-        <div className="border-b bg-gray-50 px-4 py-3 flex gap-4">
+        <div className="border-b bg-gray-50 dark:bg-dark-900 px-4 py-3 flex gap-4">
           {Array.from({ length: columns }).map((_, i) => (
             <Skeleton key={i} className="h-4 flex-1" animation="pulse" />
           ))}
         </div>
       )}
-      <div className="divide-y divide-gray-100">
+      <div className="divide-y divide-gray-100 dark:divide-dark-700">
         {Array.from({ length: rows }).map((_, i) => (
           <SkeletonTableRow key={i} columns={columns} />
         ))}
@@ -224,7 +224,7 @@ export function SkeletonChart({
   return (
     <div
       className={clsx(
-        'bg-gray-50 rounded-lg animate-pulse flex items-end justify-around p-4 gap-2',
+        'bg-gray-50 dark:bg-dark-900 rounded-lg animate-pulse flex items-end justify-around p-4 gap-2',
         className,
       )}
       style={{ height }}
@@ -232,7 +232,7 @@ export function SkeletonChart({
       {[40, 65, 55, 80, 70, 85, 75, 60, 72, 68, 78, 62].map((h, i) => (
         <div
           key={i}
-          className="bg-gray-200 rounded-t flex-1 max-w-8"
+          className="bg-gray-200 dark:bg-dark-700 rounded-t flex-1 max-w-8"
           style={{ height: `${h}%` }}
         />
       ))}

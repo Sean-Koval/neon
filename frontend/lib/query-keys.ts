@@ -59,6 +59,19 @@ export const queryKeys = {
     details: () => [...queryKeys.agents.all, 'detail'] as const,
     detail: (id: string) => [...queryKeys.agents.details(), id] as const,
   },
+  // =============================================================================
+  // Experiments
+  // =============================================================================
+  experiments: {
+    all: ['experiments'] as const,
+    lists: () => [...queryKeys.experiments.all, 'list'] as const,
+    list: (filters?: Record<string, unknown>) =>
+      [...queryKeys.experiments.lists(), filters ?? {}] as const,
+    details: () => [...queryKeys.experiments.all, 'detail'] as const,
+    detail: (id: string) => [...queryKeys.experiments.details(), id] as const,
+    progress: (id: string) =>
+      [...queryKeys.experiments.detail(id), 'progress'] as const,
+  },
 } as const
 
 export type QueryKeys = typeof queryKeys

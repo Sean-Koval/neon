@@ -34,7 +34,7 @@ export default function WorkflowDetailLoading() {
       {/* Workflow diagram placeholder */}
       <div className="card p-6">
         <Skeleton className="h-5 w-32 mb-4" />
-        <div className="h-64 bg-gray-50 rounded-lg animate-pulse flex items-center justify-center">
+        <div className="h-64 bg-gray-50 dark:bg-dark-900 rounded-lg animate-pulse flex items-center justify-center">
           <div className="flex items-center gap-4">
             {[1, 2, 3, 4].map((i) => (
               <div key={i} className="flex items-center gap-2">

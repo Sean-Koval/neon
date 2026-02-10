@@ -149,10 +149,10 @@ export default function AnalysisPage() {
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100">
             Component Analysis
           </h1>
-          <p className="text-sm sm:text-base text-gray-500">
+          <p className="text-sm sm:text-base text-gray-500 dark:text-gray-400">
             Cross-component correlations and system health
           </p>
         </div>
@@ -160,11 +160,11 @@ export default function AnalysisPage() {
         <div className="flex items-center gap-2 sm:gap-3">
           {/* Date Range Selector */}
           <div className="flex items-center gap-2">
-            <Calendar className="w-4 h-4 text-gray-500 hidden sm:block" />
+            <Calendar className="w-4 h-4 text-gray-500 dark:text-gray-400 hidden sm:block" />
             <select
               value={dateRange}
               onChange={(e) => setDateRange(Number(e.target.value))}
-              className="px-2 sm:px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-primary-500"
+              className="px-2 sm:px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-primary-500 dark:bg-dark-800 dark:border-dark-700 dark:text-gray-100"
             >
               {DATE_RANGES.map((range) => (
                 <option key={range.days} value={range.days}>
@@ -179,7 +179,7 @@ export default function AnalysisPage() {
             type="button"
             onClick={() => refetch()}
             disabled={isLoading}
-            className="p-2 border rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+            className="p-2 border dark:border-dark-700 rounded-lg hover:bg-gray-50 dark:hover:bg-dark-700 transition-colors disabled:opacity-50"
             title="Refresh data"
           >
             <RefreshCcw
@@ -222,17 +222,17 @@ export default function AnalysisPage() {
       {/* Summary Stats */}
       {health && !isLoading && (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4 mb-6">
-          <div className="bg-white border rounded-lg p-4">
-            <div className="flex items-center gap-2 text-gray-500 mb-1">
+          <div className="bg-white dark:bg-dark-800 border dark:border-dark-700 rounded-lg p-4">
+            <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400 mb-1">
               <Activity className="w-4 h-4" />
               <span className="text-xs font-medium">Components</span>
             </div>
-            <div className="text-2xl font-bold text-gray-900">
+            <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">
               {components.length}
             </div>
           </div>
-          <div className="bg-white border rounded-lg p-4">
-            <div className="flex items-center gap-2 text-gray-500 mb-1">
+          <div className="bg-white dark:bg-dark-800 border dark:border-dark-700 rounded-lg p-4">
+            <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400 mb-1">
               <HeartPulse className="w-4 h-4" />
               <span className="text-xs font-medium">Overall Health</span>
             </div>
@@ -248,7 +248,7 @@ export default function AnalysisPage() {
               {health.overallScore}%
             </div>
           </div>
-          <div className="bg-white border rounded-lg p-4 border-emerald-200">
+          <div className="bg-white dark:bg-dark-800 border rounded-lg p-4 border-emerald-200">
             <div className="text-xs font-medium text-emerald-600 mb-1">
               Healthy
             </div>
@@ -256,7 +256,7 @@ export default function AnalysisPage() {
               {health.healthyCount}
             </div>
           </div>
-          <div className="bg-white border rounded-lg p-4 border-amber-200">
+          <div className="bg-white dark:bg-dark-800 border rounded-lg p-4 border-amber-200">
             <div className="text-xs font-medium text-amber-600 mb-1">
               Warning
             </div>
@@ -264,7 +264,7 @@ export default function AnalysisPage() {
               {health.warningCount}
             </div>
           </div>
-          <div className="bg-white border rounded-lg p-4 border-rose-200">
+          <div className="bg-white dark:bg-dark-800 border rounded-lg p-4 border-rose-200">
             <div className="text-xs font-medium text-rose-600 mb-1">
               Critical
             </div>
@@ -276,7 +276,7 @@ export default function AnalysisPage() {
       )}
 
       {/* Tab Navigation */}
-      <div className="border-b border-gray-200 mb-6 -mx-6 px-6 overflow-x-auto">
+      <div className="border-b border-gray-200 dark:border-dark-700 mb-6 -mx-6 px-6 overflow-x-auto">
         <nav className="flex gap-1 sm:gap-4 min-w-max">
           {tabs.map((tab) => (
             <button
@@ -288,7 +288,7 @@ export default function AnalysisPage() {
                 ${
                   activeTab === tab.id
                     ? 'border-primary-500 text-primary-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-dark-600'
                 }
               `}
             >
@@ -313,18 +313,18 @@ export default function AnalysisPage() {
               onComponentClick={handleComponentSelect}
             />
           ) : (
-            <div className="flex items-center justify-center h-64 text-gray-500">
+            <div className="flex items-center justify-center h-64 text-gray-500 dark:text-gray-400">
               No health data available
             </div>
           ))}
 
         {/* Correlation Matrix Tab */}
         {activeTab === 'correlation' && (
-          <div className="bg-white border rounded-lg p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">
+          <div className="bg-white dark:bg-dark-800 border dark:border-dark-700 rounded-lg p-6">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
               Component Correlation Matrix
             </h2>
-            <p className="text-sm text-gray-500 mb-6">
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
               Shows how component scores correlate with each other. Strong
               positive correlations (blue) indicate components that tend to
               succeed or fail together. Negative correlations (red) suggest
@@ -339,7 +339,7 @@ export default function AnalysisPage() {
                 height={500}
               />
             ) : (
-              <div className="flex items-center justify-center h-64 text-gray-500">
+              <div className="flex items-center justify-center h-64 text-gray-500 dark:text-gray-400">
                 Insufficient data for correlation analysis
               </div>
             )}
@@ -348,11 +348,11 @@ export default function AnalysisPage() {
 
         {/* Dependency Graph Tab */}
         {activeTab === 'graph' && (
-          <div className="bg-white border rounded-lg p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">
+          <div className="bg-white dark:bg-dark-800 border dark:border-dark-700 rounded-lg p-6">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
               Component Dependency Graph
             </h2>
-            <p className="text-sm text-gray-500 mb-6">
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
               Visualizes relationships between components based on correlation
               strength. Connected components have statistically significant
               correlations. Node size indicates component type, color indicates
@@ -367,7 +367,7 @@ export default function AnalysisPage() {
                 onNodeClick={handleComponentSelect}
               />
             ) : (
-              <div className="flex items-center justify-center h-64 text-gray-500">
+              <div className="flex items-center justify-center h-64 text-gray-500 dark:text-gray-400">
                 No significant dependencies found
               </div>
             )}
@@ -413,20 +413,20 @@ export default function AnalysisPage() {
             aria-label="Close component details"
           />
 
-          <div className="fixed inset-x-0 bottom-0 max-h-[80vh] bg-white rounded-t-2xl shadow-xl z-50 overflow-y-auto md:inset-x-auto md:right-0 md:top-0 md:bottom-0 md:w-80 md:max-h-none md:rounded-none md:border-l p-6">
+          <div className="fixed inset-x-0 bottom-0 max-h-[80vh] bg-white dark:bg-dark-800 rounded-t-2xl shadow-xl z-50 overflow-y-auto md:inset-x-auto md:right-0 md:top-0 md:bottom-0 md:w-80 md:max-h-none md:rounded-none md:border-l dark:md:border-dark-700 p-6">
             {/* Mobile drag handle */}
             <div className="md:hidden flex justify-center -mt-4 mb-3">
-              <div className="w-10 h-1 bg-gray-300 rounded-full" />
+              <div className="w-10 h-1 bg-gray-300 dark:bg-dark-600 rounded-full" />
             </div>
 
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
                 Component Details
               </h3>
               <button
                 type="button"
                 onClick={() => setSelectedComponent(null)}
-                className="p-1 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
+                className="p-1 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-dark-700"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -434,18 +434,18 @@ export default function AnalysisPage() {
 
             <div className="space-y-4">
               <div>
-                <p className="text-sm text-gray-500">Name</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Name</p>
                 <p className="font-medium">{selectedComponent.name}</p>
               </div>
               <div>
-                <p className="text-sm text-gray-500">Type</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Type</p>
                 <p className="font-medium capitalize">
                   {selectedComponent.type}
                 </p>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <p className="text-sm text-gray-500">Score</p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Score</p>
                   <p
                     className={`text-xl font-bold ${
                       selectedComponent.avgScore >= 0.8
@@ -459,19 +459,19 @@ export default function AnalysisPage() {
                   </p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-500">Pass Rate</p>
-                  <p className="text-xl font-bold text-gray-900">
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Pass Rate</p>
+                  <p className="text-xl font-bold text-gray-900 dark:text-gray-100">
                     {(selectedComponent.passRate * 100).toFixed(1)}%
                   </p>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <p className="text-sm text-gray-500">Evaluations</p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Evaluations</p>
                   <p className="font-medium">{selectedComponent.evalCount}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-500">Avg Latency</p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Avg Latency</p>
                   <p className="font-medium">
                     {selectedComponent.avgLatency >= 1000
                       ? `${(selectedComponent.avgLatency / 1000).toFixed(1)}s`
@@ -480,7 +480,7 @@ export default function AnalysisPage() {
                 </div>
               </div>
               <div>
-                <p className="text-sm text-gray-500">Health Status</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Health Status</p>
                 <span
                   className={`
                     inline-flex px-2 py-1 text-sm font-medium rounded-full mt-1
@@ -497,7 +497,7 @@ export default function AnalysisPage() {
                 </span>
               </div>
               <div>
-                <p className="text-sm text-gray-500">Trend</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Trend</p>
                 <p className="font-medium capitalize">
                   {selectedComponent.trend}
                 </p>
@@ -509,8 +509,8 @@ export default function AnalysisPage() {
                   c.componentA === selectedComponent.id ||
                   c.componentB === selectedComponent.id,
               ).length > 0 && (
-                <div className="pt-4 border-t">
-                  <p className="text-sm font-medium text-gray-900 mb-2">
+                <div className="pt-4 border-t dark:border-dark-700">
+                  <p className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-2">
                     Top Correlations
                   </p>
                   <div className="space-y-2">
@@ -535,7 +535,7 @@ export default function AnalysisPage() {
                             key={`${corr.componentA}-${corr.componentB}`}
                             className="flex items-center justify-between text-sm"
                           >
-                            <span className="text-gray-600 truncate max-w-[60%]">
+                            <span className="text-gray-600 dark:text-gray-300 truncate max-w-[60%]">
                               {otherName}
                             </span>
                             <span

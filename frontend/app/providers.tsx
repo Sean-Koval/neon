@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
 import { type ReactNode, useCallback, useState } from 'react'
 import { ErrorBoundary } from '@/components/error-boundary'
+import { ThemeProvider } from '@/components/theme-provider'
 import { ToastProvider, useToast } from '@/components/toast'
 import { workflowQueryKeys } from '@/hooks/use-workflow-runs'
 import { AuthProvider } from '@/lib/auth'
@@ -142,10 +143,10 @@ function QueryErrorBoundary({ children }: QueryErrorBoundaryProps) {
       }}
       fallback={
         <div className="flex min-h-[400px] flex-col items-center justify-center p-8">
-          <h2 className="mb-2 text-xl font-semibold text-gray-900">
+          <h2 className="mb-2 text-xl font-semibold text-gray-900 dark:text-gray-100">
             Failed to load data
           </h2>
-          <p className="mb-4 text-gray-600">
+          <p className="mb-4 text-gray-600 dark:text-gray-300">
             There was a problem loading the requested data.
           </p>
           <button
@@ -169,10 +170,12 @@ interface ProvidersProps {
 
 export function Providers({ children }: ProvidersProps) {
   return (
-    <ToastProvider>
-      <QueryProvider>
-        <QueryErrorBoundary>{children}</QueryErrorBoundary>
-      </QueryProvider>
-    </ToastProvider>
+    <ThemeProvider>
+      <ToastProvider>
+        <QueryProvider>
+          <QueryErrorBoundary>{children}</QueryErrorBoundary>
+        </QueryProvider>
+      </ToastProvider>
+    </ThemeProvider>
   )
 }

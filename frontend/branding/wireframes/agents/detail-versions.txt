@@ -1,0 +1,172 @@
+================================================================================
+AGENT DETAIL — Versions Tab — app/agents/[id]?tab=versions
+================================================================================
+Version history with deployment timeline, score comparison, promotion actions.
+Route: /agents/[id]?tab=versions
+
+PARENT: Agent Detail page (see detail.txt for header + tab bar)
+DATA: trpc.agents.getVersions(agentId) (new endpoint)
+
+VERSION IDENTITY:
+  Versions are auto-discovered from the agent_version field in ClickHouse
+  traces. Each unique agent_version string becomes a version entry.
+  - If an agent doesn't set agent_version, all traces are grouped as "unknown"
+  - Environment mapping (which version is in prod/staging/dev) is manual,
+    set via the "Promote to Staging/Prod" buttons or via the Edit Metadata modal
+  - Agent versions are independent of prompt versions (/prompts); a single
+    agent version may use different prompt versions over time
+  - Version labels (stable, canary, deprecated) are stored in
+    agents.metadata.versionLabels { "v2.1.0": "stable", "v2.3.0": "canary" }
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  (Agent Header + Tab Bar — see detail.txt)                                  │
+│                                                                             │
+│  Overview  |  Skills  |  Tools  |  Versions*  |  Traces                    │
+│                                  ============                               │
+│                                                                             │
+│  ┌─ TAB: Versions ─────────────────────────────────────────────────────┐  │
+│  │                                                                       │  │
+│  │  ┌─ Current Deployments ───────────────────────────────────────────┐ │  │
+│  │  │                                                                   │ │  │
+│  │  │  Current Deployments                                             │ │  │
+│  │  │                                                                   │ │  │
+│  │  │  ┌────────────────────────────────────────────────────────────┐ │ │  │
+│  │  │  │                                                            │ │ │  │
+│  │  │  │  ┌─ prod ─────────────────────────────────────────────┐  │ │ │  │
+│  │  │  │  │                                                     │  │ │ │  │
+│  │  │  │  │  PROD      v2.1.0          ● healthy               │  │ │ │  │
+│  │  │  │  │            Deployed 3 days ago                      │  │ │ │  │
+│  │  │  │  │            Score: 94% pass, 0.87 avg                │  │ │ │  │
+│  │  │  │  │            Label: stable                            │  │ │ │  │
+│  │  │  │  │                                                     │  │ │ │  │
+│  │  │  │  │            [Rollback to v2.0.0]                     │  │ │ │  │
+│  │  │  │  │                                                     │  │ │ │  │
+│  │  │  │  │  Env badge: badge-green                             │  │ │ │  │
+│  │  │  │  │  Version: text-lg font-semibold                     │  │ │ │  │
+│  │  │  │  │  Health dot + label                                 │  │ │ │  │
+│  │  │  │  │  Deploy date: text-sm text-content-muted            │  │ │ │  │
+│  │  │  │  │  Score: text-sm, colored by threshold               │  │ │ │  │
+│  │  │  │  │  Label: text-xs badge                               │  │ │ │  │
+│  │  │  │  │  Rollback: btn btn-secondary btn-sm, confirms first │  │ │ │  │
+│  │  │  │  │                                                     │  │ │ │  │
+│  │  │  │  └─────────────────────────────────────────────────────┘  │ │ │  │
+│  │  │  │                                                            │ │ │  │
+│  │  │  │  ┌─ staging ──────────────────────────────────────────┐  │ │ │  │
+│  │  │  │  │                                                     │  │ │ │  │
+│  │  │  │  │  STAGING   v2.2.0          ● healthy               │  │ │ │  │
+│  │  │  │  │            Deployed 12 hours ago                    │  │ │ │  │
+│  │  │  │  │            Score: 96% pass, 0.89 avg                │  │ │ │  │
+│  │  │  │  │            Label: canary                            │  │ │ │  │
+│  │  │  │  │                                                     │  │ │ │  │
+│  │  │  │  │            [Promote to Prod]                        │  │ │ │  │
+│  │  │  │  │                                                     │  │ │ │  │
+│  │  │  │  └─────────────────────────────────────────────────────┘  │ │ │  │
+│  │  │  │                                                            │ │ │  │
+│  │  │  │  ┌─ dev ──────────────────────────────────────────────┐  │ │ │  │
+│  │  │  │  │                                                     │  │ │ │  │
+│  │  │  │  │  DEV       v2.3.0          ◐ degraded              │  │ │ │  │
+│  │  │  │  │            Deployed 2 hours ago                     │  │ │ │  │
+│  │  │  │  │            Score: 82% pass, 0.75 avg                │  │ │ │  │
+│  │  │  │  │                                                     │  │ │ │  │
+│  │  │  │  │            [Promote to Staging]                     │  │ │ │  │
+│  │  │  │  │                                                     │  │ │ │  │
+│  │  │  │  └─────────────────────────────────────────────────────┘  │ │ │  │
+│  │  │  │                                                            │ │ │  │
+│  │  │  └────────────────────────────────────────────────────────────┘ │ │  │
+│  │  │                                                                   │ │  │
+│  │  │  card class. Environments stacked vertically.                    │ │  │
+│  │  │  Only shows environments that have a version deployed.          │ │  │
+│  │  │  Promotion buttons trigger a confirmation dialog before acting. │ │  │
+│  │  │                                                                   │ │  │
+│  │  └───────────────────────────────────────────────────────────────────┘ │  │
+│  │                                                                       │  │
+│  │  ┌─ Version Score Comparison ──────────────────────────────────────┐ │  │
+│  │  │                                                                   │ │  │
+│  │  │  Score Across Versions                                           │ │  │
+│  │  │                                                                   │ │  │
+│  │  │  ┌────────────────────────────────────────────────────────────┐ │ │  │
+│  │  │  │                                                            │ │ │  │
+│  │  │  │  (recharts horizontal bar chart)                           │ │ │  │
+│  │  │  │                                                            │ │ │  │
+│  │  │  │  v1.0   ██████████████████░░░░  78%                       │ │ │  │
+│  │  │  │  v1.5   ████████████████████░░  85%                       │ │ │  │
+│  │  │  │  v2.0   █████████████████████░  91%                       │ │ │  │
+│  │  │  │  v2.1   ██████████████████████  94%    prod               │ │ │  │
+│  │  │  │  v2.2   ███████████████████████ 96%    staging            │ │ │  │
+│  │  │  │  v2.3   ██████████████████░░░░  82%    dev                │ │ │  │
+│  │  │  │                                                            │ │ │  │
+│  │  │  │  Height: ~200px                                            │ │ │  │
+│  │  │  │  Bar color: emerald >=90%, amber >=70%, rose <70%         │ │ │  │
+│  │  │  │  Environment labels right-aligned in text-content-muted   │ │ │  │
+│  │  │  │  SLA target line: dashed vertical at sla.minPassRate      │ │ │  │
+│  │  │  │                                                            │ │ │  │
+│  │  │  └────────────────────────────────────────────────────────────┘ │ │  │
+│  │  │                                                                   │ │  │
+│  │  │  card class                                                      │ │  │
+│  │  │                                                                   │ │  │
+│  │  └───────────────────────────────────────────────────────────────────┘ │  │
+│  │                                                                       │  │
+│  │  ┌─ Version History ───────────────────────────────────────────────┐ │  │
+│  │  │                                                                   │ │  │
+│  │  │  Version History                                                 │ │  │
+│  │  │                                                                   │ │  │
+│  │  │  ┌─────────┬──────────┬────────┬────────┬──────┬──────┬───────┐ │ │  │
+│  │  │  │ Version │ Date     │ Pass % │ Score  │ Env  │ Label│Action │ │ │  │
+│  │  │  ├─────────┼──────────┼────────┼────────┼──────┼──────┼───────┤ │ │  │
+│  │  │  │ v2.3.0  │ 2h ago   │ 82%    │ 0.75   │ dev  │      │[Comp] │ │ │  │
+│  │  │  │ v2.2.0  │ 12h ago  │ 96%    │ 0.89   │ stg  │canary│[Comp] │ │ │  │
+│  │  │  │ v2.1.0  │ 3d ago   │ 94%    │ 0.87   │ prod │stable│[Comp] │ │ │  │
+│  │  │  │ v2.0.0  │ 2w ago   │ 91%    │ 0.84   │ --   │      │[Comp] │ │ │  │
+│  │  │  │ v1.5.0  │ 1mo ago  │ 85%    │ 0.78   │ --   │depr. │[Comp] │ │ │  │
+│  │  │  │ v1.0.0  │ 3mo ago  │ 78%    │ 0.68   │ --   │depr. │[Comp] │ │ │  │
+│  │  │  └─────────┴──────────┴────────┴────────┴──────┴──────┴───────┘ │ │  │
+│  │  │                                                                   │ │  │
+│  │  │  Table columns:                                                  │ │  │
+│  │  │  - Version: text-sm font-mono                                    │ │  │
+│  │  │  - Date: relative time, text-content-muted                       │ │  │
+│  │  │  - Pass %: colored by threshold (emerald/amber/rose)            │ │  │
+│  │  │  - Score: colored by threshold                                   │ │  │
+│  │  │  - Env: badge (green=prod, amber=stg, blue=dev, gray=--)       │ │  │
+│  │  │  - Label: text-xs badge (stable=green, canary=amber,           │ │  │
+│  │  │    deprecated=gray). Editable via click -> popover              │ │  │
+│  │  │  - [Comp]: "Compare" navigates to /compare with this version   │ │  │
+│  │  │    vs current prod version pre-selected                         │ │  │
+│  │  │                                                                   │ │  │
+│  │  │  All columns sortable. Default: newest first.                    │ │  │
+│  │  │  card class                                                      │ │  │
+│  │  │                                                                   │ │  │
+│  │  └───────────────────────────────────────────────────────────────────┘ │  │
+│  │                                                                       │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+PROMOTION CONFIRMATION DIALOG:
+  Triggered by [Promote to Staging] or [Promote to Prod] buttons.
+
+  ┌────────────────────────────────────────────────────────────┐
+  │                                                            │
+  │  Promote v2.2.0 to Production?                            │
+  │                                                            │
+  │  This will:                                                │
+  │  - Set v2.2.0 as the production version                   │
+  │  - Demote current prod v2.1.0 to unassigned               │
+  │                                                            │
+  │  Current prod score:  94% pass                             │
+  │  Candidate score:     96% pass  (+2%)                      │
+  │                                                            │
+  │                           [Cancel]  [Promote]              │
+  │                                                            │
+  │  Standard modal styling. "Promote" = btn btn-primary.     │
+  │                                                            │
+  └────────────────────────────────────────────────────────────┘
+
+EMPTY STATE (only one version, no history):
+
+  ┌──────────────────────────────────────────────────────────┐
+  │                                                          │
+  │  Only one version detected                               │
+  │  Version history will grow as new agent_version          │
+  │  values appear in incoming traces.                       │
+  │                                                          │
+  └──────────────────────────────────────────────────────────┘

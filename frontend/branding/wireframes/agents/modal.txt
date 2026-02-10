@@ -1,0 +1,154 @@
+================================================================================
+AGENT MODAL — Register / Edit Agent Metadata
+================================================================================
+Shared modal for registering a new agent (pre-discovery) and editing
+metadata on an existing auto-discovered agent.
+Component: components/agents/agent-metadata-modal.tsx
+Trigger: [+ Register Agent] button on list, [Edit Metadata] on detail header
+
+MODE A: Register (pre-discovery)
+  - User enters agent ID manually
+  - Agent doesn't exist in CH yet, will be matched when traces arrive
+  - Title: "Register Agent"
+
+MODE B: Edit (enrichment)
+  - Agent already exists (auto-discovered from traces)
+  - agent_id is read-only, pre-filled
+  - Title: "Edit Agent Metadata"
+
+POSITION: fixed inset-0, centered, z-50
+SIZE: max-w-xl (576px)
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                         (backdrop: bg-black/50)                              │
+│                                                                              │
+│     ┌────────────────────────────────────────────────────────────────┐      │
+│     │                                                                │      │
+│     │  Register Agent  /  Edit Agent Metadata            [X close]  │      │
+│     │                                                                │      │
+│     │  ─── (border-b border-border) ──────────────────────────────  │      │
+│     │                                                                │      │
+│     │  ┌─ Identity ─────────────────────────────────────────────┐  │      │
+│     │  │                                                         │  │      │
+│     │  │  Agent ID *                                             │  │      │
+│     │  │  ┌──────────────────────────────────────────────────┐  │  │      │
+│     │  │  │ booking-agent                                     │  │  │      │
+│     │  │  └──────────────────────────────────────────────────┘  │  │      │
+│     │  │  text-sm text-content-muted: "Must match the agentId  │  │      │
+│     │  │  field in your SDK trace calls"                        │  │      │
+│     │  │  Register mode: editable input                         │  │      │
+│     │  │  Edit mode: read-only, bg-surface-overlay, cursor-not  │  │      │
+│     │  │                                                         │  │      │
+│     │  │  Display Name                                           │  │      │
+│     │  │  ┌──────────────────────────────────────────────────┐  │  │      │
+│     │  │  │ Booking Agent                                     │  │  │      │
+│     │  │  └──────────────────────────────────────────────────┘  │  │      │
+│     │  │  text-sm text-content-muted: "Human-readable name     │  │      │
+│     │  │  shown in the UI"                                      │  │      │
+│     │  │                                                         │  │      │
+│     │  │  Description                                            │  │      │
+│     │  │  ┌──────────────────────────────────────────────────┐  │  │      │
+│     │  │  │ Handles travel booking queries, searches          │  │  │      │
+│     │  │  │ availability, and confirms reservations.          │  │  │      │
+│     │  │  │                                                   │  │  │      │
+│     │  │  └──────────────────────────────────────────────────┘  │  │      │
+│     │  │  <textarea>, 3 rows                                    │  │      │
+│     │  │                                                         │  │      │
+│     │  └─────────────────────────────────────────────────────────┘  │      │
+│     │                                                                │      │
+│     │  ┌─ Organization ─────────────────────────────────────────┐  │      │
+│     │  │                                                         │  │      │
+│     │  │  Team                                                   │  │      │
+│     │  │  ┌──────────────────────────────────────────────────┐  │  │      │
+│     │  │  │ Platform                                    ▾    │  │  │      │
+│     │  │  └──────────────────────────────────────────────────┘  │  │      │
+│     │  │  Combobox: shows existing teams + "Create new" option  │  │      │
+│     │  │                                                         │  │      │
+│     │  │  Tags                                                   │  │      │
+│     │  │  ┌──────────────────────────────────────────────────┐  │  │      │
+│     │  │  │ [production] [customer-facing] [x]  |add tag..| │  │  │      │
+│     │  │  └──────────────────────────────────────────────────┘  │  │      │
+│     │  │  Tag input with autocomplete from existing tags.       │  │      │
+│     │  │  Press Enter to add. Click [x] to remove.              │  │      │
+│     │  │  Tags stored in agents.metadata.tags (string array)    │  │      │
+│     │  │                                                         │  │      │
+│     │  │  Environments                                           │  │      │
+│     │  │  ┌──────────────────────────────────────────────────┐  │  │      │
+│     │  │  │  [ ] dev    [x] staging    [x] prod              │  │  │      │
+│     │  │  └──────────────────────────────────────────────────┘  │  │      │
+│     │  │  Checkboxes. Multiple can be active.                   │  │      │
+│     │  │  Stored in agents.environments text[]                  │  │      │
+│     │  │                                                         │  │      │
+│     │  └─────────────────────────────────────────────────────────┘  │      │
+│     │                                                                │      │
+│     │  ┌─ Connections ──────────────────────────────────────────┐  │      │
+│     │  │                                                         │  │      │
+│     │  │  Associated Eval Suites                                 │  │      │
+│     │  │  ┌──────────────────────────────────────────────────┐  │  │      │
+│     │  │  │ [booking-basic] [booking-edge-cases] |search..| │  │  │      │
+│     │  │  └──────────────────────────────────────────────────┘  │  │      │
+│     │  │  Multi-select with autocomplete from trpc.suites.list  │  │      │
+│     │  │  Stored in agents.associatedSuites text[]              │  │      │
+│     │  │                                                         │  │      │
+│     │  │  MCP Servers                                            │  │      │
+│     │  │  ┌──────────────────────────────────────────────────┐  │  │      │
+│     │  │  │ [web-search-mcp] [db-mcp]              |search..│  │  │      │
+│     │  │  └──────────────────────────────────────────────────┘  │  │      │
+│     │  │  Multi-select. Stored in agents.mcpServers text[]      │  │      │
+│     │  │                                                         │  │      │
+│     │  └─────────────────────────────────────────────────────────┘  │      │
+│     │                                                                │      │
+│     │  ┌─ SLA Targets (optional) ───────────────────────────────┐  │      │
+│     │  │                                                         │  │      │
+│     │  │  These thresholds define what "healthy" means for this  │  │      │
+│     │  │  agent. Alerts trigger when metrics cross these bounds. │  │      │
+│     │  │                                                         │  │      │
+│     │  │  Min Pass Rate          Max Error Rate                  │  │      │
+│     │  │  ┌───────────────┐     ┌───────────────┐               │  │      │
+│     │  │  │ 90         %  │     │ 5          %  │               │  │      │
+│     │  │  └───────────────┘     └───────────────┘               │  │      │
+│     │  │                                                         │  │      │
+│     │  │  Max P50 Latency        Max Cost/Call                   │  │      │
+│     │  │  ┌───────────────┐     ┌───────────────┐               │  │      │
+│     │  │  │ 5000       ms │     │ 0.50       $  │               │  │      │
+│     │  │  └───────────────┘     └───────────────┘               │  │      │
+│     │  │                                                         │  │      │
+│     │  │  Stored in agents.metadata.sla {}                       │  │      │
+│     │  │  Used by health computation and alert rules             │  │      │
+│     │  │                                                         │  │      │
+│     │  └─────────────────────────────────────────────────────────┘  │      │
+│     │                                                                │      │
+│     │  ─── (border-t border-border) ──────────────────────────────  │      │
+│     │                                                                │      │
+│     │                                  [Cancel]  [Save Agent]       │      │
+│     │                                                                │      │
+│     │  Cancel: btn btn-secondary, closes modal                      │      │
+│     │  Save: btn btn-primary, calls trpc.agents.upsert              │      │
+│     │  On success: close modal, invalidate agents.list query        │      │
+│     │  On error: inline error message below save button             │      │
+│     │                                                                │      │
+│     └────────────────────────────────────────────────────────────────┘      │
+│                                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+STYLING:
+  - Modal: bg-surface-card, border border-border, rounded-xl, shadow-2xl
+  - Header: text-lg font-semibold text-content-primary, px-6 py-4
+  - Body: px-6 py-4, space-y-6, max-h-[70vh] overflow-y-auto
+  - Section headers: text-sm font-medium text-content-primary mb-3
+  - Labels: text-sm text-content-secondary mb-1
+  - Inputs: w-full bg-surface-base border border-border rounded-lg
+    px-3 py-2 text-sm text-content-primary
+    focus:outline-none focus:border-primary-500/50
+  - Help text: text-xs text-content-muted mt-1
+  - Tag pills: inline-flex items-center gap-1 bg-primary-500/10
+    text-primary-400 border border-primary-500/20 rounded-full
+    px-2 py-0.5 text-xs
+  - Checkboxes: w-4 h-4 rounded border-border accent-primary-500
+  - Footer: px-6 py-4, flex justify-end gap-3
+
+VALIDATION:
+  - Agent ID: required, alphanumeric + hyphens, no spaces
+  - Display Name: optional, max 100 chars
+  - Description: optional, max 500 chars
+  - SLA targets: optional, numeric, min 0

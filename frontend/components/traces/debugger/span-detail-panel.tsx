@@ -49,18 +49,18 @@ function Section({
 }) {
   const [open, setOpen] = useState(defaultOpen)
   return (
-    <div className="border-b border-gray-100 last:border-0">
+    <div className="border-b border-gray-100 dark:border-dark-700 last:border-0">
       <button
         type="button"
-        className="flex items-center gap-2 w-full px-4 py-2.5 text-left hover:bg-gray-50 transition-colors"
+        className="flex items-center gap-2 w-full px-4 py-2.5 text-left hover:bg-gray-50 dark:hover:bg-dark-700 transition-colors"
         onClick={() => setOpen(!open)}
       >
         {open ? (
-          <ChevronDown className="w-3.5 h-3.5 text-gray-400" />
+          <ChevronDown className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500" />
         ) : (
-          <ChevronRight className="w-3.5 h-3.5 text-gray-400" />
+          <ChevronRight className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500" />
         )}
-        <span className="text-sm font-medium text-gray-700">{title}</span>
+        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{title}</span>
       </button>
       {open && <div className="px-4 pb-3">{children}</div>}
     </div>
@@ -83,14 +83,14 @@ function CodeBlock({ content }: { content: string }) {
 
   return (
     <div className="relative">
-      <pre className="bg-gray-50 rounded-lg p-3 text-xs font-mono overflow-x-auto max-h-64 overflow-y-auto whitespace-pre-wrap break-words">
+      <pre className="bg-gray-50 dark:bg-dark-900 rounded-lg p-3 text-xs font-mono overflow-x-auto max-h-64 overflow-y-auto whitespace-pre-wrap break-words">
         {display}
       </pre>
       {isLong && (
         <button
           type="button"
           onClick={() => setExpanded(!expanded)}
-          className="w-full py-1 text-xs text-blue-600 hover:text-blue-700 bg-gray-50 rounded-b-lg border-t"
+          className="w-full py-1 text-xs text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 bg-gray-50 dark:bg-dark-900 rounded-b-lg border-t"
         >
           {expanded ? 'Show less' : 'Show full content'}
         </button>
@@ -109,8 +109,8 @@ function KVRow({
   if (value === null || value === undefined) return null
   return (
     <div className="flex py-1 text-sm gap-2">
-      <span className="w-24 text-gray-500 flex-shrink-0 text-xs">{label}</span>
-      <span className="text-gray-900 flex-1 min-w-0 break-all text-xs">
+      <span className="w-24 text-gray-500 dark:text-gray-400 flex-shrink-0 text-xs">{label}</span>
+      <span className="text-gray-900 dark:text-gray-100 flex-1 min-w-0 break-all text-xs">
         {String(value)}
       </span>
     </div>
@@ -131,9 +131,9 @@ export function SpanDetailPanel({ span, onClose }: SpanDetailPanelProps) {
   }
 
   return (
-    <div className="h-full flex flex-col bg-white border-l">
+    <div className="h-full flex flex-col bg-white dark:bg-dark-800 border-l border-gray-200 dark:border-dark-700">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b bg-gray-50 flex-shrink-0">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-dark-700 bg-gray-50 dark:bg-dark-900 flex-shrink-0">
         <div className="flex items-center gap-2 min-w-0 flex-1">
           <TypeIcon
             className={clsx('w-4 h-4 flex-shrink-0', typeConfig.textColor)}
@@ -145,7 +145,7 @@ export function SpanDetailPanel({ span, onClose }: SpanDetailPanelProps) {
         <button
           type="button"
           onClick={onClose}
-          className="p-1 hover:bg-gray-200 rounded text-gray-500 ml-2 flex-shrink-0"
+          className="p-1 hover:bg-gray-200 dark:hover:bg-dark-700 rounded text-gray-500 dark:text-gray-400 ml-2 flex-shrink-0"
           title="Close"
         >
           <X className="w-4 h-4" />
@@ -155,29 +155,29 @@ export function SpanDetailPanel({ span, onClose }: SpanDetailPanelProps) {
       {/* Status bar */}
       <div
         className={clsx(
-          'flex items-center gap-2 px-4 py-2 border-b flex-shrink-0',
+          'flex items-center gap-2 px-4 py-2 border-b border-gray-200 dark:border-dark-700 flex-shrink-0',
           span.status === 'ok'
-            ? 'bg-green-50'
+            ? 'bg-emerald-50 dark:bg-emerald-500/10'
             : span.status === 'error'
-              ? 'bg-red-50'
-              : 'bg-gray-50',
+              ? 'bg-red-50 dark:bg-red-500/10'
+              : 'bg-gray-50 dark:bg-dark-900',
         )}
       >
         {span.status === 'ok' ? (
-          <CheckCircle className="w-4 h-4 text-green-500" />
+          <CheckCircle className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
         ) : span.status === 'error' ? (
-          <XCircle className="w-4 h-4 text-red-500" />
+          <XCircle className="w-4 h-4 text-red-600 dark:text-red-400" />
         ) : (
-          <Clock className="w-4 h-4 text-gray-400" />
+          <Clock className="w-4 h-4 text-gray-400 dark:text-gray-500" />
         )}
         <span
           className={clsx(
             'text-sm font-medium',
             span.status === 'ok'
-              ? 'text-green-700'
+              ? 'text-green-700 dark:text-emerald-400'
               : span.status === 'error'
-                ? 'text-red-700'
-                : 'text-gray-600',
+                ? 'text-red-700 dark:text-red-400'
+                : 'text-gray-600 dark:text-gray-300',
           )}
         >
           {span.status === 'ok'
@@ -187,29 +187,29 @@ export function SpanDetailPanel({ span, onClose }: SpanDetailPanelProps) {
               : 'Unset'}
         </span>
         {span.status_message && (
-          <span className="text-xs text-gray-500 truncate flex-1">
+          <span className="text-xs text-gray-500 dark:text-gray-400 truncate flex-1">
             — {span.status_message}
           </span>
         )}
       </div>
 
       {/* Quick stats */}
-      <div className="flex flex-wrap items-center gap-2 px-4 py-2 border-b bg-white flex-shrink-0">
+      <div className="flex flex-wrap items-center gap-2 px-4 py-2 border-b border-gray-200 dark:border-dark-700 bg-white dark:bg-dark-800 flex-shrink-0">
         <SpanTypeBadge type={span.span_type} size="sm" />
-        <div className="flex items-center gap-1 text-xs text-gray-600">
+        <div className="flex items-center gap-1 text-xs text-gray-600 dark:text-gray-300">
           <Clock className="w-3 h-3" />
           <span className="font-medium">
             {formatDuration(span.duration_ms)}
           </span>
         </div>
         {span.total_tokens != null && span.total_tokens > 0 && (
-          <div className="flex items-center gap-1 text-xs text-gray-600">
+          <div className="flex items-center gap-1 text-xs text-gray-600 dark:text-gray-300">
             <Hash className="w-3 h-3" />
             <span>{span.total_tokens.toLocaleString()} tokens</span>
           </div>
         )}
         {span.cost_usd != null && span.cost_usd > 0 && (
-          <div className="flex items-center gap-1 text-xs text-gray-600">
+          <div className="flex items-center gap-1 text-xs text-gray-600 dark:text-gray-300">
             <DollarSign className="w-3 h-3" />
             <span>${span.cost_usd.toFixed(4)}</span>
           </div>
@@ -247,7 +247,7 @@ export function SpanDetailPanel({ span, onClose }: SpanDetailPanelProps) {
           <Section title="Token Usage">
             <div className="flex gap-3 text-xs">
               {span.input_tokens != null && (
-                <div className="flex items-center gap-1.5 px-2 py-1 bg-blue-50 rounded text-blue-700">
+                <div className="flex items-center gap-1.5 px-2 py-1 bg-blue-50 dark:bg-blue-500/10 rounded text-blue-700 dark:text-blue-400">
                   <span className="text-blue-500">IN</span>
                   <span className="font-medium">
                     {span.input_tokens.toLocaleString()}
@@ -255,7 +255,7 @@ export function SpanDetailPanel({ span, onClose }: SpanDetailPanelProps) {
                 </div>
               )}
               {span.output_tokens != null && (
-                <div className="flex items-center gap-1.5 px-2 py-1 bg-green-50 rounded text-green-700">
+                <div className="flex items-center gap-1.5 px-2 py-1 bg-green-50 dark:bg-emerald-500/10 rounded text-green-700 dark:text-emerald-400">
                   <span className="text-green-500">OUT</span>
                   <span className="font-medium">
                     {span.output_tokens.toLocaleString()}
@@ -263,7 +263,7 @@ export function SpanDetailPanel({ span, onClose }: SpanDetailPanelProps) {
                 </div>
               )}
               {span.total_tokens != null && (
-                <div className="flex items-center gap-1.5 px-2 py-1 bg-gray-100 rounded text-gray-700">
+                <div className="flex items-center gap-1.5 px-2 py-1 bg-gray-100 dark:bg-dark-800 rounded text-gray-700 dark:text-gray-300">
                   <Hash className="w-3 h-3" />
                   <span className="font-medium">
                     {span.total_tokens.toLocaleString()}
@@ -312,10 +312,33 @@ export function SpanDetailPanel({ span, onClose }: SpanDetailPanelProps) {
         {/* Attributes */}
         {fullSpan.attributes && Object.keys(fullSpan.attributes).length > 0 && (
           <Section title="Attributes" defaultOpen={false}>
-            <div className="space-y-0.5">
-              {Object.entries(fullSpan.attributes).map(([key, value]) => (
-                <KVRow key={key} label={key} value={value} />
-              ))}
+            <div className="divide-y divide-gray-100 dark:divide-dark-700">
+              {Object.entries(fullSpan.attributes).map(([key, value]) => {
+                const strValue = String(value ?? '')
+                const isLong = strValue.length > 80
+                return (
+                  <div key={key} className="py-2 first:pt-0 last:pb-0">
+                    <div className="flex items-center gap-1.5 mb-0.5">
+                      <span className="text-xs font-mono text-gray-500 dark:text-gray-400 truncate">
+                        {key}
+                      </span>
+                      <CopyButton value={strValue} size="sm" />
+                    </div>
+                    {isLong ? (
+                      <pre className="text-xs text-gray-900 dark:text-gray-100 bg-gray-50 dark:bg-dark-900 rounded-md px-3 py-2 font-mono whitespace-pre-wrap break-words overflow-x-auto max-h-40 overflow-y-auto">
+                        {strValue}
+                      </pre>
+                    ) : (
+                      <span className={clsx(
+                        'text-xs text-gray-900 dark:text-gray-100 break-all',
+                        /^\d+$/.test(strValue) && 'font-mono tabular-nums',
+                      )}>
+                        {strValue || <span className="text-gray-400 dark:text-gray-500 italic">empty</span>}
+                      </span>
+                    )}
+                  </div>
+                )
+              })}
             </div>
           </Section>
         )}

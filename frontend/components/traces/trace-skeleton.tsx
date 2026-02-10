@@ -44,7 +44,7 @@ export function TraceListSkeleton() {
 
 export function TraceDetailHeaderSkeleton() {
   return (
-    <header className="bg-white border-b px-6 py-4">
+    <header className="bg-white dark:bg-dark-800 border-b px-6 py-4">
       <div className="flex items-center gap-4 mb-4">
         <Skeleton className="w-10 h-10" variant="rounded" />
         <div className="flex-1">
@@ -68,12 +68,12 @@ export function TraceTimelineSkeleton({ rows = 8 }: { rows?: number }) {
   return (
     <div className="border rounded-lg overflow-hidden">
       {/* Timeline header */}
-      <div className="flex items-center bg-gray-100 border-b px-3 py-2">
+      <div className="flex items-center bg-gray-100 dark:bg-dark-800 border-b px-3 py-2">
         <Skeleton className="h-4 w-16" />
       </div>
 
       {/* Timeline rows */}
-      <div className="divide-y divide-gray-100">
+      <div className="divide-y divide-gray-100 dark:divide-dark-700">
         {Array.from({ length: rows }).map((_, i) => (
           <div key={i} className="flex items-center animate-pulse">
             <div className="min-w-[280px] px-3 py-3 border-r flex items-center gap-2">
@@ -108,7 +108,7 @@ export function TraceTimelineSkeleton({ rows = 8 }: { rows?: number }) {
       </div>
 
       {/* Legend */}
-      <div className="flex gap-3 px-3 py-2 border-t bg-gray-50">
+      <div className="flex gap-3 px-3 py-2 border-t bg-gray-50 dark:bg-dark-900">
         {Array.from({ length: 5 }).map((_, i) => (
           <div key={i} className="flex items-center gap-1.5 animate-pulse">
             <Skeleton className="w-2.5 h-2.5" animation="none" />
@@ -122,7 +122,7 @@ export function TraceTimelineSkeleton({ rows = 8 }: { rows?: number }) {
 
 export function TraceDetailSkeleton() {
   return (
-    <div className="h-screen flex flex-col bg-gray-50">
+    <div className="h-screen flex flex-col bg-gray-50 dark:bg-dark-900">
       <TraceDetailHeaderSkeleton />
       <div className="flex-1 p-6 overflow-hidden">
         <TraceTimelineSkeleton />

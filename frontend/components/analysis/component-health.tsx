@@ -59,25 +59,25 @@ function getTrendIcon(trend: 'up' | 'down' | 'stable') {
     case 'down':
       return <TrendingDown className="w-4 h-4 text-rose-500" />
     case 'stable':
-      return <ArrowRight className="w-4 h-4 text-gray-400" />
+      return <ArrowRight className="w-4 h-4 text-gray-400 dark:text-gray-500" />
   }
 }
 
 function getHealthColor(status: 'healthy' | 'warning' | 'critical') {
   switch (status) {
     case 'healthy':
-      return 'bg-emerald-50 border-emerald-200'
+      return 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/25'
     case 'warning':
-      return 'bg-amber-50 border-amber-200'
+      return 'bg-amber-50 dark:bg-amber-500/10 border-amber-200 dark:border-amber-500/25'
     case 'critical':
-      return 'bg-rose-50 border-rose-200'
+      return 'bg-rose-50 dark:bg-rose-500/10 border-rose-200 dark:border-rose-500/25'
   }
 }
 
 function getScoreColor(score: number) {
-  if (score >= 0.8) return 'text-emerald-600'
-  if (score >= 0.6) return 'text-amber-600'
-  return 'text-rose-600'
+  if (score >= 0.8) return 'text-emerald-600 dark:text-emerald-400'
+  if (score >= 0.6) return 'text-amber-600 dark:text-amber-400'
+  return 'text-rose-600 dark:text-rose-400'
 }
 
 function formatLatency(ms: number): string {
@@ -105,13 +105,13 @@ function SummaryCard({
   color,
 }: SummaryCardProps) {
   return (
-    <div className={`bg-white border rounded-lg p-4 ${color}`}>
-      <div className="flex items-center gap-2 text-gray-500 mb-2">
+    <div className={`bg-white dark:bg-dark-800 border rounded-lg p-4 ${color}`}>
+      <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400 mb-2">
         {icon}
         <span className="text-sm font-medium">{title}</span>
       </div>
-      <div className="text-2xl font-bold text-gray-900">{value}</div>
-      {subtitle && <div className="text-sm text-gray-500 mt-1">{subtitle}</div>}
+      <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{value}</div>
+      {subtitle && <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">{subtitle}</div>}
     </div>
   )
 }
@@ -139,16 +139,16 @@ function ComponentCard({ component, onClick }: ComponentCardProps) {
       <div className="flex items-start justify-between mb-2">
         <div className="flex items-center gap-2">
           {getHealthIcon(component.healthStatus)}
-          <span className="font-medium text-gray-900">{component.name}</span>
+          <span className="font-medium text-gray-900 dark:text-gray-100">{component.name}</span>
         </div>
-        <span className="text-xs px-2 py-0.5 bg-white/50 rounded-full text-gray-600 capitalize">
+        <span className="text-xs px-2 py-0.5 bg-white/50 rounded-full text-gray-600 dark:text-gray-300 capitalize">
           {component.type}
         </span>
       </div>
 
       <div className="grid grid-cols-2 gap-3 mt-3">
         <div>
-          <span className="text-xs text-gray-500">Score</span>
+          <span className="text-xs text-gray-500 dark:text-gray-400">Score</span>
           <div
             className={`text-lg font-semibold ${getScoreColor(component.avgScore)}`}
           >
@@ -156,7 +156,7 @@ function ComponentCard({ component, onClick }: ComponentCardProps) {
           </div>
         </div>
         <div>
-          <span className="text-xs text-gray-500">Pass Rate</span>
+          <span className="text-xs text-gray-500 dark:text-gray-400">Pass Rate</span>
           <div
             className={`text-lg font-semibold ${getScoreColor(component.passRate)}`}
           >
@@ -165,18 +165,18 @@ function ComponentCard({ component, onClick }: ComponentCardProps) {
         </div>
       </div>
 
-      <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-200/50">
-        <div className="flex items-center gap-1 text-xs text-gray-500">
+      <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-200 dark:border-dark-700/50">
+        <div className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
           <Gauge className="w-3 h-3" />
           <span>{component.evalCount} evals</span>
         </div>
-        <div className="flex items-center gap-1 text-xs text-gray-500">
+        <div className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
           <Clock className="w-3 h-3" />
           <span>{formatLatency(component.avgLatency)}</span>
         </div>
         <div className="flex items-center gap-1">
           {getTrendIcon(component.trend)}
-          <span className="text-xs text-gray-500 capitalize">
+          <span className="text-xs text-gray-500 dark:text-gray-400 capitalize">
             {component.trend}
           </span>
         </div>
@@ -196,7 +196,7 @@ interface IssueListProps {
 function IssueList({ issues }: IssueListProps) {
   if (issues.length === 0) {
     return (
-      <div className="flex items-center gap-2 p-4 bg-emerald-50 rounded-lg text-emerald-700">
+      <div className="flex items-center gap-2 p-4 bg-emerald-50 dark:bg-emerald-500/10 rounded-lg text-emerald-700 dark:text-emerald-400">
         <CheckCircle2 className="w-5 h-5" />
         <span>All components are operating within healthy parameters</span>
       </div>
@@ -210,7 +210,7 @@ function IssueList({ issues }: IssueListProps) {
           key={`${issue.component}-${idx}`}
           className={`
             flex items-start gap-3 p-3 rounded-lg
-            ${issue.severity === 'critical' ? 'bg-rose-50' : 'bg-amber-50'}
+            ${issue.severity === 'critical' ? 'bg-rose-50 dark:bg-rose-500/10' : 'bg-amber-50 dark:bg-amber-500/10'}
           `}
         >
           {issue.severity === 'critical' ? (
@@ -219,9 +219,9 @@ function IssueList({ issues }: IssueListProps) {
             <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
           )}
           <div className="flex-1 min-w-0">
-            <p className="font-medium text-gray-900">{issue.component}</p>
-            <p className="text-sm text-gray-600">{issue.issue}</p>
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="font-medium text-gray-900 dark:text-gray-100">{issue.component}</p>
+            <p className="text-sm text-gray-600 dark:text-gray-300">{issue.issue}</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
               {issue.metric}:{' '}
               {typeof issue.value === 'number'
                 ? `${(issue.value * 100).toFixed(1)}%`
@@ -265,10 +265,10 @@ export function ComponentHealthDashboard({
           icon={<Gauge className="w-4 h-4" />}
           color={
             health.overallScore >= 80
-              ? 'border-emerald-200'
+              ? 'border-emerald-200 dark:border-emerald-500/25'
               : health.overallScore >= 60
-                ? 'border-amber-200'
-                : 'border-rose-200'
+                ? 'border-amber-200 dark:border-amber-500/25'
+                : 'border-rose-200 dark:border-rose-500/25'
           }
         />
         <SummaryCard
@@ -276,28 +276,28 @@ export function ComponentHealthDashboard({
           value={health.healthyCount}
           subtitle="Components"
           icon={<CheckCircle2 className="w-4 h-4 text-emerald-500" />}
-          color="border-emerald-200"
+          color="border-emerald-200 dark:border-emerald-500/25"
         />
         <SummaryCard
           title="Warning"
           value={health.warningCount}
           subtitle="Components"
           icon={<AlertTriangle className="w-4 h-4 text-amber-500" />}
-          color="border-amber-200"
+          color="border-amber-200 dark:border-amber-500/25"
         />
         <SummaryCard
           title="Critical"
           value={health.criticalCount}
           subtitle="Components"
           icon={<XCircle className="w-4 h-4 text-rose-500" />}
-          color="border-rose-200"
+          color="border-rose-200 dark:border-rose-500/25"
         />
       </div>
 
       {/* Issues Section */}
       {health.issues.length > 0 && (
         <div className="mb-6">
-          <h3 className="text-sm font-semibold text-gray-900 mb-3">
+          <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-3">
             Active Issues ({health.issues.length})
           </h3>
           <IssueList issues={health.issues} />
@@ -306,15 +306,15 @@ export function ComponentHealthDashboard({
 
       {/* Suggestions */}
       {health.suggestions.length > 0 && (
-        <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-          <h3 className="text-sm font-semibold text-blue-900 mb-2">
+        <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-500/10 rounded-lg border border-blue-200 dark:border-blue-500/25">
+          <h3 className="text-sm font-semibold text-blue-900 dark:text-blue-300 mb-2">
             Recommendations
           </h3>
           <ul className="space-y-1">
             {health.suggestions.map((suggestion, idx) => (
               <li
                 key={idx}
-                className="text-sm text-blue-800 flex items-start gap-2"
+                className="text-sm text-blue-800 dark:text-blue-300 flex items-start gap-2"
               >
                 <ArrowRight className="w-3 h-3 mt-1 shrink-0" />
                 {suggestion}
@@ -329,7 +329,7 @@ export function ComponentHealthDashboard({
         {/* Suites */}
         {suites.length > 0 && (
           <div>
-            <h3 className="text-sm font-semibold text-gray-900 mb-3">
+            <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-3">
               Test Suites ({suites.length})
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -347,7 +347,7 @@ export function ComponentHealthDashboard({
         {/* Scorers */}
         {scorers.length > 0 && (
           <div>
-            <h3 className="text-sm font-semibold text-gray-900 mb-3">
+            <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-3">
               Scorers ({scorers.length})
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -376,16 +376,16 @@ export function ComponentHealthSkeleton() {
       {/* Summary cards skeleton */}
       <div className="grid grid-cols-4 gap-4 mb-6">
         {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="bg-gray-100 rounded-lg p-4 h-24" />
+          <div key={i} className="bg-gray-100 dark:bg-dark-800 rounded-lg p-4 h-24" />
         ))}
       </div>
 
       {/* Component cards skeleton */}
       <div className="space-y-4">
-        <div className="h-4 bg-gray-200 rounded w-1/4" />
+        <div className="h-4 bg-gray-200 dark:bg-dark-700 rounded w-1/4" />
         <div className="grid grid-cols-3 gap-4">
           {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="bg-gray-100 rounded-lg p-4 h-36" />
+            <div key={i} className="bg-gray-100 dark:bg-dark-800 rounded-lg p-4 h-36" />
           ))}
         </div>
       </div>

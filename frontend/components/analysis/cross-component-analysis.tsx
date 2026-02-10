@@ -61,39 +61,39 @@ function CustomTooltip({ active, payload }: TooltipProps<number, string>) {
   const data = payload[0].payload as ComponentMetrics
 
   return (
-    <div className="bg-white border rounded-lg shadow-lg p-3 min-w-[180px]">
-      <p className="font-medium text-gray-900 border-b pb-2 mb-2">
+    <div className="bg-white dark:bg-dark-800 border rounded-lg shadow-lg p-3 min-w-[180px]">
+      <p className="font-medium text-gray-900 dark:text-gray-100 border-b pb-2 mb-2">
         {data.name}
       </p>
       <div className="space-y-1.5 text-sm">
         <div className="flex justify-between">
-          <span className="text-gray-500">Type:</span>
+          <span className="text-gray-500 dark:text-gray-400">Type:</span>
           <span className="font-medium capitalize">{data.type}</span>
         </div>
         <div className="flex justify-between">
-          <span className="text-gray-500">Score:</span>
+          <span className="text-gray-500 dark:text-gray-400">Score:</span>
           <span className="font-medium">
             {(data.avgScore * 100).toFixed(1)}%
           </span>
         </div>
         <div className="flex justify-between">
-          <span className="text-gray-500">Pass Rate:</span>
+          <span className="text-gray-500 dark:text-gray-400">Pass Rate:</span>
           <span className="font-medium">
             {(data.passRate * 100).toFixed(1)}%
           </span>
         </div>
         <div className="flex justify-between">
-          <span className="text-gray-500">Evaluations:</span>
+          <span className="text-gray-500 dark:text-gray-400">Evaluations:</span>
           <span className="font-medium">{data.evalCount}</span>
         </div>
         <div className="flex justify-between">
-          <span className="text-gray-500">Variance:</span>
+          <span className="text-gray-500 dark:text-gray-400">Variance:</span>
           <span className="font-medium">
             {(data.variance * 100).toFixed(2)}%
           </span>
         </div>
         <div className="flex justify-between items-center">
-          <span className="text-gray-500">Trend:</span>
+          <span className="text-gray-500 dark:text-gray-400">Trend:</span>
           <span className="flex items-center gap-1 font-medium capitalize">
             {data.trend === 'up' && (
               <ArrowUpRight className="w-3 h-3 text-emerald-500" />
@@ -102,7 +102,7 @@ function CustomTooltip({ active, payload }: TooltipProps<number, string>) {
               <ArrowDownRight className="w-3 h-3 text-rose-500" />
             )}
             {data.trend === 'stable' && (
-              <ArrowRight className="w-3 h-3 text-gray-400" />
+              <ArrowRight className="w-3 h-3 text-gray-400 dark:text-gray-500" />
             )}
             {data.trend}
           </span>
@@ -209,9 +209,9 @@ export function CrossComponentAnalysis({
   if (components.length === 0) {
     return (
       <div
-        className={`flex items-center justify-center bg-gray-50 rounded-lg p-8 ${className}`}
+        className={`flex items-center justify-center bg-gray-50 dark:bg-dark-900 rounded-lg p-8 ${className}`}
       >
-        <p className="text-gray-500">
+        <p className="text-gray-500 dark:text-gray-400">
           No component data available for analysis
         </p>
       </div>
@@ -223,7 +223,7 @@ export function CrossComponentAnalysis({
       {/* Controls */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <Filter className="w-4 h-4 text-gray-500" />
+          <Filter className="w-4 h-4 text-gray-500 dark:text-gray-400" />
           <select
             value={filterType}
             onChange={(e) => setFilterType(e.target.value as FilterType)}
@@ -236,7 +236,7 @@ export function CrossComponentAnalysis({
         </div>
 
         <div className="flex items-center gap-2">
-          <span className="text-sm text-gray-500">Sort by:</span>
+          <span className="text-sm text-gray-500 dark:text-gray-400">Sort by:</span>
           {(
             ['avgScore', 'passRate', 'evalCount', 'variance'] as SortField[]
           ).map((field) => (
@@ -249,7 +249,7 @@ export function CrossComponentAnalysis({
                   ${
                     sortField === field
                       ? 'bg-primary-100 text-primary-700'
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      : 'bg-gray-100 dark:bg-dark-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-dark-700'
                   }
                 `}
             >
@@ -269,8 +269,8 @@ export function CrossComponentAnalysis({
       </div>
 
       {/* Bar Chart */}
-      <div className="bg-white border rounded-lg p-4 mb-4">
-        <h3 className="font-medium text-gray-900 mb-4">
+      <div className="bg-white dark:bg-dark-800 border rounded-lg p-4 mb-4">
+        <h3 className="font-medium text-gray-900 dark:text-gray-100 mb-4">
           Component Performance Comparison
         </h3>
         <div style={{ height: Math.max(300, filteredComponents.length * 40) }}>
@@ -317,66 +317,66 @@ export function CrossComponentAnalysis({
       </div>
 
       {/* Performance Table */}
-      <div className="bg-white border rounded-lg overflow-hidden">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
+      <div className="bg-white dark:bg-dark-800 border rounded-lg overflow-hidden">
+        <table className="min-w-full divide-y divide-gray-200 dark:divide-dark-700">
+          <thead className="bg-gray-50 dark:bg-dark-900">
             <tr>
               <th
-                className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-dark-700"
                 onClick={() => handleSort('name')}
               >
                 Component
               </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                 Type
               </th>
               <th
-                className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-dark-700"
                 onClick={() => handleSort('avgScore')}
               >
                 Score
                 <HelpTooltip content="Average score (0-1). 0.8+ excellent (green), 0.6-0.8 good (amber), below 0.6 needs work (red)." />
               </th>
               <th
-                className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-dark-700"
                 onClick={() => handleSort('passRate')}
               >
                 Pass Rate
                 <HelpTooltip content="Percentage of test cases that passed their scoring threshold." />
               </th>
               <th
-                className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-dark-700"
                 onClick={() => handleSort('evalCount')}
               >
                 Evals
               </th>
-              <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                 Trend
                 <HelpTooltip content="Direction of score change over recent evaluations: up, down, or stable." />
               </th>
-              <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                 Health
                 <HelpTooltip content="Overall status based on score, pass rate, and trend. Healthy (green), warning (amber), or critical (red)." />
               </th>
             </tr>
           </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
+          <tbody className="bg-white dark:bg-dark-800 divide-y divide-gray-200 dark:divide-dark-700">
             {filteredComponents.map((component) => (
               <tr
                 key={component.id}
                 className={`
-                  hover:bg-gray-50 cursor-pointer transition-colors
+                  hover:bg-gray-50 dark:hover:bg-dark-700 cursor-pointer transition-colors
                   ${selectedComponent === component.id ? 'bg-primary-50' : ''}
                 `}
                 onClick={() => handleComponentClick(component.id)}
               >
                 <td className="px-4 py-3 whitespace-nowrap">
-                  <span className="font-medium text-gray-900">
+                  <span className="font-medium text-gray-900 dark:text-gray-100">
                     {component.name}
                   </span>
                 </td>
                 <td className="px-4 py-3 whitespace-nowrap">
-                  <span className="text-xs px-2 py-1 bg-gray-100 rounded-full capitalize">
+                  <span className="text-xs px-2 py-1 bg-gray-100 dark:bg-dark-800 rounded-full capitalize">
                     {component.type}
                   </span>
                 </td>
@@ -384,22 +384,22 @@ export function CrossComponentAnalysis({
                   <span
                     className={`font-semibold ${
                       component.avgScore >= 0.8
-                        ? 'text-emerald-600'
+                        ? 'text-emerald-600 dark:text-emerald-400'
                         : component.avgScore >= 0.6
-                          ? 'text-amber-600'
-                          : 'text-rose-600'
+                          ? 'text-amber-600 dark:text-amber-400'
+                          : 'text-rose-600 dark:text-rose-400'
                     }`}
                   >
                     {(component.avgScore * 100).toFixed(1)}%
                   </span>
                 </td>
                 <td className="px-4 py-3 whitespace-nowrap text-right">
-                  <span className="text-gray-700">
+                  <span className="text-gray-700 dark:text-gray-300">
                     {(component.passRate * 100).toFixed(1)}%
                   </span>
                 </td>
                 <td className="px-4 py-3 whitespace-nowrap text-right">
-                  <span className="text-gray-600">{component.evalCount}</span>
+                  <span className="text-gray-600 dark:text-gray-300">{component.evalCount}</span>
                 </td>
                 <td className="px-4 py-3 whitespace-nowrap text-center">
                   {component.trend === 'up' && (
@@ -409,7 +409,7 @@ export function CrossComponentAnalysis({
                     <ArrowDownRight className="w-5 h-5 text-rose-500 inline-block" />
                   )}
                   {component.trend === 'stable' && (
-                    <ArrowRight className="w-5 h-5 text-gray-400 inline-block" />
+                    <ArrowRight className="w-5 h-5 text-gray-400 dark:text-gray-500 inline-block" />
                   )}
                 </td>
                 <td className="px-4 py-3 whitespace-nowrap text-center">
@@ -418,10 +418,10 @@ export function CrossComponentAnalysis({
                       inline-flex px-2 py-1 text-xs font-medium rounded-full
                       ${
                         component.healthStatus === 'healthy'
-                          ? 'bg-emerald-100 text-emerald-800'
+                          ? 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-800 dark:text-emerald-300'
                           : component.healthStatus === 'warning'
-                            ? 'bg-amber-100 text-amber-800'
-                            : 'bg-rose-100 text-rose-800'
+                            ? 'bg-amber-100 dark:bg-amber-500/20 text-amber-800 dark:text-amber-300'
+                            : 'bg-rose-100 dark:bg-rose-500/20 text-rose-800 dark:text-rose-300'
                       }
                     `}
                   >
@@ -436,8 +436,8 @@ export function CrossComponentAnalysis({
 
       {/* Selected Component Correlations */}
       {selectedComponent && selectedCorrelations.length > 0 && (
-        <div className="mt-4 bg-white border rounded-lg p-4">
-          <h3 className="font-medium text-gray-900 mb-3">
+        <div className="mt-4 bg-white dark:bg-dark-800 border rounded-lg p-4">
+          <h3 className="font-medium text-gray-900 dark:text-gray-100 mb-3">
             Correlations with{' '}
             {components.find((c) => c.id === selectedComponent)?.name}
           </h3>
@@ -454,21 +454,21 @@ export function CrossComponentAnalysis({
               return (
                 <div
                   key={`${corr.componentA}-${corr.componentB}`}
-                  className="p-3 bg-gray-50 rounded-lg"
+                  className="p-3 bg-gray-50 dark:bg-dark-900 rounded-lg"
                 >
-                  <p className="text-sm font-medium text-gray-900 truncate">
+                  <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
                     {otherName}
                   </p>
                   <div className="flex items-center justify-between mt-1">
-                    <span className="text-xs text-gray-500">
+                    <span className="text-xs text-gray-500 dark:text-gray-400">
                       {corr.strength}{' '}
                       {corr.correlation > 0 ? 'positive' : 'negative'}
                     </span>
                     <span
                       className={`text-sm font-semibold ${
                         corr.correlation > 0
-                          ? 'text-emerald-600'
-                          : 'text-rose-600'
+                          ? 'text-emerald-600 dark:text-emerald-400'
+                          : 'text-rose-600 dark:text-rose-400'
                       }`}
                     >
                       {corr.correlation.toFixed(3)}
@@ -492,15 +492,15 @@ export function CrossComponentAnalysisSkeleton() {
   return (
     <div className="animate-pulse space-y-4">
       <div className="flex justify-between">
-        <div className="h-8 bg-gray-200 rounded w-32" />
+        <div className="h-8 bg-gray-200 dark:bg-dark-700 rounded w-32" />
         <div className="flex gap-2">
           {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="h-8 bg-gray-200 rounded w-16" />
+            <div key={i} className="h-8 bg-gray-200 dark:bg-dark-700 rounded w-16" />
           ))}
         </div>
       </div>
-      <div className="bg-gray-100 rounded-lg h-64" />
-      <div className="bg-gray-100 rounded-lg h-48" />
+      <div className="bg-gray-100 dark:bg-dark-800 rounded-lg h-64" />
+      <div className="bg-gray-100 dark:bg-dark-800 rounded-lg h-48" />
     </div>
   )
 }

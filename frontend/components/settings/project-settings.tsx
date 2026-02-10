@@ -22,11 +22,11 @@ export function ProjectSettings() {
 
   if (isLoading) {
     return (
-      <div className="card p-6">
+      <div className="card p-6 dark:border dark:border-slate-700/80 dark:bg-slate-900/72">
         <div className="animate-pulse space-y-4">
-          <div className="h-6 w-32 bg-gray-200 rounded" />
-          <div className="h-4 w-full bg-gray-100 rounded" />
-          <div className="h-4 w-3/4 bg-gray-100 rounded" />
+          <div className="h-6 w-32 bg-gray-200 dark:bg-dark-700 rounded" />
+          <div className="h-4 w-full bg-gray-100 dark:bg-dark-800 rounded" />
+          <div className="h-4 w-3/4 bg-gray-100 dark:bg-dark-800 rounded" />
         </div>
       </div>
     )
@@ -39,32 +39,32 @@ export function ProjectSettings() {
 
   return (
     <div className="space-y-6">
-      <div className="card p-6">
+      <div className="card p-6 dark:border dark:border-slate-700/80 dark:bg-slate-900/72">
         <div className="flex items-center gap-3 mb-4">
-          <Building2 className="w-5 h-5 text-gray-500" />
+          <Building2 className="w-5 h-5 text-gray-500 dark:text-gray-400" />
           <h3 className="text-lg font-medium">Project Information</h3>
         </div>
 
         <div className="space-y-4">
           {/* Project ID */}
           <div>
-            <span className="block text-sm font-medium text-gray-700 mb-1">
+            <span className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Project ID
             </span>
             <div className="flex items-center gap-2">
-              <code className="flex-1 px-3 py-2 bg-gray-50 border rounded-lg text-sm font-mono">
+              <code className="flex-1 px-3 py-2 bg-gray-50 dark:bg-dark-900 border border-border dark:border-slate-700/80 rounded-lg text-sm font-mono">
                 {projectId}
               </code>
               <button
                 type="button"
                 onClick={() => copyToClipboard(projectId, 'projectId')}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                className="p-2 hover:bg-gray-100 dark:hover:bg-dark-700 rounded-lg transition-colors"
                 title="Copy to clipboard"
               >
                 {copiedField === 'projectId' ? (
-                  <Check className="w-4 h-4 text-green-600" />
+                  <Check className="w-4 h-4 text-green-600 dark:text-emerald-400" />
                 ) : (
-                  <Copy className="w-4 h-4 text-gray-500" />
+                  <Copy className="w-4 h-4 text-gray-500 dark:text-gray-400" />
                 )}
               </button>
             </div>
@@ -72,27 +72,27 @@ export function ProjectSettings() {
 
           {/* Project Name */}
           <div>
-            <span className="block text-sm font-medium text-gray-700 mb-1">
+            <span className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Project Name
             </span>
-            <div className="px-3 py-2 bg-gray-50 border rounded-lg text-sm">
+            <div className="px-3 py-2 bg-gray-50 dark:bg-dark-900 border border-border dark:border-slate-700/80 rounded-lg text-sm">
               {projectName}
             </div>
           </div>
 
           {/* Environment */}
           <div>
-            <span className="block text-sm font-medium text-gray-700 mb-1">
+            <span className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Environment
             </span>
             <div className="flex items-center gap-2">
               <span
                 className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                   environment === 'production'
-                    ? 'bg-green-100 text-green-800'
+                    ? 'bg-green-100 dark:bg-emerald-500/20 text-green-800 dark:text-emerald-300'
                     : environment === 'staging'
-                      ? 'bg-yellow-100 text-yellow-800'
-                      : 'bg-gray-100 text-gray-800'
+                      ? 'bg-yellow-100 dark:bg-amber-500/20 text-yellow-800 dark:text-amber-300'
+                      : 'bg-gray-100 dark:bg-dark-800 text-gray-800 dark:text-gray-200'
                 }`}
               >
                 {environment}
@@ -101,7 +101,7 @@ export function ProjectSettings() {
           </div>
         </div>
 
-        <p className="mt-4 text-sm text-gray-500">
+        <p className="mt-4 text-sm text-gray-500 dark:text-gray-400">
           Project settings are configured via environment variables. Contact
           your administrator to make changes.
         </p>
