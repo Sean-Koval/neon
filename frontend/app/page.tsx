@@ -9,7 +9,6 @@ import {
   DollarSign,
   Lightbulb,
   RefreshCw,
-  Rocket,
   Zap,
 } from 'lucide-react'
 import Link from 'next/link'
@@ -19,102 +18,28 @@ import { useAlerts } from '@/hooks/use-alerts'
 import { useDashboard } from '@/hooks/use-dashboard'
 import { CONFIG } from '@/lib/config'
 import { safeFormatDistance } from '@/lib/format-date'
+import { trpc } from '@/lib/trpc'
 
 // =============================================================================
-// Mock Data
+// Constants
 // =============================================================================
-
-const MOCK_AGENTS = [
-  {
-    id: 'booking-agent',
-    name: 'booking-agent',
-    version: 'v2.1',
-    status: 'healthy' as const,
-    passRate: 94,
-    latency: '320ms',
-    costPerCall: '$0.04',
-  },
-  {
-    id: 'research-agent',
-    name: 'research-agent',
-    version: 'v1.3',
-    status: 'healthy' as const,
-    passRate: 98,
-    latency: '580ms',
-    costPerCall: '$0.12',
-  },
-  {
-    id: 'support-agent',
-    name: 'support-agent',
-    version: 'v3.0',
-    status: 'degraded' as const,
-    passRate: 78,
-    latency: '1.2s',
-    costPerCall: '$0.08',
-  },
-  {
-    id: 'code-agent',
-    name: 'code-agent',
-    version: 'v1.0',
-    status: 'staging' as const,
-    passRate: undefined,
-    latency: '—',
-    costPerCall: '—',
-  },
-]
-
-const MOCK_ACTIVITY = [
-  {
-    id: '1',
-    type: 'eval-complete' as const,
-    description: 'booking-agent evaluation completed — 47/50 passed',
-    time: '2 minutes ago',
-  },
-  {
-    id: '2',
-    type: 'deploy' as const,
-    description: 'research-agent v1.3 deployed to production',
-    time: '18 minutes ago',
-  },
-  {
-    id: '3',
-    type: 'alert' as const,
-    description: 'support-agent pass rate dropped below 80% threshold',
-    time: '1 hour ago',
-  },
-  {
-    id: '4',
-    type: 'optimization' as const,
-    description: 'Prompt optimization loop #12 completed for booking-agent',
-    time: '3 hours ago',
-  },
-  {
-    id: '5',
-    type: 'eval-complete' as const,
-    description:
-      'support-agent nightly regression suite finished — 39/50 passed',
-    time: '6 hours ago',
-  },
-  {
-    id: '6',
-    type: 'deploy' as const,
-    description: 'code-agent v1.0 deployed to staging environment',
-    time: '12 hours ago',
-  },
-]
-
-const ACTIVITY_ICON_MAP = {
-  'eval-complete': { icon: CheckCircle, color: 'text-emerald-500' },
-  deploy: { icon: Rocket, color: 'text-primary-500' },
-  optimization: { icon: Zap, color: 'text-accent-500' },
-  alert: { icon: AlertTriangle, color: 'text-amber-500' },
-} as const
 
 const STATUS_DOTS: Record<string, string> = {
   healthy: 'text-emerald-500',
   degraded: 'text-amber-500',
   failing: 'text-rose-500',
   staging: 'text-content-muted',
+}
+
+const RUN_STATUS_ICON = {
+  completed: { icon: CheckCircle, color: 'text-emerald-500' },
+  failed: { icon: AlertCircle, color: 'text-rose-500' },
+  running: { icon: Zap, color: 'text-accent-500' },
+} as const
+
+function formatDuration(ms: number): string {
+  if (ms < 1000) return `${Math.round(ms)}ms`
+  return `${(ms / 1000).toFixed(1)}s`
 }
 
 // =============================================================================
@@ -124,10 +49,19 @@ const STATUS_DOTS: Record<string, string> = {
 type Environment = 'production' | 'staging'
 
 export default function CommandCenter() {
-  const { refresh } = useDashboard()
+  const { stats, recentRuns, isLoadingRuns, isLoadingStats, refresh } =
+    useDashboard()
   const { data: alertsData, error: alertsError } = useAlerts()
   const alerts = alertsError ? [] : (alertsData?.alerts ?? [])
+  const { data: agentsData, isLoading: isLoadingAgents } =
+    trpc.agents.list.useQuery()
   const [environment, setEnvironment] = useState<Environment>('production')
+
+  const agents = agentsData ?? []
+  const healthyCount = agents.filter((a) => a.health === 'healthy').length
+  const failingCount = agents.filter(
+    (a) => a.health === 'failing' || a.health === 'degraded',
+  ).length
 
   return (
     <div className="relative p-6 space-y-6">
@@ -172,8 +106,14 @@ export default function CommandCenter() {
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
         <KpiCard
           label="Agents Active"
-          value="4 / 6"
-          subtitle="2 in staging"
+          value={isLoadingAgents ? '...' : `${healthyCount} / ${agents.length}`}
+          subtitle={
+            isLoadingAgents
+              ? 'Loading...'
+              : failingCount > 0
+                ? `${failingCount} need attention`
+                : 'All healthy'
+          }
           icon={
             <Activity className="w-4 h-4 text-primary-600 dark:text-primary-400" />
           }
@@ -181,30 +121,72 @@ export default function CommandCenter() {
         />
         <KpiCard
           label="Pass Rate"
-          value="94.2%"
-          subtitle="↑ 2.1% vs 7d"
+          value={
+            isLoadingStats || !stats
+              ? '...'
+              : `${stats.passedPercentage.toFixed(1)}%`
+          }
+          subtitle={
+            isLoadingStats || !stats
+              ? 'Loading...'
+              : `${stats.totalRuns} total runs`
+          }
           icon={
             <CheckCircle className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
           }
-          tone="positive"
+          tone={
+            !stats
+              ? 'neutral'
+              : stats.passedPercentage >= 90
+                ? 'positive'
+                : stats.passedPercentage >= 70
+                  ? 'neutral'
+                  : 'negative'
+          }
         />
         <KpiCard
-          label="Errors (24h)"
-          value="12"
-          subtitle="↑ 3 vs yesterday"
+          label="Failed Runs"
+          value={isLoadingStats || !stats ? '...' : `${stats.failedRuns}`}
+          subtitle={
+            isLoadingStats || !stats
+              ? 'Loading...'
+              : `${stats.failedPercentage.toFixed(1)}% failure rate`
+          }
           icon={
             <AlertCircle className="w-4 h-4 text-rose-600 dark:text-rose-400" />
           }
-          tone="negative"
+          tone={
+            !stats
+              ? 'neutral'
+              : stats.failedRuns === 0
+                ? 'positive'
+                : 'negative'
+          }
         />
         <KpiCard
-          label="Daily Cost"
-          value="$142"
-          subtitle="↓ $8 vs 7d avg"
+          label="Avg Score"
+          value={
+            isLoadingStats || !stats
+              ? '...'
+              : `${(stats.averageScore * 100).toFixed(1)}%`
+          }
+          subtitle={
+            isLoadingStats || !stats
+              ? 'Loading...'
+              : stats.avgDurationMs
+                ? `Avg ${formatDuration(stats.avgDurationMs)}`
+                : 'Across all runs'
+          }
           icon={
             <DollarSign className="w-4 h-4 text-accent-600 dark:text-accent-400" />
           }
-          tone="positive"
+          tone={
+            !stats
+              ? 'neutral'
+              : stats.averageScore >= 0.8
+                ? 'positive'
+                : 'neutral'
+          }
         />
       </div>
 
@@ -297,53 +279,82 @@ export default function CommandCenter() {
               <th className="text-left px-5 py-3 font-medium">Agent</th>
               <th className="text-left px-5 py-3 font-medium">Version</th>
               <th className="text-left px-5 py-3 font-medium">Status</th>
-              <th className="text-right px-5 py-3 font-medium">Pass Rate</th>
+              <th className="text-right px-5 py-3 font-medium">Error Rate</th>
               <th className="text-right px-5 py-3 font-medium">Latency</th>
-              <th className="text-right px-5 py-3 font-medium">Cost/call</th>
+              <th className="text-right px-5 py-3 font-medium">Traces</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
-            {MOCK_AGENTS.map((agent) => (
-              <tr
-                key={agent.id}
-                className="hover:bg-surface-raised/60 transition-colors"
-              >
-                <td className="px-5 py-3">
-                  <Link
-                    href={`/agents/${agent.id}`}
-                    className="text-sm font-medium text-content-primary hover:text-primary-500 transition-colors"
-                  >
-                    {agent.name}
-                  </Link>
-                </td>
-                <td className="px-5 py-3 text-sm text-content-secondary">
-                  {agent.version}
-                </td>
-                <td className="px-5 py-3">
-                  <span className="inline-flex items-center gap-1.5 text-sm text-content-secondary">
-                    <span
-                      className={
-                        STATUS_DOTS[agent.status] ?? 'text-content-muted'
-                      }
-                    >
-                      ●
-                    </span>
-                    <span className="capitalize font-medium">
-                      {agent.status}
-                    </span>
-                  </span>
-                </td>
-                <td className="px-5 py-3 text-sm text-content-primary text-right font-medium">
-                  {agent.passRate !== undefined ? `${agent.passRate}%` : '—'}
-                </td>
-                <td className="px-5 py-3 text-sm text-content-secondary text-right">
-                  {agent.latency}
-                </td>
-                <td className="px-5 py-3 text-sm text-content-secondary text-right">
-                  {agent.costPerCall}
+            {isLoadingAgents ? (
+              <tr>
+                <td colSpan={6} className="px-5 py-8 text-center">
+                  <p className="text-sm text-content-muted animate-pulse">
+                    Loading agents...
+                  </p>
                 </td>
               </tr>
-            ))}
+            ) : agents.length === 0 ? (
+              <tr>
+                <td colSpan={6} className="px-5 py-8 text-center">
+                  <p className="text-sm text-content-muted">
+                    No agents discovered yet. Agents appear when they send
+                    traces.
+                  </p>
+                </td>
+              </tr>
+            ) : (
+              agents.slice(0, 6).map((agent) => (
+                <tr
+                  key={agent.id}
+                  className="hover:bg-surface-raised/60 transition-colors"
+                >
+                  <td className="px-5 py-3">
+                    <Link
+                      href={`/agents/${agent.id}`}
+                      className="text-sm font-medium text-content-primary hover:text-primary-500 transition-colors"
+                    >
+                      {agent.name}
+                    </Link>
+                  </td>
+                  <td className="px-5 py-3 text-sm text-content-secondary">
+                    v{agent.version}
+                  </td>
+                  <td className="px-5 py-3">
+                    <span className="inline-flex items-center gap-1.5 text-sm text-content-secondary">
+                      <span
+                        className={
+                          STATUS_DOTS[agent.health] ?? 'text-content-muted'
+                        }
+                      >
+                        ●
+                      </span>
+                      <span className="capitalize font-medium">
+                        {agent.health}
+                      </span>
+                    </span>
+                  </td>
+                  <td className="px-5 py-3 text-sm text-right font-medium">
+                    <span
+                      className={
+                        agent.errorRate > 5
+                          ? 'text-rose-600 dark:text-rose-400'
+                          : agent.errorRate > 2
+                            ? 'text-amber-600 dark:text-amber-400'
+                            : 'text-content-primary'
+                      }
+                    >
+                      {agent.errorRate.toFixed(1)}%
+                    </span>
+                  </td>
+                  <td className="px-5 py-3 text-sm text-content-secondary text-right">
+                    {formatDuration(agent.p50Latency)}
+                  </td>
+                  <td className="px-5 py-3 text-sm text-content-secondary text-right">
+                    {agent.traceCount.toLocaleString()}
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>
@@ -380,31 +391,63 @@ export default function CommandCenter() {
         </div>
       </div>
 
-      {/* 6. Recent Activity */}
+      {/* 6. Recent Activity (from real eval runs) */}
       <div className="card p-5">
         <h2 className="text-sm font-semibold text-content-primary mb-4">
           Recent Activity
         </h2>
-        <div className="space-y-2">
-          {MOCK_ACTIVITY.map((item) => {
-            const cfg = ACTIVITY_ICON_MAP[item.type]
-            const Icon = cfg.icon
-            return (
+        {isLoadingRuns ? (
+          <div className="space-y-2">
+            {Array.from({ length: 4 }).map((_, i) => (
               <div
-                key={item.id}
-                className="flex items-center gap-3 rounded-lg border border-border bg-surface-raised px-3 py-2.5"
+                key={i}
+                className="flex items-center gap-3 rounded-lg border border-border bg-surface-raised px-3 py-2.5 animate-pulse"
               >
-                <Icon className={`w-4 h-4 flex-shrink-0 ${cfg.color}`} />
-                <p className="text-sm text-content-secondary flex-1 min-w-0 truncate">
-                  {item.description}
-                </p>
-                <span className="text-xs text-content-muted flex-shrink-0">
-                  {item.time}
-                </span>
+                <div className="w-4 h-4 bg-surface-card rounded-full" />
+                <div className="flex-1 h-4 bg-surface-card rounded" />
+                <div className="w-20 h-3 bg-surface-card rounded" />
               </div>
-            )
-          })}
-        </div>
+            ))}
+          </div>
+        ) : recentRuns.length === 0 ? (
+          <p className="text-sm text-content-muted py-6 text-center">
+            No recent eval runs. Activity will appear here when evaluation runs
+            are executed.
+          </p>
+        ) : (
+          <div className="space-y-2">
+            {recentRuns.slice(0, 6).map((run) => {
+              const statusKey =
+                run.status === 'completed'
+                  ? 'completed'
+                  : run.status === 'failed'
+                    ? 'failed'
+                    : 'running'
+              const cfg = RUN_STATUS_ICON[statusKey]
+              const Icon = cfg.icon
+              return (
+                <div
+                  key={run.id}
+                  className="flex items-center gap-3 rounded-lg border border-border bg-surface-raised px-3 py-2.5"
+                >
+                  <Icon className={`w-4 h-4 flex-shrink-0 ${cfg.color}`} />
+                  <p className="text-sm text-content-secondary flex-1 min-w-0 truncate">
+                    <span className="font-medium">{run.suite_name}</span>
+                    {' — '}
+                    {run.status === 'completed'
+                      ? `${run.summary?.passed ?? 0}/${run.summary?.total_cases ?? 0} passed`
+                      : run.status === 'failed'
+                        ? 'run failed'
+                        : 'in progress'}
+                  </p>
+                  <span className="text-xs text-content-muted flex-shrink-0">
+                    {safeFormatDistance(run.created_at)}
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+        )}
       </div>
     </div>
   )

@@ -1,6 +1,6 @@
 'use client'
 
-import { Activity, ArrowDown, ArrowUp, Minus, Zap } from 'lucide-react'
+import { Activity, Zap } from 'lucide-react'
 import Link from 'next/link'
 
 export interface AgentCardData {
@@ -9,11 +9,12 @@ export interface AgentCardData {
   version: string
   environments: string[]
   health: 'healthy' | 'degraded' | 'failing'
-  avgScore: number
-  scoreTrend: 'up' | 'down' | 'flat'
-  tracesPerDay: number
+  traceCount: number
   errorRate: number
+  avgDuration: number
   p50Latency: number
+  description?: string
+  team?: string
 }
 
 const envBadgeStyles: Record<string, string> = {
@@ -21,6 +22,10 @@ const envBadgeStyles: Record<string, string> = {
   staging:
     'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/15 dark:text-amber-300 dark:border-amber-500/30',
   prod: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-300 dark:border-emerald-500/30',
+  development:
+    'bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-500/15 dark:text-sky-300 dark:border-sky-500/30',
+  production:
+    'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-300 dark:border-emerald-500/30',
 }
 
 const healthStyles: Record<
@@ -44,14 +49,9 @@ const healthStyles: Record<
   },
 }
 
-function TrendIcon({ trend }: { trend: 'up' | 'down' | 'flat' }) {
-  if (trend === 'up')
-    return (
-      <ArrowUp className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
-    )
-  if (trend === 'down')
-    return <ArrowDown className="w-3 h-3 text-rose-600 dark:text-rose-400" />
-  return <Minus className="w-3 h-3 text-content-muted" />
+function formatDuration(ms: number): string {
+  if (ms < 1000) return `${Math.round(ms)}ms`
+  return `${(ms / 1000).toFixed(1)}s`
 }
 
 export function AgentCard({ agent }: { agent: AgentCardData }) {
@@ -69,6 +69,9 @@ export function AgentCard({ agent }: { agent: AgentCardData }) {
             {agent.name}
           </h3>
           <p className="text-content-muted text-sm">v{agent.version}</p>
+          {agent.team && (
+            <p className="text-content-muted text-xs mt-0.5">{agent.team}</p>
+          )}
         </div>
         <div
           className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium ${health.pill}`}
@@ -78,44 +81,37 @@ export function AgentCard({ agent }: { agent: AgentCardData }) {
         </div>
       </div>
 
+      {agent.description && (
+        <p className="text-content-muted text-sm mb-4 line-clamp-2">
+          {agent.description}
+        </p>
+      )}
+
       {/* Environment Badges */}
-      <div className="flex gap-2 mb-4">
-        {['dev', 'staging', 'prod'].map((env) => {
-          const isActive = agent.environments.includes(env)
-          return (
+      {agent.environments.length > 0 && (
+        <div className="flex gap-2 mb-4 flex-wrap">
+          {agent.environments.map((env) => (
             <span
               key={env}
               className={`text-[10px] font-medium uppercase px-2.5 py-1 rounded-md border ${
-                isActive
-                  ? envBadgeStyles[env]
-                  : 'bg-surface-raised/60 text-content-muted border-border'
+                envBadgeStyles[env] ||
+                'bg-surface-raised/60 text-content-muted border-border'
               }`}
             >
               {env}
             </span>
-          )
-        })}
-      </div>
+          ))}
+        </div>
+      )}
 
       {/* Metrics */}
       <div className="grid grid-cols-2 gap-3 mb-4">
         <div className="rounded-lg border border-border bg-surface-raised p-2.5">
           <p className="text-[10px] text-content-muted uppercase tracking-wider">
-            Avg Score
-          </p>
-          <div className="flex items-center gap-1">
-            <span className="text-content-primary font-semibold">
-              {(agent.avgScore * 100).toFixed(0)}%
-            </span>
-            <TrendIcon trend={agent.scoreTrend} />
-          </div>
-        </div>
-        <div className="rounded-lg border border-border bg-surface-raised p-2.5">
-          <p className="text-[10px] text-content-muted uppercase tracking-wider">
-            Traces/Day
+            Traces
           </p>
           <span className="text-content-primary font-semibold">
-            {agent.tracesPerDay.toLocaleString()}
+            {agent.traceCount.toLocaleString()}
           </span>
         </div>
         <div className="rounded-lg border border-border bg-surface-raised p-2.5">
@@ -136,6 +132,14 @@ export function AgentCard({ agent }: { agent: AgentCardData }) {
         </div>
         <div className="rounded-lg border border-border bg-surface-raised p-2.5">
           <p className="text-[10px] text-content-muted uppercase tracking-wider">
+            Avg Duration
+          </p>
+          <span className="text-content-primary font-semibold">
+            {formatDuration(agent.avgDuration)}
+          </span>
+        </div>
+        <div className="rounded-lg border border-border bg-surface-raised p-2.5">
+          <p className="text-[10px] text-content-muted uppercase tracking-wider">
             P50 Latency
           </p>
           <span
@@ -145,7 +149,7 @@ export function AgentCard({ agent }: { agent: AgentCardData }) {
                 : 'text-content-primary'
             }`}
           >
-            {agent.p50Latency.toFixed(0)}ms
+            {formatDuration(agent.p50Latency)}
           </span>
         </div>
       </div>

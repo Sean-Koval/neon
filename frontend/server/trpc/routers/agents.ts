@@ -142,6 +142,77 @@ export const agentsRouter = router({
       }
     }),
 
+  getVersions: publicProcedure
+    .input(z.object({ agentId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const projectId = ctx.projectId
+
+      const ch = getClickHouseClient()
+
+      // Get version info from traces
+      const result = await ch.query({
+        query: `
+          SELECT
+            agent_version,
+            min(timestamp) as first_seen,
+            max(timestamp) as last_seen,
+            count() as trace_count,
+            avg(duration_ms) as avg_duration
+          FROM neon.traces
+          WHERE project_id = {projectId:String}
+            AND agent_id = {agentId:String}
+            AND agent_version IS NOT NULL
+            AND agent_version != ''
+          GROUP BY agent_version
+          ORDER BY first_seen DESC
+        `,
+        query_params: { projectId, agentId: input.agentId },
+        format: 'JSONEachRow',
+      })
+
+      const rows = await result.json<{
+        agent_version: string
+        first_seen: string
+        last_seen: string
+        trace_count: string
+        avg_duration: string
+      }>()
+
+      // Enrich with avg score per version from scores table
+      const scoreResult = await ch.query({
+        query: `
+          SELECT
+            t.agent_version,
+            avg(s.value) as avg_score
+          FROM neon.scores s
+          JOIN neon.traces t ON s.project_id = t.project_id AND s.trace_id = t.trace_id
+          WHERE t.project_id = {projectId:String}
+            AND t.agent_id = {agentId:String}
+            AND t.agent_version IS NOT NULL
+            AND t.agent_version != ''
+          GROUP BY t.agent_version
+        `,
+        query_params: { projectId, agentId: input.agentId },
+        format: 'JSONEachRow',
+      })
+
+      const scoreRows = await scoreResult.json<{
+        agent_version: string
+        avg_score: string
+      }>()
+
+      const scoreMap = new Map(scoreRows.map((r) => [r.agent_version, Number(r.avg_score)]))
+
+      return rows.map((row) => ({
+        version: row.agent_version,
+        firstSeen: row.first_seen,
+        lastSeen: row.last_seen,
+        traceCount: Number(row.trace_count),
+        avgScore: scoreMap.get(row.agent_version) ?? null,
+        avgDuration: Number(row.avg_duration),
+      }))
+    }),
+
   upsert: publicProcedure
     .input(
       z.object({

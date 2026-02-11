@@ -371,3 +371,177 @@ export async function listEvalRuns(options?: {
 
   return Promise.race([listPromise(), timeoutPromise])
 }
+
+// ============================================================================
+// TRAINING LOOP OPERATIONS
+// ============================================================================
+
+export interface StartTrainingLoopParams {
+  projectId: string
+  suiteId: string
+  promptId: string
+  strategy: 'coordinate_ascent' | 'example_selection' | 'reflection'
+  trigger: 'regression' | 'signal_threshold' | 'manual'
+  maxIterations?: number
+  improvementThreshold?: number
+  signalTypes?: string[]
+  timeWindow?: { startDate: string; endDate: string }
+}
+
+export interface TrainingLoopStatus {
+  stage:
+    | 'idle'
+    | 'collecting'
+    | 'curating'
+    | 'optimizing'
+    | 'evaluating'
+    | 'deploying'
+    | 'monitoring'
+  progress: number
+  metrics: Record<string, number>
+  history: Array<{
+    stage: string
+    status: 'completed' | 'skipped' | 'failed'
+    metrics: Record<string, number>
+    durationMs: number
+    timestamp: string
+  }>
+  isPaused: boolean
+  currentIteration: number
+  maxIterations: number
+}
+
+/**
+ * Start a training loop workflow
+ */
+export async function startTrainingLoopWorkflow(
+  params: StartTrainingLoopParams,
+): Promise<{ workflowId: string; runId: string }> {
+  const client = await getTemporalClient()
+
+  const workflowId = `training-loop-${params.projectId}-${Date.now()}`
+
+  const handle = await client.workflow.start('trainingLoopWorkflow', {
+    taskQueue: getTaskQueue(),
+    workflowId,
+    args: [params],
+  })
+
+  return {
+    workflowId: handle.workflowId,
+    runId: handle.firstExecutionRunId,
+  }
+}
+
+/**
+ * Query training loop status
+ */
+export async function getTrainingLoopStatus(
+  workflowId: string,
+): Promise<TrainingLoopStatus> {
+  const client = await getTemporalClient()
+  const handle = client.workflow.getHandle(workflowId)
+  return handle.query<TrainingLoopStatus>('getLoopStatus')
+}
+
+/**
+ * Signal name mapping for training loop workflows
+ */
+const trainingSignalMap: Record<string, string> = {
+  pause: 'trainingPause',
+  resume: 'trainingResume',
+  abort: 'trainingAbort',
+  approve: 'trainingApprove',
+  reject: 'trainingReject',
+  skipStage: 'trainingSkipStage',
+}
+
+/**
+ * Send a signal to a training loop workflow
+ */
+export async function signalTrainingLoop(
+  workflowId: string,
+  signal: 'pause' | 'resume' | 'abort' | 'approve' | 'reject' | 'skipStage',
+): Promise<void> {
+  const client = await getTemporalClient()
+  const handle = client.workflow.getHandle(workflowId)
+  const temporalSignal = trainingSignalMap[signal]
+  if (!temporalSignal) {
+    throw new Error(`Unknown training loop signal: ${signal}`)
+  }
+  await handle.signal(temporalSignal)
+}
+
+/**
+ * List training loop workflows with timeout protection
+ */
+export async function listTrainingLoops(options?: {
+  limit?: number
+  offset?: number
+  status?: 'RUNNING' | 'COMPLETED' | 'FAILED' | 'CANCELLED' | 'TERMINATED' | 'TIMED_OUT'
+}): Promise<{ items: WorkflowStatus[]; hasMore: boolean }> {
+  const client = await getTemporalClient()
+
+  const statusMap: Record<string, string> = {
+    RUNNING: 'Running',
+    COMPLETED: 'Completed',
+    FAILED: 'Failed',
+    CANCELLED: 'Canceled',
+    TERMINATED: 'Terminated',
+    TIMED_OUT: 'TimedOut',
+  }
+
+  let query = 'WorkflowType = "trainingLoopWorkflow"'
+  if (options?.status) {
+    const temporalStatus = statusMap[options.status] || options.status
+    query += ` AND ExecutionStatus = '${temporalStatus}'`
+  }
+
+  const limit = options?.limit || 50
+  const offset = options?.offset || 0
+  const timeoutMs = 3000
+
+  const listPromise = async (): Promise<{
+    items: WorkflowStatus[]
+    hasMore: boolean
+  }> => {
+    const workflows: WorkflowStatus[] = []
+    const iterator = client.workflow.list({ query })
+
+    let index = 0
+    let hasMore = false
+    for await (const workflow of iterator) {
+      if (index < offset) {
+        index++
+        continue
+      }
+
+      if (workflows.length >= limit) {
+        hasMore = true
+        break
+      }
+
+      workflows.push({
+        workflowId: workflow.workflowId,
+        runId: workflow.workflowId,
+        status: workflow.status.name as WorkflowStatus['status'],
+        startTime: workflow.startTime.toISOString(),
+        closeTime: workflow.closeTime?.toISOString(),
+      })
+
+      index++
+    }
+
+    return { items: workflows, hasMore }
+  }
+
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    setTimeout(
+      () =>
+        reject(new Error('Temporal list timeout - service may be unavailable')),
+      timeoutMs,
+    )
+  })
+
+  return Promise.race([listPromise(), timeoutPromise])
+}
