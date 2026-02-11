@@ -243,7 +243,7 @@ export async function trainingLoopWorkflow(
 
     if (await checkPauseAbort()) break;
 
-    let curatedData: unknown[] = [];
+    let curatedData: Awaited<ReturnType<typeof curateTrainingData>>["curatedData"] = [];
     if (skipStage) {
       recordStage("curating", "skipped", {}, stageStart);
       skipStage = false;

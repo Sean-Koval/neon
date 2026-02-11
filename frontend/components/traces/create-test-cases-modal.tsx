@@ -23,6 +23,7 @@ interface CreateTestCasesModalProps {
   traceIds: string[]
   open: boolean
   onClose: () => void
+  onDetectAnomalies?: () => void
 }
 
 interface TestCaseInput {
@@ -168,6 +169,7 @@ export function CreateTestCasesModal({
   traceIds,
   open,
   onClose,
+  onDetectAnomalies,
 }: CreateTestCasesModalProps) {
   const { addToast } = useToast()
   const [selectedSuiteId, setSelectedSuiteId] = useState('')
@@ -245,6 +247,22 @@ export function CreateTestCasesModal({
               <option value="new">+ Create new suite</option>
             </select>
           </div>
+
+          {/* Auto-detect anomalies */}
+          {onDetectAnomalies && (
+            <div className="flex items-center gap-3 p-3 rounded-lg bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20">
+              <div className="flex-1 text-sm text-amber-800 dark:text-amber-300">
+                Auto-detect anomalous traces to generate test cases from production regressions.
+              </div>
+              <button
+                type="button"
+                onClick={onDetectAnomalies}
+                className="shrink-0 px-3 py-1.5 text-xs font-medium text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-500/20 hover:bg-amber-200 dark:hover:bg-amber-500/30 rounded-lg transition-colors"
+              >
+                Auto-detect
+              </button>
+            </div>
+          )}
 
           {/* Trace cases */}
           {traceIds.map((traceId) => (

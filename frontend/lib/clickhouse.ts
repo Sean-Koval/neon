@@ -1606,6 +1606,373 @@ export async function getFeedbackStats(projectId: string): Promise<{
   return rows[0] || { total: 0, preferences: 0, corrections: 0, sessions: 0 }
 }
 
+// =============================================================================
+// Anomaly Detection Functions
+// =============================================================================
+
+/**
+ * Anomalous score record with statistical context
+ */
+export interface AnomalousScore {
+  trace_id: string
+  scorer_name: string
+  score_value: number
+  mean_score: number
+  stddev: number
+  z_score: number
+}
+
+/**
+ * Detect score anomalies using z-score analysis.
+ * Finds traces where scores fall below (mean - threshold * stddev) for any scorer.
+ */
+export async function detectScoreAnomalies(
+  projectId: string,
+  options?: {
+    startDate?: string
+    endDate?: string
+    stddevThreshold?: number
+    minSamples?: number
+  },
+): Promise<AnomalousScore[]> {
+  const ch = getClickHouseClient()
+  const threshold = options?.stddevThreshold ?? 2.0
+  const minSamples = options?.minSamples ?? 10
+
+  const dateConditions: string[] = []
+  if (options?.startDate) {
+    dateConditions.push('AND s.timestamp >= {startDate:DateTime64(3)}')
+  }
+  if (options?.endDate) {
+    dateConditions.push('AND s.timestamp <= {endDate:DateTime64(3)}')
+  }
+  const dateClauses = dateConditions.join(' ')
+
+  const result = await ch.query({
+    query: `
+      WITH scorer_stats AS (
+        SELECT
+          name,
+          avg(value) AS mean_val,
+          stddevPop(value) AS stddev_val,
+          count() AS sample_count
+        FROM scores
+        WHERE project_id = {projectId:String}
+          ${dateClauses}
+        GROUP BY name
+        HAVING sample_count >= {minSamples:UInt32} AND stddev_val > 0
+      )
+      SELECT
+        s.trace_id AS trace_id,
+        s.name AS scorer_name,
+        s.value AS score_value,
+        ss.mean_val AS mean_score,
+        ss.stddev_val AS stddev,
+        (ss.mean_val - s.value) / ss.stddev_val AS z_score
+      FROM scores s
+      INNER JOIN scorer_stats ss ON s.name = ss.name
+      WHERE s.project_id = {projectId:String}
+        AND s.value < (ss.mean_val - {threshold:Float64} * ss.stddev_val)
+        ${dateClauses}
+      ORDER BY z_score DESC
+      LIMIT 100
+    `,
+    query_params: {
+      projectId,
+      threshold,
+      minSamples,
+      startDate: options?.startDate || '1970-01-01',
+      endDate: options?.endDate || '2100-01-01',
+    },
+    format: 'JSONEachRow',
+  })
+
+  return result.json<AnomalousScore>()
+}
+
+/**
+ * Get full trace records for anomalous traces (joins anomaly detection with traces table).
+ */
+export async function getAnomalousTraces(
+  projectId: string,
+  options?: {
+    startDate?: string
+    endDate?: string
+    stddevThreshold?: number
+    minSamples?: number
+  },
+): Promise<Array<TraceRecord & { scorer_name: string; z_score: number }>> {
+  const ch = getClickHouseClient()
+  const threshold = options?.stddevThreshold ?? 2.0
+  const minSamples = options?.minSamples ?? 10
+
+  const dateConditions: string[] = []
+  if (options?.startDate) {
+    dateConditions.push('AND s.timestamp >= {startDate:DateTime64(3)}')
+  }
+  if (options?.endDate) {
+    dateConditions.push('AND s.timestamp <= {endDate:DateTime64(3)}')
+  }
+  const dateClauses = dateConditions.join(' ')
+
+  const result = await ch.query({
+    query: `
+      WITH scorer_stats AS (
+        SELECT
+          name,
+          avg(value) AS mean_val,
+          stddevPop(value) AS stddev_val,
+          count() AS sample_count
+        FROM scores
+        WHERE project_id = {projectId:String}
+          ${dateClauses}
+        GROUP BY name
+        HAVING sample_count >= {minSamples:UInt32} AND stddev_val > 0
+      ),
+      anomalous AS (
+        SELECT
+          s.trace_id AS trace_id,
+          s.name AS scorer_name,
+          (ss.mean_val - s.value) / ss.stddev_val AS z_score
+        FROM scores s
+        INNER JOIN scorer_stats ss ON s.name = ss.name
+        WHERE s.project_id = {projectId:String}
+          AND s.value < (ss.mean_val - {threshold:Float64} * ss.stddev_val)
+          ${dateClauses}
+      )
+      SELECT
+        t.*,
+        a.scorer_name,
+        a.z_score
+      FROM traces t
+      INNER JOIN anomalous a ON t.trace_id = a.trace_id
+      WHERE t.project_id = {projectId:String}
+      ORDER BY a.z_score DESC
+      LIMIT 100
+    `,
+    query_params: {
+      projectId,
+      threshold,
+      minSamples,
+      startDate: options?.startDate || '1970-01-01',
+      endDate: options?.endDate || '2100-01-01',
+    },
+    format: 'JSONEachRow',
+  })
+
+  return result.json()
+}
+
+/**
+ * Score distribution histogram bucket
+ */
+export interface ScoreDistributionBucket {
+  bucket: number
+  count: number
+}
+
+/**
+ * Get score distribution as histogram buckets for a given scorer.
+ */
+export async function getScoreDistribution(
+  projectId: string,
+  scorerName: string,
+): Promise<ScoreDistributionBucket[]> {
+  const ch = getClickHouseClient()
+
+  const result = await ch.query({
+    query: `
+      SELECT
+        floor(value * 10) / 10 AS bucket,
+        count() AS count
+      FROM scores
+      WHERE project_id = {projectId:String}
+        AND name = {scorerName:String}
+      GROUP BY bucket
+      ORDER BY bucket ASC
+    `,
+    query_params: { projectId, scorerName },
+    format: 'JSONEachRow',
+  })
+
+  return result.json<ScoreDistributionBucket>()
+}
+
+// =============================================================================
+// Multi-Agent Failure Cascade Detection
+// =============================================================================
+
+/**
+ * Failure cascade link — an agent error that preceded another agent's error
+ */
+export interface CascadeLink {
+  source_agent: string
+  source_span_id: string
+  source_error: string
+  source_timestamp: string
+  target_agent: string
+  target_span_id: string
+  target_error: string
+  target_timestamp: string
+  delay_ms: number
+}
+
+/**
+ * Agent pair correlation record
+ */
+export interface AgentCorrelationRecord {
+  agent_a: string
+  agent_b: string
+  co_occurrence_count: number
+  both_success: number
+  both_failure: number
+  a_fail_b_fail: number
+  correlation: number
+}
+
+/**
+ * Handoff latency record
+ */
+export interface HandoffLatencyRecord {
+  target_agent: string
+  avg_latency_ms: number
+  p50_latency_ms: number
+  p95_latency_ms: number
+  handoff_count: number
+}
+
+/**
+ * Detect failure cascades within a trace.
+ * Finds temporal sequences where Agent A's error precedes Agent B's error.
+ */
+export async function detectFailureCascades(
+  projectId: string,
+  traceId: string,
+): Promise<CascadeLink[]> {
+  const ch = getClickHouseClient()
+
+  const result = await ch.query({
+    query: `
+      WITH error_spans AS (
+        SELECT
+          span_id,
+          name,
+          timestamp,
+          status_message,
+          duration_ms,
+          attributes['agent.id'] AS agent_id
+        FROM spans
+        WHERE project_id = {projectId:String}
+          AND trace_id = {traceId:String}
+          AND status = 'error'
+        ORDER BY timestamp ASC
+      )
+      SELECT
+        a.agent_id AS source_agent,
+        a.span_id AS source_span_id,
+        a.status_message AS source_error,
+        a.timestamp AS source_timestamp,
+        b.agent_id AS target_agent,
+        b.span_id AS target_span_id,
+        b.status_message AS target_error,
+        b.timestamp AS target_timestamp,
+        dateDiff('millisecond', a.timestamp, b.timestamp) AS delay_ms
+      FROM error_spans a
+      INNER JOIN error_spans b
+        ON a.timestamp < b.timestamp
+        AND a.agent_id != b.agent_id
+      ORDER BY a.timestamp ASC, b.timestamp ASC
+    `,
+    query_params: { projectId, traceId },
+    format: 'JSONEachRow',
+  })
+
+  return result.json<CascadeLink>()
+}
+
+/**
+ * Compute success/failure correlation between agent pairs over a time window.
+ */
+export async function getAgentCorrelations(
+  projectId: string,
+  startDate: string,
+  endDate: string,
+): Promise<AgentCorrelationRecord[]> {
+  const ch = getClickHouseClient()
+
+  const result = await ch.query({
+    query: `
+      WITH agent_outcomes AS (
+        SELECT
+          trace_id,
+          attributes['agent.id'] AS agent_id,
+          if(countIf(status = 'error') > 0, 'error', 'ok') AS outcome
+        FROM spans
+        WHERE project_id = {projectId:String}
+          AND timestamp >= {startDate:Date}
+          AND timestamp <= {endDate:Date} + INTERVAL 1 DAY
+          AND attributes['agent.id'] != ''
+        GROUP BY trace_id, agent_id
+      )
+      SELECT
+        a.agent_id AS agent_a,
+        b.agent_id AS agent_b,
+        count() AS co_occurrence_count,
+        countIf(a.outcome = 'ok' AND b.outcome = 'ok') AS both_success,
+        countIf(a.outcome = 'error' AND b.outcome = 'error') AS both_failure,
+        countIf(a.outcome = 'error' AND b.outcome = 'error') AS a_fail_b_fail,
+        if(count() > 1,
+          (countIf(a.outcome = b.outcome) - countIf(a.outcome != b.outcome)) / count(),
+          0
+        ) AS correlation
+      FROM agent_outcomes a
+      INNER JOIN agent_outcomes b
+        ON a.trace_id = b.trace_id
+        AND a.agent_id < b.agent_id
+      GROUP BY agent_a, agent_b
+      HAVING co_occurrence_count >= 2
+      ORDER BY abs(correlation) DESC
+    `,
+    query_params: { projectId, startDate, endDate },
+    format: 'JSONEachRow',
+  })
+
+  return result.json<AgentCorrelationRecord>()
+}
+
+/**
+ * Get average latency at handoff points (spans with handoff.target_agent attribute).
+ */
+export async function getHandoffLatencies(
+  projectId: string,
+  startDate: string,
+  endDate: string,
+): Promise<HandoffLatencyRecord[]> {
+  const ch = getClickHouseClient()
+
+  const result = await ch.query({
+    query: `
+      SELECT
+        attributes['handoff.target_agent'] AS target_agent,
+        avg(duration_ms) AS avg_latency_ms,
+        quantile(0.5)(duration_ms) AS p50_latency_ms,
+        quantile(0.95)(duration_ms) AS p95_latency_ms,
+        count() AS handoff_count
+      FROM spans
+      WHERE project_id = {projectId:String}
+        AND timestamp >= {startDate:Date}
+        AND timestamp <= {endDate:Date} + INTERVAL 1 DAY
+        AND attributes['handoff.target_agent'] != ''
+      GROUP BY target_agent
+      ORDER BY handoff_count DESC
+    `,
+    query_params: { projectId, startDate, endDate },
+    format: 'JSONEachRow',
+  })
+
+  return result.json<HandoffLatencyRecord>()
+}
+
 export async function getToolMetrics(
   projectId: string,
   startDate: string,

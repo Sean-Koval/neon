@@ -9,6 +9,14 @@
  */
 
 import type { SpanWithChildren, Trace } from '@neon/shared'
+import {
+  detectFailureCascades,
+  getAgentCorrelations,
+  getHandoffLatencies,
+  type CascadeLink,
+  type AgentCorrelationRecord,
+  type HandoffLatencyRecord,
+} from './clickhouse'
 
 // =============================================================================
 // Types
@@ -456,5 +464,60 @@ export function analyzeMultiAgentTrace(
       totalHandoffs: handoffs.length,
       avgHandoffLatency: Math.round(avgHandoffLatency),
     },
+  }
+}
+
+// =============================================================================
+// Enhanced DB-backed Analysis
+// =============================================================================
+
+export interface MultiAgentAnalysisWithDB extends MultiAgentAnalysis {
+  /** ClickHouse-sourced failure cascade links */
+  dbCascades: CascadeLink[]
+  /** ClickHouse-sourced agent correlations */
+  dbCorrelations: AgentCorrelationRecord[]
+  /** ClickHouse-sourced handoff latencies */
+  dbHandoffLatencies: HandoffLatencyRecord[]
+}
+
+/**
+ * Enhanced multi-agent analysis that combines client-side span analysis
+ * with ClickHouse-backed aggregate queries for correlation data.
+ *
+ * Use this when you have access to ClickHouse and want richer
+ * cross-trace correlation data alongside single-trace analysis.
+ */
+export async function analyzeMultiAgentTraceWithDB(
+  spans: SpanWithChildren[],
+  projectId: string,
+  traceId: string,
+  options?: {
+    trace?: Trace
+    correlationWindow?: { startDate: string; endDate: string }
+  },
+): Promise<MultiAgentAnalysisWithDB> {
+  // Run client-side analysis first
+  const clientAnalysis = analyzeMultiAgentTrace(spans, options?.trace)
+
+  // Run ClickHouse queries in parallel
+  const now = new Date()
+  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+  const startDate =
+    options?.correlationWindow?.startDate ??
+    thirtyDaysAgo.toISOString().split('T')[0]
+  const endDate =
+    options?.correlationWindow?.endDate ?? now.toISOString().split('T')[0]
+
+  const [dbCascades, dbCorrelations, dbHandoffLatencies] = await Promise.all([
+    detectFailureCascades(projectId, traceId),
+    getAgentCorrelations(projectId, startDate, endDate),
+    getHandoffLatencies(projectId, startDate, endDate),
+  ])
+
+  return {
+    ...clientAnalysis,
+    dbCascades,
+    dbCorrelations,
+    dbHandoffLatencies,
   }
 }

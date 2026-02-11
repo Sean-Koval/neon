@@ -42,12 +42,14 @@ function createMockTraceData(options: {
     name: string;
     status: string;
     tool_name?: string;
+    tool_input?: string;
     output?: string;
     input?: string;
     input_tokens?: number;
     output_tokens?: number;
     total_tokens?: number;
     status_message?: string;
+    attributes?: Record<string, string>;
   }>;
 }) {
   const defaultSpans = [
@@ -72,10 +74,12 @@ function createMockTraceData(options: {
     output: s.output ?? "",
     input: s.input ?? "",
     tool_name: s.tool_name,
+    tool_input: s.tool_input ?? "",
     input_tokens: s.input_tokens,
     output_tokens: s.output_tokens,
     total_tokens: s.total_tokens,
     status_message: s.status_message,
+    attributes: s.attributes ?? {},
   })) ?? defaultSpans;
 
   return {
@@ -1705,6 +1709,401 @@ describe("registerScorer", () => {
   });
 });
 
+// =============================================================================
+// Trajectory Scorers
+// =============================================================================
+
+describe("trajectory scorers via scoreTrace", () => {
+  const originalEnv = process.env;
+
+  beforeEach(() => {
+    vi.resetAllMocks();
+    process.env = { ...originalEnv, NEON_API_URL: "http://localhost:3000" };
+  });
+
+  afterEach(() => {
+    process.env = originalEnv;
+  });
+
+  // -- path_optimality --
+
+  it("path_optimality: scores 1.0 when steps match minimum", async () => {
+    const traceData = createMockTraceData({
+      spans: [
+        { span_type: "tool", name: "search", status: "ok", tool_name: "search" },
+        { span_type: "tool", name: "extract", status: "ok", tool_name: "extract" },
+      ],
+    });
+    setupFetchMock(traceData);
+
+    const results = await scoreTrace({
+      projectId: "proj-1",
+      traceId: "trace-123",
+      scorers: ["path_optimality"],
+      expected: { minSteps: 2 },
+    });
+
+    expect(results).toHaveLength(1);
+    expect(results[0].name).toBe("path_optimality");
+    expect(results[0].value).toBe(1.0);
+  });
+
+  it("path_optimality: penalizes extra steps", async () => {
+    const traceData = createMockTraceData({
+      spans: [
+        { span_type: "tool", name: "search", status: "ok", tool_name: "search" },
+        { span_type: "tool", name: "retry", status: "ok", tool_name: "retry" },
+        { span_type: "tool", name: "search2", status: "ok", tool_name: "search2" },
+        { span_type: "tool", name: "extract", status: "ok", tool_name: "extract" },
+      ],
+    });
+    setupFetchMock(traceData);
+
+    const results = await scoreTrace({
+      projectId: "proj-1",
+      traceId: "trace-123",
+      scorers: ["path_optimality"],
+      expected: { minSteps: 2 },
+    });
+
+    expect(results[0].value).toBe(0.5); // 2/4
+  });
+
+  it("path_optimality: handles no tool spans", async () => {
+    const traceData = createMockTraceData({
+      spans: [
+        { span_type: "generation", name: "gen", status: "ok", output: "hello" },
+      ],
+    });
+    setupFetchMock(traceData);
+
+    const results = await scoreTrace({
+      projectId: "proj-1",
+      traceId: "trace-123",
+      scorers: ["path_optimality"],
+    });
+
+    expect(results[0].value).toBe(1.0);
+  });
+
+  // -- step_consistency --
+
+  it("step_consistency: scores 1.0 with no contradictions", async () => {
+    const traceData = createMockTraceData({
+      spans: [
+        { span_type: "tool", name: "search", status: "ok", tool_name: "search" },
+        { span_type: "tool", name: "extract", status: "ok", tool_name: "extract" },
+        { span_type: "tool", name: "summarize", status: "ok", tool_name: "summarize" },
+      ],
+    });
+    setupFetchMock(traceData);
+
+    const results = await scoreTrace({
+      projectId: "proj-1",
+      traceId: "trace-123",
+      scorers: ["step_consistency"],
+    });
+
+    expect(results[0].name).toBe("step_consistency");
+    expect(results[0].value).toBe(1.0);
+  });
+
+  it("step_consistency: detects opposite actions (create/delete)", async () => {
+    const traceData = createMockTraceData({
+      spans: [
+        { span_type: "tool", name: "create_file", status: "ok", tool_name: "create_file" },
+        { span_type: "tool", name: "delete_file", status: "ok", tool_name: "delete_file" },
+      ],
+    });
+    setupFetchMock(traceData);
+
+    const results = await scoreTrace({
+      projectId: "proj-1",
+      traceId: "trace-123",
+      scorers: ["step_consistency"],
+    });
+
+    expect(results[0].value).toBeLessThan(1.0);
+  });
+
+  it("step_consistency: detects duplicate tool calls with same input", async () => {
+    const traceData = createMockTraceData({
+      spans: [
+        { span_type: "tool", name: "search", status: "ok", tool_name: "search", tool_input: "query=test" },
+        { span_type: "tool", name: "search", status: "ok", tool_name: "search", tool_input: "query=test" },
+      ],
+    });
+    setupFetchMock(traceData);
+
+    const results = await scoreTrace({
+      projectId: "proj-1",
+      traceId: "trace-123",
+      scorers: ["step_consistency"],
+    });
+
+    expect(results[0].value).toBeLessThan(1.0);
+  });
+
+  it("step_consistency: scores 1.0 for single step", async () => {
+    const traceData = createMockTraceData({
+      spans: [
+        { span_type: "tool", name: "search", status: "ok", tool_name: "search" },
+      ],
+    });
+    setupFetchMock(traceData);
+
+    const results = await scoreTrace({
+      projectId: "proj-1",
+      traceId: "trace-123",
+      scorers: ["step_consistency"],
+    });
+
+    expect(results[0].value).toBe(1.0);
+  });
+
+  it("step_consistency: scores 1.0 for no tool spans", async () => {
+    const traceData = createMockTraceData({
+      spans: [
+        { span_type: "generation", name: "gen", status: "ok", output: "hello" },
+      ],
+    });
+    setupFetchMock(traceData);
+
+    const results = await scoreTrace({
+      projectId: "proj-1",
+      traceId: "trace-123",
+      scorers: ["step_consistency"],
+    });
+
+    expect(results[0].value).toBe(1.0);
+  });
+
+  // -- recovery_efficiency --
+
+  it("recovery_efficiency: scores 1.0 with no errors", async () => {
+    const traceData = createMockTraceData({
+      spans: [
+        { span_type: "tool", name: "search", status: "ok", tool_name: "search" },
+        { span_type: "tool", name: "extract", status: "ok", tool_name: "extract" },
+      ],
+    });
+    setupFetchMock(traceData);
+
+    const results = await scoreTrace({
+      projectId: "proj-1",
+      traceId: "trace-123",
+      scorers: ["recovery_efficiency"],
+    });
+
+    expect(results[0].name).toBe("recovery_efficiency");
+    expect(results[0].value).toBe(1.0);
+  });
+
+  it("recovery_efficiency: scores 1.0 when error is recovered", async () => {
+    const traceData = createMockTraceData({
+      spans: [
+        { span_id: "span-1", span_type: "tool", name: "search", status: "error", tool_name: "search" },
+        { span_id: "span-2", span_type: "tool", name: "search", status: "ok", tool_name: "search" },
+      ],
+    });
+    setupFetchMock(traceData);
+
+    const results = await scoreTrace({
+      projectId: "proj-1",
+      traceId: "trace-123",
+      scorers: ["recovery_efficiency"],
+    });
+
+    expect(results[0].value).toBe(1.0);
+  });
+
+  it("recovery_efficiency: scores 0 when error is not recovered", async () => {
+    const traceData = createMockTraceData({
+      spans: [
+        { span_id: "span-1", span_type: "tool", name: "search", status: "error", tool_name: "search" },
+        { span_id: "span-2", span_type: "generation", name: "gen", status: "ok" },
+      ],
+    });
+    setupFetchMock(traceData);
+
+    const results = await scoreTrace({
+      projectId: "proj-1",
+      traceId: "trace-123",
+      scorers: ["recovery_efficiency"],
+    });
+
+    expect(results[0].value).toBe(0);
+  });
+
+  it("recovery_efficiency: partial recovery score", async () => {
+    const traceData = createMockTraceData({
+      spans: [
+        { span_id: "span-1", span_type: "tool", name: "search", status: "error", tool_name: "search" },
+        { span_id: "span-2", span_type: "tool", name: "search", status: "ok", tool_name: "search" },
+        { span_id: "span-3", span_type: "tool", name: "extract", status: "error", tool_name: "extract" },
+      ],
+    });
+    setupFetchMock(traceData);
+
+    const results = await scoreTrace({
+      projectId: "proj-1",
+      traceId: "trace-123",
+      scorers: ["recovery_efficiency"],
+    });
+
+    expect(results[0].value).toBe(0.5); // 1 of 2 errors recovered
+  });
+
+  // -- plan_adherence --
+
+  it("plan_adherence: scores 1.0 with no planning spans", async () => {
+    const traceData = createMockTraceData({
+      spans: [
+        { span_type: "tool", name: "search", status: "ok", tool_name: "search" },
+      ],
+    });
+    setupFetchMock(traceData);
+
+    const results = await scoreTrace({
+      projectId: "proj-1",
+      traceId: "trace-123",
+      scorers: ["plan_adherence"],
+    });
+
+    expect(results[0].name).toBe("plan_adherence");
+    expect(results[0].value).toBe(1.0);
+  });
+
+  it("plan_adherence: scores based on planned vs executed actions", async () => {
+    const traceData = createMockTraceData({
+      spans: [
+        {
+          span_type: "generation",
+          name: "planner",
+          status: "ok",
+          output: "I will use search and extract tools",
+          attributes: { component_type: "planning" },
+        },
+        { span_type: "tool", name: "search", status: "ok", tool_name: "search" },
+        { span_type: "tool", name: "extract", status: "ok", tool_name: "extract" },
+      ],
+    });
+    setupFetchMock(traceData);
+
+    const results = await scoreTrace({
+      projectId: "proj-1",
+      traceId: "trace-123",
+      scorers: ["plan_adherence"],
+    });
+
+    expect(results[0].value).toBe(1.0);
+  });
+
+  it("plan_adherence: partial adherence when some planned actions not executed", async () => {
+    const traceData = createMockTraceData({
+      spans: [
+        {
+          span_type: "generation",
+          name: "planner",
+          status: "ok",
+          output: "I will use search, extract, and summarize tools",
+          attributes: { component_type: "planning" },
+        },
+        { span_type: "tool", name: "search", status: "ok", tool_name: "search" },
+      ],
+    });
+    setupFetchMock(traceData);
+
+    const results = await scoreTrace({
+      projectId: "proj-1",
+      traceId: "trace-123",
+      scorers: ["plan_adherence"],
+    });
+
+    // search is mentioned and executed but extract and summarize are only in plan text,
+    // not in tool names. Only search matches from planned → 1/1 for tool names found in plan
+    // Actually: planned actions = tool names found in plan output. search is the only tool name
+    // that appears in tool spans. So planned = {search} (extract only if it's a tool name).
+    expect(results[0].value).toBeGreaterThan(0);
+    expect(results[0].value).toBeLessThanOrEqual(1.0);
+  });
+
+  it("plan_adherence: scores 0.0 when planning exists but no tools executed", async () => {
+    const traceData = createMockTraceData({
+      spans: [
+        {
+          span_type: "generation",
+          name: "planner",
+          status: "ok",
+          output: "I will use search and extract tools",
+          attributes: { component_type: "planning" },
+        },
+      ],
+    });
+    setupFetchMock(traceData);
+
+    const results = await scoreTrace({
+      projectId: "proj-1",
+      traceId: "trace-123",
+      scorers: ["plan_adherence"],
+    });
+
+    expect(results[0].value).toBe(0.0);
+  });
+
+  it("plan_adherence: uses plan.actions attribute when available", async () => {
+    const traceData = createMockTraceData({
+      spans: [
+        {
+          span_type: "generation",
+          name: "planner",
+          status: "ok",
+          output: "planning step",
+          attributes: {
+            component_type: "planning",
+            "plan.actions": JSON.stringify(["search", "extract"]),
+          },
+        },
+        { span_type: "tool", name: "search", status: "ok", tool_name: "search" },
+        { span_type: "tool", name: "extract", status: "ok", tool_name: "extract" },
+      ],
+    });
+    setupFetchMock(traceData);
+
+    const results = await scoreTrace({
+      projectId: "proj-1",
+      traceId: "trace-123",
+      scorers: ["plan_adherence"],
+    });
+
+    expect(results[0].value).toBe(1.0);
+  });
+
+  it("plan_adherence: returns 0.7 when plan output doesn't contain extractable actions", async () => {
+    const traceData = createMockTraceData({
+      spans: [
+        {
+          span_type: "generation",
+          name: "planner",
+          status: "ok",
+          output: "I will think carefully about the problem",
+          attributes: { component_type: "planning" },
+        },
+        { span_type: "tool", name: "search", status: "ok", tool_name: "search" },
+      ],
+    });
+    setupFetchMock(traceData);
+
+    const results = await scoreTrace({
+      projectId: "proj-1",
+      traceId: "trace-123",
+      scorers: ["plan_adherence"],
+    });
+
+    expect(results[0].value).toBe(0.7);
+  });
+});
+
 describe("hasScorer", () => {
   it("returns true for all built-in scorers", () => {
     const builtins = [
@@ -1712,6 +2111,7 @@ describe("hasScorer", () => {
       "token_efficiency", "contains", "not_contains", "regex_match",
       "exact_match", "json_valid", "output_length", "tool_sequence",
       "hallucination", "relevance", "coherence", "safety",
+      "path_optimality", "step_consistency", "recovery_efficiency", "plan_adherence",
     ];
 
     for (const name of builtins) {

@@ -158,6 +158,11 @@ export {
   type OutputType,
   type ResultQualityConfig,
   type ResultQualityDetails,
+  // Trajectory
+  pathOptimalityScorer,
+  stepConsistencyScorer,
+  recoveryEfficiencyScorer,
+  planAdherenceScorer,
 } from "./scorers/index.js";
 
 // Tracing (local context management)
@@ -173,6 +178,8 @@ export {
   routing,
   memory,
   mcp,
+  handoff,
+  delegate,
   withContext,
   getCurrentContext,
   setCurrentContext,
