@@ -101,3 +101,11 @@ export {
   type ResultQualityConfig,
   type ResultQualityDetails,
 } from "./result-quality.js";
+
+// Trajectory scorers
+export {
+  pathOptimalityScorer,
+  stepConsistencyScorer,
+  recoveryEfficiencyScorer,
+  planAdherenceScorer,
+} from "./trajectory.js";

@@ -24,6 +24,7 @@ import { alertRulesRouter } from "./alertRules";
 import { experimentsRouter } from "./experiments";
 import { datasetsRouter } from "./datasets";
 import { trainingLoopsRouter } from "./trainingLoops";
+import { anomaliesRouter } from "./anomalies";
 
 /**
  * Main app router
@@ -63,6 +64,9 @@ export const appRouter = router({
   // Training: datasets & optimization loops
   datasets: datasetsRouter,
   trainingLoops: trainingLoopsRouter,
+
+  // Anomaly detection & auto-test-case pipeline
+  anomalies: anomaliesRouter,
 });
 
 /**

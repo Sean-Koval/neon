@@ -51,6 +51,13 @@ export {
   debugActivities,
 } from "./debug-handler";
 
+// Auto test case generation
+export {
+  generateTestCaseFromTrace,
+  addToRegressionSuite,
+  type GeneratedTestCase,
+} from "./auto-test-case";
+
 // Training loop
 export {
   collectSignals,

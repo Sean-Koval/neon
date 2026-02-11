@@ -421,6 +421,54 @@ export async function mcp<T>(
   });
 }
 
+/**
+ * Create a handoff span (for agent-to-agent handoffs)
+ */
+export async function handoff<T>(
+  name: string,
+  fn: () => Promise<T>,
+  options?: {
+    targetAgent?: string;
+    contextTransferred?: string;
+    attributes?: Record<string, string>;
+  },
+): Promise<T> {
+  const attrs: Record<string, string> = { ...(options?.attributes || {}) };
+  if (options?.targetAgent)
+    attrs["handoff.target_agent"] = options.targetAgent;
+  if (options?.contextTransferred)
+    attrs["handoff.context_transferred"] = options.contextTransferred;
+  return span(name, fn, {
+    type: "span",
+    componentType: "routing",
+    attributes: attrs,
+  });
+}
+
+/**
+ * Create a delegate span (for agent task delegation)
+ */
+export async function delegate<T>(
+  name: string,
+  fn: () => Promise<T>,
+  options?: {
+    targetAgent?: string;
+    taskDescription?: string;
+    attributes?: Record<string, string>;
+  },
+): Promise<T> {
+  const attrs: Record<string, string> = { ...(options?.attributes || {}) };
+  if (options?.targetAgent)
+    attrs["delegation.target_agent"] = options.targetAgent;
+  if (options?.taskDescription)
+    attrs["delegation.task_description"] = options.taskDescription;
+  return span(name, fn, {
+    type: "span",
+    componentType: "routing",
+    attributes: attrs,
+  });
+}
+
 // Re-export MCP tracing utilities
 export {
   withMCPTracing,

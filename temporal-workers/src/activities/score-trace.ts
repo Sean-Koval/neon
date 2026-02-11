@@ -107,6 +107,10 @@ const BUILTIN_SCORERS = [
   "relevance",
   "coherence",
   "safety",
+  "path_optimality",
+  "step_consistency",
+  "recovery_efficiency",
+  "plan_adherence",
 ];
 
 // ============================================================================
@@ -247,6 +251,16 @@ async function runScorer(
       return scoreJsonValid(trace);
     case "output_length":
       return scoreOutputLength(trace, expected);
+
+    // Trajectory scorers
+    case "path_optimality":
+      return scorePathOptimality(trace, expected);
+    case "step_consistency":
+      return scoreStepConsistency(trace);
+    case "recovery_efficiency":
+      return scoreRecoveryEfficiency(trace);
+    case "plan_adherence":
+      return scorePlanAdherence(trace);
 
     // LLM judge scorers
     case "response_quality":
@@ -771,6 +785,210 @@ Example response:
       metadata: { error: true },
     };
   }
+}
+
+// ============================================================================
+// TRAJECTORY SCORERS
+// ============================================================================
+
+function scorePathOptimality(
+  trace: TraceData,
+  expected?: Record<string, unknown>,
+): ScoreResult {
+  const spans = trace.flatSpans || trace.spans;
+  const toolSpans = spans.filter((s) => s.span_type === "tool");
+  const actualSteps = toolSpans.length;
+  const minSteps = (expected?.minSteps as number) || actualSteps;
+  const score =
+    minSteps > 0 ? Math.min(1.0, minSteps / Math.max(actualSteps, 1)) : 1.0;
+
+  return {
+    name: "path_optimality",
+    value: score,
+    reason: `${actualSteps} steps taken, ${minSteps} minimum expected`,
+    metadata: { actual_steps: actualSteps, min_steps: minSteps },
+  };
+}
+
+function scoreStepConsistency(trace: TraceData): ScoreResult {
+  const spans = trace.flatSpans || trace.spans;
+  const toolSpans = spans.filter((s) => s.span_type === "tool");
+
+  if (toolSpans.length <= 1) {
+    return {
+      name: "step_consistency",
+      value: 1.0,
+      reason:
+        toolSpans.length === 0
+          ? "No tool spans to evaluate"
+          : "Single tool span, no contradictions possible",
+    };
+  }
+
+  let contradictions = 0;
+  const opposites: Record<string, string[]> = {
+    create: ["delete", "remove", "destroy"],
+    add: ["remove", "delete"],
+    open: ["close"],
+    start: ["stop", "end"],
+    enable: ["disable"],
+    insert: ["delete", "remove"],
+  };
+
+  for (let i = 0; i < toolSpans.length; i++) {
+    for (let j = i + 1; j < toolSpans.length; j++) {
+      const a = toolSpans[i];
+      const b = toolSpans[j];
+      const nameA = (a.tool_name || a.name).toLowerCase();
+      const nameB = (b.tool_name || b.name).toLowerCase();
+
+      if (
+        nameA === nameB &&
+        a.tool_input &&
+        b.tool_input &&
+        a.tool_input === b.tool_input
+      ) {
+        contradictions++;
+        continue;
+      }
+
+      for (const [action, inverses] of Object.entries(opposites)) {
+        if (
+          nameA.includes(action) &&
+          inverses.some((inv) => nameB.includes(inv))
+        ) {
+          contradictions++;
+          break;
+        }
+      }
+    }
+  }
+
+  const maxPairs = (toolSpans.length * (toolSpans.length - 1)) / 2;
+  const score = maxPairs > 0 ? 1 - contradictions / maxPairs : 1.0;
+
+  return {
+    name: "step_consistency",
+    value: Math.max(0, score),
+    reason: `${contradictions} contradictions found in ${toolSpans.length} steps`,
+    metadata: { contradictions, total_steps: toolSpans.length },
+  };
+}
+
+function scoreRecoveryEfficiency(trace: TraceData): ScoreResult {
+  const spans = trace.flatSpans || trace.spans;
+  const errorSpans = spans.filter((s) => s.status === "error");
+
+  if (errorSpans.length === 0) {
+    return {
+      name: "recovery_efficiency",
+      value: 1.0,
+      reason: "No errors encountered",
+    };
+  }
+
+  let recoveries = 0;
+  for (const errorSpan of errorSpans) {
+    const recovered = spans.some(
+      (s) =>
+        s.span_id > errorSpan.span_id &&
+        s.status === "ok" &&
+        (s.span_type === errorSpan.span_type ||
+          (s.tool_name && s.tool_name === errorSpan.tool_name)),
+    );
+    if (recovered) {
+      recoveries++;
+    }
+  }
+
+  const score = recoveries / errorSpans.length;
+
+  return {
+    name: "recovery_efficiency",
+    value: score,
+    reason: `${recoveries}/${errorSpans.length} errors recovered from`,
+    metadata: { recoveries, total_errors: errorSpans.length },
+  };
+}
+
+function scorePlanAdherence(trace: TraceData): ScoreResult {
+  const spans = trace.flatSpans || trace.spans;
+  const planningSpans = spans.filter(
+    (s) => s.attributes?.["component_type"] === "planning",
+  );
+
+  if (planningSpans.length === 0) {
+    return {
+      name: "plan_adherence",
+      value: 1.0,
+      reason: "No planning spans found, skipping",
+    };
+  }
+
+  const toolSpans = spans.filter((s) => s.span_type === "tool");
+
+  if (toolSpans.length === 0) {
+    return {
+      name: "plan_adherence",
+      value: 0.0,
+      reason: "Planning spans found but no tool execution followed",
+    };
+  }
+
+  const plannedActions = new Set<string>();
+  const toolNames = toolSpans.map((t) => t.tool_name || t.name);
+
+  for (const plan of planningSpans) {
+    if (plan.output) {
+      for (const name of toolNames) {
+        if (name && plan.output.toLowerCase().includes(name.toLowerCase())) {
+          plannedActions.add(name.toLowerCase());
+        }
+      }
+    }
+    if (plan.attributes?.["plan.actions"]) {
+      try {
+        const actions = JSON.parse(plan.attributes["plan.actions"]);
+        if (Array.isArray(actions)) {
+          for (const a of actions) {
+            plannedActions.add(String(a).toLowerCase());
+          }
+        }
+      } catch {
+        // Not parseable, skip
+      }
+    }
+  }
+
+  if (plannedActions.size === 0) {
+    return {
+      name: "plan_adherence",
+      value: 0.7,
+      reason: `${planningSpans.length} planning span(s) found, ${toolSpans.length} tool(s) executed, but could not extract specific planned actions`,
+    };
+  }
+
+  const executedNames = new Set(
+    toolSpans.map((t) => (t.tool_name || t.name).toLowerCase()),
+  );
+  let matchCount = 0;
+  for (const planned of plannedActions) {
+    if (executedNames.has(planned)) {
+      matchCount++;
+    }
+  }
+
+  const score = matchCount / plannedActions.size;
+
+  return {
+    name: "plan_adherence",
+    value: score,
+    reason: `${matchCount}/${plannedActions.size} planned actions were executed`,
+    metadata: {
+      planned_count: plannedActions.size,
+      executed_count: matchCount,
+    },
+  };
 }
 
 // ============================================================================
