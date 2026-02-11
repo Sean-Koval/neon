@@ -1,94 +1,37 @@
 'use client'
 
-import { Bot, Filter, Search } from 'lucide-react'
+import { Bot, Filter, Plus, Search } from 'lucide-react'
 import { useState } from 'react'
 import { AgentCard, type AgentCardData } from '@/components/agents/agent-card'
-
-// Mock data for initial render (replaced by API data when available)
-const mockAgents: AgentCardData[] = [
-  {
-    id: 'research-agent',
-    name: 'Research Agent',
-    version: '2.1.0',
-    environments: ['dev', 'staging', 'prod'],
-    health: 'healthy',
-    avgScore: 0.87,
-    scoreTrend: 'up',
-    tracesPerDay: 1240,
-    errorRate: 1.2,
-    p50Latency: 3200,
-  },
-  {
-    id: 'code-review-agent',
-    name: 'Code Review Agent',
-    version: '1.5.3',
-    environments: ['dev', 'staging'],
-    health: 'degraded',
-    avgScore: 0.73,
-    scoreTrend: 'down',
-    tracesPerDay: 890,
-    errorRate: 6.1,
-    p50Latency: 5400,
-  },
-  {
-    id: 'data-analysis-agent',
-    name: 'Data Analysis Agent',
-    version: '3.0.0',
-    environments: ['dev', 'prod'],
-    health: 'healthy',
-    avgScore: 0.91,
-    scoreTrend: 'up',
-    tracesPerDay: 560,
-    errorRate: 0.5,
-    p50Latency: 8100,
-  },
-  {
-    id: 'customer-support-agent',
-    name: 'Customer Support Agent',
-    version: '1.2.0',
-    environments: ['prod'],
-    health: 'failing',
-    avgScore: 0.58,
-    scoreTrend: 'down',
-    tracesPerDay: 2100,
-    errorRate: 12.3,
-    p50Latency: 2100,
-  },
-  {
-    id: 'doc-gen-agent',
-    name: 'Document Generator',
-    version: '2.0.1',
-    environments: ['dev', 'staging', 'prod'],
-    health: 'healthy',
-    avgScore: 0.82,
-    scoreTrend: 'flat',
-    tracesPerDay: 430,
-    errorRate: 2.1,
-    p50Latency: 4500,
-  },
-  {
-    id: 'api-integration-agent',
-    name: 'API Integration Agent',
-    version: '1.8.0',
-    environments: ['dev'],
-    health: 'healthy',
-    avgScore: 0.79,
-    scoreTrend: 'up',
-    tracesPerDay: 310,
-    errorRate: 3.2,
-    p50Latency: 1800,
-  },
-]
+import { RegisterAgentModal } from '@/components/agents/register-agent-modal'
+import { trpc } from '@/lib/trpc'
 
 export default function AgentsPage() {
   const [search, setSearch] = useState('')
   const [envFilter, setEnvFilter] = useState<string>('')
   const [statusFilter, setStatusFilter] = useState<string>('')
+  const [registerOpen, setRegisterOpen] = useState(false)
   const activeFilterCount = [search, envFilter, statusFilter].filter(
     Boolean,
   ).length
 
-  const filteredAgents = mockAgents.filter((agent) => {
+  const { data: agents, isLoading } = trpc.agents.list.useQuery()
+
+  const agentCards: AgentCardData[] = (agents ?? []).map((a) => ({
+    id: a.id,
+    name: a.name,
+    version: a.version,
+    environments: a.environments,
+    health: a.health as 'healthy' | 'degraded' | 'failing',
+    traceCount: a.traceCount,
+    errorRate: a.errorRate,
+    avgDuration: a.avgDuration,
+    p50Latency: a.p50Latency,
+    description: a.description ?? undefined,
+    team: a.team ?? undefined,
+  }))
+
+  const filteredAgents = agentCards.filter((agent) => {
     if (
       search &&
       !agent.name.toLowerCase().includes(search.toLowerCase()) &&
@@ -126,11 +69,19 @@ export default function AgentsPage() {
           </div>
           <div className="flex items-center gap-2">
             <span className="inline-flex items-center rounded-full border border-border bg-surface-card px-3 py-1 text-xs font-medium text-content-secondary">
-              {mockAgents.length} total
+              {agentCards.length} total
             </span>
             <span className="inline-flex items-center rounded-full border border-primary-500/20 bg-primary-500/10 px-3 py-1 text-xs font-medium text-primary-700 dark:text-primary-300">
               {filteredAgents.length} visible
             </span>
+            <button
+              type="button"
+              onClick={() => setRegisterOpen(true)}
+              className="btn btn-primary text-sm"
+            >
+              <Plus className="w-4 h-4" />
+              Register Agent
+            </button>
           </div>
         </div>
       </div>
@@ -160,8 +111,10 @@ export default function AgentsPage() {
             >
               <option value="">All Environments</option>
               <option value="dev">Dev</option>
+              <option value="development">Development</option>
               <option value="staging">Staging</option>
               <option value="prod">Prod</option>
+              <option value="production">Production</option>
             </select>
             <select
               value={statusFilter}
@@ -183,7 +136,43 @@ export default function AgentsPage() {
       </div>
 
       {/* Agent Grid */}
-      {filteredAgents.length > 0 ? (
+      {isLoading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div
+              key={`skeleton-${i}`}
+              className="rounded-2xl border border-border bg-surface-card p-6 shadow-sm animate-pulse"
+            >
+              <div className="flex items-start justify-between mb-4">
+                <div className="space-y-2">
+                  <div className="h-5 w-36 bg-surface-raised rounded" />
+                  <div className="h-4 w-16 bg-surface-raised rounded" />
+                </div>
+                <div className="h-6 w-20 bg-surface-raised rounded-full" />
+              </div>
+              <div className="flex gap-2 mb-4">
+                <div className="h-6 w-12 bg-surface-raised rounded" />
+                <div className="h-6 w-16 bg-surface-raised rounded" />
+              </div>
+              <div className="grid grid-cols-2 gap-3 mb-4">
+                {Array.from({ length: 4 }).map((_, j) => (
+                  <div
+                    key={`stat-${j}`}
+                    className="rounded-lg border border-border bg-surface-raised p-2.5"
+                  >
+                    <div className="h-3 w-16 bg-surface-card rounded mb-1" />
+                    <div className="h-5 w-12 bg-surface-card rounded" />
+                  </div>
+                ))}
+              </div>
+              <div className="flex gap-2 pt-3 border-t border-border">
+                <div className="h-7 w-16 bg-surface-raised rounded" />
+                <div className="h-7 w-14 bg-surface-raised rounded" />
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : filteredAgents.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {filteredAgents.map((agent) => (
             <AgentCard key={agent.id} agent={agent} />
@@ -202,6 +191,11 @@ export default function AgentsPage() {
           </p>
         </div>
       )}
+
+      <RegisterAgentModal
+        open={registerOpen}
+        onClose={() => setRegisterOpen(false)}
+      />
     </div>
   )
 }

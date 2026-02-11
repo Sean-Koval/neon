@@ -1379,6 +1379,233 @@ export interface ToolMetricsSummary {
  * Get tool execution metrics from spans table.
  * Aggregates tool calls by name with success/failure rates and latency stats.
  */
+// =============================================================================
+// Feedback & Comparison Types and Functions
+// =============================================================================
+
+/*
+ * Table DDL for feedback and comparisons:
+ *
+ * CREATE TABLE IF NOT EXISTS feedback (
+ *   id String,
+ *   project_id String,
+ *   type Enum8('preference' = 1, 'correction' = 2),
+ *   user_id String DEFAULT '',
+ *   session_id String DEFAULT '',
+ *   comparison_id String DEFAULT '',
+ *   choice String DEFAULT '',
+ *   reason String DEFAULT '',
+ *   confidence Float32 DEFAULT 0,
+ *   decision_time_ms Int32 DEFAULT 0,
+ *   response_id String DEFAULT '',
+ *   original_content String DEFAULT '',
+ *   corrected_content String DEFAULT '',
+ *   change_summary String DEFAULT '',
+ *   correction_types Array(String),
+ *   metadata String DEFAULT '{}',
+ *   created_at DateTime64(3) DEFAULT now64()
+ * ) ENGINE = MergeTree() ORDER BY (project_id, created_at, id);
+ *
+ * CREATE TABLE IF NOT EXISTS comparisons (
+ *   id String,
+ *   project_id String,
+ *   prompt String,
+ *   response_a_id String,
+ *   response_a_content String,
+ *   response_a_source String DEFAULT '',
+ *   response_b_id String,
+ *   response_b_content String,
+ *   response_b_source String DEFAULT '',
+ *   context String DEFAULT '',
+ *   tags Array(String),
+ *   created_at DateTime64(3) DEFAULT now64()
+ * ) ENGINE = MergeTree() ORDER BY (project_id, created_at, id);
+ */
+
+/**
+ * Feedback record as stored in ClickHouse
+ */
+export interface FeedbackRecord {
+  id: string
+  project_id: string
+  type: 'preference' | 'correction'
+  user_id: string
+  session_id: string
+  comparison_id: string
+  choice: string
+  reason: string
+  confidence: number
+  decision_time_ms: number
+  response_id: string
+  original_content: string
+  corrected_content: string
+  change_summary: string
+  correction_types: string[]
+  metadata: string
+  created_at: string
+}
+
+/**
+ * Comparison record as stored in ClickHouse
+ */
+export interface ComparisonRecord {
+  id: string
+  project_id: string
+  prompt: string
+  response_a_id: string
+  response_a_content: string
+  response_a_source: string
+  response_b_id: string
+  response_b_content: string
+  response_b_source: string
+  context: string
+  tags: string[]
+  created_at: string
+}
+
+/**
+ * Insert feedback records into ClickHouse
+ */
+export async function insertFeedback(items: FeedbackRecord[]): Promise<void> {
+  const ch = getClickHouseClient()
+  await ch.insert({
+    table: 'feedback',
+    values: items,
+    format: 'JSONEachRow',
+  })
+}
+
+/**
+ * Insert comparison records into ClickHouse
+ */
+export async function insertComparison(items: ComparisonRecord[]): Promise<void> {
+  const ch = getClickHouseClient()
+  await ch.insert({
+    table: 'comparisons',
+    values: items,
+    format: 'JSONEachRow',
+  })
+}
+
+/**
+ * Query feedback with filters
+ */
+export async function queryFeedback(params: {
+  projectId: string
+  type?: string
+  userId?: string
+  sessionId?: string
+  limit?: number
+  offset?: number
+}): Promise<FeedbackRecord[]> {
+  const ch = getClickHouseClient()
+
+  const conditions = ['project_id = {projectId:String}']
+  if (params.type) {
+    conditions.push(`type = {type:String}`)
+  }
+  if (params.userId) {
+    conditions.push(`user_id = {userId:String}`)
+  }
+  if (params.sessionId) {
+    conditions.push(`session_id = {sessionId:String}`)
+  }
+
+  const result = await ch.query({
+    query: `
+      SELECT *
+      FROM feedback
+      WHERE ${conditions.join(' AND ')}
+      ORDER BY created_at DESC
+      LIMIT {limit:UInt32}
+      OFFSET {offset:UInt32}
+    `,
+    query_params: {
+      projectId: params.projectId,
+      type: params.type || '',
+      userId: params.userId || '',
+      sessionId: params.sessionId || '',
+      limit: params.limit || 50,
+      offset: params.offset || 0,
+    },
+    format: 'JSONEachRow',
+  })
+
+  return result.json<FeedbackRecord>()
+}
+
+/**
+ * Query comparisons with filters
+ */
+export async function queryComparisons(params: {
+  projectId: string
+  tag?: string
+  limit?: number
+  offset?: number
+}): Promise<ComparisonRecord[]> {
+  const ch = getClickHouseClient()
+
+  const conditions = ['project_id = {projectId:String}']
+  if (params.tag) {
+    conditions.push(`has(tags, {tag:String})`)
+  }
+
+  const result = await ch.query({
+    query: `
+      SELECT *
+      FROM comparisons
+      WHERE ${conditions.join(' AND ')}
+      ORDER BY created_at DESC
+      LIMIT {limit:UInt32}
+      OFFSET {offset:UInt32}
+    `,
+    query_params: {
+      projectId: params.projectId,
+      tag: params.tag || '',
+      limit: params.limit || 50,
+      offset: params.offset || 0,
+    },
+    format: 'JSONEachRow',
+  })
+
+  return result.json<ComparisonRecord>()
+}
+
+/**
+ * Get feedback statistics for a project
+ */
+export async function getFeedbackStats(projectId: string): Promise<{
+  total: number
+  preferences: number
+  corrections: number
+  sessions: number
+}> {
+  const ch = getClickHouseClient()
+
+  const result = await ch.query({
+    query: `
+      SELECT
+        count() as total,
+        countIf(type = 'preference') as preferences,
+        countIf(type = 'correction') as corrections,
+        uniqExact(session_id) as sessions
+      FROM feedback
+      WHERE project_id = {projectId:String}
+    `,
+    query_params: { projectId },
+    format: 'JSONEachRow',
+  })
+
+  const rows = await result.json<{
+    total: number
+    preferences: number
+    corrections: number
+    sessions: number
+  }>()
+
+  return rows[0] || { total: 0, preferences: 0, corrections: 0, sessions: 0 }
+}
+
 export async function getToolMetrics(
   projectId: string,
   startDate: string,

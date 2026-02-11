@@ -2,180 +2,103 @@
  * Feedback Router
  *
  * tRPC procedures for human feedback/RLHF operations.
- * Handles preference and correction submissions, plus A/B comparison pairs.
+ * Stores data in ClickHouse with graceful in-memory fallback.
  */
 
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { v4 as uuidv4 } from "uuid";
 import { router, publicProcedure } from "../trpc";
-import type { ComparisonPair, FeedbackItem, PreferenceFeedback, CorrectionFeedback } from "@/lib/types";
+import {
+  insertFeedback,
+  insertComparison,
+  queryFeedback,
+  queryComparisons,
+  getFeedbackStats,
+  healthCheck,
+  type FeedbackRecord,
+  type ComparisonRecord,
+} from "@/lib/clickhouse";
+import type { FeedbackItem, PreferenceFeedback, CorrectionFeedback, ComparisonPair } from "@/lib/types";
 import { logger } from "@/lib/logger";
 
 // =============================================================================
-// In-memory stores (will be replaced with ClickHouse)
+// ClickHouse record → domain type transforms
+// =============================================================================
+
+function feedbackRecordToItem(r: FeedbackRecord): FeedbackItem {
+  return {
+    id: r.id,
+    type: r.type,
+    user_id: r.user_id || undefined,
+    session_id: r.session_id || undefined,
+    metadata: r.metadata ? JSON.parse(r.metadata) : undefined,
+    created_at: r.created_at,
+    preference: r.type === 'preference' ? {
+      comparison_id: r.comparison_id,
+      choice: r.choice as 'A' | 'B' | 'tie' | 'both_bad',
+      reason: r.reason || undefined,
+      confidence: r.confidence || undefined,
+      decision_time_ms: r.decision_time_ms || undefined,
+    } : undefined,
+    correction: r.type === 'correction' ? {
+      response_id: r.response_id,
+      original_content: r.original_content,
+      corrected_content: r.corrected_content,
+      change_summary: r.change_summary || undefined,
+      correction_types: r.correction_types?.length ? r.correction_types : undefined,
+    } : undefined,
+  };
+}
+
+function comparisonRecordToPair(r: ComparisonRecord): ComparisonPair {
+  return {
+    id: r.id,
+    prompt: r.prompt,
+    responseA: {
+      id: r.response_a_id,
+      content: r.response_a_content,
+      source: r.response_a_source || undefined,
+    },
+    responseB: {
+      id: r.response_b_id,
+      content: r.response_b_content,
+      source: r.response_b_source || undefined,
+    },
+    context: r.context || undefined,
+    tags: r.tags || [],
+    created_at: r.created_at,
+  };
+}
+
+// =============================================================================
+// In-memory fallback stores (used when ClickHouse is unavailable)
 // =============================================================================
 
 const feedbackStore = new Map<string, FeedbackItem>();
-const comparisonStore = new Map<string, ComparisonPair>();
+const comparisonStore = new Map<string, ComparisonRecord>();
 
-// Seed example comparison pairs for demo purposes
-function seedExampleComparisons() {
-  if (comparisonStore.size > 0) return;
+/**
+ * Check if ClickHouse is available, with a cached result to avoid
+ * hammering the server on every request.
+ */
+let chAvailable: boolean | null = null;
+let chCheckedAt = 0;
+const CH_CHECK_INTERVAL_MS = 30_000;
 
-  const examples: Omit<ComparisonPair, "id" | "created_at">[] = [
-    {
-      prompt: "Explain the concept of recursion in programming.",
-      responseA: {
-        id: uuidv4(),
-        content: `Recursion is when a function calls itself to solve a problem. It breaks down a complex problem into smaller, simpler versions of the same problem.
-
-**Key components:**
-1. **Base case** - The condition that stops the recursion
-2. **Recursive case** - The part where the function calls itself
-
-**Example (factorial):**
-\`\`\`python
-def factorial(n):
-    if n <= 1:  # Base case
-        return 1
-    return n * factorial(n - 1)  # Recursive case
-\`\`\`
-
-Think of it like Russian nesting dolls - each doll contains a smaller version of itself until you reach the smallest one.`,
-        source: "model-a",
-        metadata: { model: "gpt-4", temperature: "0.7" },
-      },
-      responseB: {
-        id: uuidv4(),
-        content: `Recursion is a programming technique where a function calls itself to solve a problem by breaking it into smaller subproblems.
-
-Here's a simple way to think about it:
-- A recursive function solves a tiny piece of the problem
-- Then it calls itself to handle the rest
-- It keeps going until it hits a stopping point (base case)
-
-For example, calculating 5! (5 factorial):
-- 5! = 5 x 4!
-- 4! = 4 x 3!
-- 3! = 3 x 2!
-- 2! = 2 x 1!
-- 1! = 1 (base case - stop here!)
-
-Then we work back up: 1 -> 2 -> 6 -> 24 -> 120
-
-**Warning:** Always include a base case, or your program will recurse forever and crash!`,
-        source: "model-b",
-        metadata: { model: "claude-3", temperature: "0.5" },
-      },
-      context: "User is learning programming basics",
-      tags: ["programming", "concepts", "beginner"],
-    },
-    {
-      prompt: "What are the best practices for error handling in a REST API?",
-      responseA: {
-        id: uuidv4(),
-        content: `# REST API Error Handling Best Practices
-
-1. **Use appropriate HTTP status codes**
-   - 400 Bad Request - Invalid input
-   - 401 Unauthorized - Authentication required
-   - 403 Forbidden - Not allowed
-   - 404 Not Found - Resource doesn't exist
-   - 500 Internal Server Error - Server-side issues
-
-2. **Return consistent error response format**
-3. **Include request IDs for debugging**
-4. **Don't expose sensitive information**
-5. **Log errors server-side with full context**`,
-        source: "model-a",
-        metadata: { model: "gpt-4", temperature: "0.3" },
-      },
-      responseB: {
-        id: uuidv4(),
-        content: `Here are key error handling practices for REST APIs:
-
-**HTTP Status Codes:**
-- Use 4xx for client errors (bad input, unauthorized)
-- Use 5xx for server errors (bugs, downtime)
-
-**Error Response Structure:**
-Always include:
-- A machine-readable error code
-- A human-readable message
-- Optional: field-level validation errors
-- Optional: documentation link
-
-**Security Note:** Never expose stack traces, database errors, or internal paths in production responses.`,
-        source: "model-b",
-        metadata: { model: "claude-3", temperature: "0.3" },
-      },
-      context: "Developer building a production API",
-      tags: ["api", "best-practices", "error-handling"],
-    },
-    {
-      prompt: "Write a function to check if a string is a palindrome.",
-      responseA: {
-        id: uuidv4(),
-        content: `\`\`\`python
-def is_palindrome(s: str) -> bool:
-    """Check if a string is a palindrome, ignoring case and non-alphanumeric characters."""
-    cleaned = ''.join(c.lower() for c in s if c.isalnum())
-    return cleaned == cleaned[::-1]
-\`\`\`
-
-This solution:
-- Handles spaces and punctuation
-- Is case-insensitive
-- Uses Python's slice notation for efficient reversal
-- Time complexity: O(n)
-- Space complexity: O(n)`,
-        source: "model-a",
-        metadata: { model: "gpt-4", temperature: "0.2" },
-      },
-      responseB: {
-        id: uuidv4(),
-        content: `Here's a palindrome checker with multiple approaches:
-
-**Simple approach:**
-\`\`\`python
-def is_palindrome(s):
-    s = s.lower().replace(" ", "")
-    return s == s[::-1]
-\`\`\`
-
-**Two-pointer approach (more efficient for large strings):**
-\`\`\`python
-def is_palindrome_efficient(s):
-    s = ''.join(c.lower() for c in s if c.isalnum())
-    left, right = 0, len(s) - 1
-    while left < right:
-        if s[left] != s[right]:
-            return False
-        left += 1
-        right -= 1
-    return True
-\`\`\``,
-        source: "model-b",
-        metadata: { model: "claude-3", temperature: "0.2" },
-      },
-      context: "Coding interview preparation",
-      tags: ["coding", "algorithms", "strings"],
-    },
-  ];
-
-  for (const example of examples) {
-    const id = uuidv4();
-    comparisonStore.set(id, {
-      ...example,
-      id,
-      created_at: new Date().toISOString(),
-    });
+async function isClickHouseAvailable(): Promise<boolean> {
+  const now = Date.now();
+  if (chAvailable !== null && now - chCheckedAt < CH_CHECK_INTERVAL_MS) {
+    return chAvailable;
   }
+  try {
+    chAvailable = await healthCheck();
+  } catch {
+    chAvailable = false;
+  }
+  chCheckedAt = now;
+  return chAvailable;
 }
-
-// Seed on module load
-seedExampleComparisons();
 
 // =============================================================================
 // Zod schemas
@@ -228,15 +151,48 @@ const createComparisonInput = z.object({
 export const feedbackRouter = router({
   /**
    * Submit human feedback (preference or correction).
-   * Maps from: POST /api/feedback
    */
   create: publicProcedure
     .input(createFeedbackInput)
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
       try {
         const feedbackId = uuidv4();
         const timestamp = new Date().toISOString();
+        const projectId = ctx.projectId;
 
+        const useCH = await isClickHouseAvailable();
+
+        if (useCH) {
+          const record: FeedbackRecord = {
+            id: feedbackId,
+            project_id: projectId,
+            type: input.type,
+            user_id: input.user_id || '',
+            session_id: input.session_id || uuidv4(),
+            comparison_id: input.preference?.comparison_id || '',
+            choice: input.preference?.choice || '',
+            reason: input.preference?.reason || '',
+            confidence: input.preference?.confidence || 0,
+            decision_time_ms: input.preference?.decision_time_ms || 0,
+            response_id: input.correction?.response_id || '',
+            original_content: input.correction?.original_content || '',
+            corrected_content: input.correction?.corrected_content || '',
+            change_summary: input.correction?.change_summary || '',
+            correction_types: input.correction?.correction_types || [],
+            metadata: JSON.stringify(input.metadata || {}),
+            created_at: timestamp,
+          };
+
+          await insertFeedback([record]);
+          logger.info({ feedbackId, type: input.type, storage: 'clickhouse' }, 'Feedback submitted');
+
+          return {
+            id: feedbackId,
+            item: feedbackRecordToItem(record),
+          };
+        }
+
+        // In-memory fallback
         const feedbackItem: FeedbackItem = {
           id: feedbackId,
           type: input.type,
@@ -247,12 +203,10 @@ export const feedbackRouter = router({
           metadata: input.metadata,
           created_at: timestamp,
         };
-
         feedbackStore.set(feedbackId, feedbackItem);
-        logger.info({ feedbackId, type: input.type }, 'Feedback submitted')
+        logger.info({ feedbackId, type: input.type, storage: 'in-memory' }, 'Feedback submitted');
 
         return {
-          message: "Feedback submitted successfully",
           id: feedbackId,
           item: feedbackItem,
         };
@@ -268,7 +222,6 @@ export const feedbackRouter = router({
 
   /**
    * List feedback items with optional filters.
-   * Maps from: GET /api/feedback
    */
   list: publicProcedure
     .input(
@@ -280,10 +233,25 @@ export const feedbackRouter = router({
         offset: z.number().default(0),
       }),
     )
-    .query(async ({ input }) => {
+    .query(async ({ ctx, input }) => {
       try {
-        let items = Array.from(feedbackStore.values());
+        const useCH = await isClickHouseAvailable();
 
+        if (useCH) {
+          const records = await queryFeedback({
+            projectId: ctx.projectId,
+            type: input.type,
+            userId: input.user_id,
+            sessionId: input.session_id,
+            limit: input.limit,
+            offset: input.offset,
+          });
+
+          return { items: records.map(feedbackRecordToItem), total: records.length };
+        }
+
+        // In-memory fallback
+        let items = Array.from(feedbackStore.values());
         if (input.type) {
           items = items.filter((item) => item.type === input.type);
         }
@@ -294,11 +262,9 @@ export const feedbackRouter = router({
           items = items.filter((item) => item.session_id === input.session_id);
         }
 
-        // Sort by created_at descending
         items.sort(
           (a, b) =>
-            new Date(b.created_at).getTime() -
-            new Date(a.created_at).getTime(),
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
         );
 
         const total = items.length;
@@ -317,7 +283,6 @@ export const feedbackRouter = router({
 
   /**
    * List comparison pairs for A/B feedback collection.
-   * Maps from: GET /api/feedback/comparisons
    */
   comparisons: publicProcedure
     .input(
@@ -327,25 +292,36 @@ export const feedbackRouter = router({
         offset: z.number().default(0),
       }),
     )
-    .query(async ({ input }) => {
+    .query(async ({ ctx, input }) => {
       try {
-        let items = Array.from(comparisonStore.values());
+        const useCH = await isClickHouseAvailable();
 
-        if (input.tag) {
-          items = items.filter((item) => item.tags?.includes(input.tag!));
+        if (useCH) {
+          const records = await queryComparisons({
+            projectId: ctx.projectId,
+            tag: input.tag,
+            limit: input.limit,
+            offset: input.offset,
+          });
+
+          return { items: records.map(comparisonRecordToPair), total: records.length };
         }
 
-        // Sort by created_at descending
-        items.sort(
+        // In-memory fallback
+        let pairs = Array.from(comparisonStore.values());
+        if (input.tag) {
+          pairs = pairs.filter((item) => item.tags?.includes(input.tag!));
+        }
+
+        pairs.sort(
           (a, b) =>
-            new Date(b.created_at).getTime() -
-            new Date(a.created_at).getTime(),
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
         );
 
-        const total = items.length;
-        items = items.slice(input.offset, input.offset + input.limit);
+        const total = pairs.length;
+        pairs = pairs.slice(input.offset, input.offset + input.limit);
 
-        return { items, total };
+        return { items: pairs.map(comparisonRecordToPair), total };
       } catch (error) {
         logger.error({ err: error }, "Error fetching comparisons");
         throw new TRPCError({
@@ -358,42 +334,56 @@ export const feedbackRouter = router({
 
   /**
    * Create a new comparison pair.
-   * Maps from: POST /api/feedback/comparisons
    */
   createComparison: publicProcedure
     .input(createComparisonInput)
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
       try {
         const id = uuidv4();
         const timestamp = new Date().toISOString();
+        const projectId = ctx.projectId;
 
-        const comparison: ComparisonPair = {
+        const useCH = await isClickHouseAvailable();
+
+        if (useCH) {
+          const record: ComparisonRecord = {
+            id,
+            project_id: projectId,
+            prompt: input.prompt,
+            response_a_id: input.responseA.id || uuidv4(),
+            response_a_content: input.responseA.content,
+            response_a_source: input.responseA.source || '',
+            response_b_id: input.responseB.id || uuidv4(),
+            response_b_content: input.responseB.content,
+            response_b_source: input.responseB.source || '',
+            context: input.context || '',
+            tags: input.tags || [],
+            created_at: timestamp,
+          };
+
+          await insertComparison([record]);
+
+          return { message: "Comparison created successfully", id, item: comparisonRecordToPair(record) };
+        }
+
+        // In-memory fallback
+        const record: ComparisonRecord = {
           id,
+          project_id: projectId,
           prompt: input.prompt,
-          responseA: {
-            id: input.responseA.id || uuidv4(),
-            content: input.responseA.content,
-            metadata: input.responseA.metadata,
-            source: input.responseA.source,
-          },
-          responseB: {
-            id: input.responseB.id || uuidv4(),
-            content: input.responseB.content,
-            metadata: input.responseB.metadata,
-            source: input.responseB.source,
-          },
-          context: input.context,
+          response_a_id: input.responseA.id || uuidv4(),
+          response_a_content: input.responseA.content,
+          response_a_source: input.responseA.source || '',
+          response_b_id: input.responseB.id || uuidv4(),
+          response_b_content: input.responseB.content,
+          response_b_source: input.responseB.source || '',
+          context: input.context || '',
           tags: input.tags || [],
           created_at: timestamp,
         };
+        comparisonStore.set(id, record);
 
-        comparisonStore.set(id, comparison);
-
-        return {
-          message: "Comparison created successfully",
-          id,
-          item: comparison,
-        };
+        return { message: "Comparison created successfully", id, item: comparisonRecordToPair(record) };
       } catch (error) {
         logger.error({ err: error }, "Error creating comparison");
         throw new TRPCError({
@@ -405,15 +395,37 @@ export const feedbackRouter = router({
     }),
 
   /**
-   * Get feedback statistics for diagnostics.
+   * Get feedback statistics.
    */
-  stats: publicProcedure.query(async () => {
-    const items = Array.from(feedbackStore.values())
-    return {
-      totalFeedback: items.length,
-      preferenceCount: items.filter((i) => i.type === 'preference').length,
-      correctionCount: items.filter((i) => i.type === 'correction').length,
-      totalComparisons: comparisonStore.size,
+  stats: publicProcedure.query(async ({ ctx }) => {
+    try {
+      const useCH = await isClickHouseAvailable();
+
+      if (useCH) {
+        const stats = await getFeedbackStats(ctx.projectId);
+        return {
+          totalFeedback: Number(stats.total),
+          preferenceCount: Number(stats.preferences),
+          correctionCount: Number(stats.corrections),
+          totalComparisons: Number(stats.sessions),
+        };
+      }
+
+      // In-memory fallback
+      const items = Array.from(feedbackStore.values());
+      return {
+        totalFeedback: items.length,
+        preferenceCount: items.filter((i) => i.type === 'preference').length,
+        correctionCount: items.filter((i) => i.type === 'correction').length,
+        totalComparisons: comparisonStore.size,
+      };
+    } catch (error) {
+      logger.error({ err: error }, "Error fetching feedback stats");
+      throw new TRPCError({
+        code: "INTERNAL_SERVER_ERROR",
+        message: "Failed to fetch feedback stats",
+        cause: error,
+      });
     }
   }),
 });
