@@ -1,19 +1,56 @@
 'use client'
 
 import { Bot, Filter, Plus, Search } from 'lucide-react'
-import { useState } from 'react'
+import { useSearchParams } from 'next/navigation'
+import { Suspense, useCallback, useEffect, useState } from 'react'
 import { AgentCard, type AgentCardData } from '@/components/agents/agent-card'
+import { AgentStatCards } from '@/components/agents/agent-stat-cards'
+import { AgentTableView } from '@/components/agents/agent-table-view'
+import { BulkActionsBar } from '@/components/agents/bulk-actions-bar'
 import { RegisterAgentModal } from '@/components/agents/register-agent-modal'
+import { TagFilter } from '@/components/agents/tag-filter'
+import { ViewToggle } from '@/components/agents/view-toggle'
 import { trpc } from '@/lib/trpc'
 
-export default function AgentsPage() {
+function AgentsPageContent() {
+  const searchParams = useSearchParams()
   const [search, setSearch] = useState('')
   const [envFilter, setEnvFilter] = useState<string>('')
-  const [statusFilter, setStatusFilter] = useState<string>('')
   const [registerOpen, setRegisterOpen] = useState(false)
-  const activeFilterCount = [search, envFilter, statusFilter].filter(
-    Boolean,
-  ).length
+  // Read status and tags from URL params (driven by stat cards and tag filter)
+  const statusFilter = searchParams.get('status') || ''
+  const selectedTags =
+    searchParams.get('tags')?.split(',').filter(Boolean) || []
+
+  const [viewMode, setViewMode] = useState<'grid' | 'table'>(() => {
+    if (typeof window !== 'undefined') {
+      return (
+        (localStorage.getItem('agents-view-mode') as 'grid' | 'table') || 'grid'
+      )
+    }
+    return 'grid'
+  })
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+
+  const handleViewChange = useCallback((view: 'grid' | 'table') => {
+    setViewMode(view)
+    setSelectedIds(new Set())
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('agents-view-mode', view)
+    }
+  }, [])
+
+  // Clear selection when filters change
+  useEffect(() => {
+    setSelectedIds(new Set())
+  }, [search, envFilter, statusFilter, selectedTags.length])
+
+  const activeFilterCount = [
+    search,
+    envFilter,
+    statusFilter,
+    selectedTags.length > 0 ? 'tags' : '',
+  ].filter(Boolean).length
 
   const { data: agents, isLoading } = trpc.agents.list.useQuery()
 
@@ -29,6 +66,7 @@ export default function AgentsPage() {
     p50Latency: a.p50Latency,
     description: a.description ?? undefined,
     team: a.team ?? undefined,
+    tags: a.tags ?? [],
   }))
 
   const filteredAgents = agentCards.filter((agent) => {
@@ -42,8 +80,14 @@ export default function AgentsPage() {
     if (envFilter && !agent.environments.includes(envFilter)) {
       return false
     }
-    if (statusFilter && agent.health !== statusFilter) {
+    if (statusFilter === 'stale') {
+      if (agent.traceCount !== 0) return false
+    } else if (statusFilter && agent.health !== statusFilter) {
       return false
+    }
+    if (selectedTags.length > 0) {
+      const agentTags = agent.tags || []
+      if (!selectedTags.every((t) => agentTags.includes(t))) return false
     }
     return true
   })
@@ -86,6 +130,9 @@ export default function AgentsPage() {
         </div>
       </div>
 
+      {/* Stat Cards */}
+      <AgentStatCards agents={agentCards} />
+
       {/* Filter Bar */}
       <div className="relative rounded-xl border border-border bg-surface-card/95 backdrop-blur-sm p-3 shadow-sm">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
@@ -116,16 +163,8 @@ export default function AgentsPage() {
               <option value="prod">Prod</option>
               <option value="production">Production</option>
             </select>
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="h-10 bg-surface-card border border-border rounded-lg text-sm text-content-secondary px-3 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500/50"
-            >
-              <option value="">All Status</option>
-              <option value="healthy">Healthy</option>
-              <option value="degraded">Degraded</option>
-              <option value="failing">Failing</option>
-            </select>
+            <TagFilter agents={agentCards} />
+            <ViewToggle view={viewMode} onViewChange={handleViewChange} />
           </div>
         </div>
         <div className="mt-2 px-1 text-xs text-content-muted">
@@ -135,7 +174,7 @@ export default function AgentsPage() {
         </div>
       </div>
 
-      {/* Agent Grid */}
+      {/* Agent List */}
       {isLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {Array.from({ length: 6 }).map((_, i) => (
@@ -173,11 +212,19 @@ export default function AgentsPage() {
           ))}
         </div>
       ) : filteredAgents.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {filteredAgents.map((agent) => (
-            <AgentCard key={agent.id} agent={agent} />
-          ))}
-        </div>
+        viewMode === 'table' ? (
+          <AgentTableView
+            agents={filteredAgents}
+            selectedIds={selectedIds}
+            onSelectionChange={setSelectedIds}
+          />
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            {filteredAgents.map((agent) => (
+              <AgentCard key={agent.id} agent={agent} />
+            ))}
+          </div>
+        )
       ) : (
         <div className="rounded-xl border border-border bg-surface-card p-12 flex flex-col items-center justify-center text-center">
           <Bot className="w-12 h-12 text-content-muted mb-4" />
@@ -185,17 +232,32 @@ export default function AgentsPage() {
             No agents found
           </h3>
           <p className="text-content-muted text-sm max-w-md">
-            {search || envFilter || statusFilter
+            {search || envFilter || statusFilter || selectedTags.length > 0
               ? 'No agents match your current filters. Try adjusting your search criteria.'
               : 'No agents discovered yet. Agents appear automatically when they send traces.'}
           </p>
         </div>
       )}
 
+      {/* Bulk Actions Bar (table view only) */}
+      <BulkActionsBar
+        selectedCount={selectedIds.size}
+        selectedIds={Array.from(selectedIds)}
+        onClearSelection={() => setSelectedIds(new Set())}
+      />
+
       <RegisterAgentModal
         open={registerOpen}
         onClose={() => setRegisterOpen(false)}
       />
     </div>
+  )
+}
+
+export default function AgentsPage() {
+  return (
+    <Suspense>
+      <AgentsPageContent />
+    </Suspense>
   )
 }
