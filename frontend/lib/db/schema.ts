@@ -278,6 +278,7 @@ export const agents = pgTable(
     description: text('description'),
     team: text('team'),
     environments: text('environments').array(),
+    tags: text('tags').array(),
     associatedSuites: text('associated_suites').array(),
     mcpServers: text('mcp_servers').array(),
     metadata: jsonb('metadata').default({}),

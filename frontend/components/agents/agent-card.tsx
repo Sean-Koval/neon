@@ -15,6 +15,7 @@ export interface AgentCardData {
   p50Latency: number
   description?: string
   team?: string
+  tags?: string[]
 }
 
 const envBadgeStyles: Record<string, string> = {

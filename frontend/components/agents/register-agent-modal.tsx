@@ -1,7 +1,7 @@
 'use client'
 
-import { X } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { ChevronDown, X } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useToast } from '@/components/toast'
 import { trpc } from '@/lib/trpc'
 
@@ -22,8 +22,64 @@ export function RegisterAgentModal({ open, onClose }: RegisterAgentModalProps) {
   const [description, setDescription] = useState('')
   const [team, setTeam] = useState('')
   const [environments, setEnvironments] = useState<string[]>([])
+  const [tags, setTags] = useState<string[]>([])
+  const [tagInput, setTagInput] = useState('')
+  const [associatedSuites, setAssociatedSuites] = useState<string[]>([])
+  const [mcpServers, setMcpServers] = useState<string[]>([])
+  const [mcpInput, setMcpInput] = useState('')
+  const [slaTargets, setSlaTargets] = useState({
+    minPassRate: 90,
+    maxErrorRate: 5,
+    maxLatencyMs: 2000,
+    maxCostPerCall: 1.0,
+  })
   const [nameError, setNameError] = useState('')
   const [submitError, setSubmitError] = useState('')
+  const [teamDropdownOpen, setTeamDropdownOpen] = useState(false)
+  const [suitesDropdownOpen, setSuitesDropdownOpen] = useState(false)
+  const teamRef = useRef<HTMLDivElement>(null)
+  const suitesRef = useRef<HTMLDivElement>(null)
+
+  // Fetch existing agents for team/tag extraction
+  const agentsQuery = trpc.agents.list.useQuery(undefined, { enabled: open })
+  const suitesQuery = trpc.suites.list.useQuery(undefined, { enabled: open })
+
+  const existingTeams = useMemo(() => {
+    if (!agentsQuery.data) return []
+    const teams = agentsQuery.data
+      .map((a: { team?: string | null }) => a.team)
+      .filter((t): t is string => !!t)
+    return [...new Set(teams)].sort()
+  }, [agentsQuery.data])
+
+  const existingTags = useMemo(() => {
+    if (!agentsQuery.data) return []
+    const allTags = agentsQuery.data.flatMap(
+      (a: { tags?: string[] }) => a.tags || [],
+    )
+    return [...new Set(allTags)].sort()
+  }, [agentsQuery.data])
+
+  const filteredTeams = useMemo(() => {
+    if (!team) return existingTeams
+    return existingTeams.filter((t) =>
+      t.toLowerCase().includes(team.toLowerCase()),
+    )
+  }, [existingTeams, team])
+
+  // Close dropdowns on outside click
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (teamRef.current && !teamRef.current.contains(e.target as Node)) {
+        setTeamDropdownOpen(false)
+      }
+      if (suitesRef.current && !suitesRef.current.contains(e.target as Node)) {
+        setSuitesDropdownOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [])
 
   // Reset form when closed
   useEffect(() => {
@@ -34,8 +90,21 @@ export function RegisterAgentModal({ open, onClose }: RegisterAgentModalProps) {
         setDescription('')
         setTeam('')
         setEnvironments([])
+        setTags([])
+        setTagInput('')
+        setAssociatedSuites([])
+        setMcpServers([])
+        setMcpInput('')
+        setSlaTargets({
+          minPassRate: 90,
+          maxErrorRate: 5,
+          maxLatencyMs: 2000,
+          maxCostPerCall: 1.0,
+        })
         setNameError('')
         setSubmitError('')
+        setTeamDropdownOpen(false)
+        setSuitesDropdownOpen(false)
       }, 300)
       return () => clearTimeout(timer)
     }
@@ -73,6 +142,44 @@ export function RegisterAgentModal({ open, onClose }: RegisterAgentModalProps) {
     )
   }, [])
 
+  const addTag = useCallback(
+    (tag: string) => {
+      const trimmed = tag.trim()
+      if (trimmed && !tags.includes(trimmed)) {
+        setTags((prev) => [...prev, trimmed])
+      }
+      setTagInput('')
+    },
+    [tags],
+  )
+
+  const removeTag = useCallback((tag: string) => {
+    setTags((prev) => prev.filter((t) => t !== tag))
+  }, [])
+
+  const toggleSuite = useCallback((suiteId: string) => {
+    setAssociatedSuites((prev) =>
+      prev.includes(suiteId)
+        ? prev.filter((s) => s !== suiteId)
+        : [...prev, suiteId],
+    )
+  }, [])
+
+  const addMcpServer = useCallback(
+    (server: string) => {
+      const trimmed = server.trim()
+      if (trimmed && !mcpServers.includes(trimmed)) {
+        setMcpServers((prev) => [...prev, trimmed])
+      }
+      setMcpInput('')
+    },
+    [mcpServers],
+  )
+
+  const removeMcpServer = useCallback((server: string) => {
+    setMcpServers((prev) => prev.filter((s) => s !== server))
+  }, [])
+
   const canSubmit = useMemo(() => {
     return !!agentName && !nameError && !upsertMutation.isPending
   }, [agentName, nameError, upsertMutation.isPending])
@@ -91,6 +198,11 @@ export function RegisterAgentModal({ open, onClose }: RegisterAgentModalProps) {
         description: description || undefined,
         team: team || undefined,
         environments: environments.length > 0 ? environments : undefined,
+        tags: tags.length > 0 ? tags : undefined,
+        associatedSuites:
+          associatedSuites.length > 0 ? associatedSuites : undefined,
+        mcpServers: mcpServers.length > 0 ? mcpServers : undefined,
+        metadata: { slaTargets },
         workspaceId,
       })
 
@@ -108,6 +220,10 @@ export function RegisterAgentModal({ open, onClose }: RegisterAgentModalProps) {
     description,
     team,
     environments,
+    tags,
+    associatedSuites,
+    mcpServers,
+    slaTargets,
     upsertMutation,
     addToast,
     utils,
@@ -122,7 +238,7 @@ export function RegisterAgentModal({ open, onClose }: RegisterAgentModalProps) {
       <div className="absolute inset-0 bg-black/60" onClick={onClose} />
 
       {/* Dialog */}
-      <div className="relative bg-surface-card border border-border rounded-lg shadow-xl p-6 max-w-lg w-full mx-4 max-h-[90vh] overflow-y-auto space-y-5">
+      <div className="relative bg-surface-card border border-border rounded-lg shadow-xl p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto space-y-5">
         {/* Header */}
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold text-content-primary">
@@ -135,6 +251,13 @@ export function RegisterAgentModal({ open, onClose }: RegisterAgentModalProps) {
           >
             <X className="w-5 h-5" />
           </button>
+        </div>
+
+        {/* === Identity Section === */}
+        <div>
+          <h3 className="text-sm font-medium text-content-primary mb-3">
+            Identity
+          </h3>
         </div>
 
         {/* Agent Name (ID) */}
@@ -185,18 +308,104 @@ export function RegisterAgentModal({ open, onClose }: RegisterAgentModalProps) {
           />
         </div>
 
-        {/* Team */}
-        <div>
+        {/* === Organization Section === */}
+        <div className="border-t border-border pt-4 mt-2">
+          <h3 className="text-sm font-medium text-content-primary mb-3">
+            Organization
+          </h3>
+        </div>
+
+        {/* Team (Combobox) */}
+        <div ref={teamRef} className="relative">
           <label className="block text-sm font-medium text-content-primary mb-1.5">
             Team
           </label>
+          <div className="relative">
+            <input
+              type="text"
+              value={team}
+              onChange={(e) => {
+                setTeam(e.target.value)
+                setTeamDropdownOpen(true)
+              }}
+              onFocus={() => setTeamDropdownOpen(true)}
+              placeholder="e.g. Platform, ML, Product"
+              className="w-full h-9 px-3 pr-8 bg-surface-card border border-border rounded-md text-content-primary text-sm placeholder:text-content-muted focus:outline-none focus:border-primary-500/50"
+            />
+            <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-content-muted pointer-events-none" />
+          </div>
+          {teamDropdownOpen && filteredTeams.length > 0 && (
+            <div className="absolute z-10 w-full mt-1 bg-surface-card border border-border rounded-md shadow-lg max-h-40 overflow-y-auto">
+              {filteredTeams.map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => {
+                    setTeam(t)
+                    setTeamDropdownOpen(false)
+                  }}
+                  className="w-full text-left px-3 py-1.5 text-sm text-content-secondary hover:bg-surface-hover"
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Tags */}
+        <div>
+          <label className="block text-sm font-medium text-content-primary mb-1.5">
+            Tags
+          </label>
+          {tags.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 mb-2">
+              {tags.map((tag) => (
+                <span
+                  key={tag}
+                  className="inline-flex items-center gap-1 px-2 py-0.5 bg-primary-500/10 text-primary-400 text-xs rounded-full"
+                >
+                  {tag}
+                  <button
+                    type="button"
+                    onClick={() => removeTag(tag)}
+                    className="hover:text-primary-300"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
           <input
             type="text"
-            value={team}
-            onChange={(e) => setTeam(e.target.value)}
-            placeholder="e.g. Platform, ML, Product"
+            value={tagInput}
+            onChange={(e) => setTagInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault()
+                addTag(tagInput)
+              }
+            }}
+            placeholder="Type a tag and press Enter"
             className="w-full h-9 px-3 bg-surface-card border border-border rounded-md text-content-primary text-sm placeholder:text-content-muted focus:outline-none focus:border-primary-500/50"
           />
+          {existingTags.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 mt-2">
+              {existingTags
+                .filter((t) => !tags.includes(t))
+                .map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => addTag(t)}
+                    className="px-2 py-0.5 text-xs rounded-full border border-border text-content-muted hover:text-content-secondary hover:border-content-muted"
+                  >
+                    + {t}
+                  </button>
+                ))}
+            </div>
+          )}
         </div>
 
         {/* Environments */}
@@ -221,6 +430,206 @@ export function RegisterAgentModal({ open, onClose }: RegisterAgentModalProps) {
                 </span>
               </label>
             ))}
+          </div>
+        </div>
+
+        {/* === Connections Section === */}
+        <div className="border-t border-border pt-4 mt-2">
+          <h3 className="text-sm font-medium text-content-primary mb-3">
+            Connections
+          </h3>
+        </div>
+
+        {/* Eval Suites */}
+        <div ref={suitesRef} className="relative">
+          <label className="block text-sm font-medium text-content-primary mb-1.5">
+            Eval Suites
+          </label>
+          {associatedSuites.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 mb-2">
+              {associatedSuites.map((suiteId) => {
+                const suite = (
+                  suitesQuery.data as { id: string; name: string }[] | undefined
+                )?.find((s) => s.id === suiteId)
+                return (
+                  <span
+                    key={suiteId}
+                    className="inline-flex items-center gap-1 px-2 py-0.5 bg-primary-500/10 text-primary-400 text-xs rounded-full"
+                  >
+                    {suite?.name || suiteId}
+                    <button
+                      type="button"
+                      onClick={() => toggleSuite(suiteId)}
+                      className="hover:text-primary-300"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                )
+              })}
+            </div>
+          )}
+          <button
+            type="button"
+            onClick={() => setSuitesDropdownOpen((prev) => !prev)}
+            className="w-full h-9 px-3 bg-surface-card border border-border rounded-md text-sm text-content-muted text-left flex items-center justify-between focus:outline-none focus:border-primary-500/50"
+          >
+            <span>Select suites...</span>
+            <ChevronDown className="w-4 h-4" />
+          </button>
+          {suitesDropdownOpen && (
+            <div className="absolute z-10 w-full mt-1 bg-surface-card border border-border rounded-md shadow-lg max-h-48 overflow-y-auto">
+              {suitesQuery.isLoading ? (
+                <div className="px-3 py-2 text-sm text-content-muted">
+                  Loading...
+                </div>
+              ) : (
+                  suitesQuery.data as { id: string; name: string }[] | undefined
+                )?.length ? (
+                (suitesQuery.data as { id: string; name: string }[]).map(
+                  (suite) => (
+                    <label
+                      key={suite.id}
+                      className="flex items-center gap-2 px-3 py-1.5 hover:bg-surface-hover cursor-pointer"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={associatedSuites.includes(suite.id)}
+                        onChange={() => toggleSuite(suite.id)}
+                        className="rounded border-border text-primary-500 focus:ring-primary-500"
+                      />
+                      <span className="text-sm text-content-secondary">
+                        {suite.name}
+                      </span>
+                    </label>
+                  ),
+                )
+              ) : (
+                <div className="px-3 py-2 text-sm text-content-muted">
+                  No suites found
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* MCP Servers */}
+        <div>
+          <label className="block text-sm font-medium text-content-primary mb-1.5">
+            MCP Servers
+          </label>
+          {mcpServers.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 mb-2">
+              {mcpServers.map((server) => (
+                <span
+                  key={server}
+                  className="inline-flex items-center gap-1 px-2 py-0.5 bg-primary-500/10 text-primary-400 text-xs rounded-full"
+                >
+                  {server}
+                  <button
+                    type="button"
+                    onClick={() => removeMcpServer(server)}
+                    className="hover:text-primary-300"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+          <input
+            type="text"
+            value={mcpInput}
+            onChange={(e) => setMcpInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault()
+                addMcpServer(mcpInput)
+              }
+            }}
+            placeholder="Enter server URL and press Enter"
+            className="w-full h-9 px-3 bg-surface-card border border-border rounded-md text-content-primary text-sm placeholder:text-content-muted focus:outline-none focus:border-primary-500/50"
+          />
+        </div>
+
+        {/* === SLA Targets Section === */}
+        <div className="border-t border-border pt-4 mt-2">
+          <h3 className="text-sm font-medium text-content-primary mb-3">
+            SLA Targets
+          </h3>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-content-primary mb-1.5">
+              Min Pass Rate (%)
+            </label>
+            <input
+              type="number"
+              min={0}
+              max={100}
+              value={slaTargets.minPassRate}
+              onChange={(e) =>
+                setSlaTargets((prev) => ({
+                  ...prev,
+                  minPassRate: Number(e.target.value),
+                }))
+              }
+              className="w-full h-9 px-3 bg-surface-card border border-border rounded-md text-content-primary text-sm focus:outline-none focus:border-primary-500/50"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-content-primary mb-1.5">
+              Max Error Rate (%)
+            </label>
+            <input
+              type="number"
+              min={0}
+              max={100}
+              value={slaTargets.maxErrorRate}
+              onChange={(e) =>
+                setSlaTargets((prev) => ({
+                  ...prev,
+                  maxErrorRate: Number(e.target.value),
+                }))
+              }
+              className="w-full h-9 px-3 bg-surface-card border border-border rounded-md text-content-primary text-sm focus:outline-none focus:border-primary-500/50"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-content-primary mb-1.5">
+              Max Latency (ms)
+            </label>
+            <input
+              type="number"
+              min={0}
+              value={slaTargets.maxLatencyMs}
+              onChange={(e) =>
+                setSlaTargets((prev) => ({
+                  ...prev,
+                  maxLatencyMs: Number(e.target.value),
+                }))
+              }
+              className="w-full h-9 px-3 bg-surface-card border border-border rounded-md text-content-primary text-sm focus:outline-none focus:border-primary-500/50"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-content-primary mb-1.5">
+              Max Cost per Call ($)
+            </label>
+            <input
+              type="number"
+              min={0}
+              step={0.01}
+              value={slaTargets.maxCostPerCall}
+              onChange={(e) =>
+                setSlaTargets((prev) => ({
+                  ...prev,
+                  maxCostPerCall: Number(e.target.value),
+                }))
+              }
+              className="w-full h-9 px-3 bg-surface-card border border-border rounded-md text-content-primary text-sm focus:outline-none focus:border-primary-500/50"
+            />
           </div>
         </div>
 
