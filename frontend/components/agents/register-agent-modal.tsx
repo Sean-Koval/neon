@@ -1,18 +1,39 @@
 'use client'
 
+import { clsx } from 'clsx'
 import { ChevronDown, X } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useToast } from '@/components/toast'
 import { trpc } from '@/lib/trpc'
 
+interface AgentEditData {
+  id: string
+  name?: string
+  description?: string
+  team?: string
+  environments?: string[]
+  tags?: string[]
+  associatedSuites?: string[]
+  mcpServers?: string[]
+  metadata?: Record<string, unknown>
+}
+
 interface RegisterAgentModalProps {
   open: boolean
   onClose: () => void
+  mode?: 'create' | 'edit'
+  agentData?: AgentEditData
 }
 
 const ENVIRONMENT_OPTIONS = ['production', 'staging', 'development'] as const
 
-export function RegisterAgentModal({ open, onClose }: RegisterAgentModalProps) {
+export function RegisterAgentModal({
+  open,
+  onClose,
+  mode = 'create',
+  agentData,
+}: RegisterAgentModalProps) {
+  const isEdit = mode === 'edit'
   const { addToast } = useToast()
   const utils = trpc.useUtils()
   const upsertMutation = trpc.agents.upsert.useMutation()
@@ -81,6 +102,43 @@ export function RegisterAgentModal({ open, onClose }: RegisterAgentModalProps) {
     return () => document.removeEventListener('mousedown', handleClick)
   }, [])
 
+  // Track initial values for dirty field detection in edit mode
+  const initialValues = useMemo(() => {
+    if (!isEdit || !agentData) return null
+    const sla = (agentData.metadata?.slaTargets ?? {}) as Record<string, number>
+    return {
+      agentName: agentData.id,
+      displayName: agentData.name ?? '',
+      description: agentData.description ?? '',
+      team: agentData.team ?? '',
+      environments: agentData.environments ?? [],
+      tags: agentData.tags ?? [],
+      associatedSuites: agentData.associatedSuites ?? [],
+      mcpServers: agentData.mcpServers ?? [],
+      slaTargets: {
+        minPassRate: sla.minPassRate ?? 90,
+        maxErrorRate: sla.maxErrorRate ?? 5,
+        maxLatencyMs: sla.maxLatencyMs ?? 2000,
+        maxCostPerCall: sla.maxCostPerCall ?? 1.0,
+      },
+    }
+  }, [isEdit, agentData])
+
+  // Populate form when opening in edit mode
+  useEffect(() => {
+    if (open && isEdit && initialValues) {
+      setAgentName(initialValues.agentName)
+      setDisplayName(initialValues.displayName)
+      setDescription(initialValues.description)
+      setTeam(initialValues.team)
+      setEnvironments(initialValues.environments)
+      setTags(initialValues.tags)
+      setAssociatedSuites(initialValues.associatedSuites)
+      setMcpServers(initialValues.mcpServers)
+      setSlaTargets(initialValues.slaTargets)
+    }
+  }, [open, isEdit, initialValues])
+
   // Reset form when closed
   useEffect(() => {
     if (!open) {
@@ -109,6 +167,38 @@ export function RegisterAgentModal({ open, onClose }: RegisterAgentModalProps) {
       return () => clearTimeout(timer)
     }
   }, [open])
+
+  // Dirty field detection for edit mode
+  function isDirty(field: string): boolean {
+    if (!isEdit || !initialValues) return false
+    switch (field) {
+      case 'displayName':
+        return displayName !== initialValues.displayName
+      case 'description':
+        return description !== initialValues.description
+      case 'team':
+        return team !== initialValues.team
+      case 'environments':
+        return (
+          JSON.stringify(environments.sort()) !==
+          JSON.stringify(initialValues.environments.sort())
+        )
+      case 'tags':
+        return (
+          JSON.stringify(tags.sort()) !==
+          JSON.stringify(initialValues.tags.sort())
+        )
+      case 'slaTargets':
+        return (
+          JSON.stringify(slaTargets) !==
+          JSON.stringify(initialValues.slaTargets)
+        )
+      default:
+        return false
+    }
+  }
+
+  const dirtyBorder = 'border-l-2 border-l-primary-500'
 
   const validateName = useCallback((value: string) => {
     if (!value) {
@@ -187,11 +277,6 @@ export function RegisterAgentModal({ open, onClose }: RegisterAgentModalProps) {
   const handleSubmit = useCallback(async () => {
     setSubmitError('')
     try {
-      const workspaceId =
-        (typeof window !== 'undefined' &&
-          localStorage.getItem('neon-workspace-id')) ||
-        'default'
-
       await upsertMutation.mutateAsync({
         id: agentName,
         displayName: displayName || undefined,
@@ -203,11 +288,11 @@ export function RegisterAgentModal({ open, onClose }: RegisterAgentModalProps) {
           associatedSuites.length > 0 ? associatedSuites : undefined,
         mcpServers: mcpServers.length > 0 ? mcpServers : undefined,
         metadata: { slaTargets },
-        workspaceId,
       })
 
-      addToast('Agent registered', 'success')
+      addToast(isEdit ? 'Agent updated' : 'Agent registered', 'success')
       await utils.agents.list.invalidate()
+      if (isEdit) await utils.agents.get.invalidate({ id: agentName })
       onClose()
     } catch (err) {
       const msg =
@@ -228,6 +313,7 @@ export function RegisterAgentModal({ open, onClose }: RegisterAgentModalProps) {
     addToast,
     utils,
     onClose,
+    isEdit,
   ])
 
   if (!open) return null
@@ -235,14 +321,21 @@ export function RegisterAgentModal({ open, onClose }: RegisterAgentModalProps) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/60" onClick={onClose} />
+      <div
+        className="absolute inset-0 bg-black/60"
+        onClick={onClose}
+        onKeyDown={(e) => {
+          if (e.key === 'Escape') onClose()
+        }}
+        role="presentation"
+      />
 
       {/* Dialog */}
       <div className="relative bg-surface-card border border-border rounded-lg shadow-xl p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto space-y-5">
         {/* Header */}
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold text-content-primary">
-            Register Agent
+            {isEdit ? 'Edit Agent' : 'Register Agent'}
           </h2>
           <button
             type="button"
@@ -270,7 +363,11 @@ export function RegisterAgentModal({ open, onClose }: RegisterAgentModalProps) {
             value={agentName}
             onChange={(e) => handleNameChange(e.target.value)}
             placeholder="e.g. booking-agent"
-            className="w-full h-9 px-3 font-mono bg-surface-card border border-border rounded-md text-content-primary text-sm placeholder:text-content-muted focus:outline-none focus:border-primary-500/50"
+            readOnly={isEdit}
+            className={clsx(
+              'w-full h-9 px-3 font-mono bg-surface-card border border-border rounded-md text-content-primary text-sm placeholder:text-content-muted focus:outline-none focus:border-primary-500/50',
+              isEdit && 'opacity-60 cursor-not-allowed',
+            )}
           />
           <p className="text-xs text-content-muted mt-1">
             Unique identifier for the agent. Must match the agent_id in traces.
@@ -281,7 +378,12 @@ export function RegisterAgentModal({ open, onClose }: RegisterAgentModalProps) {
         </div>
 
         {/* Display Name */}
-        <div>
+        <div
+          className={clsx(
+            isDirty('displayName') && dirtyBorder,
+            isDirty('displayName') && 'pl-3',
+          )}
+        >
           <label className="block text-sm font-medium text-content-primary mb-1.5">
             Display Name
           </label>
@@ -295,7 +397,12 @@ export function RegisterAgentModal({ open, onClose }: RegisterAgentModalProps) {
         </div>
 
         {/* Description */}
-        <div>
+        <div
+          className={clsx(
+            isDirty('description') && dirtyBorder,
+            isDirty('description') && 'pl-3',
+          )}
+        >
           <label className="block text-sm font-medium text-content-primary mb-1.5">
             Description
           </label>
@@ -651,7 +758,13 @@ export function RegisterAgentModal({ open, onClose }: RegisterAgentModalProps) {
             disabled={!canSubmit}
             className="btn btn-primary text-sm disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {upsertMutation.isPending ? 'Registering...' : 'Register'}
+            {upsertMutation.isPending
+              ? isEdit
+                ? 'Saving...'
+                : 'Registering...'
+              : isEdit
+                ? 'Save Changes'
+                : 'Register'}
           </button>
         </div>
       </div>

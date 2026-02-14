@@ -2,7 +2,6 @@
 
 import { clsx } from 'clsx'
 import {
-  Activity,
   ArrowLeft,
   Bot,
   Minus,
@@ -13,14 +12,23 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import { use, useState } from 'react'
-import { AgentHeader, type AgentHeaderData } from '@/components/agents/agent-header'
+import { AgentContextRow } from '@/components/agents/agent-context-row'
+import {
+  AgentHeader,
+  type AgentHeaderData,
+} from '@/components/agents/agent-header'
 import { AgentOverview } from '@/components/agents/agent-overview'
+import { AgentQuickStats } from '@/components/agents/agent-quick-stats'
+import { AgentTracesTab } from '@/components/agents/agent-traces-tab'
+import { RegisterAgentModal } from '@/components/agents/register-agent-modal'
+import { VersionsTab } from '@/components/agents/versions-tab'
 import { useMCPHealth } from '@/hooks/use-mcp-health'
 import {
   type SkillEvalSummary,
   useSkillEvalSummaries,
   useSkillRegressions,
 } from '@/hooks/use-skill-eval'
+import { trpc } from '@/lib/trpc'
 
 // =============================================================================
 // Tabs
@@ -33,22 +41,6 @@ const tabs = [
   { id: 'versions', label: 'Versions' },
   { id: 'traces', label: 'Traces' },
 ]
-
-// =============================================================================
-// Mock agent data for initial render
-// =============================================================================
-
-const mockAgent: AgentHeaderData = {
-  id: 'research-agent',
-  name: 'Research Agent',
-  version: '2.1.0',
-  environments: ['dev', 'staging', 'prod'],
-  health: 'healthy',
-  totalTraces: 45230,
-  avgScore: 0.87,
-  errorRate: 1.2,
-  p50Latency: 3200,
-}
 
 // =============================================================================
 // Helpers
@@ -101,8 +93,10 @@ function getStatusDotColor(status: string): string {
 // =============================================================================
 
 function SkillsTab() {
-  const { data: summaries = [], isLoading: summariesLoading } = useSkillEvalSummaries()
-  const { data: regressions = [], isLoading: regressionsLoading } = useSkillRegressions()
+  const { data: summaries = [], isLoading: summariesLoading } =
+    useSkillEvalSummaries()
+  const { data: regressions = [], isLoading: regressionsLoading } =
+    useSkillRegressions()
 
   if (summariesLoading || regressionsLoading) {
     return (
@@ -142,7 +136,9 @@ function SkillsTab() {
       <div className="grid grid-cols-4 gap-4">
         <div className="stat-card">
           <p className="text-sm text-content-secondary">Total Skills</p>
-          <p className="mt-1 text-2xl font-bold text-content-primary">{summaries.length}</p>
+          <p className="mt-1 text-2xl font-bold text-content-primary">
+            {summaries.length}
+          </p>
         </div>
         <div className="stat-card">
           <p className="text-sm text-content-secondary">Total Evals</p>
@@ -152,7 +148,12 @@ function SkillsTab() {
         </div>
         <div className="stat-card">
           <p className="text-sm text-content-secondary">Avg Pass Rate</p>
-          <p className={clsx('mt-1 text-2xl font-bold', getPassRateColor(avgPassRate))}>
+          <p
+            className={clsx(
+              'mt-1 text-2xl font-bold',
+              getPassRateColor(avgPassRate),
+            )}
+          >
             {formatPercent(avgPassRate)}
           </p>
         </div>
@@ -184,10 +185,13 @@ function SkillsTab() {
                 className="border border-border rounded-lg p-4 flex items-start justify-between"
               >
                 <div className="space-y-1">
-                  <p className="text-content-primary font-medium">{reg.skillName}</p>
+                  <p className="text-content-primary font-medium">
+                    {reg.skillName}
+                  </p>
                   <div className="flex items-center gap-3 text-sm">
                     <span className="text-content-secondary">
-                      {formatPercent(reg.baselineScore)} &rarr; {formatPercent(reg.currentScore)}
+                      {formatPercent(reg.baselineScore)} &rarr;{' '}
+                      {formatPercent(reg.currentScore)}
                     </span>
                     <span className="text-rose-600 dark:text-rose-400 font-medium flex items-center gap-1">
                       <TrendingDown className="w-3 h-3" />
@@ -222,20 +226,29 @@ function SkillsTab() {
         {summaries.length === 0 ? (
           <div className="card p-8 text-center">
             <Wrench className="w-10 h-10 text-content-muted mx-auto mb-3" />
-            <p className="text-content-secondary text-sm">No skills data available yet.</p>
+            <p className="text-content-secondary text-sm">
+              No skills data available yet.
+            </p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {summaries.map((skill) => (
               <div key={skill.skillId} className="card p-5">
                 <div className="flex items-center justify-between mb-3">
-                  <h4 className="text-content-primary font-medium">{skill.skillName}</h4>
+                  <h4 className="text-content-primary font-medium">
+                    {skill.skillName}
+                  </h4>
                   {getTrendIcon(skill.trend)}
                 </div>
                 <div className="grid grid-cols-2 gap-3 text-sm">
                   <div>
                     <p className="text-content-muted text-xs">Pass Rate</p>
-                    <p className={clsx('font-semibold', getPassRateColor(skill.passRate))}>
+                    <p
+                      className={clsx(
+                        'font-semibold',
+                        getPassRateColor(skill.passRate),
+                      )}
+                    >
                       {formatPercent(skill.passRate)}
                     </p>
                   </div>
@@ -311,7 +324,9 @@ function ToolsTab() {
       <div className="grid grid-cols-4 gap-4">
         <div className="stat-card">
           <p className="text-sm text-content-secondary">Total Servers</p>
-          <p className="mt-1 text-2xl font-bold text-content-primary">{summary.totalServers}</p>
+          <p className="mt-1 text-2xl font-bold text-content-primary">
+            {summary.totalServers}
+          </p>
         </div>
         <div className="stat-card">
           <p className="text-sm text-content-secondary">Healthy</p>
@@ -348,7 +363,9 @@ function ToolsTab() {
       {servers.length === 0 ? (
         <div className="card p-8 text-center">
           <Server className="w-10 h-10 text-content-muted mx-auto mb-3" />
-          <p className="text-content-secondary text-sm">No MCP servers found.</p>
+          <p className="text-content-secondary text-sm">
+            No MCP servers found.
+          </p>
         </div>
       ) : (
         <div className="grid grid-cols-2 gap-4">
@@ -358,9 +375,14 @@ function ToolsTab() {
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
                   <span
-                    className={clsx('w-2.5 h-2.5 rounded-full', getStatusDotColor(server.status))}
+                    className={clsx(
+                      'w-2.5 h-2.5 rounded-full',
+                      getStatusDotColor(server.status),
+                    )}
                   />
-                  <h4 className="text-content-primary font-medium">{server.serverId}</h4>
+                  <h4 className="text-content-primary font-medium">
+                    {server.serverId}
+                  </h4>
                 </div>
                 {server.protocolVersion && (
                   <span className="text-xs text-content-muted font-mono">
@@ -411,8 +433,13 @@ function ToolsTab() {
                     </thead>
                     <tbody>
                       {server.tools.map((tool) => (
-                        <tr key={tool.toolId} className="border-t border-border/50">
-                          <td className="py-1.5 text-content-primary">{tool.name}</td>
+                        <tr
+                          key={tool.toolId}
+                          className="border-t border-border/50"
+                        >
+                          <td className="py-1.5 text-content-primary">
+                            {tool.name}
+                          </td>
                           <td className="py-1.5 text-right text-content-secondary">
                             {tool.callCount.toLocaleString()}
                           </td>
@@ -463,35 +490,11 @@ function TabContent({ tab, agentId }: { tab: string; agentId: string }) {
   }
 
   if (tab === 'versions') {
-    return (
-      <div className="bg-surface-card border border-border rounded-xl p-8 text-center">
-        <Bot className="w-10 h-10 text-content-muted mx-auto mb-3" />
-        <h3 className="text-content-primary font-medium mb-2">Versions</h3>
-        <p className="text-content-secondary text-sm max-w-md mx-auto">
-          Version history showing deployments, score changes, and configuration diffs across
-          environments.
-        </p>
-      </div>
-    )
+    return <VersionsTab agentId={agentId} />
   }
 
   if (tab === 'traces') {
-    return (
-      <div className="bg-surface-card border border-border rounded-xl p-8 text-center">
-        <Activity className="w-10 h-10 text-content-muted mx-auto mb-3" />
-        <h3 className="text-content-primary font-medium mb-2">Traces</h3>
-        <p className="text-content-secondary text-sm max-w-md mx-auto mb-4">
-          Execution traces filtered for this agent. View trace details, decision trees, and
-          multi-agent flows.
-        </p>
-        <Link
-          href="/traces"
-          className="text-sm text-primary-500 dark:text-primary-400 hover:text-primary-400 dark:hover:text-primary-300 transition-colors"
-        >
-          View All Traces &rarr;
-        </Link>
-      </div>
-    )
+    return <AgentTracesTab agentId={agentId} />
   }
 
   return null
@@ -508,8 +511,62 @@ export default function AgentDetailPage({
 }) {
   const { id } = use(params)
   const [activeTab, setActiveTab] = useState('overview')
+  const [editModalOpen, setEditModalOpen] = useState(false)
 
-  const agent = { ...mockAgent, id, name: id.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()) }
+  const agentQuery = trpc.agents.get.useQuery({ id })
+  const agentData = agentQuery.data
+  const isLoading = agentQuery.isLoading
+  const isError = agentQuery.isError
+
+  // Not found state
+  if (!isLoading && !agentData && !isError) {
+    return (
+      <div className="p-8 space-y-6">
+        <Link
+          href="/agents"
+          className="inline-flex items-center gap-1.5 text-sm text-content-muted hover:text-content-primary transition-colors"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Back to Registry
+        </Link>
+        <div className="bg-surface-card border border-border rounded-xl p-12 text-center">
+          <Bot className="w-12 h-12 text-content-muted mx-auto mb-4" />
+          <h2 className="text-xl font-semibold text-content-primary mb-2">
+            Agent Not Found
+          </h2>
+          <p className="text-content-secondary text-sm">
+            No agent with ID &quot;{id}&quot; was found in this workspace.
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  // Build header data from tRPC response or fallback
+  const agent: AgentHeaderData = agentData
+    ? {
+        id: agentData.id,
+        name: agentData.name,
+        version: agentData.version,
+        environments: agentData.environments,
+        health: agentData.health as AgentHeaderData['health'],
+        totalTraces: agentData.traceCount,
+        avgScore:
+          agentData.errorRate != null ? (100 - agentData.errorRate) / 100 : 0,
+        errorRate: agentData.errorRate,
+        p50Latency: agentData.p50Latency,
+      }
+    : {
+        id,
+        name: id.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
+        version: '—',
+        environments: [],
+        health: 'healthy' as const,
+        totalTraces: 0,
+        avgScore: 0,
+        errorRate: 0,
+        p50Latency: 0,
+      }
 
   return (
     <div className="p-8 space-y-6">
@@ -523,7 +580,30 @@ export default function AgentDetailPage({
       </Link>
 
       {/* Agent Header */}
-      <AgentHeader agent={agent} />
+      <AgentHeader agent={agent} onEdit={() => setEditModalOpen(true)} />
+
+      {/* Quick Stats */}
+      <AgentQuickStats
+        traceCount={agentData?.traceCount}
+        avgScore={agentData ? 100 - agentData.errorRate : undefined}
+        errorRate={agentData?.errorRate}
+        p50Latency={agentData?.p50Latency}
+        isLoading={isLoading}
+      />
+
+      {/* Context Row */}
+      {agentData && (
+        <AgentContextRow
+          agentId={agentData.id}
+          environments={agentData.environments}
+          model={
+            (agentData.metadata as Record<string, unknown> | undefined)
+              ?.model as string | undefined
+          }
+          team={agentData.team ?? undefined}
+          tags={agentData.tags}
+        />
+      )}
 
       {/* Tabs */}
       <div className="border-b border-border">
@@ -548,6 +628,30 @@ export default function AgentDetailPage({
 
       {/* Tab Content */}
       <TabContent tab={activeTab} agentId={id} />
+
+      {/* Edit Modal */}
+      <RegisterAgentModal
+        open={editModalOpen}
+        onClose={() => setEditModalOpen(false)}
+        mode="edit"
+        agentData={
+          agentData
+            ? {
+                id: agentData.id,
+                name: agentData.name,
+                description: agentData.description ?? undefined,
+                team: agentData.team ?? undefined,
+                environments: agentData.environments,
+                tags: agentData.tags,
+                associatedSuites: agentData.associatedSuites,
+                mcpServers: agentData.mcpServers,
+                metadata: agentData.metadata as
+                  | Record<string, unknown>
+                  | undefined,
+              }
+            : undefined
+        }
+      />
     </div>
   )
 }
