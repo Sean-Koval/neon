@@ -1,0 +1,112 @@
+# Claude Review Gate
+# AI-powered code review that checks completeness, quality, security,
+# best practices, and over-engineering on every PR.
+#
+# Triggers:
+#   - Automatically on PR open/sync (required check)
+#   - Manually via @claude mention in PR comments
+#   - Manually via workflow_dispatch
+
+name: Claude Review Gate
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+  issue_comment:
+    types: [created]
+  workflow_dispatch:
+    inputs:
+      severity:
+        description: 'Minimum severity to report'
+        required: false
+        default: 'high'
+        type: choice
+        options:
+          - critical
+          - high
+          - medium
+          - low
+      fix:
+        description: 'Auto-fix issues'
+        required: false
+        default: false
+        type: boolean
+
+# Permissions needed for PR comments and code suggestions
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  # ──────────────────────────────────────────────────────────────────
+  # Job 1: Automated review on PR open/sync
+  # ──────────────────────────────────────────────────────────────────
+  review-gate:
+    name: Review Gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: >
+      github.event_name == 'pull_request' ||
+      github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for accurate diff
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.2.0"
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Claude Review Gate
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            /review-gate --base origin/main --format json --severity ${{ inputs.severity || 'high' }}
+          claude_args: >
+            --max-turns 15
+            --model claude-sonnet-4-5-20250929
+            --append-system-prompt "You are reviewing a PR. Output findings as a structured review.
+            Post a PR comment with the review summary. Use the exact format from the review-gate skill.
+            If there are critical findings, clearly state BLOCKED at the top."
+
+  # ──────────────────────────────────────────────────────────────────
+  # Job 2: Interactive review via @claude mention
+  # ──────────────────────────────────────────────────────────────────
+  interactive-review:
+    name: Interactive Review
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: >
+      github.event_name == 'issue_comment' &&
+      contains(github.event.comment.body, '@claude') &&
+      contains(github.event.comment.body, 'review')
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.2.0"
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Claude Interactive Review
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          trigger_phrase: "@claude"
+          claude_args: >
+            --max-turns 20
+            --model claude-sonnet-4-5-20250929
