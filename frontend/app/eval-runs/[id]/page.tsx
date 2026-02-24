@@ -593,7 +593,7 @@ export default function EvalRunDetailPage() {
       {/* Results Summary Stat Cards */}
       {(isComplete || (isFailed && totalCases > 0)) && (
         <div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
             <div className="bg-white dark:bg-dark-800 border border-gray-200 dark:border-dark-700 rounded-xl p-4">
               <p className="text-[11px] uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-1">
                 Pass Rate
@@ -631,21 +631,39 @@ export default function EvalRunDetailPage() {
             </div>
             <div className="bg-white dark:bg-dark-800 border border-gray-200 dark:border-dark-700 rounded-xl p-4">
               <p className="text-[11px] uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-1">
-                Avg Latency
-              </p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-                {results.length > 0 &&
-                results.some((r) => r.result.executionTimeMs)
-                  ? `${(results.reduce((sum, r) => sum + (r.result.executionTimeMs || 0), 0) / results.length / 1000).toFixed(1)}s`
-                  : '--'}
-              </p>
-            </div>
-            <div className="bg-white dark:bg-dark-800 border border-gray-200 dark:border-dark-700 rounded-xl p-4">
-              <p className="text-[11px] uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-1">
                 Total Cases
               </p>
               <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
                 {totalCases}
+              </p>
+            </div>
+            <div className="bg-white dark:bg-dark-800 border border-gray-200 dark:border-dark-700 rounded-xl p-4">
+              <p className="text-[11px] uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-1">
+                Duration
+              </p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+                {duration || '--'}
+              </p>
+            </div>
+            <div className="bg-white dark:bg-dark-800 border border-gray-200 dark:border-dark-700 rounded-xl p-4">
+              <p className="text-[11px] uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-1">
+                Error Rate
+              </p>
+              <p
+                className={`text-2xl font-bold ${
+                  failedCount === 0
+                    ? 'text-emerald-600 dark:text-emerald-400'
+                    : failedCount / totalCases <= 0.1
+                      ? 'text-amber-600 dark:text-amber-400'
+                      : 'text-rose-600 dark:text-rose-400'
+                }`}
+              >
+                {totalCases > 0
+                  ? `${Math.round((failedCount / totalCases) * 100)}%`
+                  : '0%'}
+              </p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                {failedCount}/{totalCases} error
               </p>
             </div>
           </div>
