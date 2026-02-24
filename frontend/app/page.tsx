@@ -14,6 +14,7 @@ import {
 import Link from 'next/link'
 import { useState } from 'react'
 import { LazyScoreTrends } from '@/components/dashboard/lazy-components'
+import { useAgentHealth } from '@/hooks/use-agent-health'
 import { useAlerts } from '@/hooks/use-alerts'
 import { useDashboard } from '@/hooks/use-dashboard'
 import { CONFIG } from '@/lib/config'
@@ -53,14 +54,12 @@ export default function CommandCenter() {
     useDashboard()
   const { data: alertsData, error: alertsError } = useAlerts()
   const alerts = alertsError ? [] : (alertsData?.alerts ?? [])
-  const { data: agentsData, isLoading: isLoadingAgents } =
-    trpc.agents.list.useQuery()
+  const { agents, isLoading: isLoadingAgents } = useAgentHealth()
   const [environment, setEnvironment] = useState<Environment>('production')
 
-  const agents = agentsData ?? []
-  const healthyCount = agents.filter((a) => a.health === 'healthy').length
+  const healthyCount = agents.filter((a) => a.status === 'healthy').length
   const failingCount = agents.filter(
-    (a) => a.health === 'failing' || a.health === 'degraded',
+    (a) => a.status === 'failing' || a.status === 'degraded',
   ).length
 
   return (
@@ -279,15 +278,17 @@ export default function CommandCenter() {
               <th className="text-left px-5 py-3 font-medium">Agent</th>
               <th className="text-left px-5 py-3 font-medium">Version</th>
               <th className="text-left px-5 py-3 font-medium">Status</th>
+              <th className="text-right px-5 py-3 font-medium">Pass Rate</th>
               <th className="text-right px-5 py-3 font-medium">Error Rate</th>
               <th className="text-right px-5 py-3 font-medium">Latency</th>
+              <th className="text-right px-5 py-3 font-medium">Cost</th>
               <th className="text-right px-5 py-3 font-medium">Traces</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
             {isLoadingAgents ? (
               <tr>
-                <td colSpan={6} className="px-5 py-8 text-center">
+                <td colSpan={8} className="px-5 py-8 text-center">
                   <p className="text-sm text-content-muted animate-pulse">
                     Loading agents...
                   </p>
@@ -295,7 +296,7 @@ export default function CommandCenter() {
               </tr>
             ) : agents.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-5 py-8 text-center">
+                <td colSpan={8} className="px-5 py-8 text-center">
                   <p className="text-sm text-content-muted">
                     No agents discovered yet. Agents appear when they send
                     traces.
@@ -323,15 +324,32 @@ export default function CommandCenter() {
                     <span className="inline-flex items-center gap-1.5 text-sm text-content-secondary">
                       <span
                         className={
-                          STATUS_DOTS[agent.health] ?? 'text-content-muted'
+                          STATUS_DOTS[agent.status] ?? 'text-content-muted'
                         }
                       >
                         ●
                       </span>
                       <span className="capitalize font-medium">
-                        {agent.health}
+                        {agent.status}
                       </span>
                     </span>
+                  </td>
+                  <td className="px-5 py-3 text-sm text-right font-medium">
+                    {agent.passRate !== null ? (
+                      <span
+                        className={
+                          agent.passRate >= 0.9
+                            ? 'text-emerald-600 dark:text-emerald-400'
+                            : agent.passRate >= 0.7
+                              ? 'text-amber-600 dark:text-amber-400'
+                              : 'text-rose-600 dark:text-rose-400'
+                        }
+                      >
+                        {(agent.passRate * 100).toFixed(1)}%
+                      </span>
+                    ) : (
+                      <span className="text-content-muted">--</span>
+                    )}
                   </td>
                   <td className="px-5 py-3 text-sm text-right font-medium">
                     <span
@@ -346,8 +364,21 @@ export default function CommandCenter() {
                       {agent.errorRate.toFixed(1)}%
                     </span>
                   </td>
+                  <td className="px-5 py-3 text-sm text-right font-medium">
+                    <span
+                      className={
+                        agent.latencyP50 < 500
+                          ? 'text-emerald-600 dark:text-emerald-400'
+                          : agent.latencyP50 < 2000
+                            ? 'text-amber-600 dark:text-amber-400'
+                            : 'text-rose-600 dark:text-rose-400'
+                      }
+                    >
+                      {formatDuration(agent.latencyP50)}
+                    </span>
+                  </td>
                   <td className="px-5 py-3 text-sm text-content-secondary text-right">
-                    {formatDuration(agent.p50Latency)}
+                    ${agent.costPerCall.toFixed(2)}
                   </td>
                   <td className="px-5 py-3 text-sm text-content-secondary text-right">
                     {agent.traceCount.toLocaleString()}

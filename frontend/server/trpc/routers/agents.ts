@@ -21,22 +21,24 @@ export const agentsRouter = router({
     .query(async ({ ctx, input }) => {
       const projectId = ctx.projectId
 
-      // Auto-discover agents from ClickHouse traces
+      // Auto-discover agents from ClickHouse traces with scores join
       const ch = getClickHouseClient()
       const result = await ch.query({
         query: `
           SELECT
-            agent_id,
-            agent_version,
+            t.agent_id,
+            t.agent_version,
             count() as trace_count,
-            countIf(status = 'error') as error_count,
-            avg(duration_ms) as avg_duration,
-            quantile(0.5)(duration_ms) as p50_latency
-          FROM neon.traces
-          WHERE project_id = {projectId:String}
-            AND agent_id IS NOT NULL
-            AND agent_id != ''
-          GROUP BY agent_id, agent_version
+            countIf(t.status = 'error') as error_count,
+            avg(t.duration_ms) as avg_duration,
+            quantile(0.5)(t.duration_ms) as p50_latency,
+            avg(t.total_cost) as avg_cost,
+            max(t.timestamp) as last_seen
+          FROM neon.traces t
+          WHERE t.project_id = {projectId:String}
+            AND t.agent_id IS NOT NULL
+            AND t.agent_id != ''
+          GROUP BY t.agent_id, t.agent_version
           ORDER BY trace_count DESC
         `,
         query_params: { projectId },
@@ -50,28 +52,81 @@ export const agentsRouter = router({
         error_count: string
         avg_duration: string
         p50_latency: string
+        avg_cost: string
+        last_seen: string
       }>()
+
+      // Get pass rates from scores table per agent
+      const scoreResult = await ch.query({
+        query: `
+          SELECT
+            t.agent_id,
+            t.agent_version,
+            countIf(s.value >= 0.7) as pass_count,
+            count() as total_scores
+          FROM neon.scores s
+          JOIN neon.traces t ON s.project_id = t.project_id AND s.trace_id = t.trace_id
+          WHERE t.project_id = {projectId:String}
+            AND t.agent_id IS NOT NULL
+            AND t.agent_id != ''
+          GROUP BY t.agent_id, t.agent_version
+        `,
+        query_params: { projectId },
+        format: 'JSONEachRow',
+      })
+
+      const scoreRows = await scoreResult.json<{
+        agent_id: string
+        agent_version: string
+        pass_count: string
+        total_scores: string
+      }>()
+
+      const scoreMap = new Map(
+        scoreRows.map((r) => [
+          `${r.agent_id}::${r.agent_version}`,
+          { passCount: Number(r.pass_count), totalScores: Number(r.total_scores) },
+        ]),
+      )
 
       // Get PostgreSQL enrichment data
       const pgAgents = await db.select().from(agents)
 
       const pgMap = new Map(pgAgents.map((a) => [a.id, a]))
 
-      return chAgents.map((ch) => {
-        const enrichment = pgMap.get(ch.agent_id)
-        const traceCount = Number(ch.trace_count)
-        const errorCount = Number(ch.error_count)
+      return chAgents.map((row) => {
+        const enrichment = pgMap.get(row.agent_id)
+        const traceCount = Number(row.trace_count)
+        const errorCount = Number(row.error_count)
+        const scoreKey = `${row.agent_id}::${row.agent_version}`
+        const scores = scoreMap.get(scoreKey)
+        const passRate = scores && scores.totalScores > 0
+          ? scores.passCount / scores.totalScores
+          : null
+        const costPerCall = Number(row.avg_cost) || 0
+
+        // Determine health: prefer pass rate when available, fall back to error rate
+        let health: 'healthy' | 'degraded' | 'failing'
+        if (passRate !== null) {
+          health = passRate >= 0.9 ? 'healthy' : passRate >= 0.7 ? 'degraded' : 'failing'
+        } else {
+          const errorRatio = traceCount > 0 ? errorCount / traceCount : 0
+          health = errorRatio > 0.1 ? 'failing' : errorRatio > 0.05 ? 'degraded' : 'healthy'
+        }
 
         return {
-          id: ch.agent_id,
-          name: enrichment?.displayName || ch.agent_id,
-          version: ch.agent_version || 'unknown',
+          id: row.agent_id,
+          name: enrichment?.displayName || row.agent_id,
+          version: row.agent_version || 'unknown',
           environments: enrichment?.environments || [],
-          health: errorCount / traceCount > 0.1 ? 'failing' : errorCount / traceCount > 0.05 ? 'degraded' : 'healthy' as const,
+          health,
           traceCount,
           errorRate: traceCount > 0 ? (errorCount / traceCount) * 100 : 0,
-          avgDuration: Number(ch.avg_duration),
-          p50Latency: Number(ch.p50_latency),
+          avgDuration: Number(row.avg_duration),
+          p50Latency: Number(row.p50_latency),
+          passRate,
+          costPerCall,
+          lastSeen: row.last_seen,
           description: enrichment?.description,
           team: enrichment?.team,
           tags: enrichment?.tags || [],
