@@ -148,8 +148,8 @@ function SummaryStats({ runs }: { runs: WorkflowStatusResponse[] }) {
       avgPassRate = passRates.reduce((a, b) => a + b, 0) / passRates.length
     }
 
-    // Cost would come from enriched data; placeholder
-    totalCost = completed.length * 0.42 // placeholder
+    // TODO: needs backend endpoint — aggregate cost from ClickHouse traces
+    totalCost = 0
 
     return { total: runs.length, running, avgPassRate, totalCost }
   }, [runs])
@@ -182,7 +182,9 @@ function SummaryStats({ runs }: { runs: WorkflowStatusResponse[] }) {
             {stats.avgPassRate.toFixed(1)}% avg pass rate
           </span>
         )}
-        <span>${stats.totalCost.toFixed(2)} total cost</span>
+        {stats.totalCost > 0 && (
+          <span>${stats.totalCost.toFixed(2)} total cost</span>
+        )}
       </div>
     </div>
   )

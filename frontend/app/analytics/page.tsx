@@ -6,7 +6,6 @@
  * Shows usage analytics, cost tracking, and performance metrics.
  */
 
-import { useQuery } from '@tanstack/react-query'
 import { Calendar, DollarSign, Hash, TrendingUp, Zap } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import {
@@ -23,8 +22,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
-
-const _MOOSE_API_URL = process.env.NEXT_PUBLIC_API_URL || ''
+import { trpc } from '@/lib/trpc'
 
 /**
  * Date range options
@@ -65,46 +63,49 @@ export default function AnalyticsPage() {
     return date.toISOString().split('T')[0]
   }, [dateRange])
 
-  // Fetch analytics data
-  const { data: summary } = useQuery({
-    queryKey: ['analytics', 'summary', startDate, endDate],
-    queryFn: async () => {
-      // Mock data for now
-      return {
-        total_traces: 1234,
-        total_errors: 45,
-        error_rate: 3.6,
-        total_tokens: 2500000,
-        total_cost_usd: 127.5,
-        total_scores: 890,
-        avg_score: 0.82,
-        top_models: [
-          { model: 'claude-3-5-sonnet', calls: 800, cost: 85.0 },
-          { model: 'claude-3-haiku', calls: 350, cost: 12.5 },
-          { model: 'gpt-4o', calls: 84, cost: 30.0 },
-        ],
-      }
-    },
-  })
+  // Fetch analytics summary from tRPC
+  const { data: summaryData } = trpc.analytics.summary.useQuery(
+    { startDate: startDate ?? '', endDate: endDate ?? '' },
+    { staleTime: 60 * 1000 },
+  )
 
-  const { data: dailyStats } = useQuery({
-    queryKey: ['analytics', 'daily', startDate, endDate],
-    queryFn: async () => {
-      // Mock data
-      const data = []
-      for (let i = dateRange - 1; i >= 0; i--) {
-        const date = new Date()
-        date.setDate(date.getDate() - i)
-        data.push({
-          date: date.toISOString().split('T')[0],
-          traces: Math.floor(Math.random() * 200 + 100),
-          tokens: Math.floor(Math.random() * 500000 + 200000),
-          cost: Math.random() * 20 + 10,
-        })
-      }
-      return data
-    },
-  })
+  // Fetch daily stats from tRPC
+  const { data: dailyStatsData } = trpc.analytics.dailyStats.useQuery(
+    { startDate: startDate ?? '', endDate: endDate ?? '' },
+    { staleTime: 60 * 1000 },
+  )
+
+  // Fetch model/cost breakdown from tRPC
+  const { data: costData } = trpc.analytics.costBreakdown.useQuery(
+    { startDate: startDate ?? '', endDate: endDate ?? '' },
+    { staleTime: 60 * 1000 },
+  )
+
+  // Normalize API responses into the shapes the UI expects
+  const summary = useMemo(() => {
+    if (!summaryData) return undefined
+    return {
+      total_traces: summaryData.total_traces ?? 0,
+      total_errors: summaryData.total_errors ?? 0,
+      error_rate: summaryData.error_rate ?? 0,
+      total_tokens: summaryData.total_tokens ?? 0,
+      total_cost_usd: summaryData.total_cost_usd ?? 0,
+      total_scores: summaryData.total_scores ?? 0,
+      avg_score: summaryData.avg_score ?? 0,
+      top_models: (costData?.models ?? summaryData.top_models ?? []) as Array<{
+        model: string
+        calls: number
+        cost: number
+      }>,
+    }
+  }, [summaryData, costData])
+
+  const dailyStats = useMemo(() => {
+    if (!dailyStatsData) return undefined
+    if (Array.isArray(dailyStatsData)) return dailyStatsData
+    if (dailyStatsData.stats) return dailyStatsData.stats
+    return undefined
+  }, [dailyStatsData])
 
   const COLORS = ['#8884d8', '#82ca9d', '#ffc658', '#ff7300']
 
@@ -259,9 +260,9 @@ export default function AnalyticsPage() {
                     `${model.split('-').pop()} (${(percent * 100).toFixed(0)}%)`
                   }
                 >
-                  {summary?.top_models.map((_entry, index) => (
+                  {summary?.top_models.map((entry, index) => (
                     <Cell
-                      key={`cell-${index}`}
+                      key={entry.model}
                       fill={COLORS[index % COLORS.length]}
                     />
                   ))}

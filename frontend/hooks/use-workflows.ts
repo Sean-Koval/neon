@@ -6,7 +6,8 @@
  * React hooks for Temporal workflow management.
  */
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { trpc } from '@/lib/trpc'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || ''
 
@@ -43,91 +44,74 @@ export interface WorkflowProgress {
 }
 
 /**
- * Hook for listing workflows
+ * Hook for listing workflows via tRPC router
  */
 export function useWorkflows(options?: {
   status?: WorkflowStatus
   type?: string
   limit?: number
 }) {
-  return useQuery({
-    queryKey: ['workflows', options],
-    queryFn: async () => {
-      // This would fetch from the Temporal API via our backend
-      // For now, return mock data
-      const workflows: WorkflowSummary[] = [
-        {
-          workflowId: 'agent-demo-1',
-          runId: 'run-123',
-          status: 'RUNNING',
-          startTime: new Date(Date.now() - 60000).toISOString(),
-          closeTime: null,
-          type: 'agentRunWorkflow',
-        },
-        {
-          workflowId: 'eval-test-1',
-          runId: 'run-456',
-          status: 'COMPLETED',
-          startTime: new Date(Date.now() - 3600000).toISOString(),
-          closeTime: new Date(Date.now() - 3500000).toISOString(),
-          type: 'evalRunWorkflow',
-        },
-      ]
-
-      // Filter by status if provided
-      if (options?.status) {
-        return workflows.filter((w) => w.status === options.status)
-      }
-
-      return workflows
+  return trpc.workflows.list.useQuery(
+    {
+      status: options?.status as
+        | 'RUNNING'
+        | 'COMPLETED'
+        | 'FAILED'
+        | 'CANCELLED'
+        | undefined,
+      type: options?.type,
+      limit: options?.limit ?? 50,
     },
-    staleTime: 5000, // 5 seconds
-    refetchInterval: 10000, // Poll every 10 seconds
-  })
+    {
+      staleTime: 5000,
+      refetchInterval: 10000,
+      select: (data: unknown) => {
+        const items = Array.isArray(data)
+          ? data
+          : ((data as { workflows?: WorkflowSummary[] })?.workflows ?? [])
+        return items as WorkflowSummary[]
+      },
+    },
+  )
 }
 
 /**
- * Hook for getting a single workflow
+ * Hook for getting a single workflow via tRPC router
  */
 export function useWorkflow(workflowId: string) {
-  return useQuery({
-    queryKey: ['workflow', workflowId],
-    queryFn: async () => {
-      // This would fetch from Temporal
-      return {
-        workflowId,
-        runId: 'run-123',
-        status: 'RUNNING' as WorkflowStatus,
-        startTime: new Date().toISOString(),
-        closeTime: null,
-        type: 'agentRunWorkflow',
-        memo: {},
-      }
+  return trpc.workflows.get.useQuery(
+    { workflowId },
+    {
+      enabled: !!workflowId,
+      staleTime: 5000,
+      refetchInterval: 5000,
     },
-    enabled: !!workflowId,
-    staleTime: 5000,
-    refetchInterval: 5000,
-  })
+  )
 }
 
 /**
- * Hook for getting workflow progress
+ * Hook for getting workflow progress via tRPC router
  */
 export function useWorkflowProgress(workflowId: string) {
-  return useQuery({
-    queryKey: ['workflow', workflowId, 'progress'],
-    queryFn: async (): Promise<WorkflowProgress> => {
-      // This would query the workflow
-      return {
-        iteration: 3,
-        maxIterations: 10,
-        status: 'running',
-      }
+  return trpc.workflows.progress.useQuery(
+    { workflowId },
+    {
+      enabled: !!workflowId,
+      staleTime: 2000,
+      refetchInterval: 3000,
+      select: (data: unknown): WorkflowProgress => {
+        if (data && typeof data === 'object') {
+          const d = data as Record<string, unknown>
+          return {
+            iteration: (d.iteration as number) ?? 0,
+            maxIterations: (d.maxIterations as number) ?? 0,
+            status: (d.status as string) ?? 'unknown',
+          }
+        }
+        return { iteration: 0, maxIterations: 0, status: 'unknown' }
+      },
     },
-    enabled: !!workflowId,
-    staleTime: 2000,
-    refetchInterval: 3000,
-  })
+  )
 }
 
 /**

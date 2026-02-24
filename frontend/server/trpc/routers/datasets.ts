@@ -141,7 +141,7 @@ function seedDatasets() {
           source,
           input: `What is the ${["refund policy", "checkout flow", "cancellation process", "billing cycle", "upgrade path"][i % 5]} for ${ds.agentId.replace("-agent", "")} users?`,
           output: `Here's the information about the ${["refund policy", "checkout flow", "cancellation process", "billing cycle", "upgrade path"][i % 5]}: This is a sample response demonstrating the ${ds.format.toUpperCase()} format output.`,
-          score: 0.85 + Math.random() * 0.15,
+          score: 0.85 + (i % 10) * 0.015,
           metadata: { agentId: ds.agentId, format: ds.format },
         });
       }
@@ -238,10 +238,11 @@ export const datasetsRouter = router({
           status: "building",
           trainCount: 0,
           testCount: 0,
+          // TODO: needs backend endpoint — count from ClickHouse source tables
           sourceBreakdown: {
-            corrections: input.sources.corrections ? Math.floor(Math.random() * 500) + 100 : 0,
-            preferences: input.sources.preferences ? Math.floor(Math.random() * 300) + 50 : 0,
-            traces: input.sources.traces ? Math.floor(Math.random() * 200) + 20 : 0,
+            corrections: input.sources.corrections ? 0 : 0,
+            preferences: input.sources.preferences ? 0 : 0,
+            traces: input.sources.traces ? 0 : 0,
           },
           scoreThreshold: input.scoreThreshold,
           trainTestRatio: input.trainTestRatio,
