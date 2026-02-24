@@ -11,11 +11,13 @@ import {
   FlaskConical,
   Lightbulb,
   RefreshCw,
+  Rocket,
   Zap,
 } from 'lucide-react'
 import Link from 'next/link'
 import { useState } from 'react'
 import { LazyScoreTrends } from '@/components/dashboard/lazy-components'
+import { useActivityFeed } from '@/hooks/use-activity-feed'
 import { useAgentHealth } from '@/hooks/use-agent-health'
 import { useAlerts } from '@/hooks/use-alerts'
 import { useDashboard } from '@/hooks/use-dashboard'
@@ -23,6 +25,7 @@ import { type RunningWorkItem, useRunningWork } from '@/hooks/use-running-work'
 import { CONFIG } from '@/lib/config'
 import { safeFormatDistance } from '@/lib/format-date'
 import { trpc } from '@/lib/trpc'
+import type { ActivityEvent } from '@/types/activity'
 
 // =============================================================================
 // Running Work Helpers
@@ -54,6 +57,16 @@ const RUN_STATUS_ICON = {
   running: { icon: Zap, color: 'text-accent-500' },
 } as const
 
+const ACTIVITY_ICON: Record<
+  ActivityEvent['type'],
+  { icon: typeof CheckCircle; color: string }
+> = {
+  'eval-complete': { icon: CheckCircle, color: 'text-emerald-500' },
+  deploy: { icon: Rocket, color: 'text-primary-500' },
+  optimization: { icon: Zap, color: 'text-accent-500' },
+  alert: { icon: AlertTriangle, color: 'text-amber-500' },
+}
+
 function formatDuration(ms: number): string {
   if (ms < 1000) return `${Math.round(ms)}ms`
   return `${(ms / 1000).toFixed(1)}s`
@@ -66,9 +79,10 @@ function formatDuration(ms: number): string {
 type Environment = 'production' | 'staging'
 
 export default function CommandCenter() {
-  const { stats, recentRuns, isLoadingRuns, isLoadingStats, refresh } =
-    useDashboard()
+  const { stats, isLoadingStats, refresh } = useDashboard()
   const { data: alertsData, error: alertsError } = useAlerts()
+  const { data: activityData, isLoading: isLoadingActivity } =
+    useActivityFeed()
   const alerts = alertsError ? [] : (alertsData?.alerts ?? [])
   const { agents, isLoading: isLoadingAgents } = useAgentHealth()
   const { items: runningItems, isLoading: isLoadingRunning } = useRunningWork()
@@ -487,12 +501,12 @@ export default function CommandCenter() {
         </div>
       </div>
 
-      {/* 6. Recent Activity (from real eval runs) */}
+      {/* 6. Recent Activity (merged from eval runs, deploys, etc.) */}
       <div className="card p-5">
         <h2 className="text-sm font-semibold text-content-primary mb-4">
           Recent Activity
         </h2>
-        {isLoadingRuns ? (
+        {isLoadingActivity ? (
           <div className="space-y-2">
             {Array.from({ length: 4 }).map((_, i) => (
               <div
@@ -505,45 +519,42 @@ export default function CommandCenter() {
               </div>
             ))}
           </div>
-        ) : recentRuns.length === 0 ? (
+        ) : !activityData?.events?.length ? (
           <p className="text-sm text-content-muted py-6 text-center">
-            No recent eval runs. Activity will appear here when evaluation runs
-            are executed.
+            No recent activity. Events will appear here when eval runs complete,
+            prompts are deployed, or alerts fire.
           </p>
         ) : (
           <div className="space-y-2">
-            {recentRuns.slice(0, 6).map((run) => {
-              const statusKey =
-                run.status === 'completed'
-                  ? 'completed'
-                  : run.status === 'failed'
-                    ? 'failed'
-                    : 'running'
-              const cfg = RUN_STATUS_ICON[statusKey]
+            {activityData.events.map((event) => {
+              const cfg = ACTIVITY_ICON[event.type]
               const Icon = cfg.icon
               return (
-                <div
-                  key={run.id}
-                  className="flex items-center gap-3 rounded-lg border border-border bg-surface-raised px-3 py-2.5"
+                <Link
+                  key={event.id}
+                  href={event.href}
+                  className="flex items-center gap-3 rounded-lg border border-border bg-surface-raised px-3 py-2.5 hover:bg-surface-overlay transition-colors"
                 >
                   <Icon className={`w-4 h-4 flex-shrink-0 ${cfg.color}`} />
                   <p className="text-sm text-content-secondary flex-1 min-w-0 truncate">
-                    <span className="font-medium">{run.suite_name}</span>
-                    {' — '}
-                    {run.status === 'completed'
-                      ? `${run.summary?.passed ?? 0}/${run.summary?.total_cases ?? 0} passed`
-                      : run.status === 'failed'
-                        ? 'run failed'
-                        : 'in progress'}
+                    {event.description}
                   </p>
                   <span className="text-xs text-content-muted flex-shrink-0">
-                    {safeFormatDistance(run.created_at)}
+                    {safeFormatDistance(event.timestamp)}
                   </span>
-                </div>
+                </Link>
               )
             })}
           </div>
         )}
+        <div className="mt-4 pt-3 border-t border-border">
+          <Link
+            href="/traces"
+            className="text-sm font-medium text-primary-500 hover:text-accent-500 transition-colors"
+          >
+            View all activity →
+          </Link>
+        </div>
       </div>
     </div>
   )
