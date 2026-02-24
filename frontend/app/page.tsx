@@ -4,21 +4,40 @@ import {
   Activity,
   AlertCircle,
   AlertTriangle,
+  Brain,
   CheckCircle,
   ChevronDown,
   DollarSign,
+  FlaskConical,
   Lightbulb,
   RefreshCw,
+  Rocket,
   Zap,
 } from 'lucide-react'
 import Link from 'next/link'
 import { useState } from 'react'
 import { LazyScoreTrends } from '@/components/dashboard/lazy-components'
+import { useActivityFeed } from '@/hooks/use-activity-feed'
+import { useAgentHealth } from '@/hooks/use-agent-health'
 import { useAlerts } from '@/hooks/use-alerts'
 import { useDashboard } from '@/hooks/use-dashboard'
+import { type RunningWorkItem, useRunningWork } from '@/hooks/use-running-work'
 import { CONFIG } from '@/lib/config'
 import { safeFormatDistance } from '@/lib/format-date'
-import { trpc } from '@/lib/trpc'
+import type { ActivityEvent } from '@/types/activity'
+
+// =============================================================================
+// Running Work Helpers
+// =============================================================================
+
+const RUNNING_TYPE_ICON: Record<
+  RunningWorkItem['type'],
+  { icon: typeof Zap; label: string }
+> = {
+  eval: { icon: Zap, label: 'Eval Run' },
+  experiment: { icon: FlaskConical, label: 'Experiment' },
+  training: { icon: Brain, label: 'Training' },
+}
 
 // =============================================================================
 // Constants
@@ -31,11 +50,15 @@ const STATUS_DOTS: Record<string, string> = {
   staging: 'text-content-muted',
 }
 
-const RUN_STATUS_ICON = {
-  completed: { icon: CheckCircle, color: 'text-emerald-500' },
-  failed: { icon: AlertCircle, color: 'text-rose-500' },
-  running: { icon: Zap, color: 'text-accent-500' },
-} as const
+const ACTIVITY_ICON: Record<
+  ActivityEvent['type'],
+  { icon: typeof CheckCircle; color: string }
+> = {
+  'eval-complete': { icon: CheckCircle, color: 'text-emerald-500' },
+  deploy: { icon: Rocket, color: 'text-primary-500' },
+  optimization: { icon: Zap, color: 'text-accent-500' },
+  alert: { icon: AlertTriangle, color: 'text-amber-500' },
+}
 
 function formatDuration(ms: number): string {
   if (ms < 1000) return `${Math.round(ms)}ms`
@@ -49,18 +72,17 @@ function formatDuration(ms: number): string {
 type Environment = 'production' | 'staging'
 
 export default function CommandCenter() {
-  const { stats, recentRuns, isLoadingRuns, isLoadingStats, refresh } =
-    useDashboard()
+  const { stats, isLoadingStats, refresh } = useDashboard()
   const { data: alertsData, error: alertsError } = useAlerts()
+  const { data: activityData, isLoading: isLoadingActivity } = useActivityFeed()
   const alerts = alertsError ? [] : (alertsData?.alerts ?? [])
-  const { data: agentsData, isLoading: isLoadingAgents } =
-    trpc.agents.list.useQuery()
+  const { agents, isLoading: isLoadingAgents } = useAgentHealth()
+  const { items: runningItems, isLoading: isLoadingRunning } = useRunningWork()
   const [environment, setEnvironment] = useState<Environment>('production')
 
-  const agents = agentsData ?? []
-  const healthyCount = agents.filter((a) => a.health === 'healthy').length
+  const healthyCount = agents.filter((a) => a.status === 'healthy').length
   const failingCount = agents.filter(
-    (a) => a.health === 'failing' || a.health === 'degraded',
+    (a) => a.status === 'failing' || a.status === 'degraded',
   ).length
 
   return (
@@ -279,15 +301,17 @@ export default function CommandCenter() {
               <th className="text-left px-5 py-3 font-medium">Agent</th>
               <th className="text-left px-5 py-3 font-medium">Version</th>
               <th className="text-left px-5 py-3 font-medium">Status</th>
+              <th className="text-right px-5 py-3 font-medium">Pass Rate</th>
               <th className="text-right px-5 py-3 font-medium">Error Rate</th>
               <th className="text-right px-5 py-3 font-medium">Latency</th>
+              <th className="text-right px-5 py-3 font-medium">Cost</th>
               <th className="text-right px-5 py-3 font-medium">Traces</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
             {isLoadingAgents ? (
               <tr>
-                <td colSpan={6} className="px-5 py-8 text-center">
+                <td colSpan={8} className="px-5 py-8 text-center">
                   <p className="text-sm text-content-muted animate-pulse">
                     Loading agents...
                   </p>
@@ -295,7 +319,7 @@ export default function CommandCenter() {
               </tr>
             ) : agents.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-5 py-8 text-center">
+                <td colSpan={8} className="px-5 py-8 text-center">
                   <p className="text-sm text-content-muted">
                     No agents discovered yet. Agents appear when they send
                     traces.
@@ -323,15 +347,32 @@ export default function CommandCenter() {
                     <span className="inline-flex items-center gap-1.5 text-sm text-content-secondary">
                       <span
                         className={
-                          STATUS_DOTS[agent.health] ?? 'text-content-muted'
+                          STATUS_DOTS[agent.status] ?? 'text-content-muted'
                         }
                       >
                         ●
                       </span>
                       <span className="capitalize font-medium">
-                        {agent.health}
+                        {agent.status}
                       </span>
                     </span>
+                  </td>
+                  <td className="px-5 py-3 text-sm text-right font-medium">
+                    {agent.passRate !== null ? (
+                      <span
+                        className={
+                          agent.passRate >= 0.9
+                            ? 'text-emerald-600 dark:text-emerald-400'
+                            : agent.passRate >= 0.7
+                              ? 'text-amber-600 dark:text-amber-400'
+                              : 'text-rose-600 dark:text-rose-400'
+                        }
+                      >
+                        {(agent.passRate * 100).toFixed(1)}%
+                      </span>
+                    ) : (
+                      <span className="text-content-muted">--</span>
+                    )}
                   </td>
                   <td className="px-5 py-3 text-sm text-right font-medium">
                     <span
@@ -346,8 +387,21 @@ export default function CommandCenter() {
                       {agent.errorRate.toFixed(1)}%
                     </span>
                   </td>
+                  <td className="px-5 py-3 text-sm text-right font-medium">
+                    <span
+                      className={
+                        agent.latencyP50 < 500
+                          ? 'text-emerald-600 dark:text-emerald-400'
+                          : agent.latencyP50 < 2000
+                            ? 'text-amber-600 dark:text-amber-400'
+                            : 'text-rose-600 dark:text-rose-400'
+                      }
+                    >
+                      {formatDuration(agent.latencyP50)}
+                    </span>
+                  </td>
                   <td className="px-5 py-3 text-sm text-content-secondary text-right">
-                    {formatDuration(agent.p50Latency)}
+                    ${agent.costPerCall.toFixed(2)}
                   </td>
                   <td className="px-5 py-3 text-sm text-content-secondary text-right">
                     {agent.traceCount.toLocaleString()}
@@ -374,33 +428,81 @@ export default function CommandCenter() {
           <h2 className="text-sm font-semibold text-content-primary mb-4">
             Running
           </h2>
-          <div className="flex flex-col items-center justify-center py-8 text-center">
-            <div className="w-12 h-12 rounded-xl bg-surface-raised flex items-center justify-center mb-3">
-              <Zap className="w-6 h-6 text-content-muted" />
+          {isLoadingRunning ? (
+            <div className="space-y-3">
+              {['a', 'b', 'c'].map((id) => (
+                <div
+                  key={id}
+                  className="flex items-center gap-3 rounded-lg border border-border bg-surface-raised p-3 animate-pulse"
+                >
+                  <div className="w-4 h-4 bg-surface-card rounded-full flex-shrink-0" />
+                  <div className="flex-1 min-w-0 space-y-2">
+                    <div className="h-4 bg-surface-card rounded w-3/4" />
+                    <div className="h-1.5 bg-surface-card rounded-full w-full" />
+                  </div>
+                  <div className="w-16 h-3 bg-surface-card rounded flex-shrink-0" />
+                </div>
+              ))}
             </div>
-            <p className="text-sm font-medium text-content-secondary mb-1">
-              No active work
-            </p>
-            <p className="text-sm text-content-muted max-w-xs mb-4">
-              Start an evaluation run or experiment to see progress here.
-            </p>
-            <Link href="/eval-runs" className="btn btn-primary text-sm">
-              Go to Eval Runs
-            </Link>
-          </div>
+          ) : runningItems.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-8 text-center">
+              <div className="w-12 h-12 rounded-xl bg-surface-raised flex items-center justify-center mb-3">
+                <Zap className="w-6 h-6 text-content-muted" />
+              </div>
+              <p className="text-sm font-medium text-content-secondary mb-1">
+                No active work
+              </p>
+              <p className="text-sm text-content-muted max-w-xs mb-4">
+                Start an evaluation run or experiment to see progress here.
+              </p>
+              <Link href="/eval-runs" className="btn btn-primary text-sm">
+                Go to Eval Runs
+              </Link>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {runningItems.map((item) => {
+                const cfg = RUNNING_TYPE_ICON[item.type]
+                const TypeIcon = cfg.icon
+                return (
+                  <Link
+                    key={item.id}
+                    href={item.href}
+                    className="flex items-center gap-3 rounded-lg border border-border bg-surface-raised p-3 hover:bg-surface-overlay transition-colors"
+                  >
+                    <TypeIcon className="w-4 h-4 text-accent-500 flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-content-primary truncate">
+                        {item.name}
+                      </p>
+                      <div className="mt-1.5 h-1.5 rounded-full bg-surface-card overflow-hidden">
+                        <div
+                          className="h-full bg-primary-500 rounded-full transition-all"
+                          style={{ width: `${item.progress}%` }}
+                        />
+                      </div>
+                    </div>
+                    <span className="text-xs text-content-muted flex-shrink-0">
+                      {item.detail}
+                    </span>
+                  </Link>
+                )
+              })}
+            </div>
+          )}
         </div>
       </div>
 
-      {/* 6. Recent Activity (from real eval runs) */}
+      {/* 6. Recent Activity (merged from eval runs, deploys, etc.) */}
       <div className="card p-5">
         <h2 className="text-sm font-semibold text-content-primary mb-4">
           Recent Activity
         </h2>
-        {isLoadingRuns ? (
+        {isLoadingActivity ? (
           <div className="space-y-2">
-            {Array.from({ length: 4 }).map((_, i) => (
+            {['a', 'b', 'c', 'd'].map((id) => (
               <div
-                key={i}
+                key={id}
                 className="flex items-center gap-3 rounded-lg border border-border bg-surface-raised px-3 py-2.5 animate-pulse"
               >
                 <div className="w-4 h-4 bg-surface-card rounded-full" />
@@ -409,45 +511,42 @@ export default function CommandCenter() {
               </div>
             ))}
           </div>
-        ) : recentRuns.length === 0 ? (
+        ) : !activityData?.events?.length ? (
           <p className="text-sm text-content-muted py-6 text-center">
-            No recent eval runs. Activity will appear here when evaluation runs
-            are executed.
+            No recent activity. Events will appear here when eval runs complete,
+            prompts are deployed, or alerts fire.
           </p>
         ) : (
           <div className="space-y-2">
-            {recentRuns.slice(0, 6).map((run) => {
-              const statusKey =
-                run.status === 'completed'
-                  ? 'completed'
-                  : run.status === 'failed'
-                    ? 'failed'
-                    : 'running'
-              const cfg = RUN_STATUS_ICON[statusKey]
+            {activityData.events.map((event) => {
+              const cfg = ACTIVITY_ICON[event.type]
               const Icon = cfg.icon
               return (
-                <div
-                  key={run.id}
-                  className="flex items-center gap-3 rounded-lg border border-border bg-surface-raised px-3 py-2.5"
+                <Link
+                  key={event.id}
+                  href={event.href}
+                  className="flex items-center gap-3 rounded-lg border border-border bg-surface-raised px-3 py-2.5 hover:bg-surface-overlay transition-colors"
                 >
                   <Icon className={`w-4 h-4 flex-shrink-0 ${cfg.color}`} />
                   <p className="text-sm text-content-secondary flex-1 min-w-0 truncate">
-                    <span className="font-medium">{run.suite_name}</span>
-                    {' — '}
-                    {run.status === 'completed'
-                      ? `${run.summary?.passed ?? 0}/${run.summary?.total_cases ?? 0} passed`
-                      : run.status === 'failed'
-                        ? 'run failed'
-                        : 'in progress'}
+                    {event.description}
                   </p>
                   <span className="text-xs text-content-muted flex-shrink-0">
-                    {safeFormatDistance(run.created_at)}
+                    {safeFormatDistance(event.timestamp)}
                   </span>
-                </div>
+                </Link>
               )
             })}
           </div>
         )}
+        <div className="mt-4 pt-3 border-t border-border">
+          <Link
+            href="/traces"
+            className="text-sm font-medium text-primary-500 hover:text-accent-500 transition-colors"
+          >
+            View all activity →
+          </Link>
+        </div>
       </div>
     </div>
   )
