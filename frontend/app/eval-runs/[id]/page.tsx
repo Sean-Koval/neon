@@ -19,6 +19,7 @@
 
 import {
   ArrowLeft,
+  Bug,
   CheckCircle,
   ChevronDown,
   ChevronRight,
@@ -103,6 +104,7 @@ export default function EvalRunDetailPage() {
   const [resultFilter, setResultFilter] = useState<ResultFilter>('all')
   const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set())
   const [isExportOpen, setIsExportOpen] = useState(false)
+  const [showDebug, setShowDebug] = useState(false)
 
   // Fetch full run details
   const { data: run, isLoading, error, refetch } = useWorkflowRun(runId)
@@ -428,7 +430,7 @@ export default function EvalRunDetailPage() {
         <div>
           <div className="flex items-center gap-3 mb-1">
             <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-              {suiteName || `Run ${runId.slice(0, 8)}`}
+              {suiteName || 'Eval Run'}
             </h1>
             <StatusBadge status={currentStatus.status} />
           </div>
@@ -573,7 +575,12 @@ export default function EvalRunDetailPage() {
           <div className="flex items-center gap-3 mb-3">
             <XCircle className="w-6 h-6 text-red-500" />
             <h3 className="font-semibold text-red-800 dark:text-red-300">
-              Failed
+              {currentStatus.status === 'TIMED_OUT'
+                ? 'Timed Out'
+                : currentStatus.status === 'CANCELLED' ||
+                    currentStatus.status === 'TERMINATED'
+                  ? 'Cancelled'
+                  : 'Failed'}
             </h3>
           </div>
           {currentStatus.progress && (
@@ -593,7 +600,7 @@ export default function EvalRunDetailPage() {
       {/* Results Summary Stat Cards */}
       {(isComplete || (isFailed && totalCases > 0)) && (
         <div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
             <div className="bg-white dark:bg-dark-800 border border-gray-200 dark:border-dark-700 rounded-xl p-4">
               <p className="text-[11px] uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-1">
                 Pass Rate
@@ -631,21 +638,39 @@ export default function EvalRunDetailPage() {
             </div>
             <div className="bg-white dark:bg-dark-800 border border-gray-200 dark:border-dark-700 rounded-xl p-4">
               <p className="text-[11px] uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-1">
-                Avg Latency
-              </p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-                {results.length > 0 &&
-                results.some((r) => r.result.executionTimeMs)
-                  ? `${(results.reduce((sum, r) => sum + (r.result.executionTimeMs || 0), 0) / results.length / 1000).toFixed(1)}s`
-                  : '--'}
-              </p>
-            </div>
-            <div className="bg-white dark:bg-dark-800 border border-gray-200 dark:border-dark-700 rounded-xl p-4">
-              <p className="text-[11px] uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-1">
                 Total Cases
               </p>
               <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
                 {totalCases}
+              </p>
+            </div>
+            <div className="bg-white dark:bg-dark-800 border border-gray-200 dark:border-dark-700 rounded-xl p-4">
+              <p className="text-[11px] uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-1">
+                Duration
+              </p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+                {duration || '--'}
+              </p>
+            </div>
+            <div className="bg-white dark:bg-dark-800 border border-gray-200 dark:border-dark-700 rounded-xl p-4">
+              <p className="text-[11px] uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-1">
+                Error Rate
+              </p>
+              <p
+                className={`text-2xl font-bold ${
+                  failedCount === 0
+                    ? 'text-emerald-600 dark:text-emerald-400'
+                    : failedCount / totalCases <= 0.1
+                      ? 'text-amber-600 dark:text-amber-400'
+                      : 'text-rose-600 dark:text-rose-400'
+                }`}
+              >
+                {totalCases > 0
+                  ? `${Math.round((failedCount / totalCases) * 100)}%`
+                  : '0%'}
+              </p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                {failedCount}/{totalCases} error
               </p>
             </div>
           </div>
@@ -1017,6 +1042,57 @@ export default function EvalRunDetailPage() {
           </p>
         </div>
       )}
+
+      {/* Debug Info (collapsible) */}
+      <div className="border border-gray-200 dark:border-dark-700 rounded-xl overflow-hidden">
+        <button
+          type="button"
+          onClick={() => setShowDebug(!showDebug)}
+          className="w-full flex items-center gap-2 px-4 py-3 text-sm text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-dark-700/50 transition-colors"
+        >
+          <Bug className="w-4 h-4" />
+          <span>Debug Info</span>
+          {showDebug ? (
+            <ChevronDown className="w-4 h-4 ml-auto" />
+          ) : (
+            <ChevronRight className="w-4 h-4 ml-auto" />
+          )}
+        </button>
+        {showDebug && (
+          <div className="px-4 py-3 border-t border-gray-200 dark:border-dark-700 bg-gray-50 dark:bg-dark-900">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+              <div>
+                <span className="text-gray-400 dark:text-gray-500">Run ID</span>
+                <p className="font-mono text-gray-700 dark:text-gray-300 text-xs break-all">
+                  {runId}
+                </p>
+              </div>
+              <div>
+                <span className="text-gray-400 dark:text-gray-500">Status (raw)</span>
+                <p className="font-mono text-gray-700 dark:text-gray-300 text-xs">
+                  {currentStatus.status}
+                </p>
+              </div>
+              {run.startTime && (
+                <div>
+                  <span className="text-gray-400 dark:text-gray-500">Start Time</span>
+                  <p className="font-mono text-gray-700 dark:text-gray-300 text-xs">
+                    {safeFormat(run.startTime, 'yyyy-MM-dd HH:mm:ss')}
+                  </p>
+                </div>
+              )}
+              {run.closeTime && (
+                <div>
+                  <span className="text-gray-400 dark:text-gray-500">Close Time</span>
+                  <p className="font-mono text-gray-700 dark:text-gray-300 text-xs">
+                    {safeFormat(run.closeTime, 'yyyy-MM-dd HH:mm:ss')}
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   )
 }

@@ -1,10 +1,11 @@
 'use client'
 
 /**
- * Eval Run Progress Component
+ * Eval Run Progress Component (Hero Card)
  *
- * Shows real-time progress of an eval run with progress bar and case results.
- * Includes connection status indicator for real-time updates.
+ * Shows real-time progress of an eval run with a prominent hero card.
+ * Features: large progress bar, cases completed/total, elapsed time,
+ * estimated time remaining, and animated pulse/glow for live state.
  */
 
 import {
@@ -16,7 +17,7 @@ import {
   Square,
   XCircle,
 } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { ConnectionDot } from '@/components/realtime'
 import type {
   ConnectionStatus,
@@ -49,10 +50,11 @@ function getStatusInfo(status: WorkflowStatus) {
     case 'RUNNING':
       return {
         Icon: Loader2,
-        color: 'text-blue-600 dark:text-blue-400',
-        bgColor: 'bg-blue-50 dark:bg-blue-500/10',
-        borderColor: 'border-blue-200 dark:border-blue-500/25',
-        label: 'Running',
+        color: 'text-cyan-600 dark:text-cyan-400',
+        bgColor: 'bg-cyan-50 dark:bg-cyan-500/5',
+        borderColor: 'border-cyan-200 dark:border-cyan-500/25',
+        glowColor: 'shadow-cyan-200/50 dark:shadow-cyan-500/20',
+        label: 'In Progress',
         animate: true,
       }
     case 'COMPLETED':
@@ -61,6 +63,7 @@ function getStatusInfo(status: WorkflowStatus) {
         color: 'text-green-600 dark:text-emerald-400',
         bgColor: 'bg-green-50 dark:bg-emerald-500/10',
         borderColor: 'border-green-200 dark:border-emerald-500/25',
+        glowColor: '',
         label: 'Completed',
         animate: false,
       }
@@ -70,6 +73,7 @@ function getStatusInfo(status: WorkflowStatus) {
         color: 'text-red-600 dark:text-red-400',
         bgColor: 'bg-red-50 dark:bg-red-500/10',
         borderColor: 'border-red-200 dark:border-red-500/25',
+        glowColor: '',
         label: 'Failed',
         animate: false,
       }
@@ -79,6 +83,7 @@ function getStatusInfo(status: WorkflowStatus) {
         color: 'text-gray-600 dark:text-gray-300',
         bgColor: 'bg-gray-50 dark:bg-dark-900',
         borderColor: 'border-gray-200 dark:border-dark-700',
+        glowColor: '',
         label: 'Cancelled',
         animate: false,
       }
@@ -88,6 +93,7 @@ function getStatusInfo(status: WorkflowStatus) {
         color: 'text-gray-600 dark:text-gray-300',
         bgColor: 'bg-gray-50 dark:bg-dark-900',
         borderColor: 'border-gray-200 dark:border-dark-700',
+        glowColor: '',
         label: 'Terminated',
         animate: false,
       }
@@ -97,6 +103,7 @@ function getStatusInfo(status: WorkflowStatus) {
         color: 'text-orange-600 dark:text-orange-400',
         bgColor: 'bg-orange-50 dark:bg-orange-500/10',
         borderColor: 'border-orange-200 dark:border-orange-500/25',
+        glowColor: '',
         label: 'Timed Out',
         animate: false,
       }
@@ -106,6 +113,7 @@ function getStatusInfo(status: WorkflowStatus) {
         color: 'text-gray-600 dark:text-gray-300',
         bgColor: 'bg-gray-50 dark:bg-dark-900',
         borderColor: 'border-gray-200 dark:border-dark-700',
+        glowColor: '',
         label: 'Unknown',
         animate: false,
       }
@@ -129,21 +137,16 @@ function formatDuration(ms: number): string {
 }
 
 export function EvalRunProgress({
-  runId,
   status,
   onPause,
-  onResume,
   onCancel,
   isPausing,
-  isResuming,
   isCancelling,
   connectionStatus,
   isWebSocket,
-  onReconnect,
 }: EvalRunProgressProps) {
   const statusInfo = getStatusInfo(status.status)
   const [elapsedMs, setElapsedMs] = useState(0)
-  const _startTime = Date.now() // Would come from status in real impl
 
   // Update elapsed time for running workflows
   useEffect(() => {
@@ -159,22 +162,60 @@ export function EvalRunProgress({
   const progress = status.progress
   const percentComplete = progress?.percentComplete ?? 0
 
+  // Estimate time remaining based on elapsed time and progress
+  const estimatedRemaining = useMemo(() => {
+    if (!progress || progress.completed === 0 || progress.total === 0)
+      return null
+    if (elapsedMs < 3000) return null // Need at least 3s of data
+    const ratePerMs = progress.completed / elapsedMs
+    const remaining = progress.total - progress.completed
+    if (ratePerMs <= 0) return null
+    return Math.round(remaining / ratePerMs)
+  }, [progress, elapsedMs])
+
+  const isLive = status.isRunning
+
   return (
     <div
-      className={`border rounded-lg p-5 ${statusInfo.bgColor} ${statusInfo.borderColor}`}
+      className={`relative border-2 rounded-xl p-6 ${statusInfo.bgColor} ${statusInfo.borderColor} ${
+        isLive ? `shadow-lg ${statusInfo.glowColor} animate-pulse-subtle` : ''
+      }`}
+      style={
+        isLive
+          ? {
+              animation: 'hero-glow 2s ease-in-out infinite',
+            }
+          : undefined
+      }
     >
-      {/* Header */}
-      <div className="flex items-center justify-between mb-4">
+      {/* Inline keyframes for glow animation */}
+      {isLive && (
+        <style>{`
+          @keyframes hero-glow {
+            0%, 100% { box-shadow: 0 0 12px 0 rgba(6, 182, 212, 0.15); }
+            50% { box-shadow: 0 0 24px 4px rgba(6, 182, 212, 0.25); }
+          }
+        `}</style>
+      )}
+
+      {/* Header row */}
+      <div className="flex items-center justify-between mb-5">
         <div className="flex items-center gap-3">
-          <statusInfo.Icon
-            className={`w-6 h-6 ${statusInfo.color} ${statusInfo.animate ? 'animate-spin' : ''}`}
-          />
+          <div
+            className={`flex items-center justify-center w-10 h-10 rounded-full ${statusInfo.bgColor}`}
+          >
+            <statusInfo.Icon
+              className={`w-6 h-6 ${statusInfo.color} ${statusInfo.animate ? 'animate-spin' : ''}`}
+            />
+          </div>
           <div>
             <div className="flex items-center gap-2">
-              <h3 className={`font-semibold ${statusInfo.color}`}>
+              <h3
+                className={`text-lg font-bold ${statusInfo.color}`}
+              >
                 {statusInfo.label}
               </h3>
-              {connectionStatus && status.isRunning && (
+              {connectionStatus && isLive && (
                 <div
                   className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400"
                   title={`${connectionStatus === 'connected' ? (isWebSocket ? 'Live updates via WebSocket' : 'Polling for updates') : connectionStatus}`}
@@ -184,18 +225,18 @@ export function EvalRunProgress({
                 </div>
               )}
             </div>
-            <p className="text-sm text-gray-500 dark:text-gray-400 font-mono">{runId}</p>
           </div>
         </div>
 
         {/* Control buttons */}
-        {status.isRunning && (
+        {isLive && (
           <div className="flex items-center gap-2">
             {onPause && (
               <button
+                type="button"
                 onClick={onPause}
                 disabled={isPausing}
-                className="flex items-center gap-1 px-3 py-1.5 text-sm bg-yellow-100 dark:bg-amber-500/20 text-yellow-700 dark:text-amber-400 rounded-md hover:bg-yellow-200 dark:hover:bg-amber-500/20 disabled:opacity-50"
+                className="flex items-center gap-1 px-3 py-1.5 text-sm bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400 rounded-md hover:bg-amber-200 dark:hover:bg-amber-500/30 disabled:opacity-50"
               >
                 {isPausing ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
@@ -207,9 +248,10 @@ export function EvalRunProgress({
             )}
             {onCancel && (
               <button
+                type="button"
                 onClick={onCancel}
                 disabled={isCancelling}
-                className="flex items-center gap-1 px-3 py-1.5 text-sm bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-400 rounded-md hover:bg-red-200 dark:hover:bg-red-500/20 disabled:opacity-50"
+                className="flex items-center gap-1 px-3 py-1.5 text-sm bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-400 rounded-md hover:bg-red-200 dark:hover:bg-red-500/30 disabled:opacity-50"
               >
                 {isCancelling ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
@@ -223,23 +265,33 @@ export function EvalRunProgress({
         )}
       </div>
 
-      {/* Progress bar */}
+      {/* Large progress bar */}
       {progress && (
-        <div className="mb-4">
-          <div className="flex justify-between text-sm mb-2">
-            <span className="text-gray-600 dark:text-gray-300">
-              {progress.completed} of {progress.total} cases
+        <div className="mb-5">
+          <div className="flex items-end justify-between mb-2">
+            <div>
+              <span className="text-3xl font-bold text-gray-900 dark:text-gray-100">
+                {progress.completed}
+              </span>
+              <span className="text-lg text-gray-400 dark:text-gray-500 mx-1">
+                /
+              </span>
+              <span className="text-lg text-gray-500 dark:text-gray-400">
+                {progress.total} cases
+              </span>
+            </div>
+            <span className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+              {percentComplete}%
             </span>
-            <span className="font-medium">{percentComplete}%</span>
           </div>
-          <div className="w-full bg-white/50 rounded-full h-3 overflow-hidden">
+          <div className="w-full bg-white/60 dark:bg-dark-700/60 rounded-full h-4 overflow-hidden">
             <div
               className={`h-full rounded-full transition-all duration-500 ${
                 status.status === 'COMPLETED'
-                  ? 'bg-green-500'
+                  ? 'bg-emerald-500'
                   : status.status === 'FAILED'
                     ? 'bg-red-500'
-                    : 'bg-blue-500'
+                    : 'bg-cyan-500 dark:bg-cyan-400'
               }`}
               style={{ width: `${percentComplete}%` }}
             />
@@ -247,66 +299,58 @@ export function EvalRunProgress({
         </div>
       )}
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div className="bg-white/50 rounded-lg p-3">
-          <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-            Completed
-          </p>
-          <p className="text-xl font-semibold text-gray-900 dark:text-gray-100">
-            {progress?.completed ?? 0}
-          </p>
-        </div>
-        <div className="bg-white/50 rounded-lg p-3">
-          <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+      {/* Stats row */}
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+        <div className="bg-white/60 dark:bg-dark-800/60 rounded-lg p-3">
+          <p className="text-[11px] uppercase tracking-wider text-gray-500 dark:text-gray-400">
             Passed
           </p>
-          <p className="text-xl font-semibold text-green-600 dark:text-emerald-400">
+          <p className="text-xl font-bold text-emerald-600 dark:text-emerald-400">
             {progress?.passed ?? 0}
           </p>
         </div>
-        <div className="bg-white/50 rounded-lg p-3">
-          <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+        <div className="bg-white/60 dark:bg-dark-800/60 rounded-lg p-3">
+          <p className="text-[11px] uppercase tracking-wider text-gray-500 dark:text-gray-400">
             Failed
           </p>
-          <p className="text-xl font-semibold text-red-600 dark:text-red-400">
+          <p className="text-xl font-bold text-rose-600 dark:text-rose-400">
             {progress?.failed ?? 0}
           </p>
         </div>
-        <div className="bg-white/50 rounded-lg p-3">
-          <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+        <div className="bg-white/60 dark:bg-dark-800/60 rounded-lg p-3">
+          <p className="text-[11px] uppercase tracking-wider text-gray-500 dark:text-gray-400">
+            Remaining
+          </p>
+          <p className="text-xl font-bold text-gray-900 dark:text-gray-100">
+            {progress ? progress.total - progress.completed : 0}
+          </p>
+        </div>
+        <div className="bg-white/60 dark:bg-dark-800/60 rounded-lg p-3">
+          <p className="text-[11px] uppercase tracking-wider text-gray-500 dark:text-gray-400">
             Elapsed
           </p>
-          <p className="text-xl font-semibold text-gray-900 dark:text-gray-100">
+          <p className="text-xl font-bold text-gray-900 dark:text-gray-100">
             {formatDuration(elapsedMs)}
+          </p>
+        </div>
+        <div className="bg-white/60 dark:bg-dark-800/60 rounded-lg p-3">
+          <p className="text-[11px] uppercase tracking-wider text-gray-500 dark:text-gray-400">
+            ETA
+          </p>
+          <p className="text-xl font-bold text-gray-900 dark:text-gray-100">
+            {estimatedRemaining !== null
+              ? `~${formatDuration(estimatedRemaining)}`
+              : '--'}
           </p>
         </div>
       </div>
 
-      {/* Summary (when completed) */}
-      {status.summary && status.isComplete && (
-        <div className="mt-4 pt-4 border-t border-green-200 dark:border-emerald-500/25">
-          <div className="flex items-center justify-between">
-            <span className="text-gray-600 dark:text-gray-300">Average Score</span>
-            <span
-              className={`text-lg font-bold ${
-                status.summary.avgScore >= 0.8
-                  ? 'text-green-600 dark:text-emerald-400'
-                  : status.summary.avgScore >= 0.6
-                    ? 'text-yellow-600 dark:text-amber-400'
-                    : 'text-red-600 dark:text-red-400'
-              }`}
-            >
-              {(status.summary.avgScore * 100).toFixed(1)}%
-            </span>
-          </div>
-        </div>
-      )}
-
       {/* Error message */}
       {status.error && (
         <div className="mt-4 p-3 bg-red-100 dark:bg-red-500/20 border border-red-200 dark:border-red-500/25 rounded-lg">
-          <p className="text-sm text-red-800 dark:text-red-300">{status.error}</p>
+          <p className="text-sm text-red-800 dark:text-red-300">
+            {status.error}
+          </p>
         </div>
       )}
     </div>

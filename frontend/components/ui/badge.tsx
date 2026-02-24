@@ -1,7 +1,7 @@
 import { clsx } from 'clsx'
 import { AlertCircle, CheckCircle, Clock, Loader2, XCircle } from 'lucide-react'
 
-type Status = 'pending' | 'running' | 'completed' | 'failed' | 'cancelled'
+type Status = 'pending' | 'running' | 'completed' | 'failed' | 'cancelled' | 'timed_out'
 
 const statusConfig: Record<
   Status,
@@ -18,7 +18,7 @@ const statusConfig: Record<
   },
   running: {
     icon: Loader2,
-    label: 'Running',
+    label: 'In Progress',
     className: 'bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-500/25',
   },
   pending: {
@@ -36,6 +36,27 @@ const statusConfig: Record<
     label: 'Cancelled',
     className: 'bg-gray-50 dark:bg-dark-900 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-dark-700',
   },
+  timed_out: {
+    icon: Clock,
+    label: 'Timed Out',
+    className: 'bg-orange-50 dark:bg-orange-500/10 text-orange-700 dark:text-orange-400 border border-orange-200 dark:border-orange-500/25',
+  },
+}
+
+/**
+ * Map Temporal uppercase status strings to internal status keys.
+ * Hides raw Temporal naming from the UI.
+ */
+function normalizeStatus(status: string): Status {
+  const mapped: Record<string, Status> = {
+    RUNNING: 'running',
+    COMPLETED: 'completed',
+    FAILED: 'failed',
+    CANCELLED: 'cancelled',
+    TERMINATED: 'failed',
+    TIMED_OUT: 'timed_out',
+  }
+  return mapped[status] || (status.toLowerCase() as Status)
 }
 
 interface StatusBadgeProps {
@@ -49,7 +70,8 @@ export function StatusBadge({
   showIcon = true,
   size = 'md',
 }: StatusBadgeProps) {
-  const config = statusConfig[status as Status] || statusConfig.pending
+  const normalized = normalizeStatus(status)
+  const config = statusConfig[normalized] || statusConfig.pending
   const Icon = config.icon
 
   return (
@@ -66,11 +88,11 @@ export function StatusBadge({
         <Icon
           className={clsx(
             size === 'sm' ? 'w-3 h-3' : 'w-3.5 h-3.5',
-            status === 'running' && 'animate-spin',
+            normalized === 'running' && 'animate-spin',
           )}
         />
       )}
-      <span className="capitalize">{config.label}</span>
+      <span>{config.label}</span>
     </span>
   )
 }
