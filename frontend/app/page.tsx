@@ -24,7 +24,6 @@ import { useDashboard } from '@/hooks/use-dashboard'
 import { type RunningWorkItem, useRunningWork } from '@/hooks/use-running-work'
 import { CONFIG } from '@/lib/config'
 import { safeFormatDistance } from '@/lib/format-date'
-import { trpc } from '@/lib/trpc'
 import type { ActivityEvent } from '@/types/activity'
 
 // =============================================================================
@@ -51,12 +50,6 @@ const STATUS_DOTS: Record<string, string> = {
   staging: 'text-content-muted',
 }
 
-const RUN_STATUS_ICON = {
-  completed: { icon: CheckCircle, color: 'text-emerald-500' },
-  failed: { icon: AlertCircle, color: 'text-rose-500' },
-  running: { icon: Zap, color: 'text-accent-500' },
-} as const
-
 const ACTIVITY_ICON: Record<
   ActivityEvent['type'],
   { icon: typeof CheckCircle; color: string }
@@ -81,8 +74,7 @@ type Environment = 'production' | 'staging'
 export default function CommandCenter() {
   const { stats, isLoadingStats, refresh } = useDashboard()
   const { data: alertsData, error: alertsError } = useAlerts()
-  const { data: activityData, isLoading: isLoadingActivity } =
-    useActivityFeed()
+  const { data: activityData, isLoading: isLoadingActivity } = useActivityFeed()
   const alerts = alertsError ? [] : (alertsData?.alerts ?? [])
   const { agents, isLoading: isLoadingAgents } = useAgentHealth()
   const { items: runningItems, isLoading: isLoadingRunning } = useRunningWork()
@@ -438,9 +430,9 @@ export default function CommandCenter() {
           </h2>
           {isLoadingRunning ? (
             <div className="space-y-3">
-              {Array.from({ length: 3 }).map((_, i) => (
+              {['a', 'b', 'c'].map((id) => (
                 <div
-                  key={i}
+                  key={id}
                   className="flex items-center gap-3 rounded-lg border border-border bg-surface-raised p-3 animate-pulse"
                 >
                   <div className="w-4 h-4 bg-surface-card rounded-full flex-shrink-0" />
@@ -508,9 +500,9 @@ export default function CommandCenter() {
         </h2>
         {isLoadingActivity ? (
           <div className="space-y-2">
-            {Array.from({ length: 4 }).map((_, i) => (
+            {['a', 'b', 'c', 'd'].map((id) => (
               <div
-                key={i}
+                key={id}
                 className="flex items-center gap-3 rounded-lg border border-border bg-surface-raised px-3 py-2.5 animate-pulse"
               >
                 <div className="w-4 h-4 bg-surface-card rounded-full" />

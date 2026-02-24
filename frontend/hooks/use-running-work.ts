@@ -42,7 +42,10 @@ export function useRunningWork(): {
   } = useWorkflowRuns({ status: 'RUNNING' }, { refetchInterval: 5000 })
 
   if (evalsError) {
-    console.error('[useRunningWork] Failed to fetch running eval runs:', evalsError)
+    console.error(
+      '[useRunningWork] Failed to fetch running eval runs:',
+      evalsError,
+    )
   }
 
   const evalItems: RunningWorkItem[] = (runningEvals ?? []).map((run) => {

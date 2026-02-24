@@ -43,9 +43,7 @@ export const GET = withAuth(async (request: NextRequest, auth: AuthResult) => {
     // -----------------------------------------------------------------------
     // 1. Eval run completions
     // -----------------------------------------------------------------------
-    const agentFilter = agentId
-      ? 'AND agent_id = {agentId:String}'
-      : ''
+    const agentFilter = agentId ? 'AND agent_id = {agentId:String}' : ''
 
     const evalQuery = `
       SELECT
