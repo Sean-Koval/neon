@@ -588,6 +588,14 @@ export interface WorkflowStatusResponse {
   result?: unknown
   /** Error message (if failed) */
   error?: string
+  /** Agent ID that was evaluated (from workflow memo) */
+  agentId?: string
+  /** Agent name for display */
+  agentName?: string
+  /** Suite ID that was run (from workflow memo) */
+  suiteId?: string
+  /** Suite name for display */
+  suiteName?: string
 }
 
 /**

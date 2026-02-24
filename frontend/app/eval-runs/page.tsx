@@ -230,10 +230,13 @@ const RunRow = memo(function RunRow({
   // Extract run display ID (first 8 chars)
   const shortId = run.id.slice(0, 8)
 
-  // Try to resolve agent/suite from enrichment
-  // For now, use the workflowId to infer (in real app this would come from run metadata)
-  const agentInfo = agentMap.size > 0 ? Array.from(agentMap.values())[0] : null
-  const suiteInfo = suiteMap.size > 0 ? Array.from(suiteMap.values())[0] : null
+  // Resolve agent/suite from run metadata or lookup maps
+  const agentInfo = run.agentId
+    ? agentMap.get(run.agentId) ?? { name: run.agentName || run.agentId, version: '' }
+    : null
+  const suiteInfo = run.suiteId
+    ? suiteMap.get(run.suiteId) ?? { name: run.suiteName || run.suiteId, caseCount: 0 }
+    : null
 
   return (
     <div
@@ -506,8 +509,21 @@ export default function EvalRunsPage() {
       result = result.filter(
         (r) =>
           r.id.toLowerCase().includes(q) ||
-          r.workflowId.toLowerCase().includes(q),
+          r.workflowId.toLowerCase().includes(q) ||
+          (r.agentId && r.agentId.toLowerCase().includes(q)) ||
+          (r.agentName && r.agentName.toLowerCase().includes(q)) ||
+          (r.suiteName && r.suiteName.toLowerCase().includes(q)),
       )
+    }
+
+    // Agent filter
+    if (agentFilter) {
+      result = result.filter((r) => r.agentId === agentFilter)
+    }
+
+    // Suite filter
+    if (suiteFilter) {
+      result = result.filter((r) => r.suiteId === suiteFilter)
     }
 
     // Sort: running runs always first
@@ -537,7 +553,7 @@ export default function EvalRunsPage() {
     })
 
     return result
-  }, [runs, debouncedSearch, timeRange, sortField, sortDir])
+  }, [runs, debouncedSearch, timeRange, sortField, sortDir, agentFilter, suiteFilter])
 
   // Selection handlers
   const toggleSelect = useCallback((id: string) => {
