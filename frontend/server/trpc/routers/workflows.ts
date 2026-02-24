@@ -56,18 +56,8 @@ export const workflowsRouter = router({
         query += ` AND WorkflowType = "${input.type}"`;
       }
 
-      // This would use the Temporal client in production
-      // For now, return mock data
-      return [
-        {
-          workflowId: "agent-demo-1",
-          runId: "run-123",
-          status: "RUNNING" as const,
-          startTime: new Date().toISOString(),
-          closeTime: null,
-          type: "agentRunWorkflow",
-        },
-      ];
+      // TODO: needs Temporal client — query workflows with ListWorkflowExecutions
+      return [];
     }),
 
   /**
@@ -76,14 +66,14 @@ export const workflowsRouter = router({
   get: publicProcedure
     .input(z.object({ workflowId: z.string() }))
     .query(async ({ ctx, input }) => {
-      // This would use the Temporal client
+      // TODO: needs Temporal client — DescribeWorkflowExecution
       return {
         workflowId: input.workflowId,
-        runId: "run-123",
+        runId: "",
         status: "RUNNING" as const,
         startTime: new Date().toISOString(),
         closeTime: null,
-        type: "agentRunWorkflow",
+        type: "",
         memo: {},
       };
     }),
@@ -94,11 +84,11 @@ export const workflowsRouter = router({
   progress: publicProcedure
     .input(z.object({ workflowId: z.string() }))
     .query(async ({ ctx, input }) => {
-      // This would query the workflow
+      // TODO: needs Temporal client — query workflow for progress
       return {
-        iteration: 3,
-        maxIterations: 10,
-        status: "running",
+        iteration: 0,
+        maxIterations: 0,
+        status: "unknown",
       };
     }),
 

@@ -254,15 +254,17 @@ function ScoreCurvesChart({
   scoreA?: number
   scoreB?: number
 }) {
-  // Generate mock trend data for the chart
+  // TODO: needs real per-sample score history from backend
+  // Using deterministic pseudo-noise instead of Math.random()
   const data = Array.from({ length: 10 }, (_, i) => {
     const base = scoreA ?? 0.85
     const cand = scoreB ?? 0.9
-    const noise = () => (Math.random() - 0.5) * 0.04
+    const offsetA = ((((i * 7 + 3) % 11) - 5) / 5) * 0.02
+    const offsetB = ((((i * 13 + 7) % 11) - 5) / 5) * 0.02
     return {
       sample: (i + 1) * 10,
-      'Variant A': +(base + noise()).toFixed(3),
-      'Variant B': +(cand + noise()).toFixed(3),
+      'Variant A': +(base + offsetA).toFixed(3),
+      'Variant B': +(cand + offsetB).toFixed(3),
     }
   })
 
