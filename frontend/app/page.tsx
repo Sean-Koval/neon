@@ -4,9 +4,11 @@ import {
   Activity,
   AlertCircle,
   AlertTriangle,
+  Brain,
   CheckCircle,
   ChevronDown,
   DollarSign,
+  FlaskConical,
   Lightbulb,
   RefreshCw,
   Zap,
@@ -17,9 +19,23 @@ import { LazyScoreTrends } from '@/components/dashboard/lazy-components'
 import { useAgentHealth } from '@/hooks/use-agent-health'
 import { useAlerts } from '@/hooks/use-alerts'
 import { useDashboard } from '@/hooks/use-dashboard'
+import { type RunningWorkItem, useRunningWork } from '@/hooks/use-running-work'
 import { CONFIG } from '@/lib/config'
 import { safeFormatDistance } from '@/lib/format-date'
 import { trpc } from '@/lib/trpc'
+
+// =============================================================================
+// Running Work Helpers
+// =============================================================================
+
+const RUNNING_TYPE_ICON: Record<
+  RunningWorkItem['type'],
+  { icon: typeof Zap; label: string }
+> = {
+  eval: { icon: Zap, label: 'Eval Run' },
+  experiment: { icon: FlaskConical, label: 'Experiment' },
+  training: { icon: Brain, label: 'Training' },
+}
 
 // =============================================================================
 // Constants
@@ -55,6 +71,7 @@ export default function CommandCenter() {
   const { data: alertsData, error: alertsError } = useAlerts()
   const alerts = alertsError ? [] : (alertsData?.alerts ?? [])
   const { agents, isLoading: isLoadingAgents } = useAgentHealth()
+  const { items: runningItems, isLoading: isLoadingRunning } = useRunningWork()
   const [environment, setEnvironment] = useState<Environment>('production')
 
   const healthyCount = agents.filter((a) => a.status === 'healthy').length
@@ -405,20 +422,68 @@ export default function CommandCenter() {
           <h2 className="text-sm font-semibold text-content-primary mb-4">
             Running
           </h2>
-          <div className="flex flex-col items-center justify-center py-8 text-center">
-            <div className="w-12 h-12 rounded-xl bg-surface-raised flex items-center justify-center mb-3">
-              <Zap className="w-6 h-6 text-content-muted" />
+          {isLoadingRunning ? (
+            <div className="space-y-3">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="flex items-center gap-3 rounded-lg border border-border bg-surface-raised p-3 animate-pulse"
+                >
+                  <div className="w-4 h-4 bg-surface-card rounded-full flex-shrink-0" />
+                  <div className="flex-1 min-w-0 space-y-2">
+                    <div className="h-4 bg-surface-card rounded w-3/4" />
+                    <div className="h-1.5 bg-surface-card rounded-full w-full" />
+                  </div>
+                  <div className="w-16 h-3 bg-surface-card rounded flex-shrink-0" />
+                </div>
+              ))}
             </div>
-            <p className="text-sm font-medium text-content-secondary mb-1">
-              No active work
-            </p>
-            <p className="text-sm text-content-muted max-w-xs mb-4">
-              Start an evaluation run or experiment to see progress here.
-            </p>
-            <Link href="/eval-runs" className="btn btn-primary text-sm">
-              Go to Eval Runs
-            </Link>
-          </div>
+          ) : runningItems.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-8 text-center">
+              <div className="w-12 h-12 rounded-xl bg-surface-raised flex items-center justify-center mb-3">
+                <Zap className="w-6 h-6 text-content-muted" />
+              </div>
+              <p className="text-sm font-medium text-content-secondary mb-1">
+                No active work
+              </p>
+              <p className="text-sm text-content-muted max-w-xs mb-4">
+                Start an evaluation run or experiment to see progress here.
+              </p>
+              <Link href="/eval-runs" className="btn btn-primary text-sm">
+                Go to Eval Runs
+              </Link>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {runningItems.map((item) => {
+                const cfg = RUNNING_TYPE_ICON[item.type]
+                const TypeIcon = cfg.icon
+                return (
+                  <Link
+                    key={item.id}
+                    href={item.href}
+                    className="flex items-center gap-3 rounded-lg border border-border bg-surface-raised p-3 hover:bg-surface-overlay transition-colors"
+                  >
+                    <TypeIcon className="w-4 h-4 text-accent-500 flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-content-primary truncate">
+                        {item.name}
+                      </p>
+                      <div className="mt-1.5 h-1.5 rounded-full bg-surface-card overflow-hidden">
+                        <div
+                          className="h-full bg-primary-500 rounded-full transition-all"
+                          style={{ width: `${item.progress}%` }}
+                        />
+                      </div>
+                    </div>
+                    <span className="text-xs text-content-muted flex-shrink-0">
+                      {item.detail}
+                    </span>
+                  </Link>
+                )
+              })}
+            </div>
+          )}
         </div>
       </div>
 
