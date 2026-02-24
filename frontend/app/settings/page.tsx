@@ -8,13 +8,16 @@
 
 import { clsx } from 'clsx'
 import { Building2, Database, Key, Server } from 'lucide-react'
-import { useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { Suspense } from 'react'
 import { ApiKeysSection } from '@/components/settings/api-keys-section'
 import { InfrastructureStatus } from '@/components/settings/infrastructure'
 import { LlmProviders } from '@/components/settings/llm-providers'
 import { ProjectSettings } from '@/components/settings/project-settings'
 
 type TabId = 'project' | 'api-keys' | 'llm' | 'infrastructure'
+
+const validTabs: TabId[] = ['project', 'api-keys', 'llm', 'infrastructure']
 
 const tabs = [
   { id: 'project' as const, name: 'Project', icon: Building2 },
@@ -23,8 +26,21 @@ const tabs = [
   { id: 'infrastructure' as const, name: 'Infrastructure', icon: Database },
 ]
 
-export default function SettingsPage() {
-  const [activeTab, setActiveTab] = useState<TabId>('project')
+function isValidTab(tab: string | null): tab is TabId {
+  return tab !== null && validTabs.includes(tab as TabId)
+}
+
+function SettingsContent() {
+  const searchParams = useSearchParams()
+  const router = useRouter()
+  const tabParam = searchParams.get('tab')
+  const activeTab: TabId = isValidTab(tabParam) ? tabParam : 'project'
+
+  const setTab = (tab: TabId) => {
+    const params = new URLSearchParams(searchParams.toString())
+    params.set('tab', tab)
+    router.push(`/settings?${params.toString()}`)
+  }
 
   return (
     <div className="p-6 max-w-4xl">
@@ -43,7 +59,7 @@ export default function SettingsPage() {
             <button
               key={tab.id}
               type="button"
-              onClick={() => setActiveTab(tab.id)}
+              onClick={() => setTab(tab.id)}
               className={clsx(
                 'flex items-center gap-2 pb-3 border-b-2 text-sm font-medium transition-colors',
                 activeTab === tab.id
@@ -66,5 +82,13 @@ export default function SettingsPage() {
         {activeTab === 'infrastructure' && <InfrastructureStatus />}
       </div>
     </div>
+  )
+}
+
+export default function SettingsPage() {
+  return (
+    <Suspense>
+      <SettingsContent />
+    </Suspense>
   )
 }
