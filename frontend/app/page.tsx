@@ -15,7 +15,8 @@ import {
   Zap,
 } from 'lucide-react'
 import Link from 'next/link'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
+import { Line, LineChart, ResponsiveContainer } from 'recharts'
 import { LazyScoreTrends } from '@/components/dashboard/lazy-components'
 import { useActivityFeed } from '@/hooks/use-activity-feed'
 import { useAgentHealth } from '@/hooks/use-agent-health'
@@ -72,7 +73,8 @@ function formatDuration(ms: number): string {
 type Environment = 'production' | 'staging'
 
 export default function CommandCenter() {
-  const { stats, isLoadingStats, refresh } = useDashboard()
+  const { stats, isLoadingStats, trendData, isLoadingTrend, refresh } =
+    useDashboard()
   const { data: alertsData, error: alertsError } = useAlerts()
   const { data: activityData, isLoading: isLoadingActivity } = useActivityFeed()
   const alerts = alertsError ? [] : (alertsData?.alerts ?? [])
@@ -84,6 +86,18 @@ export default function CommandCenter() {
   const failingCount = agents.filter(
     (a) => a.status === 'failing' || a.status === 'degraded',
   ).length
+
+  // Derive per-metric sparkline data from trend data
+  const sparklines = useMemo(() => {
+    if (!trendData || trendData.length === 0) return null
+    const points = trendData.slice(-10) // last 10 data points
+    return {
+      totalRuns: points.map((p) => ({ v: p.runCount })),
+      passRate: points.map((p) => ({ v: p.score * 100 })),
+      failedRuns: points.map((p) => ({ v: (1 - p.score) * p.runCount })),
+      avgScore: points.map((p) => ({ v: p.score * 100 })),
+    }
+  }, [trendData])
 
   return (
     <div className="relative p-6 space-y-6">
@@ -140,6 +154,7 @@ export default function CommandCenter() {
             <Activity className="w-4 h-4 text-primary-600 dark:text-primary-400" />
           }
           tone="neutral"
+          sparklineData={sparklines?.totalRuns}
         />
         <KpiCard
           label="Pass Rate"
@@ -165,6 +180,7 @@ export default function CommandCenter() {
                   ? 'neutral'
                   : 'negative'
           }
+          sparklineData={sparklines?.passRate}
         />
         <KpiCard
           label="Failed Runs"
@@ -184,6 +200,8 @@ export default function CommandCenter() {
                 ? 'positive'
                 : 'negative'
           }
+          sparklineData={sparklines?.failedRuns}
+          sparklineInvert
         />
         <KpiCard
           label="Avg Score"
@@ -209,6 +227,7 @@ export default function CommandCenter() {
                 ? 'positive'
                 : 'neutral'
           }
+          sparklineData={sparklines?.avgScore}
         />
       </div>
 
@@ -556,18 +575,71 @@ export default function CommandCenter() {
 // KPI Card Component
 // =============================================================================
 
+function KpiSparkline({
+  data,
+  tone,
+  invert = false,
+}: {
+  data: Array<{ v: number }>
+  tone: 'positive' | 'negative' | 'neutral'
+  invert?: boolean
+}) {
+  if (data.length < 2) return null
+
+  // Determine trend direction from first to last value
+  const first = data[0].v
+  const last = data[data.length - 1].v
+  const isUp = last > first
+  const isFlat = Math.abs(last - first) < 0.01
+
+  // Choose color: for inverted metrics (like failed runs), "up" is bad
+  let color: string
+  if (isFlat) {
+    color = '#94a3b8' // slate-400
+  } else if (invert) {
+    color = isUp ? '#f43f5e' : '#10b981' // rose-500 / emerald-500
+  } else {
+    color = isUp ? '#10b981' : '#f43f5e' // emerald-500 / rose-500
+  }
+
+  // Override with tone if explicit
+  if (tone === 'positive') color = '#10b981'
+  if (tone === 'negative') color = '#f43f5e'
+
+  return (
+    <div className="w-[72px] h-[28px]">
+      <ResponsiveContainer width="100%" height="100%">
+        <LineChart data={data}>
+          <Line
+            type="monotone"
+            dataKey="v"
+            stroke={color}
+            strokeWidth={1.5}
+            dot={false}
+            isAnimationActive={false}
+          />
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
+  )
+}
+
 function KpiCard({
   label,
   value,
   subtitle,
   icon,
   tone = 'neutral',
+  sparklineData,
+  sparklineInvert = false,
 }: {
   label: string
   value: string
   subtitle: string
   icon: React.ReactNode
   tone?: 'positive' | 'negative' | 'neutral'
+  sparklineData?: Array<{ v: number }>
+  sparklineInvert?: boolean
 }) {
   const subtitleTone =
     tone === 'positive'
@@ -587,8 +659,19 @@ function KpiCard({
           {icon}
         </div>
       </div>
-      <p className="mt-3 text-2xl font-bold text-content-primary">{value}</p>
-      <p className={`text-xs mt-1 ${subtitleTone}`}>{subtitle}</p>
+      <div className="mt-3 flex items-end justify-between gap-2">
+        <div>
+          <p className="text-2xl font-bold text-content-primary">{value}</p>
+          <p className={`text-xs mt-1 ${subtitleTone}`}>{subtitle}</p>
+        </div>
+        {sparklineData && sparklineData.length >= 2 && (
+          <KpiSparkline
+            data={sparklineData}
+            tone={tone}
+            invert={sparklineInvert}
+          />
+        )}
+      </div>
     </div>
   )
 }
