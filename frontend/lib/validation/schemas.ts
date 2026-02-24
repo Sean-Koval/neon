@@ -38,6 +38,7 @@ export const createRunSchema = z.object({
   projectId: z.string().optional(),
   agentId: nonEmpty,
   agentVersion: z.string().optional(),
+  suiteId: z.string().optional(),
   dataset: z.object({
     items: z.array(datasetItemSchema).min(1),
   }),
