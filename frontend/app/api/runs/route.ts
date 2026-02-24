@@ -58,6 +58,7 @@ export const POST = withRateLimit(
         projectId,
         agentId: data.agentId,
         agentVersion: data.agentVersion || 'latest',
+        suiteId: data.suiteId,
         dataset: data.dataset,
         tools: data.tools || [],
         scorers: data.scorers,

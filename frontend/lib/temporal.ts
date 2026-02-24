@@ -83,6 +83,7 @@ export interface StartEvalRunParams {
   projectId: string
   agentId: string
   agentVersion: string
+  suiteId?: string
   dataset: {
     items: Array<{
       input: Record<string, unknown>
@@ -135,6 +136,10 @@ export interface WorkflowStatus {
   progress?: EvalRunProgress
   result?: unknown
   error?: string
+  /** Agent ID from workflow memo */
+  agentId?: string
+  /** Suite ID from workflow memo */
+  suiteId?: string
 }
 
 // ============================================================================
@@ -169,6 +174,11 @@ export async function startEvalRunWorkflow(
         ...(params.parallel && { parallelism: params.parallelism || 5 }),
       },
     ],
+    memo: {
+      agentId: params.agentId,
+      agentVersion: params.agentVersion,
+      ...(params.suiteId && { suiteId: params.suiteId }),
+    },
   })
 
   return {
@@ -346,12 +356,23 @@ export async function listEvalRuns(options?: {
         break
       }
 
+      // Extract agent/suite metadata from workflow memo if available
+      const memo = workflow.memo as
+        | Record<string, unknown>
+        | undefined
+      const agentId =
+        memo && typeof memo.agentId === 'string' ? memo.agentId : undefined
+      const suiteId =
+        memo && typeof memo.suiteId === 'string' ? memo.suiteId : undefined
+
       workflows.push({
         workflowId: workflow.workflowId,
         runId: workflow.workflowId.replace('eval-run-', ''),
         status: workflow.status.name as WorkflowStatus['status'],
         startTime: workflow.startTime.toISOString(),
         closeTime: workflow.closeTime?.toISOString(),
+        agentId,
+        suiteId,
       })
 
       index++
