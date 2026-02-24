@@ -4,7 +4,8 @@ import './globals.css'
 import { CommandPalette } from '@/components/command-palette'
 import { GlobalShortcuts } from '@/components/global-shortcuts'
 import { KeyboardShortcutsOverlay } from '@/components/keyboard-shortcuts'
-import { Sidebar } from '@/components/sidebar'
+import { Sidebar, MobileMenuButton } from '@/components/sidebar'
+import { SidebarProvider } from '@/components/sidebar-context'
 import { StatusBar } from '@/components/status-bar'
 import { Providers } from './providers'
 
@@ -24,12 +25,15 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
         <Providers>
-          <div className="flex h-screen bg-surface-base">
-            <Sidebar />
-            <main className="flex-1 overflow-auto bg-surface-raised">
-              {children}
-            </main>
-          </div>
+          <SidebarProvider>
+            <div className="flex h-screen bg-surface-base">
+              <Sidebar />
+              <main className="flex-1 overflow-auto bg-surface-raised">
+                <MobileMenuButton />
+                {children}
+              </main>
+            </div>
+          </SidebarProvider>
           <CommandPalette />
           <KeyboardShortcutsOverlay />
           <GlobalShortcuts />
