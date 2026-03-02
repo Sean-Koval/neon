@@ -198,7 +198,7 @@ export const organizationsRouter = router({
       role: m.role,
       email: m.user.email,
       name: m.user.name,
-      avatarUrl: m.user.avatarUrl,
+      avatarUrl: m.user.image,
       joinedAt: m.acceptedAt || m.createdAt,
     }));
   }),

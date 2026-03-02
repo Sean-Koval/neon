@@ -7,6 +7,7 @@
 import { type NextRequest, NextResponse } from 'next/server'
 import { getClickHouseClient } from '@/lib/db/clickhouse'
 import { logger } from '@/lib/logger'
+import { withAuth } from '@/lib/middleware/auth'
 import { withRateLimit } from '@/lib/middleware/rate-limit'
 import type {
   CompareRequest,
@@ -49,7 +50,7 @@ interface RunTraceRecord {
  *   threshold?: number; // default 0.05
  * }
  */
-export const POST = withRateLimit(async function POST(request: NextRequest) {
+export const POST = withAuth(withRateLimit(async function POST(request: NextRequest) {
   try {
     const rawBody = await request.json()
 
@@ -293,4 +294,4 @@ export const POST = withRateLimit(async function POST(request: NextRequest) {
       { status: 500 },
     )
   }
-})
+}))

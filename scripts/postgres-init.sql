@@ -109,6 +109,46 @@ CREATE INDEX idx_runs_suite ON runs(suite_id);
 CREATE INDEX idx_runs_status ON runs(status);
 CREATE INDEX idx_score_configs_project ON score_configs(project_id);
 
+-- Users table (for NextAuth)
+CREATE TABLE IF NOT EXISTS users (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    email VARCHAR(255) NOT NULL,
+    name VARCHAR(255),
+    avatar_url TEXT,
+    email_verified TIMESTAMPTZ,
+    auth_provider VARCHAR(50),
+    auth_provider_id VARCHAR(255),
+    last_login_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS users_email_idx ON users(email);
+
+-- NextAuth accounts table (OAuth provider links)
+CREATE TABLE IF NOT EXISTS accounts (
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    type VARCHAR(255) NOT NULL,
+    provider VARCHAR(255) NOT NULL,
+    provider_account_id VARCHAR(255) NOT NULL,
+    refresh_token TEXT,
+    access_token TEXT,
+    expires_at INTEGER,
+    token_type VARCHAR(255),
+    scope TEXT,
+    id_token TEXT,
+    session_state TEXT,
+    PRIMARY KEY (provider, provider_account_id)
+);
+CREATE INDEX IF NOT EXISTS accounts_user_id_idx ON accounts(user_id);
+
+-- NextAuth verification tokens
+CREATE TABLE IF NOT EXISTS verification_tokens (
+    identifier VARCHAR(255) NOT NULL,
+    token VARCHAR(255) NOT NULL,
+    expires TIMESTAMPTZ NOT NULL,
+    PRIMARY KEY (identifier, token)
+);
+
 -- Insert default project for development
 INSERT INTO projects (id, name, description) VALUES
     ('00000000-0000-0000-0000-000000000001', 'default', 'Default development project')

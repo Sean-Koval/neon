@@ -188,6 +188,13 @@ services:
       - TEMPORAL_NAMESPACE=default
       - TEMPORAL_TASK_QUEUE=agent-workers
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
+      # Auth (NextAuth) - generate AUTH_SECRET with: openssl rand -base64 32
+      - AUTH_SECRET=${AUTH_SECRET:-}
+      - AUTH_GITHUB_ID=${AUTH_GITHUB_ID:-}
+      - AUTH_GITHUB_SECRET=${AUTH_GITHUB_SECRET:-}
+      - NEXTAUTH_URL=${NEXTAUTH_URL:-http://localhost:3000}
+      # Dev bypass - set to "true" to skip auth (useful for demos)
+      - AUTH_DEV_BYPASS=${AUTH_DEV_BYPASS:-false}
     depends_on:
       clickhouse:
         condition: service_healthy

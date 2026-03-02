@@ -8,6 +8,7 @@ import { type NextRequest, NextResponse } from 'next/server'
 
 import { evals } from '@/lib/db/clickhouse'
 import { logger } from '@/lib/logger'
+import { withAuth } from '@/lib/middleware/auth'
 
 function getDateRange(days: number): { startDate: string; endDate: string } {
   const endDate = new Date()
@@ -30,12 +31,12 @@ function getDateRange(days: number): { startDate: string; endDate: string } {
  * - endDate: Explicit end date (YYYY-MM-DD)
  * - scorerName: Filter to a specific scorer
  */
-export async function GET(request: NextRequest) {
+export const GET = withAuth(async (request, auth) => {
   const startTime = performance.now()
 
   try {
     const { searchParams } = new URL(request.url)
-    const projectId = searchParams.get('projectId') || 'default'
+    const projectId = auth?.workspaceId || searchParams.get('projectId') || 'default'
     const days = Number.parseInt(searchParams.get('days') || '7', 10)
     const scorerName = searchParams.get('scorerName') || undefined
 
@@ -96,4 +97,4 @@ export async function GET(request: NextRequest) {
       { status: 500 },
     )
   }
-}
+})

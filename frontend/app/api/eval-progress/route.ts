@@ -13,6 +13,7 @@
  */
 
 import type { NextRequest } from 'next/server'
+import { withAuth, type AuthResult } from '@/lib/middleware/auth'
 
 interface ProgressEvent {
   type: 'progress' | 'complete' | 'error' | 'heartbeat'
@@ -93,10 +94,10 @@ async function fetchWorkflowStatus(
   }
 }
 
-export async function GET(request: NextRequest) {
+export const GET = withAuth(async function GET(request: NextRequest, auth: AuthResult) {
   const { searchParams } = new URL(request.url)
   const runId = searchParams.get('runId')
-  const projectId = searchParams.get('projectId') || 'default'
+  const projectId = auth.workspaceId || searchParams.get('projectId') || 'default'
 
   if (!runId) {
     return new Response(JSON.stringify({ error: 'runId is required' }), {
@@ -199,6 +200,7 @@ export async function GET(request: NextRequest) {
     },
   })
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- SSE returns plain Response; NextResponse extends Response
   return new Response(stream, {
     headers: {
       'Content-Type': 'text/event-stream',
@@ -206,5 +208,5 @@ export async function GET(request: NextRequest) {
       Connection: 'keep-alive',
       'X-Accel-Buffering': 'no',
     },
-  })
-}
+  }) as any
+})

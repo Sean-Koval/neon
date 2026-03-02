@@ -225,7 +225,7 @@ export const workspacesRouter = router({
       role: m.role,
       email: m.user.email,
       name: m.user.name,
-      avatarUrl: m.user.avatarUrl,
+      avatarUrl: m.user.image,
       isInherited: !!m.inheritedFromOrg,
       joinedAt: m.createdAt,
     }));
