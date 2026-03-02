@@ -3,15 +3,23 @@
 import { AlertCircle, Check, Key } from 'lucide-react'
 import { useCallback, useState } from 'react'
 import { api } from '@/lib/api'
-import { useAuth } from '@/lib/auth'
+import { apiClient } from '@/lib/api'
 import { CONFIG } from '@/lib/config'
 
+const API_KEY_STORAGE_KEY = 'neon_api_key'
+
 /**
- * Component for setting/updating the API key at runtime.
- * Can be used in a settings page or as a modal.
+ * Component for setting/updating the SDK API key at runtime.
+ * This manages programmatic API key access, separate from user session auth.
  */
 export function ApiKeySettings() {
-  const { isAuthenticated, setApiKey, clearApiKey } = useAuth()
+  const [hasApiKey, setHasApiKey] = useState(() => {
+    try {
+      return !!sessionStorage.getItem(API_KEY_STORAGE_KEY)
+    } catch {
+      return false
+    }
+  })
   const [inputValue, setInputValue] = useState('')
   const [isValidating, setIsValidating] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -37,33 +45,45 @@ export function ApiKeySettings() {
       }
 
       // Set the key first so we can test it
-      setApiKey(trimmedKey)
+      apiClient.setApiKey(trimmedKey)
+      try {
+        sessionStorage.setItem(API_KEY_STORAGE_KEY, trimmedKey)
+      } catch {}
       setIsValidating(true)
 
       try {
         // Validate by making a simple API call
         await api.getSuites()
+        setHasApiKey(true)
         setSuccess(true)
         setInputValue('')
         // Clear success message after 3 seconds
         setTimeout(() => setSuccess(false), CONFIG.SUCCESS_FEEDBACK_MS)
       } catch {
         // Key didn't work - clear it
-        clearApiKey()
+        apiClient.clearApiKey()
+        try {
+          sessionStorage.removeItem(API_KEY_STORAGE_KEY)
+        } catch {}
+        setHasApiKey(false)
         setError('API key validation failed. Please check your key.')
       } finally {
         setIsValidating(false)
       }
     },
-    [inputValue, setApiKey, clearApiKey],
+    [inputValue],
   )
 
   const handleClear = useCallback(() => {
-    clearApiKey()
+    apiClient.clearApiKey()
+    try {
+      sessionStorage.removeItem(API_KEY_STORAGE_KEY)
+    } catch {}
+    setHasApiKey(false)
     setInputValue('')
     setError(null)
     setSuccess(false)
-  }, [clearApiKey])
+  }, [])
 
   return (
     <div className="card p-6 dark:border dark:border-slate-700/80 dark:bg-slate-900/72">
@@ -72,7 +92,7 @@ export function ApiKeySettings() {
         <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">API Key</h3>
       </div>
 
-      {isAuthenticated ? (
+      {hasApiKey ? (
         <div className="space-y-4">
           <div className="flex items-center space-x-2 text-green-600 dark:text-emerald-400">
             <Check className="w-4 h-4" />
@@ -138,13 +158,19 @@ export function ApiKeySettings() {
 }
 
 /**
- * Minimal inline prompt shown when no API key is configured.
- * Can be displayed at the top of pages that require authentication.
+ * Minimal inline prompt shown when no SDK API key is configured.
+ * Can be displayed on pages that need direct API key access.
  */
 export function ApiKeyPrompt() {
-  const { isAuthenticated } = useAuth()
+  const hasApiKey = (() => {
+    try {
+      return !!sessionStorage.getItem(API_KEY_STORAGE_KEY)
+    } catch {
+      return false
+    }
+  })()
 
-  if (isAuthenticated) {
+  if (hasApiKey) {
     return null
   }
 

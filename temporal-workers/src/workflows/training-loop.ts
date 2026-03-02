@@ -146,6 +146,7 @@ export async function trainingLoopWorkflow(
   const stageHistory: StageResult[] = [];
   const currentMetrics: Record<string, number> = {};
   let baselineScore = 0;
+  let collectedSignals: Awaited<ReturnType<typeof collectSignals>>["signals"] = [];
 
   // ---- Signal handlers ----
   setHandler(pauseSignal, () => {
@@ -232,6 +233,7 @@ export async function trainingLoopWorkflow(
         signalTypes
       );
 
+      collectedSignals = collectResult.signals;
       currentMetrics.signalCount = collectResult.count;
       await recordLoopIteration(loopId, "collecting", { signalCount: collectResult.count });
       recordStage("collecting", "completed", { signalCount: collectResult.count }, stageStart);
@@ -248,7 +250,7 @@ export async function trainingLoopWorkflow(
       recordStage("curating", "skipped", {}, stageStart);
       skipStage = false;
     } else {
-      const curateResult = await curateTrainingData([], {
+      const curateResult = await curateTrainingData(collectedSignals, {
         minQuality: 0.7,
         maxSamples: 1000,
         balanceClasses: true,

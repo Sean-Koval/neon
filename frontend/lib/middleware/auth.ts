@@ -83,7 +83,7 @@ const JWT_CONFIG = {
  * Verify and decode a JWT token.
  * Uses jose library which is Edge-compatible (unlike jsonwebtoken).
  */
-async function verifyJwt(token: string): Promise<AuthenticatedUser | null> {
+export async function verifyJwt(token: string): Promise<AuthenticatedUser | null> {
   try {
     // Dynamic import of jose for edge compatibility
     const { jwtVerify } = await import('jose')
@@ -241,7 +241,37 @@ export async function authenticate(
   const authHeader = request.headers.get('authorization')
   const apiKeyHeader = request.headers.get('x-api-key')
 
-  // Try JWT Bearer token first
+  // Try NextAuth session cookie first (browser sessions)
+  if (opts.allowJwt) {
+    try {
+      const { getToken } = await import('next-auth/jwt')
+      const token = await getToken({
+        req: request,
+        secret: process.env.AUTH_SECRET,
+      })
+      if (token?.userId && token?.email) {
+        const workspaceId =
+          (token.workspaceId as string) ||
+          request.headers.get('x-workspace-id') ||
+          request.nextUrl.searchParams.get('workspace_id') ||
+          undefined
+
+        return {
+          user: {
+            id: token.userId as string,
+            email: token.email as string,
+            name: token.name || null,
+          },
+          workspaceId,
+          organizationId: (token.organizationId as string) || undefined,
+        }
+      }
+    } catch {
+      // NextAuth token extraction failed — fall through to other methods
+    }
+  }
+
+  // Try legacy JWT Bearer token (for backward compatibility / external JWT issuers)
   if (opts.allowJwt && authHeader?.startsWith('Bearer ')) {
     const token = authHeader.slice(7)
     const user = await verifyJwt(token)
