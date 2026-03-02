@@ -15,7 +15,8 @@ import {
   Zap,
 } from 'lucide-react'
 import Link from 'next/link'
-import { useMemo, useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { useEffect, useMemo, useState } from 'react'
 import { Line, LineChart, ResponsiveContainer } from 'recharts'
 import { LazyScoreTrends } from '@/components/dashboard/lazy-components'
 import { useActivityFeed } from '@/hooks/use-activity-feed'
@@ -81,6 +82,20 @@ export default function CommandCenter() {
   const { agents, isLoading: isLoadingAgents } = useAgentHealth()
   const { items: runningItems, isLoading: isLoadingRunning } = useRunningWork()
   const [environment, setEnvironment] = useState<Environment>('production')
+  const router = useRouter()
+
+  // Redirect to setup wizard if workspace is empty (first-run experience)
+  const hasSeenSetup = typeof window !== 'undefined' && localStorage.getItem('neon-setup-complete')
+  useEffect(() => {
+    if (
+      !isLoadingStats &&
+      !hasSeenSetup &&
+      stats &&
+      stats.totalRuns === 0
+    ) {
+      router.push('/setup')
+    }
+  }, [isLoadingStats, stats, hasSeenSetup, router])
 
   const healthyCount = agents.filter((a) => a.status === 'healthy').length
   const failingCount = agents.filter(
