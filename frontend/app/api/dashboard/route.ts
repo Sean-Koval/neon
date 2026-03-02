@@ -16,6 +16,7 @@ import {
 } from '@/lib/db/clickhouse'
 
 import { logger } from '@/lib/logger'
+import { withAuth } from '@/lib/middleware/auth'
 import { withRateLimit } from '@/lib/middleware/rate-limit'
 
 // =============================================================================
@@ -53,10 +54,10 @@ function getDateRange(days: number): { startDate: string; endDate: string } {
   }
 }
 
-function parseRequest(request: NextRequest): DashboardRequest {
+function parseRequest(request: NextRequest, workspaceId?: string): DashboardRequest {
   const { searchParams } = new URL(request.url)
 
-  const projectId = searchParams.get('projectId') || 'default'
+  const projectId = workspaceId || searchParams.get('projectId') || 'default'
   const days = Number.parseInt(searchParams.get('days') || '7', 10)
   const scorerName = searchParams.get('scorerName') || undefined
 
@@ -93,58 +94,60 @@ function parseRequest(request: NextRequest): DashboardRequest {
  *
  * Returns aggregated dashboard data from materialized views.
  */
-export const GET = withRateLimit(async function GET(request: NextRequest) {
-  const startTime = performance.now()
+export const GET = withAuth(async (request, auth) => {
+  return withRateLimit(async (req: NextRequest) => {
+    const startTime = performance.now()
 
-  try {
-    const { projectId, startDate, endDate, scorerName } = parseRequest(request)
+    try {
+      const { projectId, startDate, endDate, scorerName } = parseRequest(req, auth?.workspaceId)
 
-    // Run all queries in parallel for maximum performance
-    const [
-      { data: summary },
-      { data: scoreTrends },
-      { data: durationStats },
-      { data: dailySummary },
-      { data: scorerStats },
-    ] = await Promise.all([
-      evals.getDashboard({ projectId, startDate, endDate }),
-      evals.getScoreTrendData({ projectId, startDate, endDate, scorerName }),
-      evals.getDurationStatsData({ projectId, startDate, endDate }),
-      evals.getDailyRunSummaryData({ projectId, startDate, endDate }),
-      evals.getScorerStatsData({ projectId, startDate, endDate }),
-    ])
+      // Run all queries in parallel for maximum performance
+      const [
+        { data: summary },
+        { data: scoreTrends },
+        { data: durationStats },
+        { data: dailySummary },
+        { data: scorerStats },
+      ] = await Promise.all([
+        evals.getDashboard({ projectId, startDate, endDate }),
+        evals.getScoreTrendData({ projectId, startDate, endDate, scorerName }),
+        evals.getDurationStatsData({ projectId, startDate, endDate }),
+        evals.getDailyRunSummaryData({ projectId, startDate, endDate }),
+        evals.getScorerStatsData({ projectId, startDate, endDate }),
+      ])
 
-    const queryTimeMs = Math.round(performance.now() - startTime)
+      const queryTimeMs = Math.round(performance.now() - startTime)
 
-    const response: DashboardResponse = {
-      summary,
-      scoreTrends,
-      durationStats,
-      dailySummary,
-      scorerStats,
-      queryTimeMs,
-    }
-
-    return NextResponse.json(response, {
-      headers: {
-        'X-Query-Time-Ms': String(queryTimeMs),
-        'Cache-Control': 'public, s-maxage=10, stale-while-revalidate=30',
-      },
-    })
-  } catch (error) {
-    logger.error({ err: error }, 'Dashboard API error')
-
-    const queryTimeMs = Math.round(performance.now() - startTime)
-
-    return NextResponse.json(
-      {
-        error: 'Failed to fetch dashboard data',
-        message: error instanceof Error ? error.message : 'Unknown error',
+      const response: DashboardResponse = {
+        summary,
+        scoreTrends,
+        durationStats,
+        dailySummary,
+        scorerStats,
         queryTimeMs,
-      },
-      { status: 500 },
-    )
-  }
+      }
+
+      return NextResponse.json(response, {
+        headers: {
+          'X-Query-Time-Ms': String(queryTimeMs),
+          'Cache-Control': 'public, s-maxage=10, stale-while-revalidate=30',
+        },
+      })
+    } catch (error) {
+      logger.error({ err: error }, 'Dashboard API error')
+
+      const queryTimeMs = Math.round(performance.now() - startTime)
+
+      return NextResponse.json(
+        {
+          error: 'Failed to fetch dashboard data',
+          message: error instanceof Error ? error.message : 'Unknown error',
+          queryTimeMs,
+        },
+        { status: 500 },
+      )
+    }
+  })(request)
 })
 
 // =============================================================================

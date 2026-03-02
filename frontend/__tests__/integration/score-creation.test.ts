@@ -37,6 +37,18 @@ vi.mock('@/lib/db/permissions', () => ({
   hasWorkspacePermission: vi.fn(),
 }))
 
+// Mock auth middleware to always pass with dev user
+vi.mock('@/lib/middleware/auth', () => ({
+  withAuth: (handler: Function) => async (request: any, ...args: any[]) => {
+    const auth = {
+      user: { id: 'dev-user-001', email: 'dev@neon.local', name: 'Dev User' },
+      workspaceId: '00000000-0000-0000-0000-000000000001',
+      organizationId: 'dev-org-001',
+    }
+    return handler(request, auth, ...args)
+  },
+}))
+
 // =============================================================================
 // Helpers
 // =============================================================================
@@ -121,7 +133,7 @@ describe('Score Creation Integration', () => {
       const insertedScores = mockBatchInsertScores.mock.calls[0][0]
       expect(insertedScores).toHaveLength(1)
       expect(insertedScores[0]).toMatchObject({
-        project_id: 'project-001',
+        project_id: '00000000-0000-0000-0000-000000000001',
         trace_id: 'trace-001',
         name: 'tool_selection',
         value: 0.8,

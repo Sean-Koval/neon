@@ -7,17 +7,20 @@
 import { type NextRequest, NextResponse } from 'next/server'
 import { traces } from '@/lib/db/clickhouse'
 import { logger } from '@/lib/logger'
+import { withAuth, type AuthResult } from '@/lib/middleware/auth'
 import { withRateLimit } from '@/lib/middleware/rate-limit'
 
-export const GET = withRateLimit(async function GET(
+export const GET = withRateLimit(withAuth(async function GET(
   request: NextRequest,
+  auth: AuthResult,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const { id: spanId } = await params
 
-    // Get project ID from header or query
+    // Get project ID from auth, header, or query
     const projectId =
+      auth.workspaceId ||
       request.headers.get('x-project-id') ||
       request.nextUrl.searchParams.get('project_id') ||
       '00000000-0000-0000-0000-000000000001'
@@ -36,4 +39,4 @@ export const GET = withRateLimit(async function GET(
       { status: 500 },
     )
   }
-})
+}))
