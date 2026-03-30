@@ -136,6 +136,112 @@ export interface DecisionMetadata {
 }
 
 /**
+ * Session and conversation lineage for traces and spans.
+ */
+export interface SessionContext {
+  /** Stable session identifier for grouping related traces. */
+  sessionId: string;
+  /** Conversation or thread identifier within the session. */
+  conversationId?: string;
+  /** User identifier when available. */
+  userId?: string;
+  /** Thread identifier for multi-threaded workflows. */
+  threadId?: string;
+}
+
+/**
+ * Structured content part within a message.
+ */
+export interface MessageContentPart {
+  type: "text" | "image" | "audio" | "tool_call" | "tool_result" | "json" | "other";
+  text?: string;
+  mimeType?: string;
+  data?: string;
+  metadata?: Record<string, string>;
+}
+
+/**
+ * Structured tool call metadata associated with a message.
+ */
+export interface MessageToolCall {
+  id: string;
+  name: string;
+  arguments?: string;
+}
+
+/**
+ * Structured input/output message representation.
+ */
+export interface TraceMessage {
+  role: "system" | "user" | "assistant" | "tool" | "developer" | "other";
+  content: string;
+  messageId?: string;
+  name?: string;
+  toolCallId?: string;
+  toolCalls?: MessageToolCall[];
+  parts?: MessageContentPart[];
+  metadata?: Record<string, string>;
+}
+
+/**
+ * Agent handoff and delegation metadata for graph reconstruction.
+ */
+export interface HandoffMetadata {
+  handoffType: "handoff" | "delegation" | "routing";
+  fromAgentId?: string;
+  toAgentId: string;
+  fromSpanId?: string;
+  toSpanId?: string;
+  reason?: string;
+  taskDescription?: string;
+  contextSummary?: string;
+  messageId?: string;
+  metadata?: Record<string, string>;
+}
+
+/**
+ * Reference to a durable artifact associated with a trace or span.
+ */
+export interface ArtifactReference {
+  artifactId?: string;
+  name: string;
+  kind: "file" | "document" | "image" | "audio" | "json" | "url" | "other";
+  uri?: string;
+  mimeType?: string;
+  contentHash?: string;
+  sizeBytes?: number;
+  metadata?: Record<string, string>;
+}
+
+/**
+ * Reference to a captured state snapshot.
+ */
+export interface StateSnapshotReference {
+  snapshotId: string;
+  name?: string;
+  stateType?: string;
+  uri?: string;
+  contentHash?: string;
+  artifactIds?: string[];
+  metadata?: Record<string, string>;
+}
+
+/**
+ * Eval or review metadata attached directly to traces or spans.
+ */
+export interface EvalAnnotation {
+  annotationId?: string;
+  name: string;
+  evaluatorType?: "human" | "llm_judge" | "rule" | "dataset" | "system";
+  status?: "expected" | "observed" | "pass" | "fail" | "note";
+  value?: string;
+  score?: number;
+  comment?: string;
+  referenceSpanId?: string;
+  metadata?: Record<string, string>;
+}
+
+/**
  * Span status
  */
 export type SpanStatus = "unset" | "ok" | "error";
@@ -157,6 +263,13 @@ export interface Trace {
   agentVersion?: string;
   workflowId?: string;
   workflowRunId?: string;
+  session?: SessionContext;
+  inputMessages?: TraceMessage[];
+  outputMessages?: TraceMessage[];
+  handoffs?: HandoffMetadata[];
+  stateSnapshots?: StateSnapshotReference[];
+  artifacts?: ArtifactReference[];
+  evalAnnotations?: EvalAnnotation[];
   // Aggregated stats
   totalInputTokens: number;
   totalOutputTokens: number;
@@ -195,6 +308,13 @@ export interface Span {
   toolName?: string;
   toolInput?: string;
   toolOutput?: string;
+  session?: SessionContext;
+  inputMessages?: TraceMessage[];
+  outputMessages?: TraceMessage[];
+  handoff?: HandoffMetadata;
+  stateSnapshots?: StateSnapshotReference[];
+  artifacts?: ArtifactReference[];
+  evalAnnotations?: EvalAnnotation[];
   // Skill selection context (for debugging "did we pick the right skill?")
   skillSelection?: SkillSelectionContext;
   // MCP execution context (for MCP tool calls)

@@ -174,6 +174,66 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  # Automated ClickHouse backups for self-hosted operators
+  clickhouse-backup:
+    build:
+      context: .
+      dockerfile: docker/backup-runner/Dockerfile
+    container_name: neon-clickhouse-backup
+    command: ["/scripts/backup/backup-loop.sh", "clickhouse"]
+    environment:
+      - CLICKHOUSE_HOST=clickhouse
+      - CLICKHOUSE_PORT=8123
+      - CLICKHOUSE_USER=default
+      - CLICKHOUSE_PASSWORD=${CLICKHOUSE_PASSWORD:-}
+      - CLICKHOUSE_DATABASE=${CLICKHOUSE_DATABASE:-neon}
+      - BACKUP_ROOT=/backups
+      - BACKUP_TARGET=${NEON_BACKUP_TARGET:-local}
+      - BACKUP_RUN_ON_STARTUP=${NEON_BACKUP_RUN_ON_STARTUP:-true}
+      - BACKUP_INTERVAL_SECONDS=${NEON_CLICKHOUSE_BACKUP_INTERVAL_SECONDS:-86400}
+      - CLICKHOUSE_FULL_BACKUP_DAY=${NEON_CLICKHOUSE_FULL_BACKUP_DAY:-0}
+      - RETENTION_DAYS=${NEON_CLICKHOUSE_BACKUP_RETENTION_DAYS:-30}
+      - GCS_BUCKET=${NEON_BACKUP_GCS_BUCKET:-}
+    volumes:
+      - ./scripts/backup:/scripts/backup:ro
+      - clickhouse_backups:/backups/clickhouse
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+    profiles:
+      - backup
+      - full
+    restart: unless-stopped
+
+  # Automated PostgreSQL backups for self-hosted operators
+  postgres-backup:
+    build:
+      context: .
+      dockerfile: docker/backup-runner/Dockerfile
+    container_name: neon-postgres-backup
+    command: ["/scripts/backup/backup-loop.sh", "postgres"]
+    environment:
+      - PGHOST=postgres
+      - PGPORT=5432
+      - PGUSER=neon
+      - PGPASSWORD=${POSTGRES_PASSWORD:-neon}
+      - BACKUP_ROOT=/backups
+      - BACKUP_TARGET=${NEON_BACKUP_TARGET:-local}
+      - BACKUP_RUN_ON_STARTUP=${NEON_BACKUP_RUN_ON_STARTUP:-true}
+      - BACKUP_INTERVAL_SECONDS=${NEON_POSTGRES_BACKUP_INTERVAL_SECONDS:-86400}
+      - RETENTION_DAYS=${NEON_POSTGRES_BACKUP_RETENTION_DAYS:-30}
+      - GCS_BUCKET=${NEON_BACKUP_GCS_BUCKET:-}
+    volumes:
+      - ./scripts/backup:/scripts/backup:ro
+      - postgres_backups:/backups/postgres
+    depends_on:
+      postgres:
+        condition: service_healthy
+    profiles:
+      - backup
+      - full
+    restart: unless-stopped
+
   # Next.js Frontend + API
   web:
     build:
@@ -283,7 +343,9 @@ services:
 volumes:
   clickhouse_data:
   clickhouse_logs:
+  clickhouse_backups:
   postgres_data:
+  postgres_backups:
   redpanda_data:
 
 # ===========================================================================

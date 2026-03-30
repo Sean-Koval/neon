@@ -35,6 +35,84 @@ import * as path from "node:path";
 /**
  * Span data structure for buffering
  */
+export interface BufferedSessionContext {
+  sessionId: string;
+  conversationId?: string;
+  userId?: string;
+  threadId?: string;
+}
+
+export interface BufferedMessageContentPart {
+  type: "text" | "image" | "audio" | "tool_call" | "tool_result" | "json" | "other";
+  text?: string;
+  mimeType?: string;
+  data?: string;
+  metadata?: Record<string, string>;
+}
+
+export interface BufferedMessageToolCall {
+  id: string;
+  name: string;
+  arguments?: string;
+}
+
+export interface BufferedTraceMessage {
+  role: "system" | "user" | "assistant" | "tool" | "developer" | "other";
+  content: string;
+  messageId?: string;
+  name?: string;
+  toolCallId?: string;
+  toolCalls?: BufferedMessageToolCall[];
+  parts?: BufferedMessageContentPart[];
+  metadata?: Record<string, string>;
+}
+
+export interface BufferedHandoffMetadata {
+  handoffType: "handoff" | "delegation" | "routing";
+  fromAgentId?: string;
+  toAgentId: string;
+  fromSpanId?: string;
+  toSpanId?: string;
+  reason?: string;
+  taskDescription?: string;
+  contextSummary?: string;
+  messageId?: string;
+  metadata?: Record<string, string>;
+}
+
+export interface BufferedArtifactReference {
+  artifactId?: string;
+  name: string;
+  kind: "file" | "document" | "image" | "audio" | "json" | "url" | "other";
+  uri?: string;
+  mimeType?: string;
+  contentHash?: string;
+  sizeBytes?: number;
+  metadata?: Record<string, string>;
+}
+
+export interface BufferedStateSnapshotReference {
+  snapshotId: string;
+  name?: string;
+  stateType?: string;
+  uri?: string;
+  contentHash?: string;
+  artifactIds?: string[];
+  metadata?: Record<string, string>;
+}
+
+export interface BufferedEvalAnnotation {
+  annotationId?: string;
+  name: string;
+  evaluatorType?: "human" | "llm_judge" | "rule" | "dataset" | "system";
+  status?: "expected" | "observed" | "pass" | "fail" | "note";
+  value?: string;
+  score?: number;
+  comment?: string;
+  referenceSpanId?: string;
+  metadata?: Record<string, string>;
+}
+
 export interface BufferedSpan {
   /** Unique span ID */
   spanId: string;
@@ -70,6 +148,19 @@ export interface BufferedSpan {
   toolName?: string;
   toolInput?: string;
   toolOutput?: string;
+  /** Session and conversation lineage */
+  session?: BufferedSessionContext;
+  /** Structured messages for replayable inputs/outputs */
+  inputMessages?: BufferedTraceMessage[];
+  outputMessages?: BufferedTraceMessage[];
+  /** Agent handoff or delegation metadata */
+  handoff?: BufferedHandoffMetadata;
+  /** References to durable state checkpoints */
+  stateSnapshots?: BufferedStateSnapshotReference[];
+  /** References to artifacts produced or consumed by this span */
+  artifacts?: BufferedArtifactReference[];
+  /** Eval metadata attached directly to the span */
+  evalAnnotations?: BufferedEvalAnnotation[];
   /** Timestamp when this was added to buffer */
   bufferedAt: string;
   /** Number of flush attempts */

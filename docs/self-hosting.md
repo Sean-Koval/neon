@@ -10,6 +10,7 @@ This guide walks you through deploying Neon on your own infrastructure using Doc
 - [Configuration](#configuration)
 - [Deployment Profiles](#deployment-profiles)
 - [Health Checks](#health-checks)
+- [Backups And Recovery](#backups-and-recovery)
 - [Troubleshooting](#troubleshooting)
 - [Resource Requirements](#resource-requirements)
 - [Upgrade Instructions](#upgrade-instructions)
@@ -265,7 +266,7 @@ Use this when:
 docker compose --profile full up -d
 ```
 
-Starts: All services including frontend and workers
+Starts: All services including frontend, workers, and automated backup services
 
 Use this for:
 - Production deployments
@@ -290,7 +291,118 @@ Use this when:
 docker compose --profile temporal --profile streaming up -d
 ```
 
+### Backup Automation Only
+
+```bash
+docker compose --profile backup up -d clickhouse-backup postgres-backup
+```
+
+Starts: the background backup workers without the app tier.
+
+Use this when:
+- You run the web app outside Compose but still want repo-managed backups
+- You want to validate backup jobs independently before enabling the full stack
+
 ---
+
+## Backups And Recovery
+
+Neon now includes self-hosted backup workers for both primary data stores:
+
+- `clickhouse-backup` writes ClickHouse table snapshots to the `clickhouse_backups` Docker volume
+- `postgres-backup` writes compressed `pg_dump` archives to the `postgres_backups` Docker volume
+
+By default, both workers run once on startup and then every 24 hours. ClickHouse takes incremental backups daily and switches to a full backup on the configured UTC weekday.
+
+### Enable Automated Backups
+
+```bash
+# Production-style stack including backup workers
+docker compose --profile full up -d
+
+# Or enable only the backup profile
+docker compose --profile backup up -d
+```
+
+### Backup Configuration
+
+Set these in `.env` before starting the backup workers:
+
+```bash
+NEON_BACKUP_TARGET=local
+NEON_BACKUP_RUN_ON_STARTUP=true
+NEON_CLICKHOUSE_BACKUP_INTERVAL_SECONDS=86400
+NEON_CLICKHOUSE_FULL_BACKUP_DAY=0
+NEON_CLICKHOUSE_BACKUP_RETENTION_DAYS=30
+NEON_POSTGRES_BACKUP_INTERVAL_SECONDS=86400
+NEON_POSTGRES_BACKUP_RETENTION_DAYS=30
+```
+
+If you prefer GCS-backed archives, set:
+
+```bash
+NEON_BACKUP_TARGET=gcs
+NEON_BACKUP_GCS_BUCKET=your-backup-bucket
+```
+
+The self-hosted Compose path assumes the backup runner image has network access to GCS tooling only when you explicitly opt into remote backup. For cloud-scheduled backup jobs, use the Terraform module in [`terraform/modules/backup/main.tf`](/home/seanm/repos/neon/terraform/modules/backup/main.tf).
+
+### Inspect Backup Status
+
+```bash
+# Tail backup worker logs
+docker compose --profile backup logs -f clickhouse-backup postgres-backup
+
+# Inspect persisted backup archives
+docker volume inspect neon_clickhouse_backups
+docker volume inspect neon_postgres_backups
+```
+
+### Run A One-Off Manual Backup
+
+```bash
+# ClickHouse full snapshot
+docker compose --profile backup run --rm \
+  -e CLICKHOUSE_HOST=clickhouse \
+  -e BACKUP_DIR=/backups/clickhouse \
+  clickhouse-backup /scripts/backup/clickhouse-backup.sh --type full --target local
+
+# PostgreSQL logical dump
+docker compose --profile backup run --rm \
+  -e PGHOST=postgres \
+  -e BACKUP_DIR=/backups/postgres \
+  postgres-backup /scripts/backup/postgres-backup.sh --target local
+```
+
+### Verify Existing Backups
+
+```bash
+# Replace the backup names with actual archive directories from your backup volume
+docker compose --profile backup run --rm clickhouse-backup \
+  /scripts/backup/clickhouse-backup.sh --verify full_20260330_020000
+
+docker compose --profile backup run --rm postgres-backup \
+  /scripts/backup/postgres-backup.sh --verify pg_20260330_030000
+```
+
+### Restore From Backup
+
+```bash
+# Restore ClickHouse tables from a backup archive
+docker compose --profile backup run --rm clickhouse-backup \
+  /scripts/backup/restore-clickhouse.sh full_20260330_020000
+
+# Restore PostgreSQL databases from a backup archive
+docker compose --profile backup run --rm postgres-backup \
+  /scripts/backup/restore-postgres.sh pg_20260330_030000
+```
+
+Restore operations replace or append data depending on the engine:
+
+- PostgreSQL restore drops and recreates the selected databases before loading the dump
+- ClickHouse restore inserts backup rows into the selected tables
+
+Run restores against a staging environment first when validating disaster recovery. PostgreSQL point-in-time recovery is still a separate operational concern; the Compose automation added here gives you scheduled logical backups and a tested restore path, which is the minimum durability baseline for self-hosted Neon.
 
 ## Health Checks
 

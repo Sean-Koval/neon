@@ -271,6 +271,93 @@ describe("emitSpan", () => {
     });
   });
 
+  describe("rich schema fields", () => {
+    it("preserves sessions, messages, handoffs, snapshots, artifacts, and eval annotations", async () => {
+      mockFetch.mockResolvedValue({ ok: true });
+
+      await emitSpan({
+        traceId: "trace-project1-12345",
+        spanType: "generation",
+        name: "rich-span",
+        session: {
+          sessionId: "session-1",
+          conversationId: "conversation-1",
+          userId: "user-1",
+          threadId: "thread-1",
+        },
+        inputMessages: [{ role: "user", content: "hello", messageId: "m1" }],
+        outputMessages: [{ role: "assistant", content: "hi", messageId: "m2" }],
+        handoff: {
+          handoffType: "delegation",
+          fromAgentId: "planner",
+          toAgentId: "executor",
+          taskDescription: "Execute step 2",
+        },
+        stateSnapshots: [{ snapshotId: "snapshot-1", stateType: "agent_state" }],
+        artifacts: [{ artifactId: "artifact-1", name: "plan.json", kind: "json" }],
+        evalAnnotations: [
+          {
+            annotationId: "annotation-1",
+            name: "expected-tool",
+            evaluatorType: "dataset",
+            status: "expected",
+          },
+        ],
+      });
+
+      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+
+      expect(body.session).toEqual({
+        sessionId: "session-1",
+        conversationId: "conversation-1",
+        userId: "user-1",
+        threadId: "thread-1",
+      });
+      expect(body.input_messages).toEqual([
+        expect.objectContaining({ role: "user", content: "hello" }),
+      ]);
+      expect(body.output_messages).toEqual([
+        expect.objectContaining({ role: "assistant", content: "hi" }),
+      ]);
+      expect(body.handoff).toEqual(
+        expect.objectContaining({
+          handoffType: "delegation",
+          toAgentId: "executor",
+        }),
+      );
+      expect(body.state_snapshots).toEqual([
+        expect.objectContaining({ snapshotId: "snapshot-1" }),
+      ]);
+      expect(body.artifacts).toEqual([
+        expect.objectContaining({ artifactId: "artifact-1" }),
+      ]);
+      expect(body.eval_annotations).toEqual([
+        expect.objectContaining({ annotationId: "annotation-1" }),
+      ]);
+      expect(body.attributes["session.id"]).toBe("session-1");
+      expect(body.attributes["gen_ai.conversation.id"]).toBe("conversation-1");
+      expect(body.attributes["enduser.id"]).toBe("user-1");
+      expect(body.attributes["neon.thread.id"]).toBe("thread-1");
+      expect(JSON.parse(body.attributes["gen_ai.input.messages"])).toEqual([
+        expect.objectContaining({ role: "user", content: "hello" }),
+      ]);
+      expect(JSON.parse(body.attributes["gen_ai.output.messages"])).toEqual([
+        expect.objectContaining({ role: "assistant", content: "hi" }),
+      ]);
+      expect(body.attributes["neon.handoff.type"]).toBe("delegation");
+      expect(body.attributes["neon.handoff.to_agent"]).toBe("executor");
+      expect(JSON.parse(body.attributes["neon.state_snapshots"])).toEqual([
+        expect.objectContaining({ snapshotId: "snapshot-1" }),
+      ]);
+      expect(JSON.parse(body.attributes["neon.artifacts"])).toEqual([
+        expect.objectContaining({ artifactId: "artifact-1" }),
+      ]);
+      expect(JSON.parse(body.attributes["neon.eval.annotations"])).toEqual([
+        expect.objectContaining({ annotationId: "annotation-1" }),
+      ]);
+    });
+  });
+
   describe("error handling", () => {
     it("throws error when API call fails", async () => {
       mockFetch.mockResolvedValue({

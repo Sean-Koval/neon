@@ -328,6 +328,139 @@ const spanRecordSchema = z.object({
   tool_name: z.string().nullable().optional(),
   tool_input: z.string().optional(),
   tool_output: z.string().optional(),
+  session: z
+    .object({
+      sessionId: nonEmpty,
+      conversationId: z.string().optional(),
+      userId: z.string().optional(),
+      threadId: z.string().optional(),
+    })
+    .nullable()
+    .optional(),
+  input_messages: z
+    .array(
+      z.object({
+        role: z.enum(['system', 'user', 'assistant', 'tool', 'developer', 'other']),
+        content: z.string(),
+        messageId: z.string().optional(),
+        name: z.string().optional(),
+        toolCallId: z.string().optional(),
+        toolCalls: z
+          .array(
+            z.object({
+              id: nonEmpty,
+              name: nonEmpty,
+              arguments: z.string().optional(),
+            }),
+          )
+          .optional(),
+        parts: z
+          .array(
+            z.object({
+              type: z.enum(['text', 'image', 'audio', 'tool_call', 'tool_result', 'json', 'other']),
+              text: z.string().optional(),
+              mimeType: z.string().optional(),
+              data: z.string().optional(),
+              metadata: z.record(z.string(), z.string()).optional(),
+            }),
+          )
+          .optional(),
+        metadata: z.record(z.string(), z.string()).optional(),
+      }),
+    )
+    .optional(),
+  output_messages: z
+    .array(
+      z.object({
+        role: z.enum(['system', 'user', 'assistant', 'tool', 'developer', 'other']),
+        content: z.string(),
+        messageId: z.string().optional(),
+        name: z.string().optional(),
+        toolCallId: z.string().optional(),
+        toolCalls: z
+          .array(
+            z.object({
+              id: nonEmpty,
+              name: nonEmpty,
+              arguments: z.string().optional(),
+            }),
+          )
+          .optional(),
+        parts: z
+          .array(
+            z.object({
+              type: z.enum(['text', 'image', 'audio', 'tool_call', 'tool_result', 'json', 'other']),
+              text: z.string().optional(),
+              mimeType: z.string().optional(),
+              data: z.string().optional(),
+              metadata: z.record(z.string(), z.string()).optional(),
+            }),
+          )
+          .optional(),
+        metadata: z.record(z.string(), z.string()).optional(),
+      }),
+    )
+    .optional(),
+  handoff: z
+    .object({
+      handoffType: z.enum(['handoff', 'delegation', 'routing']),
+      fromAgentId: z.string().optional(),
+      toAgentId: nonEmpty,
+      fromSpanId: z.string().optional(),
+      toSpanId: z.string().optional(),
+      reason: z.string().optional(),
+      taskDescription: z.string().optional(),
+      contextSummary: z.string().optional(),
+      messageId: z.string().optional(),
+      metadata: z.record(z.string(), z.string()).optional(),
+    })
+    .nullable()
+    .optional(),
+  state_snapshots: z
+    .array(
+      z.object({
+        snapshotId: nonEmpty,
+        name: z.string().optional(),
+        stateType: z.string().optional(),
+        uri: z.string().optional(),
+        contentHash: z.string().optional(),
+        artifactIds: z.array(z.string()).optional(),
+        metadata: z.record(z.string(), z.string()).optional(),
+      }),
+    )
+    .optional(),
+  artifacts: z
+    .array(
+      z.object({
+        artifactId: z.string().optional(),
+        name: nonEmpty,
+        kind: z.enum(['file', 'document', 'image', 'audio', 'json', 'url', 'other']),
+        uri: z.string().optional(),
+        mimeType: z.string().optional(),
+        contentHash: z.string().optional(),
+        sizeBytes: z.number().int().nonnegative().optional(),
+        metadata: z.record(z.string(), z.string()).optional(),
+      }),
+    )
+    .optional(),
+  eval_annotations: z
+    .array(
+      z.object({
+        annotationId: z.string().optional(),
+        name: nonEmpty,
+        evaluatorType: z.enum(['human', 'llm_judge', 'rule', 'dataset', 'system']).optional(),
+        status: z.enum(['expected', 'observed', 'pass', 'fail', 'note']).optional(),
+        value: z.string().optional(),
+        score: z.number().optional(),
+        comment: z.string().optional(),
+        referenceSpanId: z.string().optional(),
+        metadata: z.record(z.string(), z.string()).optional(),
+      }),
+    )
+    .optional(),
+  skill_selection: z.unknown().nullable().optional(),
+  mcp_context: z.unknown().nullable().optional(),
+  decision_metadata: z.unknown().nullable().optional(),
   attributes: z.record(z.string(), z.unknown()).optional(),
 })
 

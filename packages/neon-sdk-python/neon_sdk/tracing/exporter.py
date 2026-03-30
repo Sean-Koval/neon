@@ -24,12 +24,79 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
+import re
 from dataclasses import dataclass, field
 from typing import Any
 
 import httpx
 
 logger = logging.getLogger(__name__)
+
+
+DEFAULT_MASKING_FIELDS = frozenset(
+    {
+        "input",
+        "output",
+        "tool_input",
+        "tool_output",
+    }
+)
+DEFAULT_REDACTION_RULES: tuple[tuple[re.Pattern[str], str], ...] = (
+    (re.compile(r"\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b", re.IGNORECASE), "[REDACTED:email]"),
+    (re.compile(r"\b\d{3}-\d{2}-\d{4}\b"), "[REDACTED:ssn]"),
+    (
+        re.compile(r"\b(?:sk|pk)_(?:live|test|proj)?[_-]?[A-Za-z0-9_-]{16,}\b"),
+        "[REDACTED:api_key]",
+    ),
+)
+
+
+@dataclass(frozen=True)
+class ExportSamplingConfig:
+    """Head-based sampling configuration."""
+
+    enabled: bool = False
+    rate: float = 1.0
+    project_rates: dict[str, float] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class ExportFilterRule:
+    """Rule for filtering noisy spans before export."""
+
+    key: str
+    value: str | re.Pattern[str] | None = None
+
+
+@dataclass(frozen=True)
+class ExportFilterConfig:
+    """SDK-side filtering configuration."""
+
+    enabled: bool = False
+    exclude_span_types: frozenset[str] = frozenset()
+    exclude_component_types: frozenset[str] = frozenset()
+    exclude_names: tuple[str | re.Pattern[str], ...] = ()
+    exclude_attributes: tuple[ExportFilterRule, ...] = ()
+    preserve_error_spans: bool = True
+    preserve_root_spans: bool = True
+
+
+@dataclass(frozen=True)
+class MaskingRule:
+    """Custom masking rule."""
+
+    pattern: str | re.Pattern[str]
+    replacement: str | None = None
+
+
+@dataclass(frozen=True)
+class ExportMaskingConfig:
+    """Client-side masking configuration."""
+
+    enabled: bool = False
+    replacement: str = "[REDACTED]"
+    fields: frozenset[str] = DEFAULT_MASKING_FIELDS
+    rules: tuple[MaskingRule, ...] = ()
 
 
 @dataclass
@@ -57,6 +124,108 @@ class ExportSpan:
     tool_output: str | None = None
 
 
+def _compile_rule(
+    rule: MaskingRule,
+    fallback_replacement: str,
+) -> tuple[re.Pattern[str], str]:
+    pattern = (
+        re.compile(rule.pattern)
+        if isinstance(rule.pattern, str)
+        else rule.pattern
+    )
+    return (pattern, rule.replacement or fallback_replacement)
+
+
+def _mask_string(value: str, masking: ExportMaskingConfig) -> str:
+    masked = value
+    for pattern, replacement in (
+        DEFAULT_REDACTION_RULES
+        + tuple(_compile_rule(rule, masking.replacement) for rule in masking.rules)
+    ):
+        masked = pattern.sub(replacement, masked)
+    return masked
+
+
+def _mask_field(
+    value: str | None,
+    field: str,
+    masking: ExportMaskingConfig,
+) -> str | None:
+    if not value or not masking.enabled or field not in masking.fields:
+        return value
+    return _mask_string(value, masking)
+
+
+def _clamp_rate(rate: float | None) -> float:
+    if rate is None:
+        return 1.0
+    return max(0.0, min(1.0, rate))
+
+
+def _hash_ratio(value: str) -> float:
+    hash_value = 2166136261
+    for char in value:
+        hash_value ^= ord(char)
+        hash_value = (hash_value * 16777619) & 0xFFFFFFFF
+    return hash_value / 0xFFFFFFFF
+
+
+def _matches_pattern(value: str, pattern: str | re.Pattern[str]) -> bool:
+    if isinstance(pattern, str):
+        return value == pattern
+    return bool(pattern.search(value))
+
+
+def _should_filter_span(
+    span: ExportSpan,
+    filtering: ExportFilterConfig,
+) -> bool:
+    if not filtering.enabled:
+        return False
+    if filtering.preserve_error_spans and span.status == "error":
+        return False
+    if filtering.preserve_root_spans and span.parent_span_id is None:
+        return False
+    if span.span_type in filtering.exclude_span_types:
+        return True
+    if (
+        span.component_type is not None
+        and span.component_type in filtering.exclude_component_types
+    ):
+        return True
+    if any(_matches_pattern(span.name, pattern) for pattern in filtering.exclude_names):
+        return True
+    for rule in filtering.exclude_attributes:
+        value = span.attributes.get(rule.key)
+        if value is None:
+            continue
+        if rule.value is None:
+            return True
+        if _matches_pattern(str(value), rule.value):
+            return True
+    return False
+
+
+def _should_sample_span(
+    span: ExportSpan,
+    sampling: ExportSamplingConfig,
+    project_id: str | None,
+) -> bool:
+    if not sampling.enabled:
+        return False
+    active_project_id = project_id
+    rate = _clamp_rate(
+        sampling.project_rates.get(active_project_id, sampling.rate)
+        if active_project_id is not None
+        else sampling.rate
+    )
+    if rate >= 1.0:
+        return False
+    if rate <= 0.0:
+        return True
+    return _hash_ratio(f"{active_project_id or 'default'}:{span.trace_id}") >= rate
+
+
 def _status_code(status: str) -> int:
     """Map status string to OTLP status code."""
     if status == "ok":
@@ -79,16 +248,21 @@ def _to_otlp_attributes(attrs: dict[str, str | int | bool]) -> list[dict[str, An
     return result
 
 
-def _span_to_otlp(span: ExportSpan) -> dict[str, Any]:
+def _span_to_otlp(
+    span: ExportSpan,
+    masking: ExportMaskingConfig,
+) -> dict[str, Any]:
     """Convert an ExportSpan to OTLP JSON format."""
     attrs: dict[str, str | int | bool] = dict(span.attributes)
 
     if span.model:
         attrs["gen_ai.request.model"] = span.model
     if span.input_text:
-        attrs["gen_ai.prompt"] = span.input_text
+        attrs["gen_ai.prompt"] = _mask_field(span.input_text, "input", masking) or span.input_text
     if span.output_text:
-        attrs["gen_ai.completion"] = span.output_text
+        attrs["gen_ai.completion"] = (
+            _mask_field(span.output_text, "output", masking) or span.output_text
+        )
     if span.input_tokens is not None:
         attrs["gen_ai.usage.input_tokens"] = span.input_tokens
     if span.output_tokens is not None:
@@ -96,9 +270,11 @@ def _span_to_otlp(span: ExportSpan) -> dict[str, Any]:
     if span.tool_name:
         attrs["tool.name"] = span.tool_name
     if span.tool_input:
-        attrs["tool.input"] = span.tool_input
+        attrs["tool.input"] = _mask_field(span.tool_input, "tool_input", masking) or span.tool_input
     if span.tool_output:
-        attrs["tool.output"] = span.tool_output
+        attrs["tool.output"] = (
+            _mask_field(span.tool_output, "tool_output", masking) or span.tool_output
+        )
     if span.span_type:
         attrs["neon.span_type"] = span.span_type
     if span.component_type:
@@ -151,6 +327,9 @@ class NeonExporter:
         flush_interval: float = 10.0,
         max_retries: int = 3,
         debug: bool = False,
+        masking: ExportMaskingConfig | None = None,
+        sampling: ExportSamplingConfig | None = None,
+        filtering: ExportFilterConfig | None = None,
     ) -> None:
         self._api_url = api_url.rstrip("/")
         self._api_key = api_key
@@ -159,6 +338,9 @@ class NeonExporter:
         self._flush_interval = flush_interval
         self._max_retries = max_retries
         self._debug = debug
+        self._masking = masking or ExportMaskingConfig()
+        self._sampling = sampling or ExportSamplingConfig()
+        self._filtering = filtering or ExportFilterConfig()
 
         self._buffer: list[ExportSpan] = []
         self._lock = asyncio.Lock()
@@ -180,6 +362,12 @@ class NeonExporter:
         If the buffer exceeds batch_size, a flush is triggered.
         """
         if self._shutdown:
+            return
+        if _should_filter_span(span, self._filtering):
+            logger.debug("Filtered span %s/%s (%s)", span.trace_id, span.span_id, span.name)
+            return
+        if _should_sample_span(span, self._sampling, self._project_id):
+            logger.debug("Sampled out span %s/%s (%s)", span.trace_id, span.span_id, span.name)
             return
         self._buffer.append(span)
         if len(self._buffer) >= self._batch_size:
@@ -236,7 +424,7 @@ class NeonExporter:
         if not spans:
             return 0
 
-        otlp_spans = [_span_to_otlp(s) for s in spans]
+        otlp_spans = [_span_to_otlp(s, self._masking) for s in spans]
         payload = {
             "resourceSpans": [
                 {
@@ -314,6 +502,9 @@ def create_neon_exporter(
     flush_interval: float = 10.0,
     max_retries: int = 3,
     debug: bool = False,
+    masking: ExportMaskingConfig | None = None,
+    sampling: ExportSamplingConfig | None = None,
+    filtering: ExportFilterConfig | None = None,
 ) -> NeonExporter:
     """Create a NeonExporter instance.
 
@@ -327,6 +518,9 @@ def create_neon_exporter(
         flush_interval: Auto-flush interval in seconds.
         max_retries: Maximum retry attempts per batch.
         debug: Enable debug logging.
+        masking: Optional client-side masking configuration.
+        sampling: Optional deterministic head-sampling configuration.
+        filtering: Optional SDK-side noisy span filtering configuration.
 
     Returns:
         Configured NeonExporter instance.
@@ -339,4 +533,7 @@ def create_neon_exporter(
         flush_interval=flush_interval,
         max_retries=max_retries,
         debug=debug,
+        masking=masking,
+        sampling=sampling,
+        filtering=filtering,
     )

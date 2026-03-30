@@ -172,6 +172,70 @@ services:
         limits:
           memory: 512M
 
+  clickhouse-backup:
+    build:
+      context: .
+      dockerfile: docker/backup-runner/Dockerfile
+    container_name: neon-dev-clickhouse-backup
+    command: ["/scripts/backup/backup-loop.sh", "clickhouse"]
+    environment:
+      - CLICKHOUSE_HOST=clickhouse
+      - CLICKHOUSE_PORT=8123
+      - CLICKHOUSE_USER=default
+      - CLICKHOUSE_PASSWORD=${CLICKHOUSE_PASSWORD:-}
+      - CLICKHOUSE_DATABASE=${CLICKHOUSE_DATABASE:-neon}
+      - BACKUP_ROOT=/backups
+      - BACKUP_TARGET=${NEON_BACKUP_TARGET:-local}
+      - BACKUP_RUN_ON_STARTUP=${NEON_BACKUP_RUN_ON_STARTUP:-true}
+      - BACKUP_INTERVAL_SECONDS=${NEON_CLICKHOUSE_BACKUP_INTERVAL_SECONDS:-86400}
+      - CLICKHOUSE_FULL_BACKUP_DAY=${NEON_CLICKHOUSE_FULL_BACKUP_DAY:-0}
+      - RETENTION_DAYS=${NEON_CLICKHOUSE_BACKUP_RETENTION_DAYS:-30}
+      - GCS_BUCKET=${NEON_BACKUP_GCS_BUCKET:-}
+    volumes:
+      - ./scripts/backup:/scripts/backup:ro
+      - clickhouse_dev_backups:/backups/clickhouse
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+    profiles:
+      - backup
+      - full
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  postgres-backup:
+    build:
+      context: .
+      dockerfile: docker/backup-runner/Dockerfile
+    container_name: neon-dev-postgres-backup
+    command: ["/scripts/backup/backup-loop.sh", "postgres"]
+    environment:
+      - PGHOST=postgres
+      - PGPORT=5432
+      - PGUSER=neon
+      - PGPASSWORD=${POSTGRES_PASSWORD:-neon}
+      - BACKUP_ROOT=/backups
+      - BACKUP_TARGET=${NEON_BACKUP_TARGET:-local}
+      - BACKUP_RUN_ON_STARTUP=${NEON_BACKUP_RUN_ON_STARTUP:-true}
+      - BACKUP_INTERVAL_SECONDS=${NEON_POSTGRES_BACKUP_INTERVAL_SECONDS:-86400}
+      - RETENTION_DAYS=${NEON_POSTGRES_BACKUP_RETENTION_DAYS:-30}
+      - GCS_BUCKET=${NEON_BACKUP_GCS_BUCKET:-}
+    volumes:
+      - ./scripts/backup:/scripts/backup:ro
+      - postgres_dev_backups:/backups/postgres
+    depends_on:
+      postgres:
+        condition: service_healthy
+    profiles:
+      - backup
+      - full
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
   # ===== Adminer (Database UI) =====
   # Useful for inspecting PostgreSQL during development
   adminer:
@@ -204,8 +268,12 @@ services:
 volumes:
   clickhouse_dev_data:
     name: neon-dev-clickhouse-data
+  clickhouse_dev_backups:
+    name: neon-dev-clickhouse-backups
   postgres_dev_data:
     name: neon-dev-postgres-data
+  postgres_dev_backups:
+    name: neon-dev-postgres-backups
 
 networks:
   default:

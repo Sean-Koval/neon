@@ -14,6 +14,7 @@ import { logger } from '@/lib/logger'
 import { type AuthResult, withAuth } from '@/lib/middleware/auth'
 import { withRateLimit } from '@/lib/middleware/rate-limit'
 import { BATCH_LIMIT, rateLimiter } from '@/lib/rate-limit'
+import { redactTraceAttributes } from '@/lib/tracing/redaction'
 import { validateBody } from '@/lib/validation/middleware'
 import { createTracesSchema } from '@/lib/validation/schemas'
 
@@ -170,7 +171,7 @@ function formatDateTime(date: Date): string {
  * Transform OTel span to internal format
  */
 function transformSpan(otelSpan: OTLPSpan, projectId: string): SpanRecord {
-  const attrs = attributesToObject(otelSpan.attributes)
+  const attrs = redactTraceAttributes(attributesToObject(otelSpan.attributes))
   const startTime = formatDateTime(
     new Date(Number(otelSpan.startTimeUnixNano) / 1e6),
   )
