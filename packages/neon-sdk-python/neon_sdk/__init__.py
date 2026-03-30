@@ -108,6 +108,14 @@ from neon_sdk.tracing import (
     traced,
 )
 
+# Test definition helpers
+from neon_sdk.testing import (
+    SuiteDefinition,
+    TestDefinition,
+    define_suite,
+    define_test,
+)
+
 # Types
 from neon_sdk.types import (
     ComponentType,
@@ -187,6 +195,11 @@ __all__ = [
     "memory",
     "TraceContext",
     "get_current_context",
+    # Test definitions
+    "SuiteDefinition",
+    "TestDefinition",
+    "define_suite",
+    "define_test",
     # Scorers - Base
     "EvalContext",
     "ScoreResult",

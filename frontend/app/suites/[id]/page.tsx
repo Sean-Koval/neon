@@ -20,6 +20,7 @@ import {
   ChevronDown,
   ChevronRight,
   Clock,
+  Download,
   ExternalLink,
   ListChecks,
   Loader2,
@@ -107,6 +108,9 @@ export default function SuiteDetailPage() {
   const [expandedCases, setExpandedCases] = useState<Set<string>>(new Set())
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [isDeleteOpen, setIsDeleteOpen] = useState(false)
+  const [exportingFormat, setExportingFormat] = useState<
+    'typescript' | 'python' | null
+  >(null)
   const [startError, setStartError] = useState<string | null>(null)
 
   // Fetch suite detail
@@ -227,6 +231,50 @@ export default function SuiteDetailPage() {
     })
   }
 
+  const handleExport = useCallback(
+    async (format: 'typescript' | 'python') => {
+      try {
+        setExportingFormat(format)
+        const response = await fetch(
+          `/api/suites/${suiteId}/export?format=${format}`,
+        )
+        if (!response.ok) {
+          const message = await response.text()
+          throw new Error(message || 'Failed to export suite')
+        }
+
+        const blob = await response.blob()
+        const url = window.URL.createObjectURL(blob)
+        const link = document.createElement('a')
+        const disposition = response.headers.get('Content-Disposition')
+        const filenameMatch = disposition?.match(/filename=\"([^\"]+)\"/)
+
+        link.href = url
+        link.download =
+          filenameMatch?.[1] ??
+          `${(suite?.name ?? 'suite').toLowerCase().replace(/[^a-z0-9]+/g, '-')}.${format === 'python' ? 'py' : 'ts'}`
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+        window.URL.revokeObjectURL(url)
+        addToast(
+          format === 'python'
+            ? 'Python export downloaded'
+            : 'TypeScript export downloaded',
+          'success',
+        )
+      } catch (error) {
+        addToast(
+          error instanceof Error ? error.message : 'Failed to export suite',
+          'error',
+        )
+      } finally {
+        setExportingFormat(null)
+      }
+    },
+    [addToast, suite?.name, suiteId],
+  )
+
   // Loading
   if (isLoading) {
     return <SuiteDetailSkeleton />
@@ -304,6 +352,32 @@ export default function SuiteDetailPage() {
             <Pencil className="w-4 h-4" />
             Edit Suite
           </Link>
+          <button
+            type="button"
+            onClick={() => void handleExport('typescript')}
+            disabled={exportingFormat !== null}
+            className="inline-flex items-center gap-1.5 px-3 py-2 text-sm border border-gray-300 dark:border-dark-600 rounded-lg hover:bg-gray-50 dark:hover:bg-dark-700 text-gray-700 dark:text-gray-300 disabled:opacity-50"
+          >
+            {exportingFormat === 'typescript' ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Download className="w-4 h-4" />
+            )}
+            Export TS
+          </button>
+          <button
+            type="button"
+            onClick={() => void handleExport('python')}
+            disabled={exportingFormat !== null}
+            className="inline-flex items-center gap-1.5 px-3 py-2 text-sm border border-gray-300 dark:border-dark-600 rounded-lg hover:bg-gray-50 dark:hover:bg-dark-700 text-gray-700 dark:text-gray-300 disabled:opacity-50"
+          >
+            {exportingFormat === 'python' ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Download className="w-4 h-4" />
+            )}
+            Export Py
+          </button>
           <button
             type="button"
             onClick={() => setIsDeleteOpen(true)}
