@@ -1,223 +1,126 @@
-# Neon Platform Evaluation & Improvement Plan
+# Neon Product Roadmap
 
-## Executive Summary
+## Product Direction
 
-As a staff AI/agent engineer evaluating Neon, this plan identifies what's implemented, what's lacking, and what's missing for a production-grade agent ops platform. Focus areas: tracing, evals, experimentation, improvement loops, and debugging compound AI systems (tools, MCP, skills).
+Neon is currently focused on being a high-quality, free, self-hostable product for understanding what AI agents are doing, why they behaved that way, and how to make them behave better.
 
----
+The near-term product is not an enterprise platform. Billing, SSO, and compliance work remain valid long-term, but they are intentionally deprioritized until the core product is clearly strong for self-hosted agent tracing, debugging, evaluation, and tuning.
 
-## Current State Assessment
+## Core Product Jobs
 
-### Tracing Infrastructure (~60% complete)
+Neon should help a user answer five questions quickly:
 
-| Feature | Status | Notes |
-|---------|--------|-------|
-| Data models | **Implemented** | Rich trace/span types with ComponentType (planning, reasoning, tool, retrieval, etc.) |
-| Span emission | **Partial** | Works in Temporal workers; SDKs have context management but no HTTP emission |
-| ClickHouse storage | **Partial** | Batch buffering works; missing schema migrations, TTL, partitioning |
-| OpenTelemetry | **Partial** | OTLP JSON ingestion; no protobuf/gRPC, limited semantic conventions |
-| Online tracing | **Implemented** | Real-time via Temporal activities + batch buffer |
-| Offline tracing | **Missing** | No queue/disk buffering, no edge collectors |
-| Production hardening | **Missing** | No circuit breakers, dead-letter queues, PII masking, self-observability |
+1. What did my agent do?
+2. What state did it carry at each step?
+3. Where did it diverge from the behavior I wanted?
+4. Which tool, prompt, retrieval step, or handoff caused the problem?
+5. What is the fastest path to improve it and verify the fix?
 
-### Eval/Scoring System (~80% complete)
+## Current Focus
 
-| Feature | Status | Notes |
-|---------|--------|-------|
-| Test definition | **Excellent** | `defineTest`, `defineSuite`, `defineDataset` APIs with type safety |
-| LLM-as-judge scorers | **Excellent** | Full Anthropic integration, templates, domain judges |
-| Rule-based scorers | **Excellent** | exactMatch, contains, toolSelection, latency, tokenEfficiency |
-| Causal analysis | **Good** | Root cause identification, failure chain analysis |
-| Temporal orchestration | **Excellent** | evalRunWorkflow, evalCaseWorkflow with progress queries, signals |
-| A/B testing | **Missing** | Manual workarounds only; no variant management, statistical comparison |
-| Optimization loop | **Emerging** | Signal generation exists; no closed-loop integration |
-| Python SDK parity | **Good** | Core features ready; advanced scorers pending |
+### Pillar 1: Durable Self-Hosted Tracing
 
-### Dashboard/Monitoring (~55% complete)
+- Reliable trace ingestion for local and self-hosted deployments
+- Durable buffering and replay when the backend is unavailable
+- Step-level state snapshots and important state diffs
+- Trace graphs for agent runs, tool calls, handoffs, and retries
+- OpenTelemetry and OpenInference alignment where practical
 
-| Feature | Status | Notes |
-|---------|--------|-------|
-| Trace visualization | **Implemented** | Waterfall timeline, span details, color-coded types |
-| Trace diff/comparison | **Implemented** | Side-by-side baseline vs candidate |
-| Component correlation | **Implemented** | Correlation matrix, dependency graph |
-| Eval run management | **Implemented** | Progress tracking, case-by-case results |
-| Tool/skill visibility | **Basic** | Shows tool spans; no execution metrics, selection reasoning |
-| Decision visualization | **Missing** | No reasoning chains, decision trees, branch visualization |
-| Compound system debug | **Missing** | No multi-agent flows, orchestration graphs |
-| Live debugging | **Missing** | No breakpoints, step-through, real-time streaming |
-| Root cause analysis | **Missing** | Manual investigation only |
+### Pillar 2: Agent Understanding
 
----
+- Trace timelines that show planning, reasoning, tools, retrieval, and handoffs
+- Graph views for multi-step and multi-agent execution
+- State snapshot viewers for memory, context, and intermediate artifacts
+- Decision and branch analysis for "why did it do this?"
+- Session-oriented debugging for agent runs that span many traces or tasks
 
-## Gap Analysis: What's Needed for Agent Debugging
+### Pillar 3: Behavior vs Intent
 
-### Critical Gaps
+- Evals that compare actual trajectories against expected behavior
+- Tool-choice, ordering, parameter, and outcome quality scoring
+- Drift and regression detection across runs and agent versions
+- Failure clustering, root-cause analysis, and trace comparison
 
-1. **Skill/Tool Execution Visibility**
-   - Can't see: selection confidence, alternative skills considered, parameter validation
-   - Can't answer: "Did the agent pick the right skill?"
+### Pillar 4: Tuning Loop
 
-2. **MCP Observability**
-   - No MCP server discovery/health tracking
-   - No protocol-level error tracing (connection, timeout, schema)
-   - Can't debug MCP tool chains
+- Turn a bad trace into a reproducible eval quickly
+- Capture corrections and preferred trajectories
+- Compare prompt, tool, retrieval, and policy changes against baselines
+- Make it obvious which change improved behavior and which change regressed it
 
-3. **Decision/Reasoning Visualization**
-   - Only see execution sequence, not decision process
-   - No visibility into: planning steps, routing decisions, thought chains
-   - Can't answer: "Why did the agent do X?"
+### Pillar 5: Self-Serve Product Quality
 
-4. **Compound System Debugging**
-   - Can't visualize multi-agent orchestration
-   - No sub-agent delegation tracking
-   - No state propagation visualization
+- Fast self-host setup
+- Clear docs and examples
+- A UI that makes debugging and eval authoring approachable
+- A web-based test suite editor for users who do not want to write SDK code first
 
-5. **Experimentation Framework**
-   - No formal A/B testing
-   - No statistical significance testing
-   - Can't compare variants systematically
+## Prioritized Roadmap
 
----
+### Now
 
-## Prioritized Improvements
+- Finish the self-hosted tracing hardening work
+- Add graph and state-centric trace inspection
+- Add evals for intent-vs-behavior and trajectory quality
+- Tighten the trace-to-tuning workflow
+- Improve self-serve setup and test authoring
 
-### Phase 1: Quick Wins (Weeks 1-4)
+### Next
 
-#### 1.1 Enhanced Span Attributes for Tool/Skill Execution
-- Add to spans: `skill_category`, `selection_confidence`, `selection_reason`, `alternative_skills_considered`
-- Add MCP fields: `mcp_server_id`, `mcp_tool_id`, `mcp_protocol_version`
-- **Files**: `packages/shared/src/types/trace.ts`, `temporal-workers/src/activities/emit-span.ts`
+- Better session replay and step diffing
+- Richer multi-agent and MCP observability
+- Smarter failure clustering and automated issue surfacing
+- Better prompt, retrieval, and tool-change comparison workflows
 
-#### 1.2 Skill Selection Scorer
-- Evaluate if correct tool/skill was selected
-- Support expected tool chains and ordering
-- **Files**: `packages/sdk/src/scorers/skill-selection.ts` (new)
+### Later
 
-#### 1.3 Tool Execution Metrics Dashboard
-- Card showing: most used tools, success/failure rates, latency per tool
-- **Files**: `frontend/components/dashboard/tool-metrics.tsx` (new)
+- Sampling and privacy controls for larger deployments
+- Enterprise access control and SSO
+- Compliance and audit features
+- Billing and monetization hooks
 
-#### 1.4 Span Detail Enhancement
-- Show skill selection context in span detail panel
-- Display alternatives considered, confidence, reasoning
-- **Files**: `frontend/components/traces/span-detail.tsx`
+## Research-Informed Feature Targets
 
-### Phase 2: Core Debugging (Weeks 5-12)
+These product areas consistently appear across current observability/evaluation tools and standards:
 
-#### 2.1 MCP Observability Integration
-- MCP tracing middleware with rich attributes
-- Server health monitoring
-- MCP topology dashboard view
-- **Files**: `temporal-workers/src/activities/mcp-tracing.ts` (new), `frontend/components/traces/mcp-server-view.tsx` (new)
+- Strong trace inspection with spans, sessions, and metadata
+- Dataset-backed evals and regression workflows
+- Prompt and version comparison
+- Tool and retrieval visibility
+- OpenTelemetry/OpenInference-style interoperability
+- Human feedback and correction capture
+- Self-hosting support with reliable ingestion and storage
 
-#### 2.2 Decision/Reasoning Visualization
-- Decision tree component showing branch points
-- Highlight planning, routing, tool selection spans
-- Link decisions to outcomes
-- **Files**: `frontend/components/traces/reasoning-flow.tsx` (new)
+Where Neon should lean harder than typical dashboards:
 
-#### 2.3 Compound System Debugging View
-- Multi-agent execution flow visualization
-- Cross-component correlation
-- Agent-to-agent communication tracing
-- **Files**: `frontend/components/traces/compound-system-view.tsx` (new)
+- State snapshots, diffs, and trace graphs
+- "Expected vs actual" trajectory analysis
+- Turning production failures into evals quickly
+- Multi-agent and MCP debugging as first-class workflows
 
-#### 2.4 Skill Evaluation Framework
-- `defineSkillEval` API for skill-specific testing
-- Parameter accuracy, result quality scorers
-- Per-skill regression tracking
-- **Files**: `packages/sdk/src/skill-eval.ts` (new)
+## Deprioritized For Now
 
-### Phase 3: Experimentation (Weeks 13-18)
+- SSO / SAML
+- RBAC
+- Billing hooks
+- Compliance-focused audit logging
+- Broader enterprise packaging work
 
-#### 3.1 A/B Testing Framework
-- `defineVariant` API in SDK
-- Statistical significance testing (t-test, bootstrap CI)
-- Comparison dashboard with confidence intervals
-- **Files**: `packages/sdk/src/comparison/` (new directory)
+These remain long-term roadmap items, but they should not displace product-core observability and evaluation work until Neon is compelling as a self-hosted tool on its own.
 
-#### 3.2 Offline Tracing
-- Local disk buffering when API unavailable
-- Configurable flush strategies
-- Replay capability for offline traces
-- **Files**: `packages/sdk/src/tracing/offline-buffer.ts` (new)
+## Active Issue Themes
 
-### Phase 4: Advanced (Weeks 19+)
+- `neon-xlb`: roadmap umbrella for the current product direction
+- `neon-819`: self-hosted distributed tracing foundation
+- `neon-vcd`: backup automation for durable self-hosting
+- `neon-026`: self-serve debugging and authoring UX
+- `neon-3dd`: web-based test suite editor
+- New trace graph, state snapshot, intent-vs-behavior, and tuning-loop issues in `.beads/issues.jsonl`
 
-#### 4.1 Live Debugging Mode
-- WebSocket-based trace streaming
-- Breakpoint definition at span level
-- Step-through execution
-- **Depends on**: Phase 2 visualization work
+## Success Criteria
 
-#### 4.2 Automated Root Cause Analysis
-- ML-based pattern detection in failures
-- Cross-trace correlation for systemic issues
-- Hypothesis generation with evidence
-- **Depends on**: Sufficient trace data
-
-#### 4.3 Closed-Loop Optimization
-- Connect signal generation to training pipelines
-- Auto-generate test cases from failures
-- Feedback loop from preferences to prompts
-- **Depends on**: A/B testing framework
-
----
-
-## Key Files for Implementation
-
-| File | Purpose |
-|------|---------|
-| `packages/shared/src/types/trace.ts` | Core span/trace types - extend for skill/MCP attributes |
-| `temporal-workers/src/activities/emit-span.ts` | Span emission - add skill context, MCP data |
-| `packages/sdk/src/scorers/base.ts` | Scorer foundation - pattern for new scorers |
-| `frontend/components/traces/span-detail.tsx` | Span visualization - enhance for skill context |
-| `frontend/components/traces/trace-timeline.tsx` | Timeline view - pattern for new visualizations |
-| `packages/sdk/src/test.ts` | Test definition API - extend for skill evals |
-
----
-
-## Verification Plan
-
-### For Phase 1 (Quick Wins)
-1. Create test traces with tool/skill spans including new attributes
-2. Run skill selection scorer against sample traces
-3. Verify dashboard shows tool metrics correctly
-4. Check span detail displays skill context
-
-### For Phase 2 (Core Debugging)
-1. Trace an MCP-heavy agent run, verify MCP attributes captured
-2. Run multi-step reasoning agent, verify decision tree renders
-3. Execute multi-agent workflow, verify compound view works
-4. Run skill evals, verify per-skill tracking
-
-### For Phase 3 (Experimentation)
-1. Define A/B variants, run both, verify statistical comparison
-2. Run agent offline, verify traces buffered and replayed
-
-### End-to-End Test
-```bash
-# 1. Start infrastructure
-docker compose up -d
-
-# 2. Run example agent with enhanced tracing
-bun run --filter @neon/sdk test
-
-# 3. Verify traces in dashboard
-# - Check tool/skill attributes visible
-# - Check decision visualization renders
-# - Check skill evaluation scores
-
-# 4. Run A/B comparison (once implemented)
-bun run --filter @neon/sdk compare --baseline v1 --candidate v2
-```
-
----
-
-## Recommendation
-
-**Start with Phase 1 Quick Wins** - they provide immediate value for debugging compound AI systems with minimal effort. The enhanced span attributes (1.1) and skill selection scorer (1.2) directly answer the key question: "Did the agent pick the right skill?"
-
-**Then prioritize Phase 2.1-2.3** for comprehensive debugging visibility. MCP observability and decision visualization are critical for understanding why agents behave as they do.
-
-**Defer Phase 4** until Phases 1-3 are stable - advanced features like live debugging require solid infrastructure.
+- A user can self-host Neon and capture useful traces without fighting the setup
+- A user can inspect a single agent run and understand flow, state, and failure points
+- A user can express expected behavior and compare it to actual trajectories
+- A user can convert a failure into an eval and verify an improvement quickly
+- The product is clearly useful before any enterprise packaging work is resumed
