@@ -13,6 +13,7 @@ import { clsx } from 'clsx'
 import {
   AlertTriangle,
   ArrowLeft,
+  ArrowRightLeft,
   Bot,
   Bug,
   CheckCircle,
@@ -22,9 +23,12 @@ import {
   GitBranch,
   Hash,
   ListTree,
+  Loader2,
   MessageSquare,
   Network,
+  Play,
   RefreshCw,
+  RotateCcw,
   Users,
   Wrench,
   XCircle,
@@ -37,6 +41,7 @@ import {
   FailureCascade,
   MultiAgentExecutionFlow,
 } from '@/components/multi-agent'
+import { useToast } from '@/components/toast'
 import { DecisionTree, traceToDecisionTree } from '@/components/traces'
 import { AgentGraph } from '@/components/traces/agent-graph'
 import { CopyButton } from '@/components/traces/copy-button'
@@ -47,17 +52,45 @@ import {
   TraceLoadingSkeleton,
 } from '@/components/traces/lazy-components'
 import type { SpanSummary } from '@/components/traces/span-detail'
+import {
+  useReplayCheckpoint,
+  useTraceCheckpoints,
+} from '@/hooks/use-trace-checkpoints'
 import { useTrace, useTraces } from '@/hooks/use-traces'
 import {
   analyzeMultiAgentTrace,
   type MultiAgentAnalysis,
 } from '@/lib/multi-agent-analysis'
 import type { DecisionNode } from '@/lib/trace-to-decision-tree'
+import type { TraceCheckpointRecord } from '@/lib/traces/trace-bundle'
 
 type Span = SpanSummary
+type TraceSpan = SpanSummary & { attributes?: Record<string, string> }
 
 type ViewMode = 'timeline' | 'decisions' | 'graph' | 'multi-agent'
 type TimelinePlotMode = 'waterfall' | 'duration'
+
+interface SnapshotMetadata {
+  [key: string]: string
+}
+
+interface StateSnapshotReference {
+  snapshotId: string
+  name?: string
+  stateType?: string
+  uri?: string
+  contentHash?: string
+  artifactIds?: string[]
+  metadata?: SnapshotMetadata
+}
+
+interface TraceSnapshot {
+  snapshot: StateSnapshotReference
+  spanId: string
+  spanName: string
+  timestamp: string
+  checkpoint?: TraceCheckpointRecord
+}
 
 function formatDuration(ms: number): string {
   if (ms < 1) return '<1ms'
@@ -74,6 +107,137 @@ function formatRelativeTime(timestamp: string): string {
   if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`
   if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`
   return `${Math.floor(diff / 86400000)}d ago`
+}
+
+function parseJSONAttribute<T>(value: string | undefined): T | undefined {
+  if (!value) return undefined
+  try {
+    return JSON.parse(value) as T
+  } catch {
+    return undefined
+  }
+}
+
+function collectStateSnapshots(
+  spans: Span[],
+  checkpoints: TraceCheckpointRecord[] = [],
+): TraceSnapshot[] {
+  const snapshots: TraceSnapshot[] = []
+  const checkpointsById = new Map(
+    checkpoints.map((checkpoint) => [checkpoint.snapshotId, checkpoint]),
+  )
+  const seenSnapshotIds = new Set<string>()
+
+  function walk(list: Span[]) {
+    for (const span of list) {
+      const traceSpan = span as TraceSpan
+      const parsed = parseJSONAttribute<StateSnapshotReference[]>(
+        traceSpan.attributes?.['neon.state_snapshots'],
+      )
+
+      if (parsed?.length) {
+        for (const snapshot of parsed) {
+          const checkpoint = checkpointsById.get(snapshot.snapshotId)
+          seenSnapshotIds.add(snapshot.snapshotId)
+          snapshots.push({
+            snapshot: {
+              ...snapshot,
+              uri: checkpoint?.uri ?? snapshot.uri,
+              contentHash: checkpoint?.contentHash ?? snapshot.contentHash,
+              artifactIds: checkpoint?.artifactIds ?? snapshot.artifactIds,
+              metadata: checkpoint?.metadata ?? snapshot.metadata,
+            },
+            spanId: checkpoint?.spanId ?? span.span_id,
+            spanName: checkpoint?.spanName ?? span.name,
+            timestamp: checkpoint?.timestamp ?? span.timestamp,
+            checkpoint,
+          })
+        }
+      }
+
+      if (span.children?.length) walk(span.children)
+    }
+  }
+
+  walk(spans)
+
+  for (const checkpoint of checkpoints) {
+    if (seenSnapshotIds.has(checkpoint.snapshotId)) continue
+    snapshots.push({
+      snapshot: {
+        snapshotId: checkpoint.snapshotId,
+        name: checkpoint.name,
+        stateType: checkpoint.stateType,
+        uri: checkpoint.uri,
+        contentHash: checkpoint.contentHash,
+        artifactIds: checkpoint.artifactIds,
+        metadata: checkpoint.metadata,
+      },
+      spanId: checkpoint.spanId,
+      spanName: checkpoint.spanName,
+      timestamp: checkpoint.timestamp,
+      checkpoint,
+    })
+  }
+
+  return snapshots.sort((a, b) => {
+    const timeDiff =
+      new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+    if (timeDiff !== 0) return timeDiff
+    return a.snapshot.snapshotId.localeCompare(b.snapshot.snapshotId)
+  })
+}
+
+function diffSnapshotMetadata(
+  baseline?: SnapshotMetadata,
+  candidate?: SnapshotMetadata,
+): Array<{
+  key: string
+  baseline?: string
+  candidate?: string
+  status: 'added' | 'removed' | 'changed' | 'unchanged'
+}> {
+  const keys = new Set([
+    ...Object.keys(baseline || {}),
+    ...Object.keys(candidate || {}),
+  ])
+
+  return Array.from(keys)
+    .sort((a, b) => a.localeCompare(b))
+    .map((key) => {
+      const before = baseline?.[key]
+      const after = candidate?.[key]
+      if (before === undefined && after !== undefined) {
+        return {
+          key,
+          baseline: before,
+          candidate: after,
+          status: 'added' as const,
+        }
+      }
+      if (before !== undefined && after === undefined) {
+        return {
+          key,
+          baseline: before,
+          candidate: after,
+          status: 'removed' as const,
+        }
+      }
+      if (before !== after) {
+        return {
+          key,
+          baseline: before,
+          candidate: after,
+          status: 'changed' as const,
+        }
+      }
+      return {
+        key,
+        baseline: before,
+        candidate: after,
+        status: 'unchanged' as const,
+      }
+    })
 }
 
 function countSpansByType(spans: Span[]): {
@@ -545,6 +709,427 @@ function MultiAgentView({
   )
 }
 
+function SnapshotExplorer({
+  snapshots,
+  checkpointCount,
+  checkpointsLoading,
+  selectedSpanId,
+  onSelectSpan,
+  onTriggerCheckpoint,
+  pendingAction,
+}: {
+  snapshots: TraceSnapshot[]
+  checkpointCount: number
+  checkpointsLoading: boolean
+  selectedSpanId: string | null
+  onSelectSpan: (spanId: string) => void
+  onTriggerCheckpoint: (
+    snapshot: TraceSnapshot,
+    mode: 'restore' | 'replay',
+  ) => void
+  pendingAction: { snapshotId: string; mode: 'restore' | 'replay' } | null
+}) {
+  const [selectedSnapshotId, setSelectedSnapshotId] = useState<string | null>(
+    snapshots[0]?.snapshot.snapshotId || null,
+  )
+  const [comparisonSnapshotId, setComparisonSnapshotId] = useState<
+    string | null
+  >(snapshots[1]?.snapshot.snapshotId || null)
+
+  useEffect(() => {
+    if (!selectedSnapshotId && snapshots[0]) {
+      setSelectedSnapshotId(snapshots[0].snapshot.snapshotId)
+    }
+    if (!comparisonSnapshotId && snapshots[1]) {
+      setComparisonSnapshotId(snapshots[1].snapshot.snapshotId)
+    }
+  }, [snapshots, selectedSnapshotId, comparisonSnapshotId])
+
+  const selectedSnapshot = useMemo(
+    () =>
+      snapshots.find(
+        (entry) => entry.snapshot.snapshotId === selectedSnapshotId,
+      ) || snapshots[0],
+    [snapshots, selectedSnapshotId],
+  )
+
+  const comparisonSnapshot = useMemo(() => {
+    if (comparisonSnapshotId) {
+      return snapshots.find(
+        (entry) => entry.snapshot.snapshotId === comparisonSnapshotId,
+      )
+    }
+    if (!selectedSnapshot) return undefined
+    const selectedIndex = snapshots.findIndex(
+      (entry) =>
+        entry.snapshot.snapshotId === selectedSnapshot.snapshot.snapshotId,
+    )
+    return selectedIndex > 0
+      ? snapshots[selectedIndex - 1]
+      : snapshots[selectedIndex + 1]
+  }, [snapshots, comparisonSnapshotId, selectedSnapshot])
+
+  const metadataDiff = useMemo(
+    () =>
+      diffSnapshotMetadata(
+        comparisonSnapshot?.snapshot.metadata,
+        selectedSnapshot?.snapshot.metadata,
+      ),
+    [comparisonSnapshot, selectedSnapshot],
+  )
+
+  if (snapshots.length === 0) return null
+
+  const statusStyles: Record<
+    'added' | 'removed' | 'changed' | 'unchanged',
+    string
+  > = {
+    added:
+      'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/25 dark:bg-emerald-500/10 dark:text-emerald-300',
+    removed:
+      'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/25 dark:bg-rose-500/10 dark:text-rose-300',
+    changed:
+      'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/25 dark:bg-amber-500/10 dark:text-amber-300',
+    unchanged: 'border-border bg-surface-card text-content-secondary',
+  }
+
+  const changedEntries = metadataDiff.filter(
+    (entry) => entry.status !== 'unchanged',
+  )
+  const selectedCheckpoint = selectedSnapshot?.checkpoint
+  const selectedCheckpointId =
+    selectedCheckpoint?.manifest.checkpointId ||
+    selectedSnapshot?.snapshot.snapshotId ||
+    null
+  const restorePending =
+    pendingAction?.snapshotId === selectedCheckpointId &&
+    pendingAction.mode === 'restore'
+  const replayPending =
+    pendingAction?.snapshotId === selectedCheckpointId &&
+    pendingAction.mode === 'replay'
+
+  return (
+    <div className="mb-6 rounded-xl border border-border bg-surface-card p-4">
+      <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <h3 className="text-sm font-semibold text-content-secondary">
+            Checkpoints
+            <span className="ml-2 font-normal text-content-muted">
+              ({checkpointCount > 0 ? checkpointCount : snapshots.length}{' '}
+              captured)
+            </span>
+          </h3>
+          <p className="mt-1 text-xs text-content-muted">
+            Browse captured state, compare metadata, and start replay or restore
+            flows from a selected checkpoint.
+          </p>
+        </div>
+        {selectedSnapshot && comparisonSnapshot && (
+          <div className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface-raised px-3 py-1 text-xs text-content-secondary">
+            <ArrowRightLeft className="w-3.5 h-3.5" />
+            Comparing{' '}
+            {comparisonSnapshot.snapshot.name ||
+              comparisonSnapshot.snapshot.snapshotId}{' '}
+            to{' '}
+            {selectedSnapshot.snapshot.name ||
+              selectedSnapshot.snapshot.snapshotId}
+          </div>
+        )}
+      </div>
+
+      {selectedCheckpoint ? (
+        <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50/80 p-3 dark:border-amber-500/25 dark:bg-amber-500/10">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-sm font-medium text-amber-900 dark:text-amber-200">
+                <AlertTriangle className="h-4 w-4" />
+                Restore starts a new workflow from this checkpoint
+              </div>
+              <p className="text-xs text-amber-800 dark:text-amber-300">
+                <span className="font-medium">Restore</span> initializes a new
+                workflow from the captured state.{' '}
+                <span className="font-medium">Replay</span> re-executes from the
+                checkpoint boundary for debugging and may repeat downstream
+                work.
+              </p>
+              <div className="flex flex-wrap gap-2 text-[11px] text-amber-900 dark:text-amber-200">
+                <span className="rounded-full border border-amber-300 bg-white/70 px-2 py-1 dark:border-amber-500/30 dark:bg-black/10">
+                  Target: {selectedCheckpoint.restore.target}
+                </span>
+                <span className="rounded-full border border-amber-300 bg-white/70 px-2 py-1 dark:border-amber-500/30 dark:bg-black/10">
+                  Default mode: {selectedCheckpoint.restore.mode}
+                </span>
+                <span className="rounded-full border border-amber-300 bg-white/70 px-2 py-1 dark:border-amber-500/30 dark:bg-black/10">
+                  Side effects:{' '}
+                  {selectedCheckpoint.restore.replaysSideEffects
+                    ? 'may replay'
+                    : 'marked safe'}
+                </span>
+                <span className="rounded-full border border-amber-300 bg-white/70 px-2 py-1 dark:border-amber-500/30 dark:bg-black/10">
+                  Payload: {selectedCheckpoint.payload?.kind || 'manifest-only'}
+                </span>
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => onTriggerCheckpoint(selectedSnapshot, 'restore')}
+                disabled={!!pendingAction}
+                className="inline-flex items-center gap-2 rounded-lg border border-border bg-surface-base px-3 py-2 text-xs font-medium text-content-secondary transition-colors hover:bg-surface-raised disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {restorePending ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <RotateCcw className="h-3.5 w-3.5" />
+                )}
+                Restore run
+              </button>
+              <button
+                type="button"
+                onClick={() => onTriggerCheckpoint(selectedSnapshot, 'replay')}
+                disabled={!!pendingAction}
+                className="inline-flex items-center gap-2 rounded-lg border border-primary-300 bg-primary-50 px-3 py-2 text-xs font-medium text-primary-700 transition-colors hover:bg-primary-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-primary-500/35 dark:bg-primary-500/10 dark:text-primary-300 dark:hover:bg-primary-500/20"
+              >
+                {replayPending ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Play className="h-3.5 w-3.5" />
+                )}
+                Replay run
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : checkpointsLoading ? (
+        <div className="mb-4 rounded-lg border border-dashed border-border px-4 py-3 text-xs text-content-muted">
+          Loading checkpoint manifests for replay and restore actions…
+        </div>
+      ) : (
+        <div className="mb-4 rounded-lg border border-dashed border-border px-4 py-3 text-xs text-content-muted">
+          This trace has snapshot references but no replayable checkpoint
+          manifest yet. Older traces may predate durable checkpoint body
+          capture.
+        </div>
+      )}
+
+      <div className="grid gap-4 xl:grid-cols-[280px_minmax(0,1fr)]">
+        <div className="space-y-2">
+          {snapshots.map((entry) => {
+            const isActive =
+              entry.snapshot.snapshotId ===
+              selectedSnapshot?.snapshot.snapshotId
+            const isCompared =
+              entry.snapshot.snapshotId ===
+              comparisonSnapshot?.snapshot.snapshotId
+
+            return (
+              <button
+                key={`${entry.snapshot.snapshotId}-${entry.spanId}`}
+                type="button"
+                onClick={() => setSelectedSnapshotId(entry.snapshot.snapshotId)}
+                className={clsx(
+                  'w-full rounded-lg border px-3 py-3 text-left transition-colors',
+                  isActive
+                    ? 'border-primary-300 bg-primary-50 dark:border-primary-500/40 dark:bg-primary-500/10'
+                    : isCompared
+                      ? 'border-amber-300 bg-amber-50 dark:border-amber-500/35 dark:bg-amber-500/10'
+                      : 'border-border bg-surface-base hover:bg-surface-raised',
+                )}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="truncate text-sm font-medium text-content-primary">
+                      {entry.snapshot.name || entry.snapshot.snapshotId}
+                    </div>
+                    <div className="mt-1 text-xs text-content-muted">
+                      {entry.snapshot.stateType || 'snapshot'}
+                    </div>
+                  </div>
+                  <div className="text-[11px] text-content-muted">
+                    {formatRelativeTime(entry.timestamp)}
+                  </div>
+                </div>
+                <div className="mt-2 flex items-center justify-between gap-2">
+                  <span className="truncate text-xs text-content-muted">
+                    {entry.spanName}
+                  </span>
+                  {isCompared && !isActive && (
+                    <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] text-amber-700 dark:bg-amber-500/20 dark:text-amber-300">
+                      baseline
+                    </span>
+                  )}
+                </div>
+              </button>
+            )
+          })}
+        </div>
+
+        {selectedSnapshot && (
+          <div className="space-y-4">
+            <div className="rounded-lg border border-border bg-surface-base p-4">
+              <div className="mb-3 flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                <div>
+                  <h4 className="text-sm font-semibold text-content-primary">
+                    {selectedSnapshot.snapshot.name ||
+                      selectedSnapshot.snapshot.snapshotId}
+                  </h4>
+                  <p className="mt-1 text-xs text-content-muted">
+                    Captured{' '}
+                    {new Date(selectedSnapshot.timestamp).toLocaleString()}
+                  </p>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => onSelectSpan(selectedSnapshot.spanId)}
+                    className={clsx(
+                      'rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors',
+                      selectedSpanId === selectedSnapshot.spanId
+                        ? 'border-primary-300 bg-primary-50 text-primary-700 dark:border-primary-500/35 dark:bg-primary-500/10 dark:text-primary-300'
+                        : 'border-border bg-surface-card text-content-secondary hover:bg-surface-raised',
+                    )}
+                  >
+                    Jump to span
+                  </button>
+                  <select
+                    value={comparisonSnapshot?.snapshot.snapshotId || ''}
+                    onChange={(event) =>
+                      setComparisonSnapshotId(event.target.value || null)
+                    }
+                    className="rounded-lg border border-border bg-surface-card px-3 py-1.5 text-xs text-content-secondary focus:border-primary-400 focus:outline-none"
+                  >
+                    {snapshots.map((entry) => (
+                      <option
+                        key={`${entry.snapshot.snapshotId}-compare`}
+                        value={entry.snapshot.snapshotId}
+                      >
+                        Compare with{' '}
+                        {entry.snapshot.name || entry.snapshot.snapshotId}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid gap-2 md:grid-cols-2">
+                <div className="rounded-lg bg-surface-card px-3 py-2">
+                  <div className="text-[11px] uppercase tracking-wide text-content-muted">
+                    Snapshot ID
+                  </div>
+                  <div className="mt-1 break-all font-mono text-xs text-content-primary">
+                    {selectedSnapshot.snapshot.snapshotId}
+                  </div>
+                </div>
+                <div className="rounded-lg bg-surface-card px-3 py-2">
+                  <div className="text-[11px] uppercase tracking-wide text-content-muted">
+                    State Type
+                  </div>
+                  <div className="mt-1 text-sm text-content-primary">
+                    {selectedSnapshot.snapshot.stateType || 'unknown'}
+                  </div>
+                </div>
+                <div className="rounded-lg bg-surface-card px-3 py-2">
+                  <div className="text-[11px] uppercase tracking-wide text-content-muted">
+                    Source Span
+                  </div>
+                  <div className="mt-1 text-sm text-content-primary">
+                    {selectedSnapshot.spanName}
+                  </div>
+                </div>
+                <div className="rounded-lg bg-surface-card px-3 py-2">
+                  <div className="text-[11px] uppercase tracking-wide text-content-muted">
+                    Artifact Links
+                  </div>
+                  <div className="mt-1 text-sm text-content-primary">
+                    {selectedSnapshot.snapshot.artifactIds?.length || 0}
+                  </div>
+                </div>
+                {selectedCheckpoint && (
+                  <div className="rounded-lg bg-surface-card px-3 py-2">
+                    <div className="text-[11px] uppercase tracking-wide text-content-muted">
+                      Workflow Target
+                    </div>
+                    <div className="mt-1 text-sm text-content-primary">
+                      {selectedCheckpoint.runtime.workflowId ||
+                        'agent-run replay'}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {selectedSnapshot.snapshot.uri && (
+                <div className="mt-3 rounded-lg bg-surface-card px-3 py-2">
+                  <div className="text-[11px] uppercase tracking-wide text-content-muted">
+                    URI
+                  </div>
+                  <div className="mt-1 break-all font-mono text-xs text-content-primary">
+                    {selectedSnapshot.snapshot.uri}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="rounded-lg border border-border bg-surface-base p-4">
+              <div className="mb-3 flex items-center justify-between">
+                <h4 className="text-sm font-semibold text-content-primary">
+                  Metadata Diff
+                </h4>
+                <span className="text-xs text-content-muted">
+                  {changedEntries.length} changed field
+                  {changedEntries.length !== 1 ? 's' : ''}
+                </span>
+              </div>
+
+              {changedEntries.length === 0 ? (
+                <div className="rounded-lg border border-dashed border-border px-4 py-6 text-center text-sm text-content-muted">
+                  No metadata delta between the selected snapshots.
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {changedEntries.map((entry) => (
+                    <div
+                      key={entry.key}
+                      className={clsx(
+                        'rounded-lg border px-3 py-3',
+                        statusStyles[entry.status],
+                      )}
+                    >
+                      <div className="mb-2 flex items-center justify-between gap-2">
+                        <span className="font-mono text-xs">{entry.key}</span>
+                        <span className="text-[11px] uppercase tracking-wide">
+                          {entry.status}
+                        </span>
+                      </div>
+                      <div className="grid gap-2 md:grid-cols-2">
+                        <div>
+                          <div className="mb-1 text-[11px] uppercase tracking-wide opacity-70">
+                            Before
+                          </div>
+                          <pre className="whitespace-pre-wrap break-words rounded bg-white/70 px-2 py-2 font-mono text-xs dark:bg-black/20">
+                            {entry.baseline ?? 'empty'}
+                          </pre>
+                        </div>
+                        <div>
+                          <div className="mb-1 text-[11px] uppercase tracking-wide opacity-70">
+                            After
+                          </div>
+                          <pre className="whitespace-pre-wrap break-words rounded bg-white/70 px-2 py-2 font-mono text-xs dark:bg-black/20">
+                            {entry.candidate ?? 'empty'}
+                          </pre>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ─── Main Page ──────────────────────────────────────────────────────────────
 
 export default function TraceDetailPage() {
@@ -552,8 +1137,12 @@ export default function TraceDetailPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const traceId = params.id as string
+  const { addToast } = useToast()
 
   const { data, isLoading, error, refetch } = useTrace(traceId)
+  const { data: checkpointData, isLoading: isCheckpointsLoading } =
+    useTraceCheckpoints(traceId)
+  const replayCheckpoint = useReplayCheckpoint()
 
   // Deep link: read ?span= from URL
   const selectedSpanId = searchParams.get('span')
@@ -603,11 +1192,49 @@ export default function TraceDetailPage() {
     [router, searchParams],
   )
 
+  const handleTriggerCheckpoint = useCallback(
+    async (snapshot: TraceSnapshot, mode: 'restore' | 'replay') => {
+      const checkpointId =
+        snapshot.checkpoint?.manifest.checkpointId ||
+        snapshot.snapshot.snapshotId
+
+      try {
+        const result = await replayCheckpoint.mutateAsync({
+          checkpointId,
+          mode,
+        })
+        addToast(
+          `${mode === 'restore' ? 'Restore' : 'Replay'} started from checkpoint ${result.checkpointId}`,
+          'success',
+        )
+        router.push(`/workflows/${result.workflowId}`)
+      } catch (mutationError) {
+        const message =
+          mutationError instanceof Error
+            ? mutationError.message
+            : `Failed to start ${mode} from checkpoint`
+        addToast(message, 'error')
+      }
+    },
+    [addToast, replayCheckpoint, router],
+  )
+
   useEffect(() => {
     if (distinctAgents >= 2 && viewMode === 'timeline') {
       setViewMode('graph')
     }
   }, [distinctAgents, viewMode])
+
+  const checkpointRecords = checkpointData?.checkpoints || []
+  const traceSnapshots = data
+    ? collectStateSnapshots(data.spans, checkpointRecords)
+    : []
+  const pendingCheckpointAction = replayCheckpoint.variables
+    ? {
+        snapshotId: replayCheckpoint.variables.checkpointId,
+        mode: replayCheckpoint.variables.mode,
+      }
+    : null
 
   if (isLoading) return <TraceLoadingSkeleton />
   if (error) return <TraceError error={error} onRetry={() => refetch()} />
@@ -765,6 +1392,16 @@ export default function TraceDetailPage() {
               </div>
             </div>
           )}
+
+          <SnapshotExplorer
+            snapshots={traceSnapshots}
+            checkpointCount={checkpointData?.checkpoints?.length || 0}
+            checkpointsLoading={isCheckpointsLoading}
+            selectedSpanId={selectedSpanId}
+            onSelectSpan={(spanId) => setSelectedSpanId(spanId)}
+            onTriggerCheckpoint={handleTriggerCheckpoint}
+            pendingAction={pendingCheckpointAction}
+          />
 
           {/* View content */}
           <ErrorBoundary

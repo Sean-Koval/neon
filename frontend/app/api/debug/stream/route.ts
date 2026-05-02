@@ -35,6 +35,7 @@ import {
   type SpanRecord,
 } from '@/lib/db/clickhouse'
 import { logger } from '@/lib/logger'
+import type { CheckpointManifest } from '@/lib/traces/trace-bundle'
 
 // ============================================================================
 // Authentication
@@ -125,6 +126,7 @@ interface DebugEvent {
     | 'paused'
     | 'resumed'
     | 'stepCompleted'
+    | 'hydrated'
     | 'inspectResult'
     | 'traceCompleted'
     | 'error'
@@ -184,6 +186,36 @@ interface DebugSubscriber {
   pingIntervalId: ReturnType<typeof setInterval> | null
 }
 
+interface HydratedSessionMetadata {
+  checkpointId: string
+  snapshotId: string
+  requestedMode: CheckpointManifest['restore']['mode']
+  target: CheckpointManifest['restore']['target']
+  hydratedAt: string
+  payload?: {
+    kind?: string
+    location?: string
+    contentHash?: string
+  }
+  runtime?: {
+    workflowId?: string
+    workflowRunId?: string
+    agentId?: string
+    sessionId?: string
+    threadId?: string
+    spanId?: string
+    parentSpanId?: string | null
+  }
+}
+
+interface DebugSessionState {
+  state: 'running' | 'paused' | 'stepping' | 'completed'
+  currentSpanId: string | null
+  pausedAt: Date | null
+  hydratedAt: string | null
+  hydratedFrom: HydratedSessionMetadata | null
+}
+
 // ============================================================================
 // In-Memory State
 // ============================================================================
@@ -204,12 +236,68 @@ const traceSubscribers = new Map<string, Set<string>>()
  */
 const sessionStates = new Map<
   string,
-  {
-    state: 'running' | 'paused' | 'stepping' | 'completed'
-    currentSpanId: string | null
-    pausedAt: Date | null
-  }
+  DebugSessionState
 >()
+
+function createSessionState(): DebugSessionState {
+  return {
+    state: 'running',
+    currentSpanId: null,
+    pausedAt: null,
+    hydratedAt: null,
+    hydratedFrom: null,
+  }
+}
+
+function ensureSessionState(traceId: string): DebugSessionState {
+  let session = sessionStates.get(traceId)
+  if (!session) {
+    session = createSessionState()
+    sessionStates.set(traceId, session)
+  }
+  return session
+}
+
+function hydrateSessionState(
+  traceId: string,
+  manifest: CheckpointManifest,
+  hydratedAt = new Date().toISOString(),
+): DebugSessionState {
+  const session = ensureSessionState(traceId)
+  session.state = 'paused'
+  session.currentSpanId =
+    manifest.restore.entrySpanId ?? manifest.runtime.spanId ?? null
+  session.pausedAt = new Date(hydratedAt)
+  session.hydratedAt = hydratedAt
+  session.hydratedFrom = {
+    checkpointId: manifest.checkpointId,
+    snapshotId: manifest.snapshotId,
+    requestedMode: manifest.restore.mode,
+    target: manifest.restore.target,
+    hydratedAt,
+    payload: manifest.payload
+      ? {
+          kind: manifest.payload.kind,
+          location:
+            manifest.payload.uri ??
+            (manifest.payload.artifactId
+              ? `artifact:${manifest.payload.artifactId}`
+              : undefined),
+          contentHash: manifest.payload.contentHash,
+        }
+      : undefined,
+    runtime: {
+      workflowId: manifest.runtime.workflowId,
+      workflowRunId: manifest.runtime.workflowRunId,
+      agentId: manifest.runtime.agentId,
+      sessionId: manifest.runtime.sessionId,
+      threadId: manifest.runtime.threadId,
+      spanId: manifest.runtime.spanId,
+      parentSpanId: manifest.runtime.parentSpanId ?? null,
+    },
+  }
+  return session
+}
 
 // ============================================================================
 // Stale Connection Cleanup
@@ -315,13 +403,7 @@ export async function GET(request: NextRequest) {
       subscribersForTrace?.add(connectionId)
 
       // Initialize session state if not exists
-      if (!sessionStates.has(traceId)) {
-        sessionStates.set(traceId, {
-          state: 'running',
-          currentSpanId: null,
-          pausedAt: null,
-        })
-      }
+      const sessionState = ensureSessionState(traceId)
 
       // Send connected event
       const connectedEvent: DebugEvent = {
@@ -330,7 +412,7 @@ export async function GET(request: NextRequest) {
         timestamp: new Date().toISOString(),
         payload: {
           connectionId,
-          sessionState: sessionStates.get(traceId),
+          sessionState,
         },
       }
       sendSSE(controller, connectedEvent)
@@ -435,6 +517,8 @@ export async function POST(request: NextRequest) {
       case 'resume':
         session.state = 'running'
         session.pausedAt = null
+        session.hydratedAt = null
+        session.hydratedFrom = null
         broadcastToTrace(traceId, {
           type: 'resumed',
           traceId,
@@ -778,7 +862,7 @@ async function getSpanInspection(
  */
 export function pushDebugEvent(event: DebugEvent): void {
   // Update session state based on event
-  const session = sessionStates.get(event.traceId)
+  const session = ensureSessionState(event.traceId)
   if (session) {
     if (event.type === 'paused' || event.type === 'breakpointHit') {
       session.state = 'paused'
@@ -789,11 +873,27 @@ export function pushDebugEvent(event: DebugEvent): void {
     } else if (event.type === 'resumed') {
       session.state = 'running'
       session.pausedAt = null
+      session.hydratedAt = null
+      session.hydratedFrom = null
     } else if (event.type === 'stepCompleted') {
       session.state = 'paused'
       session.pausedAt = new Date()
       if (event.payload.span) {
         session.currentSpanId = event.payload.span.spanId as string
+      }
+    } else if (event.type === 'hydrated') {
+      const manifest = event.payload.data?.manifest as CheckpointManifest | undefined
+      if (manifest?.format === 'neon.checkpoint.v1') {
+        hydrateSessionState(
+          event.traceId,
+          manifest,
+          typeof event.payload.data?.hydratedAt === 'string'
+            ? event.payload.data.hydratedAt
+            : event.timestamp,
+        )
+      } else {
+        session.state = 'paused'
+        session.pausedAt = new Date()
       }
     } else if (event.type === 'traceCompleted') {
       session.state = 'completed'
@@ -805,4 +905,11 @@ export function pushDebugEvent(event: DebugEvent): void {
 }
 
 // Export for use in events route
-export { broadcastToTrace, sessionStates, subscribers, traceSubscribers }
+export {
+  broadcastToTrace,
+  ensureSessionState,
+  hydrateSessionState,
+  sessionStates,
+  subscribers,
+  traceSubscribers,
+}

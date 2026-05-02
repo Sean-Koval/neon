@@ -5,7 +5,7 @@
  * by mocking the @temporalio/workflow module.
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeAll, beforeEach } from "vitest";
 import type { EvalRunInput, EvalCaseOutput } from "../types";
 
 // ============================================================================
@@ -13,22 +13,33 @@ import type { EvalRunInput, EvalCaseOutput } from "../types";
 // ============================================================================
 
 // Use vi.hoisted so mock fns are available when vi.mock factory runs (hoisted above imports)
-const {
-  handlers,
-  mockEmitSpan,
-  mockSendNotifications,
-  mockExecuteChild,
-} = vi.hoisted(() => ({
-  handlers: {} as Record<string, (...args: unknown[]) => unknown>,
-  mockEmitSpan: vi.fn().mockResolvedValue(undefined),
-  mockSendNotifications: vi.fn().mockResolvedValue(undefined),
-  mockExecuteChild: vi.fn(),
-}));
+const handlers = {} as Record<string, (...args: unknown[]) => unknown>;
+const mockEmitSpan = vi.fn().mockResolvedValue(undefined);
+const mockSendNotifications = vi.fn().mockResolvedValue(undefined);
+const mockExecuteChild = vi.fn();
+const mockCaptureEvalRunCheckpoint = vi.fn().mockResolvedValue({
+  manifest: {
+    checkpointId: "checkpoint-1",
+    snapshotId: "checkpoint-1",
+    name: "checkpoint",
+    stateType: "eval_run",
+    restore: { mode: "restore" },
+    integrity: { contentHash: "sha256:test" },
+  },
+  snapshot: {
+    snapshotId: "checkpoint-1",
+    name: "checkpoint",
+    stateType: "eval_run",
+    uri: "/api/checkpoints/checkpoint-1",
+    contentHash: "sha256:test",
+  },
+});
 
 vi.mock("@temporalio/workflow", () => ({
   proxyActivities: vi.fn(() => ({
     emitSpan: mockEmitSpan,
     sendNotifications: mockSendNotifications,
+    captureEvalRunCheckpoint: mockCaptureEvalRunCheckpoint,
   })),
   executeChild: (...args: unknown[]) => mockExecuteChild(...args),
   ParentClosePolicy: { PARENT_CLOSE_POLICY_ABANDON: 5 },
@@ -46,11 +57,8 @@ vi.mock("@temporalio/workflow", () => ({
   sleep: vi.fn().mockResolvedValue(undefined),
 }));
 
-// Import after mocks are set up
-import {
-  evalRunWorkflow,
-  parallelEvalRunWorkflow,
-} from "../workflows/eval-run";
+let evalRunWorkflow: typeof import("../workflows/eval-run").evalRunWorkflow;
+let parallelEvalRunWorkflow: typeof import("../workflows/eval-run").parallelEvalRunWorkflow;
 
 // ============================================================================
 // HELPERS
@@ -98,12 +106,35 @@ function makeCaseOutput(overrides: Partial<EvalCaseOutput> = {}): EvalCaseOutput
 // TESTS
 // ============================================================================
 
+beforeAll(async () => {
+  const mod = await import("../workflows/eval-run");
+  evalRunWorkflow = mod.evalRunWorkflow;
+  parallelEvalRunWorkflow = mod.parallelEvalRunWorkflow;
+});
+
 describe("evalRunWorkflow", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     for (const key of Object.keys(handlers)) {
       delete handlers[key];
     }
+    mockCaptureEvalRunCheckpoint.mockResolvedValue({
+      manifest: {
+        checkpointId: "checkpoint-1",
+        snapshotId: "checkpoint-1",
+        name: "checkpoint",
+        stateType: "eval_run",
+        restore: { mode: "restore" },
+        integrity: { contentHash: "sha256:test" },
+      },
+      snapshot: {
+        snapshotId: "checkpoint-1",
+        name: "checkpoint",
+        stateType: "eval_run",
+        uri: "/api/checkpoints/checkpoint-1",
+        contentHash: "sha256:test",
+      },
+    });
   });
 
   it("happy path: all cases pass", async () => {
@@ -120,8 +151,8 @@ describe("evalRunWorkflow", () => {
     // Verify executeChild was called for each dataset item
     expect(mockExecuteChild).toHaveBeenCalledTimes(2);
 
-    // Verify emitSpan was called (start + complete)
-    expect(mockEmitSpan).toHaveBeenCalledTimes(2);
+    // Verify emitSpan was called for lifecycle + checkpoint events
+    expect(mockEmitSpan.mock.calls.length).toBeGreaterThanOrEqual(4);
     expect(mockEmitSpan).toHaveBeenCalledWith(
       expect.objectContaining({
         name: "eval-run:run-1",
@@ -291,6 +322,93 @@ describe("evalRunWorkflow", () => {
     expect(progress.completed).toBe(2);
     expect(progress.total).toBe(2);
     expect(progress.results).toHaveLength(2);
+  });
+
+  it("restores an eval run checkpoint and resumes remaining cases only", async () => {
+    mockExecuteChild.mockResolvedValue(
+      makeCaseOutput({
+        traceId: "trace-2",
+        agentResult: {
+          traceId: "trace-2",
+          status: "completed",
+          iterations: 1,
+        },
+      })
+    );
+
+    const result = await evalRunWorkflow(
+      makeInput({
+        runId: "run-restore-1",
+        restoreFrom: {
+          checkpointId: "checkpoint-eval-run-restore-1",
+          traceId: "trace-eval-run-restore-1",
+          mode: "restore",
+        },
+        restoredCheckpoint: {
+          format: "neon.checkpoint-body.v1",
+          kind: "eval_run",
+          checkpointId: "checkpoint-eval-run-restore-1",
+          traceId: "trace-eval-run-restore-1",
+          projectId: "proj-1",
+          runId: "run-source-1",
+          agentId: "agent-1",
+          agentVersion: "v1",
+          capturedAt: "2026-03-30T00:00:00.000Z",
+          input: {
+            runId: "run-source-1",
+            projectId: "proj-1",
+            agentId: "agent-1",
+            agentVersion: "v1",
+            dataset: {
+              items: [
+                { input: { query: "hello" }, expected: { answer: "world" } },
+                { input: { query: "foo" }, expected: { answer: "bar" } },
+              ],
+            },
+            tools: [{ name: "search", description: "Search tool", parameters: {} }],
+            scorers: ["accuracy", "latency"],
+          },
+          state: {
+            status: "running",
+            completed: 1,
+            total: 2,
+            passed: 1,
+            failed: 0,
+            nextCaseIndex: 1,
+            results: [
+              {
+                caseIndex: 0,
+                result: {
+                  traceId: "trace-restored-0",
+                  status: "completed",
+                  iterations: 2,
+                },
+                scores: [{ name: "accuracy", value: 0.9, reason: "Good" }],
+              },
+            ],
+          },
+        },
+      })
+    );
+
+    expect(mockExecuteChild).toHaveBeenCalledTimes(1);
+    expect(mockExecuteChild).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        workflowId: "run-restore-1-case-1",
+      })
+    );
+    expect(result.results).toHaveLength(2);
+    expect(result.results[0].result.traceId).toBe("trace-restored-0");
+    expect(result.restoredFromCheckpointId).toBe(
+      "checkpoint-eval-run-restore-1"
+    );
+    expect(mockCaptureEvalRunCheckpoint).toHaveBeenCalled();
+    expect(mockEmitSpan).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: "eval-run-restored",
+      })
+    );
   });
 });
 

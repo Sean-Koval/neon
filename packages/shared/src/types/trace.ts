@@ -214,6 +214,73 @@ export interface ArtifactReference {
 }
 
 /**
+ * Durable payload locator for a checkpoint body or manifest.
+ */
+export interface CheckpointPayloadReference {
+  kind: "uri" | "artifact" | "inline" | "reference";
+  uri?: string;
+  artifactId?: string;
+  mimeType?: string;
+  contentHash?: string;
+  sizeBytes?: number;
+}
+
+/**
+ * Runtime identity needed to restore or replay from a checkpoint.
+ */
+export interface CheckpointRuntimeIdentity {
+  projectId?: string;
+  traceId?: string;
+  workflowId?: string;
+  workflowRunId?: string;
+  agentId?: string;
+  agentVersion?: string;
+  sessionId?: string;
+  threadId?: string;
+  spanId?: string;
+  parentSpanId?: string;
+  capturedAt?: string;
+  sequence?: number;
+}
+
+/**
+ * Restore semantics for resuming or replaying from a checkpoint.
+ */
+export interface CheckpointRestoreSemantics {
+  mode: "resume" | "restore" | "replay";
+  target: "workflow" | "agent" | "span" | "session";
+  entrySpanId?: string;
+  requiresApproval?: boolean;
+  replaysSideEffects?: boolean;
+}
+
+/**
+ * Integrity metadata for a durable checkpoint contract.
+ */
+export interface CheckpointIntegrity {
+  schemaVersion: string;
+  contentHash?: string;
+  metadataHash?: string;
+  redactionApplied?: boolean;
+}
+
+/**
+ * First-class checkpoint contract carried alongside snapshot references.
+ */
+export interface CheckpointManifest {
+  format: "neon.checkpoint.v1";
+  checkpointId: string;
+  snapshotId: string;
+  name?: string;
+  stateType?: string;
+  payload?: CheckpointPayloadReference;
+  runtime: CheckpointRuntimeIdentity;
+  restore: CheckpointRestoreSemantics;
+  integrity: CheckpointIntegrity;
+  metadata?: Record<string, string>;
+}
+
+/**
  * Reference to a captured state snapshot.
  */
 export interface StateSnapshotReference {
@@ -224,6 +291,7 @@ export interface StateSnapshotReference {
   contentHash?: string;
   artifactIds?: string[];
   metadata?: Record<string, string>;
+  checkpoint?: CheckpointManifest;
 }
 
 /**

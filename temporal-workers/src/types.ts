@@ -59,6 +59,8 @@ export interface AgentRunInput {
   tools: ToolDefinition[];
   maxIterations?: number;
   requireApproval?: boolean;
+  restoreFrom?: AgentReplaySource;
+  restoredCheckpoint?: AgentRunCheckpointEnvelope;
 }
 
 /**
@@ -70,6 +72,38 @@ export interface AgentRunResult {
   output?: string;
   iterations: number;
   reason?: string;
+  restoredFromCheckpointId?: string;
+}
+
+export interface AgentRunCheckpointState {
+  iteration: number;
+  maxIterations: number;
+  status: AgentStatus;
+  messages: Message[];
+  requireApproval: boolean;
+  tools: ToolDefinition[];
+}
+
+export interface AgentRunCheckpointEnvelope {
+  format: "neon.checkpoint-body.v1";
+  kind: "agent_run";
+  checkpointId: string;
+  traceId: string;
+  projectId: string;
+  agentId: string;
+  agentVersion?: string;
+  capturedAt: string;
+  workflowId?: string;
+  workflowRunId?: string;
+  state: AgentRunCheckpointState;
+  input: Record<string, unknown>;
+  metadata?: Record<string, string>;
+}
+
+export interface AgentReplaySource {
+  checkpointId: string;
+  traceId: string;
+  mode?: "restore" | "replay";
 }
 
 /**
@@ -211,6 +245,58 @@ export interface EmitArtifactReference {
   metadata?: Record<string, string>;
 }
 
+export interface EmitCheckpointPayloadReference {
+  kind: "uri" | "artifact" | "inline" | "reference";
+  uri?: string;
+  artifactId?: string;
+  mimeType?: string;
+  contentHash?: string;
+  sizeBytes?: number;
+}
+
+export interface EmitCheckpointRuntimeIdentity {
+  projectId?: string;
+  traceId?: string;
+  workflowId?: string;
+  workflowRunId?: string;
+  agentId?: string;
+  agentVersion?: string;
+  sessionId?: string;
+  threadId?: string;
+  spanId?: string;
+  parentSpanId?: string;
+  capturedAt?: string;
+  sequence?: number;
+}
+
+export interface EmitCheckpointRestoreSemantics {
+  mode: "resume" | "restore" | "replay";
+  target: "workflow" | "agent" | "span" | "session";
+  entrySpanId?: string;
+  requiresApproval?: boolean;
+  replaysSideEffects?: boolean;
+}
+
+export interface EmitCheckpointIntegrity {
+  schemaVersion: string;
+  contentHash?: string;
+  metadataHash?: string;
+  redactionApplied?: boolean;
+}
+
+export interface EmitCheckpointManifest {
+  format: "neon.checkpoint.v1";
+  checkpointId: string;
+  snapshotId: string;
+  name?: string;
+  stateType?: string;
+  payload?: EmitCheckpointPayloadReference;
+  runtime: EmitCheckpointRuntimeIdentity;
+  restore: EmitCheckpointRestoreSemantics;
+  integrity: EmitCheckpointIntegrity;
+  metadata?: Record<string, string>;
+}
+
 export interface EmitStateSnapshotReference {
   snapshotId: string;
   name?: string;
@@ -219,6 +305,7 @@ export interface EmitStateSnapshotReference {
   contentHash?: string;
   artifactIds?: string[];
   metadata?: Record<string, string>;
+  checkpoint?: EmitCheckpointManifest;
 }
 
 export interface EmitEvalAnnotation {
@@ -347,6 +434,9 @@ export interface EvalRunInput {
   scorers: string[];
   /** Notification configuration (optional) */
   notify?: NotifyConfig;
+  parallelism?: number;
+  restoreFrom?: EvalRunReplaySource;
+  restoredCheckpoint?: EvalRunCheckpointEnvelope;
 }
 
 /**
@@ -374,6 +464,241 @@ export interface EvalRunResult {
     failed: number;
     avgScore: number;
   };
+  restoredFromCheckpointId?: string;
+}
+
+export interface EvalRunCheckpointState {
+  status: "running" | "completed" | "failed" | "cancelled";
+  completed: number;
+  total: number;
+  passed: number;
+  failed: number;
+  nextCaseIndex: number;
+  results: EvalCaseResult[];
+  error?: string;
+}
+
+export interface EvalRunCheckpointEnvelope {
+  format: "neon.checkpoint-body.v1";
+  kind: "eval_run";
+  checkpointId: string;
+  traceId: string;
+  projectId: string;
+  runId: string;
+  agentId: string;
+  agentVersion?: string;
+  capturedAt: string;
+  workflowId?: string;
+  workflowRunId?: string;
+  input: Omit<EvalRunInput, "restoreFrom" | "restoredCheckpoint">;
+  state: EvalRunCheckpointState;
+  metadata?: Record<string, string>;
+}
+
+export interface EvalRunReplaySource {
+  checkpointId: string;
+  traceId: string;
+  mode?: "restore" | "replay";
+}
+
+export interface ProgressiveRolloutInput {
+  rolloutId: string;
+  projectId: string;
+  currentAgent: {
+    agentId: string;
+    agentVersion: string;
+    tools: ToolDefinition[];
+  };
+  newAgent: {
+    agentId: string;
+    agentVersion: string;
+    tools: ToolDefinition[];
+  };
+  dataset: {
+    items: DatasetItem[];
+  };
+  scorers: string[];
+  stages: number[];
+  minimumScore: number;
+  stageDurationMs: number;
+  restoreFrom?: ProgressiveRolloutReplaySource;
+  restoredCheckpoint?: ProgressiveRolloutCheckpointEnvelope;
+}
+
+export interface ProgressiveRolloutStageResult {
+  stage: number;
+  percentage: number;
+  score: number;
+  passed: boolean;
+  runId: string;
+}
+
+export interface ProgressiveRolloutResult {
+  rolloutId: string;
+  finalStage: number;
+  completed: boolean;
+  aborted: boolean;
+  abortReason?: string;
+  stageResults: ProgressiveRolloutStageResult[];
+  restoredFromCheckpointId?: string;
+}
+
+export interface ProgressiveRolloutCheckpointState {
+  status: "running" | "completed" | "aborted" | "failed";
+  currentStageIndex: number;
+  currentPercentage: number;
+  stages: number[];
+  scores: number[];
+  stageResults: ProgressiveRolloutStageResult[];
+  nextStageIndex: number;
+  abortReason?: string;
+  error?: string;
+}
+
+export interface ProgressiveRolloutCheckpointEnvelope {
+  format: "neon.checkpoint-body.v1";
+  kind: "progressive_rollout";
+  checkpointId: string;
+  traceId: string;
+  projectId: string;
+  rolloutId: string;
+  capturedAt: string;
+  workflowId?: string;
+  workflowRunId?: string;
+  input: Omit<ProgressiveRolloutInput, "restoreFrom" | "restoredCheckpoint">;
+  state: ProgressiveRolloutCheckpointState;
+  metadata?: Record<string, string>;
+}
+
+export interface ProgressiveRolloutReplaySource {
+  checkpointId: string;
+  traceId: string;
+  mode?: "restore" | "replay";
+}
+
+export type TrainingLoopStage =
+  | "idle"
+  | "collecting"
+  | "curating"
+  | "optimizing"
+  | "evaluating"
+  | "deploying"
+  | "monitoring";
+
+export interface TrainingLoopInput {
+  projectId: string;
+  suiteId: string;
+  promptId: string;
+  strategy: "coordinate_ascent" | "example_selection" | "reflection";
+  trigger: "regression" | "signal_threshold" | "manual";
+  maxIterations?: number;
+  improvementThreshold?: number;
+  signalTypes?: string[];
+  timeWindow?: { startDate: string; endDate: string };
+  restoreFrom?: TrainingLoopReplaySource;
+  restoredCheckpoint?: TrainingLoopCheckpointEnvelope;
+}
+
+export interface TrainingLoopStageResult {
+  iteration: number;
+  stage: TrainingLoopStage;
+  status: "completed" | "skipped" | "failed";
+  metrics: Record<string, number>;
+  durationMs: number;
+  timestamp: string;
+}
+
+export interface TrainingLoopStatus {
+  stage: TrainingLoopStage;
+  progress: number;
+  metrics: Record<string, number>;
+  history: TrainingLoopStageResult[];
+  isPaused: boolean;
+  currentIteration: number;
+  maxIterations: number;
+}
+
+export interface TrainingLoopResult {
+  loopId: string;
+  status: "completed" | "aborted" | "failed";
+  stages: TrainingLoopStageResult[];
+  improvement: number;
+  totalDurationMs: number;
+  iterations: number;
+  restoredFromCheckpointId?: string;
+}
+
+export interface TrainingLoopCheckpointState {
+  status: "running" | "completed" | "failed" | "aborted";
+  currentStage: TrainingLoopStage;
+  currentIteration: number;
+  maxIterations: number;
+  baselineScore: number;
+  currentMetrics: Record<string, number>;
+  stageHistory: TrainingLoopStageResult[];
+  collectedSignals: unknown[];
+  curatedData: unknown[];
+  approvalStatus: "idle" | "pending" | "approved" | "rejected";
+  error?: string;
+}
+
+export interface TrainingLoopCheckpointEnvelope {
+  format: "neon.checkpoint-body.v1";
+  kind: "training_loop";
+  checkpointId: string;
+  traceId: string;
+  projectId: string;
+  loopId: string;
+  promptId: string;
+  suiteId: string;
+  capturedAt: string;
+  workflowId?: string;
+  workflowRunId?: string;
+  input: Omit<TrainingLoopInput, "restoreFrom" | "restoredCheckpoint">;
+  state: TrainingLoopCheckpointState;
+  metadata?: Record<string, string>;
+}
+
+export interface TrainingLoopReplaySource {
+  checkpointId: string;
+  traceId: string;
+  mode?: "restore" | "replay";
+}
+
+export interface EvalCaseCheckpointState {
+  status: "pending" | "running_agent" | "scoring" | "completed" | "failed" | "cancelled";
+  scores: Array<{
+    name: string;
+    value: number;
+    reason?: string;
+    passed?: boolean;
+  }>;
+  agentResult?: AgentRunResult;
+  error?: string;
+}
+
+export interface EvalCaseCheckpointEnvelope {
+  format: "neon.checkpoint-body.v1";
+  kind: "eval_case";
+  checkpointId: string;
+  traceId: string;
+  projectId: string;
+  caseId?: string;
+  runId?: string;
+  agentId: string;
+  agentVersion?: string;
+  capturedAt: string;
+  workflowId?: string;
+  workflowRunId?: string;
+  input: EvalCaseInput;
+  state: EvalCaseCheckpointState;
+  metadata?: Record<string, string>;
+}
+
+export interface EvalCaseReplaySource {
+  checkpointId: string;
+  traceId: string;
+  mode?: "restore" | "replay";
 }
 
 // ============================================================================
@@ -416,6 +741,10 @@ export interface EvalCaseInput {
   systemPrompt?: string;
   /** Custom trace ID (auto-generated if not provided) */
   traceId?: string;
+  /** Source checkpoint metadata when restoring or replaying */
+  restoreFrom?: EvalCaseReplaySource;
+  /** Persisted checkpoint body for workflow restore */
+  restoredCheckpoint?: EvalCaseCheckpointEnvelope;
 }
 
 /**

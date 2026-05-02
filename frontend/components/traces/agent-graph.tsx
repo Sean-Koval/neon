@@ -1,7 +1,7 @@
 'use client'
 
 import { clsx } from 'clsx'
-import { Bot, Maximize2, Sparkles, Wrench } from 'lucide-react'
+import { Bot, Layers3, Maximize2, Sparkles, Wrench } from 'lucide-react'
 import type { PointerEvent } from 'react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { SpanSummary } from '@/components/traces/span-detail'
@@ -13,9 +13,23 @@ interface AgentGraphProps {
 }
 
 type NodeType = 'agent' | 'llm' | 'tool' | 'other'
-type EdgeKind = 'parent' | 'temporal'
+type EdgeKind = 'parent' | 'temporal' | 'fallback'
 type LayoutMode = 'flow' | 'timeline'
 type FilterMode = 'all' | 'critical' | 'errors' | 'llm' | 'tool'
+
+interface SkillSelectionContext {
+  selectedSkill: string
+  selectionConfidence?: number
+  alternativesConsidered?: string[]
+}
+
+interface DecisionMetadata {
+  isFallback?: boolean
+  retryCount?: number
+  originalSpanId?: string
+  requiredApproval?: boolean
+  approvalGranted?: boolean
+}
 
 interface FlatSpan {
   span: SpanSummary
@@ -25,6 +39,15 @@ interface FlatSpan {
   endMs: number
   durationMs: number
   type: NodeType
+  snapshotCount: number
+  expectedLabel?: string
+  expectedAlternatives: number
+  hasPlanMismatch: boolean
+  isFallback: boolean
+  retryCount: number
+  requiresApproval: boolean
+  approvalGranted?: boolean
+  originalSpanId?: string
 }
 
 interface GraphNode {
@@ -42,6 +65,14 @@ interface GraphNode {
   width: number
   height: number
   critical: boolean
+  snapshotCount: number
+  expectedLabel?: string
+  expectedAlternatives: number
+  hasPlanMismatch: boolean
+  isFallback: boolean
+  retryCount: number
+  requiresApproval: boolean
+  approvalGranted?: boolean
 }
 
 interface GraphEdge {
@@ -158,6 +189,78 @@ function getNodeType(spanType: string): NodeType {
   return 'other'
 }
 
+function parseJSONAttribute<T>(
+  attributes: Record<string, string> | undefined,
+  key: string,
+): T | undefined {
+  const raw = attributes?.[key]
+  if (!raw) return undefined
+  try {
+    return JSON.parse(raw) as T
+  } catch {
+    return undefined
+  }
+}
+
+function normalizeComparableLabel(value: string | undefined): string {
+  return (value || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '')
+}
+
+function getSnapshotCount(span: SpanSummary): number {
+  const raw = (span as SpanSummary & { attributes?: Record<string, string> }).attributes?.[
+    'neon.state_snapshots'
+  ]
+  if (!raw) return 0
+  try {
+    const parsed = JSON.parse(raw) as unknown[]
+    return Array.isArray(parsed) ? parsed.length : 0
+  } catch {
+    return 0
+  }
+}
+
+function getExecutionSignals(span: SpanSummary): {
+  expectedLabel?: string
+  expectedAlternatives: number
+  hasPlanMismatch: boolean
+  isFallback: boolean
+  retryCount: number
+  requiresApproval: boolean
+  approvalGranted?: boolean
+  originalSpanId?: string
+} {
+  const attributes = (
+    span as SpanSummary & { attributes?: Record<string, string> }
+  ).attributes
+  const selection = parseJSONAttribute<SkillSelectionContext>(
+    attributes,
+    'neon.skill_selection',
+  )
+  const decision = parseJSONAttribute<DecisionMetadata>(
+    attributes,
+    'neon.decision_metadata',
+  )
+  const expectedLabel = selection?.selectedSkill?.trim() || undefined
+  const actualLabel = span.tool_name || span.model || span.name
+  const hasPlanMismatch =
+    !!expectedLabel &&
+    normalizeComparableLabel(expectedLabel) !==
+      normalizeComparableLabel(actualLabel)
+
+  return {
+    expectedLabel,
+    expectedAlternatives: selection?.alternativesConsidered?.length || 0,
+    hasPlanMismatch,
+    isFallback: decision?.isFallback === true,
+    retryCount: decision?.retryCount || 0,
+    requiresApproval: decision?.requiredApproval === true,
+    approvalGranted: decision?.approvalGranted,
+    originalSpanId: decision?.originalSpanId,
+  }
+}
+
 function formatDuration(ms: number): string {
   if (ms < 1) return '<1ms'
   if (ms < 1000) return `${Math.round(ms)}ms`
@@ -181,6 +284,7 @@ function flattenSpans(spans: SpanSummary[]): FlatSpan[] {
       const endMs = span.end_time
         ? Math.max(parseTimestampMs(span.end_time), endFromDuration)
         : endFromDuration
+      const executionSignals = getExecutionSignals(span)
 
       flattened.push({
         span,
@@ -190,6 +294,15 @@ function flattenSpans(spans: SpanSummary[]): FlatSpan[] {
         endMs,
         durationMs,
         type: getNodeType(span.span_type),
+        snapshotCount: getSnapshotCount(span),
+        expectedLabel: executionSignals.expectedLabel,
+        expectedAlternatives: executionSignals.expectedAlternatives,
+        hasPlanMismatch: executionSignals.hasPlanMismatch,
+        isFallback: executionSignals.isFallback,
+        retryCount: executionSignals.retryCount,
+        requiresApproval: executionSignals.requiresApproval,
+        approvalGranted: executionSignals.approvalGranted,
+        originalSpanId: executionSignals.originalSpanId,
       })
 
       if (span.children?.length) walk(span.children, span.span_id)
@@ -233,6 +346,26 @@ function buildEdges(items: FlatSpan[]): {
       })
     }
 
+    for (const item of items) {
+      if (
+        !item.isFallback ||
+        !item.originalSpanId ||
+        !ids.has(item.originalSpanId) ||
+        item.originalSpanId === item.id
+      ) {
+        continue
+      }
+      const key = `fallback:${item.originalSpanId}->${item.id}`
+      if (seen.has(key)) continue
+      seen.add(key)
+      edges.push({
+        from: item.originalSpanId,
+        to: item.id,
+        critical: false,
+        kind: 'fallback',
+      })
+    }
+
     return { edges, hasStructuredParents: true }
   }
 
@@ -248,6 +381,23 @@ function buildEdges(items: FlatSpan[]): {
     const to = ordered[i]?.id
     if (!from || !to || from === to) continue
     edges.push({ from, to, critical: true, kind: 'temporal' })
+  }
+
+  for (const item of ordered) {
+    if (
+      !item.isFallback ||
+      !item.originalSpanId ||
+      !ids.has(item.originalSpanId) ||
+      item.originalSpanId === item.id
+    ) {
+      continue
+    }
+    edges.push({
+      from: item.originalSpanId,
+      to: item.id,
+      critical: false,
+      kind: 'fallback',
+    })
   }
 
   return { edges, hasStructuredParents: false }
@@ -557,6 +707,14 @@ function layoutFlow(
       width: nodeWidth,
       height: nodeHeight,
       critical: prepared.criticalPath.has(item.id),
+      snapshotCount: item.snapshotCount,
+      expectedLabel: item.expectedLabel,
+      expectedAlternatives: item.expectedAlternatives,
+      hasPlanMismatch: item.hasPlanMismatch,
+      isFallback: item.isFallback,
+      retryCount: item.retryCount,
+      requiresApproval: item.requiresApproval,
+      approvalGranted: item.approvalGranted,
     }
   })
 
@@ -677,6 +835,14 @@ function layoutTimeline(
       width: nodeWidth,
       height: nodeHeight,
       critical: prepared.criticalPath.has(item.id),
+      snapshotCount: item.snapshotCount,
+      expectedLabel: item.expectedLabel,
+      expectedAlternatives: item.expectedAlternatives,
+      hasPlanMismatch: item.hasPlanMismatch,
+      isFallback: item.isFallback,
+      retryCount: item.retryCount,
+      requiresApproval: item.requiresApproval,
+      approvalGranted: item.approvalGranted,
     }
   })
 
@@ -754,7 +920,7 @@ function GraphNodeCard({
           </span>
           <Icon className={clsx('h-4 w-4 shrink-0', style.iconColor)} />
           <span className="truncate text-[12px] font-semibold text-content-primary">
-            {node.label}
+          {node.label}
           </span>
         </div>
         <span
@@ -767,6 +933,59 @@ function GraphNodeCard({
           {node.type}
         </span>
       </div>
+
+      {node.snapshotCount > 0 && (
+        <div className="mt-2 inline-flex items-center gap-1 rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-[10px] font-medium text-violet-700 dark:border-violet-500/25 dark:bg-violet-500/10 dark:text-violet-300">
+          <Layers3 className="h-3 w-3" />
+          {node.snapshotCount}
+        </div>
+      )}
+
+      {(node.expectedLabel ||
+        node.isFallback ||
+        node.retryCount > 0 ||
+        node.requiresApproval) && (
+        <div className="mt-2 flex flex-wrap items-center gap-1">
+          {node.expectedLabel && (
+            <span
+              className={clsx(
+                'inline-flex max-w-full truncate rounded-full px-2 py-0.5 text-[10px] font-medium',
+                node.hasPlanMismatch
+                  ? 'bg-amber-50 text-amber-700 ring-1 ring-amber-200 dark:bg-amber-500/10 dark:text-amber-300 dark:ring-amber-500/25'
+                  : 'bg-sky-50 text-sky-700 ring-1 ring-sky-200 dark:bg-sky-500/10 dark:text-sky-300 dark:ring-sky-500/25',
+              )}
+              title={`Planned selection: ${node.expectedLabel}`}
+            >
+              Plan {node.expectedLabel}
+              {node.expectedAlternatives > 0
+                ? ` +${node.expectedAlternatives}`
+                : ''}
+            </span>
+          )}
+          {node.isFallback && (
+            <span className="inline-flex rounded-full border border-rose-200 bg-rose-50 px-2 py-0.5 text-[10px] font-medium text-rose-700 dark:border-rose-500/25 dark:bg-rose-500/10 dark:text-rose-300">
+              Fallback
+            </span>
+          )}
+          {node.retryCount > 0 && (
+            <span className="inline-flex rounded-full border border-orange-200 bg-orange-50 px-2 py-0.5 text-[10px] font-medium text-orange-700 dark:border-orange-500/25 dark:bg-orange-500/10 dark:text-orange-300">
+              Retry {node.retryCount}
+            </span>
+          )}
+          {node.requiresApproval && (
+            <span
+              className={clsx(
+                'inline-flex rounded-full border px-2 py-0.5 text-[10px] font-medium',
+                node.approvalGranted
+                  ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/25 dark:bg-emerald-500/10 dark:text-emerald-300'
+                  : 'border-red-200 bg-red-50 text-red-700 dark:border-red-500/25 dark:bg-red-500/10 dark:text-red-300',
+              )}
+            >
+              {node.approvalGranted ? 'Approved' : 'Approval'}
+            </span>
+          )}
+        </div>
+      )}
 
       <div className="mt-2 flex items-center justify-between text-[10px] text-content-muted">
         <span>{formatDuration(node.duration)}</span>
@@ -910,6 +1129,11 @@ export function AgentGraph({
   const nodeMap = new Map(nodes.map((node) => [node.id, node]))
   const totalDuration = Math.max(maxEndMs - minStartMs, 1)
   const showLabels = showEdgeLabels && edges.length <= 80
+  const snapshotNodes = prepared.items.filter((item) => item.snapshotCount > 0).length
+  const plannedNodes = prepared.items.filter((item) => !!item.expectedLabel).length
+  const mismatchedNodes = prepared.items.filter((item) => item.hasPlanMismatch).length
+  const fallbackNodes = prepared.items.filter((item) => item.isFallback).length
+  const approvalNodes = prepared.items.filter((item) => item.requiresApproval).length
 
   const timeTicks = [0, 0.25, 0.5, 0.75, 1].map((ratio) => {
     const x = 62 + ratio * (canvasWidth - 182)
@@ -929,6 +1153,12 @@ export function AgentGraph({
             </span>
             <span className="inline-flex items-center gap-1 rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-amber-600 dark:text-amber-300">
               <Wrench className="h-3 w-3" /> Tool
+            </span>
+            <span className="inline-flex items-center gap-1 rounded-md border border-rose-500/30 bg-rose-500/10 px-2 py-1 text-rose-600 dark:text-rose-300">
+              Fallback Path
+            </span>
+            <span className="inline-flex items-center gap-1 rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-amber-600 dark:text-amber-300">
+              Plan Mismatch
             </span>
           </div>
 
@@ -1034,6 +1264,11 @@ export function AgentGraph({
             label="Critical Path"
             value={formatDuration(prepared.metrics.criticalDurationMs)}
           />
+          <MetricPill label="Snapshots" value={String(snapshotNodes)} />
+          <MetricPill label="Planned" value={String(plannedNodes)} />
+          <MetricPill label="Mismatches" value={String(mismatchedNodes)} />
+          <MetricPill label="Fallbacks" value={String(fallbackNodes)} />
+          <MetricPill label="Approval Gates" value={String(approvalNodes)} />
         </div>
       </div>
 
@@ -1113,11 +1348,16 @@ export function AgentGraph({
                 const isMuted = highlightCriticalPath && !edge.critical
                 const stroke = isCritical
                   ? '#22d3ee'
+                  : edge.kind === 'fallback'
+                    ? '#fb7185'
                   : edge.kind === 'temporal'
                     ? '#60a5fa'
                     : '#94a3b8'
                 const deltaStart = Math.max(to.startMs - from.startMs, 0)
-                const labelText = `+${formatDuration(deltaStart)}`
+                const labelText =
+                  edge.kind === 'fallback'
+                    ? 'fallback'
+                    : `+${formatDuration(deltaStart)}`
 
                 // Place label on the Bezier midpoint and offset it normal to the
                 // curve, so it doesn't sit directly on top of the edge.
@@ -1160,6 +1400,7 @@ export function AgentGraph({
                       fill="none"
                       stroke={stroke}
                       strokeWidth={isCritical ? 2.8 : 1.7}
+                      strokeDasharray={edge.kind === 'fallback' ? '6 5' : undefined}
                       opacity={isMuted ? 0.24 : 0.9}
                     />
                     {showLabels && (

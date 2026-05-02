@@ -64,6 +64,44 @@ export interface AgentRunResult {
   iterations: number;
   reason?: string;
   durationMs: number;
+  restoredFromCheckpointId?: string;
+}
+
+/**
+ * Runtime state captured for replayable agent checkpoints.
+ */
+export interface AgentRunCheckpointState {
+  iteration: number;
+  maxIterations: number;
+  status: AgentStatus;
+  messages: Message[];
+  requireApproval: boolean;
+  tools: ToolDefinition[];
+}
+
+/**
+ * Durable checkpoint body persisted for agent-run replay.
+ */
+export interface AgentRunCheckpointEnvelope {
+  format: "neon.checkpoint-body.v1";
+  kind: "agent_run";
+  checkpointId: string;
+  traceId: string;
+  projectId: string;
+  agentId: string;
+  agentVersion?: string;
+  capturedAt: string;
+  workflowId?: string;
+  workflowRunId?: string;
+  state: AgentRunCheckpointState;
+  input: Record<string, unknown>;
+  metadata?: Record<string, string>;
+}
+
+export interface AgentReplaySource {
+  checkpointId: string;
+  traceId: string;
+  mode?: "restore" | "replay";
 }
 
 /**
@@ -77,6 +115,8 @@ export interface StartAgentRunInput {
   tools?: ToolDefinition[];
   maxIterations?: number;
   requireApproval?: boolean;
+  restoreFrom?: AgentReplaySource;
+  restoredCheckpoint?: AgentRunCheckpointEnvelope;
 }
 
 /**

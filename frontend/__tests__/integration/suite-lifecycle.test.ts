@@ -111,6 +111,30 @@ function makeSuiteRow(overrides: Record<string, unknown> = {}) {
   }
 }
 
+function makeCaseRow(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 'b0000000-0000-0000-0000-000000000001',
+    suite_id: 'a0000000-0000-0000-0000-000000000001',
+    name: 'Escalates to human when refund is blocked',
+    description: 'Seeded from trace',
+    input: { prompt: 'Customer asks for a refund' },
+    expected: {
+      expected_tools: ['refund_lookup'],
+      expected_output_contains: ['I can help with that'],
+    },
+    scorers: ['tool_selection', 'reasoning'],
+    config: {
+      scorer_config: null,
+      min_score: 0.7,
+      tags: ['seeded-from-trace'],
+      timeout_seconds: 60,
+    },
+    created_at: '2026-01-15T00:00:00.000Z',
+    updated_at: '2026-01-15T00:00:00.000Z',
+    ...overrides,
+  }
+}
+
 async function getSuitesHandlers() {
   const mod = await import('@/app/api/suites/route')
   return { GET: mod.GET, POST: mod.POST }
@@ -119,6 +143,16 @@ async function getSuitesHandlers() {
 async function getSuiteDetailHandlers() {
   const mod = await import('@/app/api/suites/[id]/route')
   return { GET: mod.GET, PATCH: mod.PATCH, DELETE: mod.DELETE }
+}
+
+async function getSuiteCaseHandlers() {
+  const mod = await import('@/app/api/suites/[id]/cases/route')
+  return { GET: mod.GET, POST: mod.POST }
+}
+
+async function getSuiteCaseDetailHandlers() {
+  const mod = await import('@/app/api/suites/[id]/cases/[caseId]/route')
+  return { PATCH: mod.PATCH, DELETE: mod.DELETE }
 }
 
 // =============================================================================
@@ -159,7 +193,7 @@ describe('Suite Lifecycle Integration', () => {
       })
 
       // Verify the INSERT query used auth workspace
-      const insertCall = mockPgQuery.mock.calls[0]
+      const insertCall = mockPgQuery.mock.calls[1]
       expect(insertCall[0]).toContain('INSERT INTO suites')
       expect(insertCall[1][0]).toBe(TEST_WORKSPACE_ID)
     })
@@ -205,12 +239,56 @@ describe('Suite Lifecycle Integration', () => {
       expect(body.default_scorers).toEqual(['tool_selection', 'reasoning'])
       expect(body.default_min_score).toBe(0.85)
     })
+
+    it('creates a suite with inline cases', async () => {
+      const row = makeSuiteRow()
+      const caseRow = makeCaseRow({ suite_id: row.id })
+      mockPgQuery
+        .mockResolvedValueOnce({ rows: [] }) // BEGIN
+        .mockResolvedValueOnce({ rows: [row] }) // INSERT suite
+        .mockResolvedValueOnce({ rows: [caseRow] }) // INSERT case
+        .mockResolvedValueOnce({ rows: [] }) // COMMIT
+
+      const { POST } = await getSuitesHandlers()
+      const req = createMockRequest('/api/suites', {
+        method: 'POST',
+        body: {
+          name: 'Seeded Suite',
+          agent_id: 'agent-1',
+          default_scorers: ['reasoning'],
+          parallel: true,
+          stop_on_failure: false,
+          cases: [
+            {
+              name: caseRow.name,
+              input: { prompt: 'Customer asks for a refund' },
+              expected_tools: ['refund_lookup'],
+              expected_output_contains: ['I can help with that'],
+              scorers: ['reasoning'],
+              min_score: 0.7,
+              tags: ['seeded-from-trace'],
+              timeout_seconds: 60,
+            },
+          ],
+        },
+      })
+
+      const res = await POST(req)
+      expect(res.status).toBe(201)
+
+      const body = await res.json()
+      expect(body.cases).toHaveLength(1)
+      expect(body.cases[0].name).toBe(caseRow.name)
+      expect(mockPgQuery.mock.calls[2][0]).toContain('INSERT INTO cases')
+    })
   })
 
   describe('Get Suite by ID', () => {
     it('returns the suite when found in workspace', async () => {
       const row = makeSuiteRow()
-      mockPgQuery.mockResolvedValue({ rows: [row] })
+      mockPgQuery
+        .mockResolvedValueOnce({ rows: [row] })
+        .mockResolvedValueOnce({ rows: [] })
 
       const { GET } = await getSuiteDetailHandlers()
       const req = createMockRequest(`/api/suites/${row.id}`)
@@ -221,6 +299,7 @@ describe('Suite Lifecycle Integration', () => {
       expect(body.id).toBe(row.id)
       expect(body.name).toBe('Test Suite')
       expect(body.project_id).toBe(TEST_WORKSPACE_ID)
+      expect(body.cases).toEqual([])
     })
 
     it('returns 404 for nonexistent suite', async () => {
@@ -242,6 +321,122 @@ describe('Suite Lifecycle Integration', () => {
       expect(res.status).toBe(400)
       const body = await res.json()
       expect(body.error).toContain('Invalid suite ID')
+    })
+  })
+
+  describe('Suite Cases', () => {
+    it('lists cases for a suite', async () => {
+      const suiteRow = makeSuiteRow()
+      const caseRow = makeCaseRow({ suite_id: suiteRow.id })
+      mockPgQuery
+        .mockResolvedValueOnce({
+          rows: [{ id: suiteRow.id, project_id: TEST_WORKSPACE_ID }],
+        })
+        .mockResolvedValueOnce({ rows: [caseRow] })
+
+      const { GET } = await getSuiteCaseHandlers()
+      const res = await GET(createMockRequest(`/api/suites/${suiteRow.id}/cases`), {
+        params: Promise.resolve({ id: suiteRow.id as string }),
+      })
+
+      expect(res.status).toBe(200)
+      const body = await res.json()
+      expect(body).toHaveLength(1)
+      expect(body[0].id).toBe(caseRow.id)
+    })
+
+    it('creates a case in a suite', async () => {
+      const suiteRow = makeSuiteRow()
+      const caseRow = makeCaseRow({ suite_id: suiteRow.id })
+      mockPgQuery
+        .mockResolvedValueOnce({
+          rows: [{ id: suiteRow.id, project_id: TEST_WORKSPACE_ID }],
+        })
+        .mockResolvedValueOnce({ rows: [caseRow] })
+
+      const { POST } = await getSuiteCaseHandlers()
+      const res = await POST(
+        createMockRequest(`/api/suites/${suiteRow.id}/cases`, {
+          method: 'POST',
+          body: {
+            name: caseRow.name,
+            input: { prompt: 'Customer asks for a refund' },
+            expected_tools: ['refund_lookup'],
+            expected_output_contains: ['I can help with that'],
+            scorers: ['reasoning'],
+            min_score: 0.7,
+            tags: ['seeded-from-trace'],
+            timeout_seconds: 60,
+          },
+        }),
+        { params: Promise.resolve({ id: suiteRow.id as string }) },
+      )
+
+      expect(res.status).toBe(201)
+      const body = await res.json()
+      expect(body.name).toBe(caseRow.name)
+      expect(mockPgQuery.mock.calls[1][0]).toContain('INSERT INTO cases')
+    })
+
+    it('updates a case in a suite', async () => {
+      const suiteRow = makeSuiteRow()
+      const caseRow = makeCaseRow({ suite_id: suiteRow.id })
+      const updatedRow = makeCaseRow({
+        suite_id: suiteRow.id,
+        name: 'Updated case name',
+      })
+      mockPgQuery
+        .mockResolvedValueOnce({
+          rows: [{ id: suiteRow.id, project_id: TEST_WORKSPACE_ID }],
+        })
+        .mockResolvedValueOnce({ rows: [caseRow] })
+        .mockResolvedValueOnce({ rows: [updatedRow] })
+
+      const { PATCH } = await getSuiteCaseDetailHandlers()
+      const res = await PATCH(
+        createMockRequest(`/api/suites/${suiteRow.id}/cases/${caseRow.id}`, {
+          method: 'PATCH',
+          body: { name: 'Updated case name' },
+        }),
+        {
+          params: Promise.resolve({
+            id: suiteRow.id as string,
+            caseId: caseRow.id as string,
+          }),
+        },
+      )
+
+      expect(res.status).toBe(200)
+      const body = await res.json()
+      expect(body.name).toBe('Updated case name')
+      expect(mockPgQuery.mock.calls[2][0]).toContain('UPDATE cases')
+    })
+
+    it('deletes a case from a suite', async () => {
+      const suiteRow = makeSuiteRow()
+      const caseRow = makeCaseRow({ suite_id: suiteRow.id })
+      mockPgQuery
+        .mockResolvedValueOnce({
+          rows: [{ id: suiteRow.id, project_id: TEST_WORKSPACE_ID }],
+        })
+        .mockResolvedValueOnce({ rows: [{ id: caseRow.id }] })
+        .mockResolvedValueOnce({ rows: [] })
+
+      const { DELETE } = await getSuiteCaseDetailHandlers()
+      const res = await DELETE(
+        createMockRequest(`/api/suites/${suiteRow.id}/cases/${caseRow.id}`, {
+          method: 'DELETE',
+        }),
+        {
+          params: Promise.resolve({
+            id: suiteRow.id as string,
+            caseId: caseRow.id as string,
+          }),
+        },
+      )
+
+      expect(res.status).toBe(204)
+      expect(mockPgQuery.mock.calls[2][0]).toContain('DELETE FROM cases')
     })
   })
 
@@ -385,7 +580,10 @@ describe('Suite Lifecycle Integration', () => {
       const { GET, PATCH, DELETE } = await getSuiteDetailHandlers()
 
       // Step 1: Create
-      mockPgQuery.mockResolvedValueOnce({ rows: [row] })
+      mockPgQuery
+        .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({ rows: [row] })
+        .mockResolvedValueOnce({ rows: [] })
       const createRes = await POST(createMockRequest('/api/suites', {
         method: 'POST',
         body: { name: 'Test Suite', agent_id: 'agent-1' },
@@ -395,7 +593,9 @@ describe('Suite Lifecycle Integration', () => {
       expect(created.id).toBe(suiteId)
 
       // Step 2: Get by ID
-      mockPgQuery.mockResolvedValueOnce({ rows: [row] })
+      mockPgQuery
+        .mockResolvedValueOnce({ rows: [row] })
+        .mockResolvedValueOnce({ rows: [] })
       const getRes = await GET(
         createMockRequest(`/api/suites/${suiteId}`),
         { params: Promise.resolve({ id: suiteId }) },

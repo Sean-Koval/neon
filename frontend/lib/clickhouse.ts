@@ -338,6 +338,7 @@ export interface SpanSummary {
   total_tokens: number | null
   cost_usd: number | null
   tool_name: string | null
+  attributes: Record<string, string>
 }
 
 /**
@@ -384,7 +385,8 @@ export async function getTraceWithSpanSummaries(
       SELECT
         project_id, trace_id, span_id, parent_span_id, name, kind, span_type,
         timestamp, end_time, duration_ms, status, status_message, model,
-        input_tokens, output_tokens, total_tokens, cost_usd, tool_name
+        input_tokens, output_tokens, total_tokens, cost_usd, tool_name,
+        attributes
       FROM spans
       WHERE project_id = {projectId:String} AND trace_id = {traceId:String}
       ORDER BY timestamp ASC

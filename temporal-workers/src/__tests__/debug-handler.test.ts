@@ -5,6 +5,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
   initDebugSession,
+  hydrateDebugSession,
   getDebugSession,
   updateDebugSession,
   endDebugSession,
@@ -19,6 +20,7 @@ import {
   type DebugSession,
 } from "../activities/debug-handler";
 import type { Span, SpanType } from "@neon/shared";
+import type { EmitCheckpointManifest } from "../types";
 
 // Mock fetch globally
 const mockFetch = vi.fn();
@@ -38,6 +40,44 @@ function createMockSpan(options: Partial<Span> = {}): Span {
     status: options.status ?? "ok",
     attributes: options.attributes ?? {},
     ...options,
+  };
+}
+
+function createCheckpointManifest(
+  overrides: Partial<EmitCheckpointManifest> = {}
+): EmitCheckpointManifest {
+  return {
+    format: "neon.checkpoint.v1",
+    checkpointId: "checkpoint-123",
+    snapshotId: "snapshot-123",
+    stateType: "workflow",
+    payload: {
+      kind: "artifact",
+      artifactId: "artifact-123",
+      contentHash: "sha256:abc123",
+    },
+    runtime: {
+      projectId: "project-1",
+      traceId: "trace-hydrate-1",
+      workflowId: "workflow-1",
+      workflowRunId: "run-1",
+      spanId: "span-checkpoint-1",
+      parentSpanId: "span-parent-1",
+      capturedAt: "2026-03-30T12:00:00.000Z",
+      sequence: 3,
+    },
+    restore: {
+      mode: "restore",
+      target: "workflow",
+      entrySpanId: "span-checkpoint-1",
+      requiresApproval: true,
+    },
+    integrity: {
+      schemaVersion: "1",
+      contentHash: "sha256:abc123",
+      redactionApplied: false,
+    },
+    ...overrides,
   };
 }
 
@@ -118,6 +158,68 @@ describe("getDebugSession", () => {
   });
 });
 
+describe("hydrateDebugSession", () => {
+  beforeEach(async () => {
+    vi.resetAllMocks();
+    mockFetch.mockResolvedValue({ ok: true });
+  });
+
+  it("hydrates a paused checkpoint-backed debug session", async () => {
+    const manifest = createCheckpointManifest();
+
+    const session = await hydrateDebugSession({ manifest });
+
+    expect(session.traceId).toBe("trace-hydrate-1");
+    expect(session.projectId).toBe("project-1");
+    expect(session.state).toBe("paused");
+    expect(session.origin).toBe("checkpoint");
+    expect(session.currentSpanId).toBe("span-checkpoint-1");
+    expect(session.hydratedFrom?.manifest.checkpointId).toBe("checkpoint-123");
+    expect(session.hydratedFrom?.payload.location).toBe("artifact:artifact-123");
+  });
+
+  it("respects an override restore mode and emits a hydrated event", async () => {
+    const manifest = createCheckpointManifest({
+      runtime: {
+        projectId: "project-1",
+        traceId: "trace-hydrate-2",
+      },
+      restore: {
+        mode: "restore",
+        target: "session",
+      },
+    });
+
+    const session = await hydrateDebugSession({
+      manifest,
+      mode: "replay",
+    });
+
+    expect(session.hydratedFrom?.requestedMode).toBe("replay");
+
+    const hydratedEventCall = mockFetch.mock.calls.find(
+      (call) =>
+        (call[0] as string).includes("/api/debug/events") &&
+        JSON.parse(call[1].body).type === "hydrated"
+    );
+
+    expect(hydratedEventCall).toBeDefined();
+    const body = JSON.parse(hydratedEventCall![1].body);
+    expect(body.payload.data.checkpointId).toBe("checkpoint-123");
+    expect(body.payload.data.requestedMode).toBe("replay");
+  });
+
+  it("throws when the manifest is missing runtime identity", async () => {
+    const manifest = createCheckpointManifest({
+      runtime: {},
+    });
+
+    await expect(hydrateDebugSession({ manifest })).rejects.toThrow(
+      "Checkpoint manifest is missing runtime.traceId"
+    );
+  });
+});
+
 describe("updateDebugSession", () => {
   beforeEach(async () => {
     vi.resetAllMocks();
@@ -172,7 +274,7 @@ describe("endDebugSession", () => {
   });
 
   it("handles non-existent session gracefully", async () => {
-    await expect(endDebugSession("nonexistent")).resolves.not.toThrow();
+    await expect(endDebugSession("nonexistent")).resolves.toBeUndefined();
   });
 });
 

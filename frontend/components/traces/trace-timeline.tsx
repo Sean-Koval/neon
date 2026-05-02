@@ -8,7 +8,7 @@
  */
 
 import { clsx } from 'clsx'
-import { ChevronDown, ChevronRight } from 'lucide-react'
+import { ChevronDown, ChevronRight, Layers3 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { getSpanTypeConfig, type SpanType } from './span-type-badge'
 
@@ -26,6 +26,7 @@ export interface TimelineSpan {
   model?: string
   tool_name?: string
   total_tokens?: number
+  attributes?: Record<string, string>
   children?: TimelineSpan[]
 }
 
@@ -38,6 +39,20 @@ interface TraceTimelineProps {
 }
 
 export type PlotMode = 'waterfall' | 'duration'
+
+interface SkillSelectionContext {
+  selectedSkill: string
+  selectionConfidence?: number
+  alternativesConsidered?: string[]
+}
+
+interface DecisionMetadata {
+  isFallback?: boolean
+  retryCount?: number
+  originalSpanId?: string
+  requiredApproval?: boolean
+  approvalGranted?: boolean
+}
 
 function parseDurationMs(value: number | string | undefined): number {
   if (typeof value === 'number') return Number.isFinite(value) ? value : 0
@@ -183,6 +198,72 @@ function getPointMarkerColor(span: TimelineSpan): string {
   return 'bg-content-primary/85'
 }
 
+function getSnapshotCount(span: TimelineSpan): number {
+  const raw = span.attributes?.['neon.state_snapshots']
+  if (!raw) return 0
+  try {
+    const parsed = JSON.parse(raw) as unknown[]
+    return Array.isArray(parsed) ? parsed.length : 0
+  } catch {
+    return 0
+  }
+}
+
+function parseJSONAttribute<T>(
+  attributes: Record<string, string> | undefined,
+  key: string,
+): T | undefined {
+  const raw = attributes?.[key]
+  if (!raw) return undefined
+  try {
+    return JSON.parse(raw) as T
+  } catch {
+    return undefined
+  }
+}
+
+function normalizeComparableLabel(value: string | undefined): string {
+  return (value || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '')
+}
+
+function getExecutionSignals(span: TimelineSpan): {
+  expectedLabel?: string
+  expectedAlternatives: number
+  hasPlanMismatch: boolean
+  isFallback: boolean
+  retryCount: number
+  requiresApproval: boolean
+  approvalGranted?: boolean
+} {
+  const selection = parseJSONAttribute<SkillSelectionContext>(
+    span.attributes,
+    'neon.skill_selection',
+  )
+  const decision = parseJSONAttribute<DecisionMetadata>(
+    span.attributes,
+    'neon.decision_metadata',
+  )
+
+  const expectedLabel = selection?.selectedSkill?.trim() || undefined
+  const actualLabel = span.tool_name || span.model || span.name
+  const hasPlanMismatch =
+    !!expectedLabel &&
+    normalizeComparableLabel(expectedLabel) !==
+      normalizeComparableLabel(actualLabel)
+
+  return {
+    expectedLabel,
+    expectedAlternatives: selection?.alternativesConsidered?.length || 0,
+    hasPlanMismatch,
+    isFallback: decision?.isFallback === true,
+    retryCount: decision?.retryCount || 0,
+    requiresApproval: decision?.requiredApproval === true,
+    approvalGranted: decision?.approvalGranted,
+  }
+}
+
 /**
  * Single span row in the timeline
  */
@@ -208,6 +289,8 @@ function SpanRow({
   const typeConfig = getSpanTypeConfig(span.span_type)
   const Icon = typeConfig.icon
   const hasChildren = span.children && span.children.length > 0
+  const snapshotCount = getSnapshotCount(span)
+  const executionSignals = getExecutionSignals(span)
 
   // Calculate position in timeline
   const spanStart = parseTimestampMs(span.timestamp)
@@ -291,6 +374,47 @@ function SpanRow({
         >
           {getSpanLabel(span)}
         </span>
+        {executionSignals.expectedLabel && (
+          <span
+            className={clsx(
+              'hidden md:inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium',
+              executionSignals.hasPlanMismatch
+                ? 'bg-amber-50 text-amber-700 ring-1 ring-amber-200 dark:bg-amber-500/10 dark:text-amber-300 dark:ring-amber-500/25'
+                : 'bg-sky-50 text-sky-700 ring-1 ring-sky-200 dark:bg-sky-500/10 dark:text-sky-300 dark:ring-sky-500/25',
+            )}
+            title={`Planned selection: ${executionSignals.expectedLabel}`}
+          >
+            Plan {executionSignals.expectedLabel}
+          </span>
+        )}
+        {snapshotCount > 0 && (
+          <span className="inline-flex items-center gap-1 rounded-full border border-violet-200 bg-violet-50 px-1.5 py-0.5 text-[10px] font-medium text-violet-700 dark:border-violet-500/25 dark:bg-violet-500/10 dark:text-violet-300">
+            <Layers3 className="h-3 w-3" />
+            {snapshotCount}
+          </span>
+        )}
+        {executionSignals.isFallback && (
+          <span className="inline-flex items-center rounded-full border border-rose-200 bg-rose-50 px-1.5 py-0.5 text-[10px] font-medium text-rose-700 dark:border-rose-500/25 dark:bg-rose-500/10 dark:text-rose-300">
+            Fallback
+          </span>
+        )}
+        {executionSignals.retryCount > 0 && (
+          <span className="inline-flex items-center rounded-full border border-orange-200 bg-orange-50 px-1.5 py-0.5 text-[10px] font-medium text-orange-700 dark:border-orange-500/25 dark:bg-orange-500/10 dark:text-orange-300">
+            Retry {executionSignals.retryCount}
+          </span>
+        )}
+        {executionSignals.requiresApproval && (
+          <span
+            className={clsx(
+              'inline-flex items-center rounded-full border px-1.5 py-0.5 text-[10px] font-medium',
+              executionSignals.approvalGranted
+                ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/25 dark:bg-emerald-500/10 dark:text-emerald-300'
+                : 'border-red-200 bg-red-50 text-red-700 dark:border-red-500/25 dark:bg-red-500/10 dark:text-red-300',
+            )}
+          >
+            {executionSignals.approvalGranted ? 'Approved' : 'Approval'}
+          </span>
+        )}
       </div>
 
       {/* Timeline bar - hidden on very small screens */}
@@ -307,6 +431,42 @@ function SpanRow({
               width: `${widthPercent}%`,
             }}
             title={`${getSpanLabel(span)} • ${formatDuration(durationMs)}`}
+          />
+        )}
+        {snapshotCount > 0 && (
+          <div
+            className="absolute top-1/2 -translate-y-1/2"
+            style={{ left: `calc(${Math.min(offsetPercent, 99.5)}% + 6px)` }}
+            title={`${snapshotCount} state snapshot${snapshotCount !== 1 ? 's' : ''}`}
+          >
+            <div className="flex items-center gap-1">
+              {Array.from({ length: Math.min(snapshotCount, 3) }).map((_, index) => (
+                <span
+                  key={index}
+                  className="h-2.5 w-2.5 rotate-45 rounded-[1px] border border-violet-300 bg-violet-400/90 dark:border-violet-300/40 dark:bg-violet-400/80"
+                />
+              ))}
+            </div>
+          </div>
+        )}
+        {executionSignals.hasPlanMismatch && (
+          <div
+            className="absolute top-1.5 h-1.5 rounded-full bg-amber-400/95"
+            style={{
+              left: `${Math.min(offsetPercent, 99)}%`,
+              width: `${Math.max(widthPercent, 1.5)}%`,
+            }}
+            title={`Planned ${executionSignals.expectedLabel}, observed ${getSpanLabel(span)}`}
+          />
+        )}
+        {executionSignals.isFallback && (
+          <div
+            className="absolute bottom-1.5 border-b-2 border-dashed border-rose-400/90"
+            style={{
+              left: `${Math.min(offsetPercent, 99)}%`,
+              width: `${Math.max(widthPercent, 1.5)}%`,
+            }}
+            title="Fallback or retry path"
           />
         )}
         {isPointLike && (
@@ -361,6 +521,20 @@ function TimelineLegend() {
           </div>
         )
       })}
+      <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1">
+          <span className="h-2.5 w-2.5 rotate-45 rounded-[1px] border border-violet-300 bg-violet-400/90 dark:border-violet-300/40 dark:bg-violet-400/80" />
+        </div>
+        <span className="text-content-secondary">Snapshot</span>
+      </div>
+      <div className="flex items-center gap-1.5">
+        <div className="h-1.5 w-4 rounded-full bg-amber-400/95" />
+        <span className="text-content-secondary">Plan mismatch</span>
+      </div>
+      <div className="flex items-center gap-1.5">
+        <div className="w-4 border-b-2 border-dashed border-rose-400/90" />
+        <span className="text-content-secondary">Fallback path</span>
+      </div>
     </div>
   )
 }
@@ -408,6 +582,17 @@ export function TraceTimeline({
 
   const metrics = calculateMetrics(spans)
   const flatSpans = flattenSpans(spans)
+  const executionSummary = flatSpans.reduce(
+    (acc, span) => {
+      const signals = getExecutionSignals(span)
+      if (signals.expectedLabel) acc.planned++
+      if (signals.hasPlanMismatch) acc.mismatches++
+      if (signals.isFallback) acc.fallbacks++
+      if (signals.requiresApproval) acc.approvals++
+      return acc
+    },
+    { planned: 0, mismatches: 0, fallbacks: 0, approvals: 0 },
+  )
 
   // Filter to visible spans (based on expanded state)
   const visibleSpans = flatSpans.filter((span) => {
@@ -489,6 +674,10 @@ export function TraceTimeline({
           <div className="flex items-center gap-2">
             <span className="text-content-muted">
               {activePlotMode === 'waterfall' ? 'Timeline' : 'Duration Plot'}
+            </span>
+            <span className="hidden xl:inline text-[10px] text-content-muted/80">
+              {executionSummary.planned} planned · {executionSummary.mismatches} mismatches ·{' '}
+              {executionSummary.fallbacks} fallbacks · {executionSummary.approvals} approval gates
             </span>
             {activePlotMode === 'waterfall' &&
               (metrics.usingActiveWindow ? (

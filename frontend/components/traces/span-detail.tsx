@@ -129,6 +129,81 @@ export interface DecisionMetadata {
   approvalGranted?: boolean
 }
 
+interface SessionContext {
+  sessionId: string
+  conversationId?: string
+  userId?: string
+  threadId?: string
+}
+
+interface MessageToolCall {
+  id?: string
+  name?: string
+  arguments?: string
+}
+
+interface MessageContentPart {
+  type?: string
+  text?: string
+  data?: string
+}
+
+interface TraceMessage {
+  role?: string
+  content?: string
+  name?: string
+  toolCallId?: string
+  toolCalls?: MessageToolCall[]
+  parts?: MessageContentPart[]
+  metadata?: Record<string, string>
+}
+
+interface HandoffMetadata {
+  handoffType: 'handoff' | 'delegation' | 'routing'
+  fromAgentId?: string
+  toAgentId: string
+  fromSpanId?: string
+  toSpanId?: string
+  reason?: string
+  taskDescription?: string
+  contextSummary?: string
+  messageId?: string
+  metadata?: Record<string, string>
+}
+
+interface StateSnapshotReference {
+  snapshotId: string
+  name?: string
+  stateType?: string
+  uri?: string
+  contentHash?: string
+  artifactIds?: string[]
+  metadata?: Record<string, string>
+}
+
+interface ArtifactReference {
+  artifactId?: string
+  name: string
+  kind: 'file' | 'document' | 'image' | 'audio' | 'json' | 'url' | 'other'
+  uri?: string
+  mimeType?: string
+  contentHash?: string
+  sizeBytes?: number
+  metadata?: Record<string, string>
+}
+
+interface EvalAnnotation {
+  annotationId?: string
+  name: string
+  evaluatorType?: 'human' | 'llm_judge' | 'rule' | 'dataset' | 'system'
+  status?: 'expected' | 'observed' | 'pass' | 'fail' | 'note'
+  value?: string
+  score?: number
+  comment?: string
+  referenceSpanId?: string
+  metadata?: Record<string, string>
+}
+
 /**
  * Full span data structure (with lazy-loaded fields)
  */
@@ -186,6 +261,36 @@ function formatDuration(ms: number): string {
   if (ms < 1000) return `${Math.round(ms)}ms`
   if (ms < 60000) return `${(ms / 1000).toFixed(2)}s`
   return `${(ms / 60000).toFixed(2)}m`
+}
+
+function formatBytes(value?: number): string | undefined {
+  if (value == null || Number.isNaN(value)) return undefined
+  if (value < 1024) return `${value} B`
+  if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)} KB`
+  if (value < 1024 * 1024 * 1024) return `${(value / (1024 * 1024)).toFixed(1)} MB`
+  return `${(value / (1024 * 1024 * 1024)).toFixed(1)} GB`
+}
+
+function parseJSONAttribute<T>(
+  attributes: Record<string, string> | undefined,
+  key: string,
+): T | undefined {
+  const value = attributes?.[key]
+  if (!value) return undefined
+  try {
+    return JSON.parse(value) as T
+  } catch {
+    return undefined
+  }
+}
+
+function compactJSON(value: unknown): string | undefined {
+  if (value == null) return undefined
+  try {
+    return JSON.stringify(value, null, 2)
+  } catch {
+    return undefined
+  }
 }
 
 /**
@@ -339,6 +444,270 @@ function CodeBlock({
         </button>
       )}
     </div>
+  )
+}
+
+function MetadataList({
+  metadata,
+}: {
+  metadata?: Record<string, string>
+}) {
+  if (!metadata || Object.keys(metadata).length === 0) return null
+
+  return (
+    <div className="mt-3 space-y-1 rounded-lg bg-gray-50 px-3 py-2 dark:bg-dark-900">
+      {Object.entries(metadata).map(([key, value]) => (
+        <KVRow key={key} label={key} value={value} mono />
+      ))}
+    </div>
+  )
+}
+
+function StructuredSectionCard({
+  title,
+  subtitle,
+  children,
+}: {
+  title: string
+  subtitle?: string
+  children: React.ReactNode
+}) {
+  return (
+    <div className="rounded-lg border border-gray-200 px-3 py-3 dark:border-dark-700">
+      <div className="mb-2">
+        <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
+          {title}
+        </div>
+        {subtitle && (
+          <div className="text-xs text-gray-500 dark:text-gray-400">
+            {subtitle}
+          </div>
+        )}
+      </div>
+      {children}
+    </div>
+  )
+}
+
+function SessionContextSection({
+  session,
+}: {
+  session: SessionContext
+}) {
+  return (
+    <Section title="Session Context" defaultOpen={false}>
+      <div className="space-y-1">
+        <KVRow label="Session ID" value={session.sessionId} mono copyable />
+        <KVRow label="Conversation" value={session.conversationId} mono />
+        <KVRow label="User" value={session.userId} mono />
+        <KVRow label="Thread" value={session.threadId} mono />
+      </div>
+    </Section>
+  )
+}
+
+function MessagesSection({
+  title,
+  messages,
+}: {
+  title: string
+  messages: TraceMessage[]
+}) {
+  if (messages.length === 0) return null
+
+  return (
+    <Section
+      title={title}
+      defaultOpen={false}
+      badge={
+        <span className="rounded bg-gray-100 px-2 py-0.5 text-xs text-gray-600 dark:bg-dark-900 dark:text-gray-300">
+          {messages.length}
+        </span>
+      }
+    >
+      <div className="space-y-3">
+        {messages.map((message, index) => {
+          const content =
+            message.content ||
+            compactJSON(message.parts) ||
+            compactJSON(message.toolCalls) ||
+            ''
+
+          return (
+            <StructuredSectionCard
+              key={`${message.role || 'message'}-${index}`}
+              title={message.role || 'message'}
+              subtitle={message.name || message.toolCallId}
+            >
+              {content ? (
+                <CodeBlock content={content} language="json" maxHeight={220} />
+              ) : (
+                <div className="text-sm italic text-gray-400 dark:text-gray-500">
+                  No message content
+                </div>
+              )}
+              <MetadataList metadata={message.metadata} />
+            </StructuredSectionCard>
+          )
+        })}
+      </div>
+    </Section>
+  )
+}
+
+function HandoffSection({
+  handoff,
+}: {
+  handoff: HandoffMetadata
+}) {
+  return (
+    <Section
+      title="Handoff"
+      defaultOpen
+      badge={
+        <span className="rounded bg-blue-100 px-2 py-0.5 text-xs text-blue-700 dark:bg-blue-500/20 dark:text-blue-300">
+          {handoff.handoffType}
+        </span>
+      }
+    >
+      <div className="space-y-1">
+        <KVRow label="To Agent" value={handoff.toAgentId} mono />
+        <KVRow label="From Agent" value={handoff.fromAgentId} mono />
+        <KVRow label="Reason" value={handoff.reason} />
+        <KVRow label="Task" value={handoff.taskDescription} />
+        <KVRow label="Context" value={handoff.contextSummary} />
+        <KVRow label="Message ID" value={handoff.messageId} mono />
+        <KVRow label="From Span" value={handoff.fromSpanId} mono />
+        <KVRow label="To Span" value={handoff.toSpanId} mono />
+      </div>
+      <MetadataList metadata={handoff.metadata} />
+    </Section>
+  )
+}
+
+function StateSnapshotsSection({
+  snapshots,
+}: {
+  snapshots: StateSnapshotReference[]
+}) {
+  if (snapshots.length === 0) return null
+
+  return (
+    <Section
+      title="State Snapshots"
+      defaultOpen={false}
+      badge={
+        <span className="rounded bg-violet-100 px-2 py-0.5 text-xs text-violet-700 dark:bg-violet-500/20 dark:text-violet-300">
+          {snapshots.length}
+        </span>
+      }
+    >
+      <div className="space-y-3">
+        {snapshots.map((snapshot) => (
+          <StructuredSectionCard
+            key={snapshot.snapshotId}
+            title={snapshot.name || snapshot.snapshotId}
+            subtitle={snapshot.stateType}
+          >
+            <div className="space-y-1">
+              <KVRow label="Snapshot ID" value={snapshot.snapshotId} mono copyable />
+              <KVRow label="URI" value={snapshot.uri} mono />
+              <KVRow label="Content Hash" value={snapshot.contentHash} mono />
+              {snapshot.artifactIds?.length ? (
+                <KVRow
+                  label="Artifacts"
+                  value={snapshot.artifactIds.join(', ')}
+                  mono
+                />
+              ) : null}
+            </div>
+            <MetadataList metadata={snapshot.metadata} />
+          </StructuredSectionCard>
+        ))}
+      </div>
+    </Section>
+  )
+}
+
+function ArtifactsSection({
+  artifacts,
+}: {
+  artifacts: ArtifactReference[]
+}) {
+  if (artifacts.length === 0) return null
+
+  return (
+    <Section
+      title="Artifacts"
+      defaultOpen={false}
+      badge={
+        <span className="rounded bg-amber-100 px-2 py-0.5 text-xs text-amber-700 dark:bg-amber-500/20 dark:text-amber-300">
+          {artifacts.length}
+        </span>
+      }
+    >
+      <div className="space-y-3">
+        {artifacts.map((artifact, index) => (
+          <StructuredSectionCard
+            key={artifact.artifactId || `${artifact.name}-${index}`}
+            title={artifact.name}
+            subtitle={artifact.kind}
+          >
+            <div className="space-y-1">
+              <KVRow label="Artifact ID" value={artifact.artifactId} mono copyable />
+              <KVRow label="URI" value={artifact.uri} mono />
+              <KVRow label="MIME Type" value={artifact.mimeType} mono />
+              <KVRow label="Size" value={formatBytes(artifact.sizeBytes)} />
+              <KVRow label="Content Hash" value={artifact.contentHash} mono />
+            </div>
+            <MetadataList metadata={artifact.metadata} />
+          </StructuredSectionCard>
+        ))}
+      </div>
+    </Section>
+  )
+}
+
+function EvalAnnotationsSection({
+  annotations,
+}: {
+  annotations: EvalAnnotation[]
+}) {
+  if (annotations.length === 0) return null
+
+  return (
+    <Section
+      title="Eval Annotations"
+      defaultOpen={false}
+      badge={
+        <span className="rounded bg-emerald-100 px-2 py-0.5 text-xs text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300">
+          {annotations.length}
+        </span>
+      }
+    >
+      <div className="space-y-3">
+        {annotations.map((annotation, index) => (
+          <StructuredSectionCard
+            key={annotation.annotationId || `${annotation.name}-${index}`}
+            title={annotation.name}
+            subtitle={annotation.status || annotation.evaluatorType}
+          >
+            <div className="space-y-1">
+              <KVRow label="Annotation ID" value={annotation.annotationId} mono copyable />
+              <KVRow label="Evaluator" value={annotation.evaluatorType} />
+              <KVRow label="Status" value={annotation.status} />
+              <KVRow label="Value" value={annotation.value} />
+              {annotation.score != null ? (
+                <KVRow label="Score" value={annotation.score.toString()} mono />
+              ) : null}
+              <KVRow label="Comment" value={annotation.comment} />
+              <KVRow label="Reference Span" value={annotation.referenceSpanId} mono />
+            </div>
+            <MetadataList metadata={annotation.metadata} />
+          </StructuredSectionCard>
+        ))}
+      </div>
+    </Section>
   )
 }
 
@@ -956,6 +1325,50 @@ export function SpanDetail({
   const decisionMetadata = hasInlineDetails
     ? fullSpan.decisionMetadata
     : undefined
+  const session =
+    parseJSONAttribute<SessionContext>(attributes, 'neon.session') ||
+    (attributes?.['session.id']
+      ? {
+          sessionId: attributes['session.id'],
+          conversationId: attributes['gen_ai.conversation.id'],
+          userId: attributes['enduser.id'],
+          threadId: attributes['neon.thread.id'],
+        }
+      : undefined)
+  const inputMessages =
+    parseJSONAttribute<TraceMessage[]>(attributes, 'gen_ai.input.messages') || []
+  const outputMessages =
+    parseJSONAttribute<TraceMessage[]>(attributes, 'gen_ai.output.messages') || []
+  const handoff = parseJSONAttribute<HandoffMetadata>(attributes, 'neon.handoff')
+  const stateSnapshots =
+    parseJSONAttribute<StateSnapshotReference[]>(attributes, 'neon.state_snapshots') || []
+  const artifacts =
+    parseJSONAttribute<ArtifactReference[]>(attributes, 'neon.artifacts') || []
+  const evalAnnotations =
+    parseJSONAttribute<EvalAnnotation[]>(attributes, 'neon.eval.annotations') || []
+  const structuredAttributeKeys = new Set([
+    'session.id',
+    'gen_ai.conversation.id',
+    'enduser.id',
+    'neon.thread.id',
+    'neon.session',
+    'gen_ai.input.messages',
+    'gen_ai.output.messages',
+    'neon.handoff',
+    'neon.handoff.type',
+    'neon.handoff.to_agent',
+    'neon.handoff.from_agent',
+    'neon.handoff.reason',
+    'neon.handoff.task_description',
+    'neon.state_snapshots',
+    'neon.artifacts',
+    'neon.eval.annotations',
+  ])
+  const visibleAttributes = attributes
+    ? Object.fromEntries(
+        Object.entries(attributes).filter(([key]) => !structuredAttributeKeys.has(key)),
+      )
+    : undefined
 
   // Prefetch nearby spans for smoother UX
   const prefetchSpan = usePrefetchSpanDetails()
@@ -1188,9 +1601,31 @@ export function SpanDetail({
           />
         )}
 
+        {session && <SessionContextSection session={session} />}
+
+        {inputMessages.length > 0 && (
+          <MessagesSection title="Input Messages" messages={inputMessages} />
+        )}
+
+        {outputMessages.length > 0 && (
+          <MessagesSection title="Output Messages" messages={outputMessages} />
+        )}
+
+        {handoff && <HandoffSection handoff={handoff} />}
+
+        {stateSnapshots.length > 0 && (
+          <StateSnapshotsSection snapshots={stateSnapshots} />
+        )}
+
+        {artifacts.length > 0 && <ArtifactsSection artifacts={artifacts} />}
+
+        {evalAnnotations.length > 0 && (
+          <EvalAnnotationsSection annotations={evalAnnotations} />
+        )}
+
         {/* Attributes */}
         {(showLoading ||
-          (attributes && Object.keys(attributes).length > 0)) && (
+          (visibleAttributes && Object.keys(visibleAttributes).length > 0)) && (
           <Section
             title="Attributes"
             defaultOpen={false}
@@ -1203,7 +1638,7 @@ export function SpanDetail({
               </div>
             ) : (
               <div className="divide-y divide-gray-100 dark:divide-dark-700">
-                {Object.entries(attributes || {}).map(([key, value]) => {
+                {Object.entries(visibleAttributes || {}).map(([key, value]) => {
                   const strValue = String(value ?? '')
                   const isLong = strValue.length > 80
                   return (

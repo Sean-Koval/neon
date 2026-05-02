@@ -29,6 +29,8 @@ import type {
   EvalCaseResult,
   EvalCaseInput,
   EvalCaseOutput,
+  EmitCheckpointManifest,
+  EvalRunCheckpointEnvelope,
 } from "../types";
 
 // ============================================================================
@@ -40,6 +42,15 @@ const { emitSpan, sendNotifications } = proxyActivities<typeof activities>({
   retry: {
     initialInterval: "1s",
     maximumInterval: "10s",
+    maximumAttempts: 3,
+  },
+});
+
+const { captureEvalRunCheckpoint } = proxyActivities<typeof activities>({
+  startToCloseTimeout: "2 minutes",
+  retry: {
+    initialInterval: "1s",
+    maximumInterval: "30s",
     maximumAttempts: 3,
   },
 });
@@ -84,13 +95,29 @@ export const pauseSignal = defineSignal<[boolean]>("pause");
 export async function evalRunWorkflow(
   params: EvalRunInput
 ): Promise<EvalRunResult> {
-  const results: EvalCaseResult[] = [];
+  const traceId = `eval-run-${params.runId}`;
+  const replaySource = params.restoreFrom;
+  const restoredCheckpoint = params.restoredCheckpoint;
+  const restoredState =
+    replaySource?.mode === "restore" ? restoredCheckpoint?.state : undefined;
+  const sanitizedInput = sanitizeEvalRunInput(params);
+  const results: EvalCaseResult[] = restoredState?.results
+    ? restoredState.results.map((result) => ({
+        caseIndex: result.caseIndex,
+        result: { ...result.result },
+        scores: result.scores.map((score) => ({ ...score })),
+      }))
+    : [];
   const total = params.dataset.items.length;
-  let completed = 0;
-  let passed = 0;
-  let failed = 0;
+  let completed = restoredState?.completed ?? results.length;
+  let passed = restoredState?.passed ?? countPassedResults(results);
+  let failed = restoredState?.failed ?? countFailedResults(results);
   let cancelled = false;
   let paused = false;
+  let status: "running" | "completed" | "failed" | "cancelled" =
+    restoredState?.status ?? "running";
+  let error: string | undefined = restoredState?.error;
+  let nextCaseIndex = Math.min(restoredState?.nextCaseIndex ?? completed, total);
 
   // Set up query handler
   setHandler(progressQuery, () => ({
@@ -109,9 +136,68 @@ export async function evalRunWorkflow(
     paused = shouldPause;
   });
 
+  const persistCheckpoint = async (
+    name: string,
+    checkpointStatus: "running" | "completed" | "failed" | "cancelled",
+    sequence: number,
+  ): Promise<void> => {
+    const manifest = buildEvalRunCheckpointManifest({
+      traceId,
+      input: sanitizedInput,
+      restoredCheckpoint,
+      status: checkpointStatus,
+      name,
+      sequence,
+    });
+
+    const result = await captureEvalRunCheckpoint({
+      projectId: params.projectId,
+      traceId,
+      runId: params.runId,
+      agentId: params.agentId,
+      agentVersion: params.agentVersion,
+      workflowId: workflowInfo().workflowId,
+      workflowRunId: workflowInfo().runId,
+      input: sanitizedInput,
+      state: {
+        status: checkpointStatus,
+        completed,
+        total,
+        passed,
+        failed,
+        nextCaseIndex,
+        results,
+        ...(error ? { error } : {}),
+      },
+      manifest,
+      metadata: {
+        ...(replaySource?.checkpointId
+          ? {
+              sourceCheckpointId: replaySource.checkpointId,
+              sourceTraceId: replaySource.traceId,
+            }
+          : {}),
+      },
+    });
+
+    await emitSpan({
+      traceId,
+      spanType: "event",
+      name: `checkpoint:${name}`,
+      stateSnapshots: [result.snapshot],
+      attributes: {
+        "checkpoint.id": result.manifest.checkpointId,
+        "checkpoint.mode": result.manifest.restore.mode,
+        "eval.run.status": checkpointStatus,
+        "eval.run.completed": String(completed),
+        "eval.run.total": String(total),
+      },
+    });
+  };
+
   // Emit eval run start span
   await emitSpan({
-    traceId: `eval-run-${params.runId}`,
+    traceId,
     spanType: "span",
     name: `eval-run:${params.runId}`,
     attributes: {
@@ -123,10 +209,44 @@ export async function evalRunWorkflow(
     },
   });
 
+  if (restoredCheckpoint) {
+    const replayManifest = buildEvalRunReplayManifest(
+      restoredCheckpoint,
+      replaySource?.mode
+    );
+    await emitSpan({
+      traceId,
+      spanType: "event",
+      name: "eval-run-restored",
+      stateSnapshots: [
+        {
+          snapshotId: restoredCheckpoint.checkpointId,
+          name: restoredCheckpoint.metadata?.checkpointName || "restored",
+          stateType: "eval_run",
+          checkpoint: replayManifest,
+          uri: replayManifest.payload?.uri,
+          contentHash: replayManifest.integrity.contentHash,
+        },
+      ],
+      attributes: {
+        "neon.replay.source_checkpoint_id":
+          replaySource?.checkpointId ?? restoredCheckpoint.checkpointId,
+        "neon.replay.source_trace_id":
+          replaySource?.traceId ?? restoredCheckpoint.traceId,
+        "neon.replay.mode": replaySource?.mode ?? "replay",
+        "eval.run.restore_completed": String(completed),
+        "eval.run.restore_total": String(total),
+      },
+    });
+  } else {
+    await persistCheckpoint("run-start", status, 1);
+  }
+
   // Run evaluation cases sequentially
-  for (let i = 0; i < params.dataset.items.length; i++) {
+  for (let i = nextCaseIndex; i < params.dataset.items.length; i++) {
     // Check for cancellation
     if (cancelled) {
+      status = "cancelled";
       break;
     }
 
@@ -202,14 +322,25 @@ export async function evalRunWorkflow(
     }
 
     completed++;
+    nextCaseIndex = i + 1;
+    status = "running";
+    await persistCheckpoint(`case-${i}-complete`, status, completed + 1);
   }
 
   // Calculate summary
   const summary = calculateSummary(results, params.scorers);
 
+  if (cancelled) {
+    status = "cancelled";
+    await persistCheckpoint("cancelled", status, total + 2);
+  } else {
+    status = "completed";
+    await persistCheckpoint("completed", status, total + 2);
+  }
+
   // Emit eval run complete span
   await emitSpan({
-    traceId: `eval-run-${params.runId}`,
+    traceId,
     spanType: "span",
     name: "eval-run-complete",
     attributes: {
@@ -251,6 +382,9 @@ export async function evalRunWorkflow(
     runId: params.runId,
     results,
     summary,
+    ...(replaySource?.checkpointId
+      ? { restoredFromCheckpointId: replaySource.checkpointId }
+      : {}),
   };
 }
 
@@ -382,6 +516,121 @@ export async function parallelEvalRunWorkflow(
 // ============================================================================
 // HELPERS
 // ============================================================================
+
+function sanitizeEvalRunInput(
+  params: EvalRunInput
+): Omit<EvalRunInput, "restoreFrom" | "restoredCheckpoint"> {
+  const { restoreFrom: _restoreFrom, restoredCheckpoint: _restoredCheckpoint, ...input } =
+    params;
+  return input;
+}
+
+function countPassedResults(results: EvalCaseResult[]): number {
+  return results.filter((result) => {
+    if (result.result.status === "failed") {
+      return false;
+    }
+    if (result.scores.length === 0) {
+      return true;
+    }
+    const caseAvg =
+      result.scores.reduce((sum, score) => sum + score.value, 0) /
+      result.scores.length;
+    return caseAvg >= 0.7;
+  }).length;
+}
+
+function countFailedResults(results: EvalCaseResult[]): number {
+  return results.length - countPassedResults(results);
+}
+
+function buildEvalRunCheckpointManifest(params: {
+  traceId: string;
+  input: Omit<EvalRunInput, "restoreFrom" | "restoredCheckpoint">;
+  restoredCheckpoint?: EvalRunCheckpointEnvelope;
+  status: "running" | "completed" | "failed" | "cancelled";
+  name: string;
+  sequence: number;
+}): EmitCheckpointManifest {
+  const checkpointId =
+    `${workflowInfo().workflowId}:${params.sequence}:${params.name}`.replace(/\s+/g, "-");
+
+  return {
+    format: "neon.checkpoint.v1",
+    checkpointId,
+    snapshotId: checkpointId,
+    name: params.name,
+    stateType: "eval_run",
+    runtime: {
+      projectId: params.input.projectId,
+      traceId: params.traceId,
+      workflowId: workflowInfo().workflowId,
+      workflowRunId: workflowInfo().runId,
+      agentId: params.input.agentId,
+      agentVersion: params.input.agentVersion,
+      capturedAt: new Date().toISOString(),
+      sequence: params.sequence,
+    },
+    restore: {
+      mode: params.restoredCheckpoint ? "replay" : "restore",
+      target: "workflow",
+      requiresApproval: false,
+      replaysSideEffects: true,
+    },
+    integrity: {
+      schemaVersion: "1",
+    },
+    metadata: {
+      status: params.status,
+      checkpointName: params.name,
+      runId: params.input.runId,
+      ...(params.restoredCheckpoint
+        ? {
+            sourceCheckpointId: params.restoredCheckpoint.checkpointId,
+            sourceTraceId: params.restoredCheckpoint.traceId,
+          }
+        : {}),
+    },
+  };
+}
+
+function buildEvalRunReplayManifest(
+  checkpoint: EvalRunCheckpointEnvelope,
+  mode?: "restore" | "replay"
+): EmitCheckpointManifest {
+  return {
+    format: "neon.checkpoint.v1",
+    checkpointId: checkpoint.checkpointId,
+    snapshotId: checkpoint.checkpointId,
+    name: checkpoint.metadata?.checkpointName || "restored",
+    stateType: "eval_run",
+    payload: {
+      kind: "uri",
+      uri: `/api/checkpoints/${checkpoint.checkpointId}`,
+      mimeType: "application/json",
+    },
+    runtime: {
+      projectId: checkpoint.projectId,
+      traceId: checkpoint.traceId,
+      workflowId: checkpoint.workflowId,
+      workflowRunId: checkpoint.workflowRunId,
+      agentId: checkpoint.agentId,
+      agentVersion: checkpoint.agentVersion,
+      capturedAt: checkpoint.capturedAt,
+      sequence: checkpoint.state.completed + 1,
+    },
+    restore: {
+      mode: mode ?? "replay",
+      target: "workflow",
+      requiresApproval: false,
+      replaysSideEffects: true,
+    },
+    integrity: {
+      schemaVersion: "1",
+    },
+    metadata: checkpoint.metadata,
+  };
+}
 
 /**
  * Calculate summary statistics from evaluation results

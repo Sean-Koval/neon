@@ -8,6 +8,7 @@
  */
 
 import { clsx } from 'clsx'
+import { useQueryClient } from '@tanstack/react-query'
 import {
   ChevronDown,
   ChevronRight,
@@ -17,7 +18,11 @@ import {
 } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { useToast } from '@/components/toast'
+import { useSuites } from '@/hooks/use-suites'
 import { useTrace } from '@/hooks/use-traces'
+import { api } from '@/lib/api'
+import { queryKeys } from '@/lib/query-keys'
+import type { EvalCaseCreate, EvalSuite } from '@/lib/types'
 
 interface CreateTestCasesModalProps {
   traceIds: string[]
@@ -70,7 +75,13 @@ function CollapsibleJson({
   )
 }
 
-function SingleTraceCase({ traceId }: { traceId: string }) {
+function SingleTraceCase({
+  traceId,
+  onChange,
+}: {
+  traceId: string
+  onChange: (draft: TestCaseInput) => void
+}) {
   const { data, isLoading } = useTrace(traceId)
   const [testCase, setTestCase] = useState<TestCaseInput>({
     name: '',
@@ -100,6 +111,10 @@ function SingleTraceCase({ traceId }: { traceId: string }) {
     })
   }, [data])
 
+  useEffect(() => {
+    onChange(testCase)
+  }, [onChange, testCase])
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-8 text-gray-500 dark:text-gray-400">
@@ -118,7 +133,9 @@ function SingleTraceCase({ traceId }: { traceId: string }) {
         <input
           type="text"
           value={testCase.name}
-          onChange={(e) => setTestCase((tc) => ({ ...tc, name: e.target.value }))}
+          onChange={(e) =>
+            setTestCase((tc) => ({ ...tc, name: e.target.value }))
+          }
           className="w-full px-3 py-2 text-sm border rounded-lg dark:bg-dark-800 dark:border-dark-700 focus:ring-2 focus:ring-cyan-500"
         />
       </div>
@@ -165,6 +182,47 @@ function SingleTraceCase({ traceId }: { traceId: string }) {
   )
 }
 
+function parseInput(input: string): Record<string, unknown> {
+  const trimmed = input.trim()
+  if (!trimmed) return {}
+
+  try {
+    const parsed = JSON.parse(trimmed)
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      return parsed as Record<string, unknown>
+    }
+  } catch {
+    // Fall back to a text prompt payload when the trace input is not JSON.
+  }
+
+  return { prompt: trimmed }
+}
+
+function buildCasePayload(
+  traceId: string,
+  draft: TestCaseInput,
+  suite: EvalSuite,
+): EvalCaseCreate {
+  const expectedOutput = draft.expectedOutput.trim()
+
+  return {
+    name: draft.name.trim() || `Trace ${traceId.slice(0, 8)}`,
+    description: `Seeded from production trace ${traceId}`,
+    input: parseInput(draft.input),
+    expected_tools: draft.tools.length ? draft.tools : null,
+    expected_tool_sequence: null,
+    expected_output_contains: expectedOutput ? [expectedOutput] : null,
+    expected_output_pattern: null,
+    scorers: suite.default_scorers.length
+      ? suite.default_scorers
+      : ['reasoning'],
+    scorer_config: null,
+    min_score: suite.default_min_score,
+    tags: ['seeded-from-trace', `trace:${traceId}`],
+    timeout_seconds: suite.default_timeout_seconds,
+  }
+}
+
 export function CreateTestCasesModal({
   traceIds,
   open,
@@ -172,8 +230,13 @@ export function CreateTestCasesModal({
   onDetectAnomalies,
 }: CreateTestCasesModalProps) {
   const { addToast } = useToast()
+  const queryClient = useQueryClient()
+  const { data: suites = [], isLoading: suitesLoading } = useSuites({
+    enabled: open,
+  })
   const [selectedSuiteId, setSelectedSuiteId] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [drafts, setDrafts] = useState<Record<string, TestCaseInput>>({})
   const isSingleMode = traceIds.length === 1
 
   const handleSubmit = useCallback(async () => {
@@ -183,9 +246,30 @@ export function CreateTestCasesModal({
     }
     setIsSubmitting(true)
     try {
-      // In a real implementation, this would call trpc.suites.createCase for each trace.
-      // For now, simulate success.
-      await new Promise((resolve) => setTimeout(resolve, 500))
+      const selectedSuite = suites.find((suite) => suite.id === selectedSuiteId)
+      if (!selectedSuite) {
+        throw new Error('Selected suite could not be found')
+      }
+
+      for (const traceId of traceIds) {
+        const draft = drafts[traceId]
+        if (!draft) {
+          throw new Error(`Missing draft test case for trace ${traceId}`)
+        }
+
+        await api.createCase(
+          selectedSuiteId,
+          buildCasePayload(traceId, draft, selectedSuite),
+        )
+      }
+
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.suites.detail(selectedSuiteId),
+      })
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.suites.lists(),
+      })
+
       addToast(
         `Created ${traceIds.length} test case${traceIds.length !== 1 ? 's' : ''}`,
         'success',
@@ -199,7 +283,19 @@ export function CreateTestCasesModal({
     } finally {
       setIsSubmitting(false)
     }
-  }, [selectedSuiteId, traceIds, addToast, onClose])
+  }, [selectedSuiteId, traceIds, drafts, suites, queryClient, addToast, onClose])
+
+  useEffect(() => {
+    if (!open) return
+    if (selectedSuiteId) return
+    if (suites.length === 0) return
+
+    setSelectedSuiteId(suites[0].id)
+  }, [open, selectedSuiteId, suites])
+
+  const updateDraft = useCallback((traceId: string, draft: TestCaseInput) => {
+    setDrafts((current) => ({ ...current, [traceId]: draft }))
+  }, [])
 
   if (!open) return null
 
@@ -241,11 +337,23 @@ export function CreateTestCasesModal({
             <select
               value={selectedSuiteId}
               onChange={(e) => setSelectedSuiteId(e.target.value)}
+              disabled={suitesLoading || suites.length === 0}
               className="w-full px-3 py-2 text-sm border rounded-lg dark:bg-dark-800 dark:border-dark-700 focus:ring-2 focus:ring-cyan-500"
             >
-              <option value="">Select a suite...</option>
-              <option value="new">+ Create new suite</option>
+              <option value="">
+                {suitesLoading ? 'Loading suites...' : 'Select a suite...'}
+              </option>
+              {suites.map((suite) => (
+                <option key={suite.id} value={suite.id}>
+                  {suite.name}
+                </option>
+              ))}
             </select>
+            {suites.length === 0 && !suitesLoading && (
+              <p className="mt-2 text-xs text-amber-700 dark:text-amber-300">
+                Create a suite first, then seed cases from production traces.
+              </p>
+            )}
           </div>
 
           {/* Auto-detect anomalies */}
@@ -278,7 +386,7 @@ export function CreateTestCasesModal({
                   {traceId.slice(0, 12)}...
                 </div>
               )}
-              <SingleTraceCase traceId={traceId} />
+              <SingleTraceCase traceId={traceId} onChange={(draft) => updateDraft(traceId, draft)} />
             </div>
           ))}
         </div>
@@ -295,7 +403,11 @@ export function CreateTestCasesModal({
           <button
             type="button"
             onClick={handleSubmit}
-            disabled={isSubmitting || !selectedSuiteId}
+            disabled={
+              isSubmitting ||
+              !selectedSuiteId ||
+              traceIds.some((traceId) => !drafts[traceId])
+            }
             className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-cyan-600 hover:bg-cyan-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors"
           >
             {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}

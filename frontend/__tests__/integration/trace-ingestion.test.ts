@@ -58,6 +58,7 @@ const mockGetTraceWithSpanSummaries = vi.fn()
 const mockGetScoresForTrace = vi.fn()
 const mockInsertTraces = vi.fn()
 const mockInsertSpans = vi.fn()
+const mockInsertScores = vi.fn()
 
 vi.mock('@/lib/clickhouse', () => ({
   queryTraces: (...args: unknown[]) => mockQueryTraces(...args),
@@ -66,6 +67,7 @@ vi.mock('@/lib/clickhouse', () => ({
   getScoresForTrace: (...args: unknown[]) => mockGetScoresForTrace(...args),
   insertTraces: (...args: unknown[]) => mockInsertTraces(...args),
   insertSpans: (...args: unknown[]) => mockInsertSpans(...args),
+  insertScores: (...args: unknown[]) => mockInsertScores(...args),
 }))
 
 vi.mock('@/lib/db/clickhouse', () => ({
@@ -155,6 +157,16 @@ async function getTraceDetailHandlers() {
   return { GET: mod.GET }
 }
 
+async function getTraceBundleHandlers() {
+  const mod = await import('@/app/api/traces/[id]/bundle/route')
+  return { GET: mod.GET }
+}
+
+async function getTraceImportHandlers() {
+  const mod = await import('@/app/api/traces/import/route')
+  return { POST: mod.POST }
+}
+
 // =============================================================================
 // Tests
 // =============================================================================
@@ -164,6 +176,7 @@ beforeEach(() => {
   mockAuthenticate.mockResolvedValue(AUTH_RESULT)
   mockInsertTraces.mockResolvedValue(undefined)
   mockInsertSpans.mockResolvedValue(undefined)
+  mockInsertScores.mockResolvedValue(undefined)
 })
 
 afterEach(() => {
@@ -458,6 +471,196 @@ describe('Trace Ingestion Integration', () => {
       const res = await GET(req, { params: Promise.resolve({ id: 'trace-nonexistent' }) })
 
       expect(res.status).toBe(404)
+    })
+
+    it('returns derived checkpoint granularity from snapshot attributes', async () => {
+      mockGetTraceWithSpanSummaries.mockResolvedValue({
+        trace: { trace_id: 'trace-001', name: 'root' },
+        spans: [
+          {
+            project_id: TEST_WORKSPACE_ID,
+            trace_id: 'trace-001',
+            span_id: 'span-1',
+            parent_span_id: null,
+            name: 'root-span',
+            span_type: 'generation',
+            timestamp: '2025-01-01T00:00:00Z',
+            end_time: '2025-01-01T00:00:01Z',
+            duration_ms: 1000,
+            status: 'ok',
+            status_message: '',
+            attributes: {
+              'neon.state_snapshots': JSON.stringify([
+                {
+                  snapshotId: 'snap-1',
+                  name: 'before-tool',
+                  stateType: 'workflow',
+                  artifactIds: ['artifact-1'],
+                },
+              ]),
+            },
+          },
+        ],
+      })
+      mockGetScoresForTrace.mockResolvedValue([])
+
+      const { GET } = await getTraceDetailHandlers()
+      const req = createMockRequest('/api/traces/trace-001?granularity=checkpoint')
+      const res = await GET(req, { params: Promise.resolve({ id: 'trace-001' }) })
+
+      expect(res.status).toBe(200)
+      const body = await res.json()
+
+      expect(body.granularity).toBe('checkpoint')
+      expect(body.checkpoints).toHaveLength(1)
+      expect(body.checkpoints[0].snapshotId).toBe('snap-1')
+      expect(body.checkpoints[0].spanId).toBe('span-1')
+      expect(body.checkpoints[0].manifest.format).toBe('neon.checkpoint.v1')
+      expect(body.checkpoints[0].runtime.traceId).toBe('trace-001')
+      expect(body.checkpoints[0].restore.mode).toBe('restore')
+    })
+  })
+
+  describe('Trace Bundle APIs', () => {
+    it('exports a durable bundle with events and checkpoints', async () => {
+      mockGetTraceWithSpans.mockResolvedValue({
+        trace: {
+          trace_id: 'trace-bundle-001',
+          name: 'root-span',
+          run_id: 'run-1',
+        },
+        spans: [
+          {
+            project_id: TEST_WORKSPACE_ID,
+            trace_id: 'trace-bundle-001',
+            span_id: 'span-1',
+            parent_span_id: null,
+            name: 'root-span',
+            span_type: 'generation',
+            timestamp: '2025-01-01T00:00:00Z',
+            end_time: '2025-01-01T00:00:01Z',
+            duration_ms: 1000,
+            status: 'ok',
+            status_message: '',
+            attributes: {
+              'neon.state_snapshots': JSON.stringify([{ snapshotId: 'snap-1' }]),
+              'gen_ai.input.messages': JSON.stringify([{ role: 'user', content: 'hi' }]),
+            },
+          },
+        ],
+      })
+      mockGetScoresForTrace.mockResolvedValue([{ score_id: 'score-1', name: 'accuracy' }])
+
+      const { GET } = await getTraceBundleHandlers()
+      const res = await GET(createMockRequest('/api/traces/trace-bundle-001/bundle'), {
+        params: Promise.resolve({ id: 'trace-bundle-001' }),
+      })
+
+      expect(res.status).toBe(200)
+      const body = await res.json()
+
+      expect(body.format).toBe('neon.trace-bundle.v1')
+      expect(body.spans).toHaveLength(1)
+      expect(body.events).toHaveLength(1)
+      expect(body.checkpoints).toHaveLength(1)
+      expect(body.checkpoints[0].snapshotId).toBe('snap-1')
+      expect(body.checkpoints[0].manifest.runtime.workflowRunId).toBe('run-1')
+      expect(body.checkpoints[0].source).toBe('derived')
+    })
+
+    it('imports a trace bundle into the authenticated workspace', async () => {
+      const { POST } = await getTraceImportHandlers()
+      const req = createMockRequest('/api/traces/import', {
+        method: 'POST',
+        body: {
+          format: 'neon.trace-bundle.v1',
+          exportedAt: '2025-01-01T00:00:00.000Z',
+          trace: {
+            project_id: 'source-project',
+            trace_id: 'trace-import-001',
+            name: 'imported-trace',
+            timestamp: '2025-01-01 00:00:00.000',
+            end_time: '2025-01-01 00:00:01.000',
+            duration_ms: 1000,
+            status: 'ok',
+            metadata: {},
+            agent_id: null,
+            agent_version: null,
+            workflow_id: null,
+            run_id: 'run-import-1',
+            total_tokens: 42,
+            total_cost: 0,
+            llm_calls: 1,
+            tool_calls: 0,
+          },
+          spans: [
+            {
+              project_id: 'source-project',
+              trace_id: 'trace-import-001',
+              span_id: 'span-root',
+              parent_span_id: null,
+              name: 'imported-root',
+              kind: 'internal',
+              span_type: 'generation',
+              timestamp: '2025-01-01 00:00:00.000',
+              end_time: '2025-01-01 00:00:01.000',
+              duration_ms: 1000,
+              status: 'ok',
+              status_message: '',
+              model: null,
+              model_parameters: {},
+              input: '',
+              output: '',
+              input_tokens: null,
+              output_tokens: null,
+              total_tokens: null,
+              cost_usd: null,
+              tool_name: null,
+              tool_input: '',
+              tool_output: '',
+              attributes: {
+                'neon.state_snapshots': JSON.stringify([{ snapshotId: 'snap-import-1' }]),
+              },
+            },
+          ],
+          scores: [
+            {
+              project_id: 'source-project',
+              score_id: 'score-import-1',
+              trace_id: 'trace-import-001',
+              span_id: 'span-root',
+              run_id: null,
+              case_id: null,
+              name: 'accuracy',
+              value: 1,
+              score_type: 'numeric',
+              string_value: null,
+              comment: '',
+              source: 'api',
+              config_id: null,
+              author_id: null,
+              timestamp: '2025-01-01 00:00:01.000',
+            },
+          ],
+          events: [],
+          checkpoints: [],
+        },
+      })
+
+      const res = await POST(req)
+      expect(res.status).toBe(200)
+
+      expect(mockInsertTraces).toHaveBeenCalledTimes(1)
+      expect(mockInsertSpans).toHaveBeenCalledTimes(1)
+      expect(mockInsertScores).toHaveBeenCalledTimes(1)
+      expect(mockInsertTraces.mock.calls[0][0][0].project_id).toBe(TEST_WORKSPACE_ID)
+      expect(mockInsertSpans.mock.calls[0][0][0].project_id).toBe(TEST_WORKSPACE_ID)
+      expect(mockInsertSpans.mock.calls[0][0][0].parent_span_id).toBeNull()
+      expect(mockInsertScores.mock.calls[0][0][0].trace_id).toBe('trace-import-001')
+
+      const body = await res.json()
+      expect(body.traceId).toBe('trace-import-001')
+      expect(body.checkpoints).toBe(1)
     })
   })
 

@@ -99,6 +99,49 @@ export interface BufferedStateSnapshotReference {
   contentHash?: string;
   artifactIds?: string[];
   metadata?: Record<string, string>;
+  checkpoint?: {
+    format: "neon.checkpoint.v1";
+    checkpointId: string;
+    snapshotId: string;
+    name?: string;
+    stateType?: string;
+    payload?: {
+      kind: "uri" | "artifact" | "inline" | "reference";
+      uri?: string;
+      artifactId?: string;
+      mimeType?: string;
+      contentHash?: string;
+      sizeBytes?: number;
+    };
+    runtime: {
+      projectId?: string;
+      traceId?: string;
+      workflowId?: string;
+      workflowRunId?: string;
+      agentId?: string;
+      agentVersion?: string;
+      sessionId?: string;
+      threadId?: string;
+      spanId?: string;
+      parentSpanId?: string;
+      capturedAt?: string;
+      sequence?: number;
+    };
+    restore: {
+      mode: "resume" | "restore" | "replay";
+      target: "workflow" | "agent" | "span" | "session";
+      entrySpanId?: string;
+      requiresApproval?: boolean;
+      replaysSideEffects?: boolean;
+    };
+    integrity: {
+      schemaVersion: string;
+      contentHash?: string;
+      metadataHash?: string;
+      redactionApplied?: boolean;
+    };
+    metadata?: Record<string, string>;
+  };
 }
 
 export interface BufferedEvalAnnotation {

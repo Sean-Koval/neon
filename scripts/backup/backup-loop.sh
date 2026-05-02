@@ -4,6 +4,7 @@
 # Usage:
 #   ./backup-loop.sh clickhouse
 #   ./backup-loop.sh postgres
+#   ./backup-loop.sh checkpoints
 #
 # Environment:
 #   BACKUP_INTERVAL_SECONDS          - Interval between backup attempts
@@ -13,6 +14,7 @@
 #   CLICKHOUSE_FULL_BACKUP_DAY      - 0-6 (Sunday-Saturday) for weekly full backup
 #   CLICKHOUSE_BACKUP_DIR           - Override ClickHouse backup directory
 #   POSTGRES_BACKUP_DIR             - Override PostgreSQL backup directory
+#   CHECKPOINT_BACKUP_DIR           - Override checkpoint backup directory
 
 set -euo pipefail
 
@@ -45,6 +47,11 @@ case "$MODE" in
     STATE_FILE="${BACKUP_ROOT}/.postgres-last-run"
     BACKUP_SUBDIR="${POSTGRES_BACKUP_DIR:-${BACKUP_ROOT}/postgres}"
     ;;
+  checkpoints)
+    SCRIPT_PATH="/scripts/backup/checkpoint-backup.sh"
+    STATE_FILE="${BACKUP_ROOT}/.checkpoints-last-run"
+    BACKUP_SUBDIR="${CHECKPOINT_BACKUP_DIR:-${BACKUP_ROOT}/checkpoints}"
+    ;;
   *)
     die "Unknown mode: $MODE"
     ;;
@@ -66,6 +73,10 @@ run_backup() {
         "$SCRIPT_PATH" --type "$backup_type" --target "$BACKUP_TARGET"
       ;;
     postgres)
+      BACKUP_DIR="$BACKUP_SUBDIR" \
+        "$SCRIPT_PATH" --target "$BACKUP_TARGET"
+      ;;
+    checkpoints)
       BACKUP_DIR="$BACKUP_SUBDIR" \
         "$SCRIPT_PATH" --target "$BACKUP_TARGET"
       ;;

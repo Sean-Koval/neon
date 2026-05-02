@@ -311,8 +311,9 @@ Neon now includes self-hosted backup workers for both primary data stores:
 
 - `clickhouse-backup` writes ClickHouse table snapshots to the `clickhouse_backups` Docker volume
 - `postgres-backup` writes compressed `pg_dump` archives to the `postgres_backups` Docker volume
+- `checkpoint-backup` writes replayable checkpoint body archives to the `checkpoint_backups` Docker volume
 
-By default, both workers run once on startup and then every 24 hours. ClickHouse takes incremental backups daily and switches to a full backup on the configured UTC weekday.
+By default, all three workers run once on startup and then every 24 hours. ClickHouse takes incremental backups daily and switches to a full backup on the configured UTC weekday.
 
 ### Enable Automated Backups
 
@@ -336,6 +337,9 @@ NEON_CLICKHOUSE_FULL_BACKUP_DAY=0
 NEON_CLICKHOUSE_BACKUP_RETENTION_DAYS=30
 NEON_POSTGRES_BACKUP_INTERVAL_SECONDS=86400
 NEON_POSTGRES_BACKUP_RETENTION_DAYS=30
+NEON_CHECKPOINT_DIR=/var/lib/neon/checkpoints
+NEON_CHECKPOINT_BACKUP_INTERVAL_SECONDS=86400
+NEON_CHECKPOINT_BACKUP_RETENTION_DAYS=30
 ```
 
 If you prefer GCS-backed archives, set:
@@ -347,15 +351,36 @@ NEON_BACKUP_GCS_BUCKET=your-backup-bucket
 
 The self-hosted Compose path assumes the backup runner image has network access to GCS tooling only when you explicitly opt into remote backup. For cloud-scheduled backup jobs, use the Terraform module in [`terraform/modules/backup/main.tf`](/home/seanm/repos/neon/terraform/modules/backup/main.tf).
 
+### Checkpoint Retention
+
+Checkpoint replay and restore depend on durable checkpoint bodies stored outside
+ClickHouse and PostgreSQL. In the self-hosted Compose path, Neon mounts
+`NEON_CHECKPOINT_DIR` to a persistent `checkpoint_data` volume and the
+`checkpoint-backup` worker archives it separately from database backups.
+
+Treat that directory as part of your primary durability surface:
+
+- put `NEON_CHECKPOINT_DIR` on persistent disk, not ephemeral container storage
+- keep `NEON_CHECKPOINT_BACKUP_RETENTION_DAYS` aligned with the trace retention window operators need for debugging
+- back it up and restore it together with ClickHouse and PostgreSQL snapshots
+- verify checkpoint archives with the same discipline as database backups
+- restore it together with ClickHouse and PostgreSQL when recovering a system
+
+If checkpoint files are missing, traces still render in the UI, but replay and
+restore from those checkpoints will fail because Neon only has the manifest
+metadata, not the runtime body.
+
 ### Inspect Backup Status
 
 ```bash
 # Tail backup worker logs
-docker compose --profile backup logs -f clickhouse-backup postgres-backup
+docker compose --profile backup logs -f clickhouse-backup postgres-backup checkpoint-backup
 
 # Inspect persisted backup archives
 docker volume inspect neon_clickhouse_backups
 docker volume inspect neon_postgres_backups
+docker volume inspect neon_checkpoint_backups
+docker volume inspect neon_checkpoint_data
 ```
 
 ### Run A One-Off Manual Backup
@@ -372,6 +397,12 @@ docker compose --profile backup run --rm \
   -e PGHOST=postgres \
   -e BACKUP_DIR=/backups/postgres \
   postgres-backup /scripts/backup/postgres-backup.sh --target local
+
+# Checkpoint body archive
+docker compose --profile backup run --rm \
+  -e CHECKPOINT_SOURCE_DIR=/var/lib/neon/checkpoints \
+  -e BACKUP_DIR=/backups/checkpoints \
+  checkpoint-backup /scripts/backup/checkpoint-backup.sh --target local
 ```
 
 ### Verify Existing Backups
@@ -383,6 +414,9 @@ docker compose --profile backup run --rm clickhouse-backup \
 
 docker compose --profile backup run --rm postgres-backup \
   /scripts/backup/postgres-backup.sh --verify pg_20260330_030000
+
+docker compose --profile backup run --rm checkpoint-backup \
+  /scripts/backup/checkpoint-backup.sh --verify checkpoints_20260330_040000
 ```
 
 ### Restore From Backup
@@ -395,12 +429,18 @@ docker compose --profile backup run --rm clickhouse-backup \
 # Restore PostgreSQL databases from a backup archive
 docker compose --profile backup run --rm postgres-backup \
   /scripts/backup/restore-postgres.sh pg_20260330_030000
+
+# Restore checkpoint bodies from a backup archive
+docker compose --profile backup run --rm checkpoint-backup \
+  /scripts/backup/restore-checkpoints.sh checkpoints_20260330_040000 \
+  --destination /var/lib/neon/checkpoints
 ```
 
 Restore operations replace or append data depending on the engine:
 
 - PostgreSQL restore drops and recreates the selected databases before loading the dump
 - ClickHouse restore inserts backup rows into the selected tables
+- Checkpoint restore replaces the checkpoint body directory used by replay/restore APIs
 
 Run restores against a staging environment first when validating disaster recovery. PostgreSQL point-in-time recovery is still a separate operational concern; the Compose automation added here gives you scheduled logical backups and a tested restore path, which is the minimum durability baseline for self-hosted Neon.
 

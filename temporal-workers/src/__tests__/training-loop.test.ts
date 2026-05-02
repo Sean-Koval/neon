@@ -6,39 +6,50 @@
  * by mocking @temporalio/workflow.
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeAll, beforeEach } from "vitest";
 
 // ============================================================================
 // MOCK SETUP
 // ============================================================================
 
-const {
-  handlers,
-  mockExecuteChild,
-  mockCondition,
-  mockProxyActivities,
-} = vi.hoisted(() => ({
-  handlers: {} as Record<string, (...args: unknown[]) => unknown>,
-  mockExecuteChild: vi.fn(),
-  mockCondition: vi.fn(async (_fn?: () => boolean) => true),
-  mockProxyActivities: {
-    collectSignals: vi.fn().mockResolvedValue({ signals: [], count: 50 }),
-    curateTrainingData: vi.fn().mockResolvedValue({
-      curatedData: [],
-      qualityScore: 0.85,
-      stats: { totalInput: 50, finalCount: 45 },
-    }),
-    runOptimization: vi.fn().mockResolvedValue({
-      candidatePrompt: "optimized prompt",
-      candidateScore: 0.9,
-      metadata: {},
-    }),
-    checkRegressionStatus: vi.fn().mockResolvedValue({
-      hasRegression: false,
-    }),
-    recordLoopIteration: vi.fn().mockResolvedValue(undefined),
-  },
-}));
+const handlers = {} as Record<string, (...args: unknown[]) => unknown>;
+const mockExecuteChild = vi.fn();
+const mockCondition = vi.fn(async (_fn?: () => boolean) => true);
+const mockProxyActivities = {
+  collectSignals: vi.fn().mockResolvedValue({ signals: [], count: 50 }),
+  curateTrainingData: vi.fn().mockResolvedValue({
+    curatedData: [],
+    qualityScore: 0.85,
+    stats: { totalInput: 50, finalCount: 45 },
+  }),
+  runOptimization: vi.fn().mockResolvedValue({
+    candidatePrompt: "optimized prompt",
+    candidateScore: 0.9,
+    metadata: {},
+  }),
+  checkRegressionStatus: vi.fn().mockResolvedValue({
+    hasRegression: false,
+  }),
+  recordLoopIteration: vi.fn().mockResolvedValue(undefined),
+  emitSpan: vi.fn().mockResolvedValue(undefined),
+  captureTrainingLoopCheckpoint: vi.fn().mockResolvedValue({
+    manifest: {
+      checkpointId: "checkpoint-training-1",
+      snapshotId: "checkpoint-training-1",
+      name: "checkpoint",
+      stateType: "training_loop",
+      restore: { mode: "restore" },
+      integrity: { contentHash: "sha256:test" },
+    },
+    snapshot: {
+      snapshotId: "checkpoint-training-1",
+      name: "checkpoint",
+      stateType: "training_loop",
+      uri: "/api/checkpoints/checkpoint-training-1",
+      contentHash: "sha256:test",
+    },
+  }),
+};
 
 vi.mock("@temporalio/workflow", () => ({
   proxyActivities: vi.fn(() => mockProxyActivities),
@@ -58,8 +69,9 @@ vi.mock("@temporalio/workflow", () => ({
   sleep: vi.fn().mockResolvedValue(undefined),
 }));
 
-import { trainingLoopWorkflow } from "../workflows/training-loop";
-import type { TrainingLoopInput, TrainingLoopStatus } from "../workflows/training-loop";
+let trainingLoopWorkflow: typeof import("../workflows/training-loop").trainingLoopWorkflow;
+type TrainingLoopInput = import("../workflows/training-loop").TrainingLoopInput;
+type TrainingLoopStatus = import("../workflows/training-loop").TrainingLoopStatus;
 
 // ============================================================================
 // HELPERS
@@ -111,6 +123,11 @@ function makeRolloutResult(completed: boolean) {
 // ============================================================================
 
 describe("trainingLoopWorkflow", () => {
+  beforeAll(async () => {
+    const mod = await import("../workflows/training-loop");
+    trainingLoopWorkflow = mod.trainingLoopWorkflow;
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
     // Also explicitly reset executeChild and condition to avoid once-queue leaks
@@ -141,6 +158,26 @@ describe("trainingLoopWorkflow", () => {
     });
     mockProxyActivities.recordLoopIteration.mockReset();
     mockProxyActivities.recordLoopIteration.mockResolvedValue(undefined);
+    mockProxyActivities.emitSpan.mockReset();
+    mockProxyActivities.emitSpan.mockResolvedValue(undefined);
+    mockProxyActivities.captureTrainingLoopCheckpoint.mockReset();
+    mockProxyActivities.captureTrainingLoopCheckpoint.mockResolvedValue({
+      manifest: {
+        checkpointId: "checkpoint-training-1",
+        snapshotId: "checkpoint-training-1",
+        name: "checkpoint",
+        stateType: "training_loop",
+        restore: { mode: "restore" },
+        integrity: { contentHash: "sha256:test" },
+      },
+      snapshot: {
+        snapshotId: "checkpoint-training-1",
+        name: "checkpoint",
+        stateType: "training_loop",
+        uri: "/api/checkpoints/checkpoint-training-1",
+        contentHash: "sha256:test",
+      },
+    });
   });
 
   // --------------------------------------------------------------------------
@@ -544,5 +581,82 @@ describe("trainingLoopWorkflow", () => {
     const evalStage = result.stages.find((s) => s.stage === "evaluating");
     expect(evalStage?.status).toBe("failed");
     expect(evalStage?.metrics.decision).toBe(-1);
+  });
+
+  it("restores a training loop checkpoint and resumes from the next stage boundary", async () => {
+    mockExecuteChild
+      .mockResolvedValueOnce(makeEvalRunResult(0.92))
+      .mockResolvedValueOnce(makeRolloutResult(true));
+
+    const result = await trainingLoopWorkflow(
+      makeInput({
+        restoreFrom: {
+          checkpointId: "checkpoint-training-loop-restore-1",
+          traceId: "trace-training-loop-restore-1",
+          mode: "restore",
+        },
+        restoredCheckpoint: {
+          format: "neon.checkpoint-body.v1",
+          kind: "training_loop",
+          checkpointId: "checkpoint-training-loop-restore-1",
+          traceId: "trace-training-loop-restore-1",
+          projectId: "proj-1",
+          loopId: "test-loop-source",
+          promptId: "prompt-1",
+          suiteId: "suite-1",
+          capturedAt: "2026-03-30T00:00:00.000Z",
+          input: {
+            projectId: "proj-1",
+            suiteId: "suite-1",
+            promptId: "prompt-1",
+            strategy: "coordinate_ascent",
+            trigger: "manual",
+            maxIterations: 3,
+            improvementThreshold: 0.02,
+            signalTypes: ["preference", "feedback"],
+            timeWindow: {
+              startDate: "2025-01-01T00:00:00Z",
+              endDate: "2025-01-07T00:00:00Z",
+            },
+          },
+          state: {
+            status: "running",
+            currentStage: "curating",
+            currentIteration: 1,
+            maxIterations: 3,
+            baselineScore: 0,
+            currentMetrics: { signalCount: 50, qualityScore: 0.9 },
+            stageHistory: [
+              {
+                iteration: 1,
+                stage: "collecting",
+                status: "completed",
+                metrics: { signalCount: 50 },
+                durationMs: 100,
+                timestamp: "2026-03-30T00:00:00.000Z",
+              },
+            ],
+            collectedSignals: [{ id: "signal-1", type: "preference" }],
+            curatedData: [],
+            approvalStatus: "idle",
+          },
+        },
+      })
+    );
+
+    expect(result.status).toBe("completed");
+    expect(result.iterations).toBe(1);
+    expect(mockProxyActivities.collectSignals).not.toHaveBeenCalled();
+    expect(mockProxyActivities.curateTrainingData).not.toHaveBeenCalled();
+    expect(mockExecuteChild).toHaveBeenCalledTimes(2);
+    expect(mockProxyActivities.captureTrainingLoopCheckpoint).toHaveBeenCalled();
+    expect(mockProxyActivities.emitSpan).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: "training-loop-restored",
+      })
+    );
+    expect(result.restoredFromCheckpointId).toBe(
+      "checkpoint-training-loop-restore-1"
+    );
   });
 });

@@ -5,6 +5,7 @@
  *
  * Query params:
  * - full: If 'true', return full span data (default: 'false' for lazy loading)
+ * - granularity: 'event' | 'checkpoint' for derived durability views
  */
 
 import { type NextRequest, NextResponse } from 'next/server'
@@ -12,6 +13,10 @@ import { type SpanRecord, type SpanSummary, traces } from '@/lib/db/clickhouse'
 import { logger } from '@/lib/logger'
 import { type AuthResult, withAuth } from '@/lib/middleware/auth'
 import { withRateLimit } from '@/lib/middleware/rate-limit'
+import {
+  buildTraceCheckpointsFromSpans,
+  buildTraceEventsFromSpans,
+} from '@/lib/traces/trace-bundle'
 
 /**
  * Build span tree from flat list (works with both full spans and summaries)
@@ -62,6 +67,38 @@ export const GET = withRateLimit(
             { error: 'Workspace context required' },
             { status: 400 },
           )
+        }
+
+        const granularity = request.nextUrl.searchParams.get('granularity')
+
+        if (granularity === 'event' || granularity === 'checkpoint') {
+          const { data: result } = await traces.getTraceSummary(
+            projectId,
+            traceId,
+          )
+
+          if (!result) {
+            return NextResponse.json(
+              { error: 'Trace not found' },
+              { status: 404 },
+            )
+          }
+
+          const { data: scores } = await traces.getTraceScores(projectId, traceId)
+
+          return NextResponse.json({
+            trace: result.trace,
+            granularity,
+            scores,
+            events:
+              granularity === 'event'
+                ? buildTraceEventsFromSpans(result.spans)
+                : undefined,
+            checkpoints:
+              granularity === 'checkpoint'
+                ? buildTraceCheckpointsFromSpans(result.spans, result.trace)
+                : undefined,
+          })
         }
 
         // Check if full span data is requested (default: lazy loading with summaries)

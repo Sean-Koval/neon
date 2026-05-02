@@ -5,6 +5,10 @@
  */
 
 import { Client, Connection } from '@temporalio/client'
+import type {
+  AgentReplayWorkflowInput,
+  StartWorkflowFromCheckpointRequest,
+} from '@/lib/checkpoints/store'
 
 // Singleton client instance
 let client: Client | null = null
@@ -142,6 +146,11 @@ export interface WorkflowStatus {
   suiteId?: string
 }
 
+export interface StartAgentReplayResult {
+  workflowId: string
+  runId: string
+}
+
 // ============================================================================
 // WORKFLOW OPERATIONS
 // ============================================================================
@@ -184,6 +193,46 @@ export async function startEvalRunWorkflow(
   return {
     workflowId: handle.workflowId,
     runId: params.runId,
+  }
+}
+
+export async function startAgentReplayWorkflow(
+  params: AgentReplayWorkflowInput,
+): Promise<StartAgentReplayResult> {
+  const checkpointId = params.restoreFrom?.checkpointId || 'checkpoint'
+  return startWorkflowFromCheckpoint({
+    kind: 'agent_run',
+    checkpointId,
+    sourceTraceId: params.restoreFrom?.traceId ?? '',
+    mode: params.restoreFrom?.mode ?? 'replay',
+    workflowName: 'agentRunWorkflow',
+    workflowId: `agent-replay-${params.projectId}-${checkpointId}-${Date.now()}`,
+    args: [params],
+    memo: {
+      agentId: params.agentId,
+      agentVersion: params.agentVersion || 'latest',
+      checkpointId,
+      sourceTraceId: params.restoreFrom?.traceId,
+      replayMode: params.restoreFrom?.mode || 'replay',
+    },
+  })
+}
+
+export async function startWorkflowFromCheckpoint(
+  params: StartWorkflowFromCheckpointRequest,
+): Promise<StartAgentReplayResult> {
+  const client = await getTemporalClient()
+
+  const handle = await client.workflow.start(params.workflowName, {
+    taskQueue: getTaskQueue(),
+    workflowId: params.workflowId,
+    args: params.args,
+    memo: params.memo,
+  })
+
+  return {
+    workflowId: handle.workflowId,
+    runId: handle.firstExecutionRunId,
   }
 }
 

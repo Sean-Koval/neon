@@ -5,7 +5,7 @@
  * by mocking @temporalio/workflow.
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { EvalRunResult } from "../types";
 import type {
   ABTestInput,
@@ -16,21 +16,56 @@ import type {
 // MOCK SETUP
 // ============================================================================
 
-const {
-  handlers,
-  mockEmitSpan,
-  mockExecuteChild,
-  mockSleep,
-} = vi.hoisted(() => ({
-  handlers: {} as Record<string, (...args: unknown[]) => unknown>,
-  mockEmitSpan: vi.fn().mockResolvedValue(undefined),
-  mockExecuteChild: vi.fn(),
-  mockSleep: vi.fn().mockResolvedValue(undefined),
-}));
+const handlers = {} as Record<string, (...args: unknown[]) => unknown>;
+const mockEmitSpan = vi.fn().mockResolvedValue(undefined);
+const mockExecuteChild = vi.fn();
+const mockCaptureProgressiveRolloutCheckpoint = vi.fn().mockImplementation(
+  async ({ manifest }: { manifest: { checkpointId: string; snapshotId: string; name: string } }) => ({
+    manifest: {
+      ...manifest,
+      payload: {
+        kind: "uri",
+        uri: `/api/checkpoints/${manifest.checkpointId}`,
+        mimeType: "application/json",
+        contentHash: "sha256:test",
+        sizeBytes: 128,
+      },
+      integrity: {
+        schemaVersion: "1",
+        contentHash: "sha256:test",
+      },
+    },
+    envelope: {} as Record<string, unknown>,
+    snapshot: {
+      snapshotId: manifest.snapshotId,
+      name: manifest.name,
+      stateType: "progressive_rollout",
+      uri: `/api/checkpoints/${manifest.checkpointId}`,
+      contentHash: "sha256:test",
+      checkpoint: {
+        ...manifest,
+        payload: {
+          kind: "uri",
+          uri: `/api/checkpoints/${manifest.checkpointId}`,
+          mimeType: "application/json",
+          contentHash: "sha256:test",
+          sizeBytes: 128,
+        },
+        integrity: {
+          schemaVersion: "1",
+          contentHash: "sha256:test",
+        },
+      },
+    },
+  }),
+);
+const mockSleep = vi.fn().mockResolvedValue(undefined);
 
 vi.mock("@temporalio/workflow", () => ({
   proxyActivities: vi.fn(() => ({
     emitSpan: (...args: unknown[]) => mockEmitSpan(...args),
+    captureProgressiveRolloutCheckpoint: (...args: unknown[]) =>
+      mockCaptureProgressiveRolloutCheckpoint(...args),
   })),
   executeChild: (...args: unknown[]) => mockExecuteChild(...args),
   ParentClosePolicy: { PARENT_CLOSE_POLICY_ABANDON: 5 },
@@ -47,10 +82,14 @@ vi.mock("@temporalio/workflow", () => ({
   sleep: (...args: unknown[]) => mockSleep(...args),
 }));
 
-import {
-  abTestWorkflow,
-  progressiveRolloutWorkflow,
-} from "../workflows/optimization";
+let abTestWorkflow: typeof import("../workflows/optimization").abTestWorkflow;
+let progressiveRolloutWorkflow: typeof import("../workflows/optimization").progressiveRolloutWorkflow;
+
+beforeAll(async () => {
+  const workflowModule = await import("../workflows/optimization");
+  abTestWorkflow = workflowModule.abTestWorkflow;
+  progressiveRolloutWorkflow = workflowModule.progressiveRolloutWorkflow;
+});
 
 // ============================================================================
 // HELPERS
@@ -411,5 +450,83 @@ describe("progressiveRolloutWorkflow", () => {
     expect(result.stageResults).toHaveLength(1);
     expect(result.stageResults[0].percentage).toBe(100);
     expect(mockSleep).not.toHaveBeenCalled();
+  });
+
+  it("restores from a rollout checkpoint and resumes remaining stages only", async () => {
+    mockExecuteChild
+      .mockResolvedValueOnce(makeEvalRunResult(0.82, { runId: "rollout-restore-1-stage-2" }))
+      .mockResolvedValueOnce(makeEvalRunResult(0.88, { runId: "rollout-restore-1-stage-3" }));
+
+    const result = await progressiveRolloutWorkflow(
+      makeRolloutInput({
+        rolloutId: "rollout-restore-1",
+        restoreFrom: {
+          checkpointId: "checkpoint-rollout-restore-1",
+          traceId: "trace-rollout-restore-1",
+          mode: "restore",
+        },
+        restoredCheckpoint: {
+          format: "neon.checkpoint-body.v1",
+          kind: "progressive_rollout",
+          checkpointId: "checkpoint-rollout-restore-1",
+          traceId: "trace-rollout-restore-1",
+          projectId: "proj-1",
+          rolloutId: "rollout-source-1",
+          capturedAt: "2026-03-30T00:00:00.000Z",
+          input: makeRolloutInput({
+            rolloutId: "rollout-source-1",
+          }),
+          state: {
+            status: "running",
+            currentStageIndex: 1,
+            currentPercentage: 25,
+            stages: [10, 25, 50, 100],
+            scores: [0.8, 0.78],
+            stageResults: [
+              {
+                stage: 0,
+                percentage: 10,
+                score: 0.8,
+                passed: true,
+                runId: "rollout-source-1-stage-0",
+              },
+              {
+                stage: 1,
+                percentage: 25,
+                score: 0.78,
+                passed: true,
+                runId: "rollout-source-1-stage-1",
+              },
+            ],
+            nextStageIndex: 2,
+          },
+        },
+      }),
+    );
+
+    expect(mockExecuteChild).toHaveBeenCalledTimes(2);
+    expect(mockExecuteChild).toHaveBeenNthCalledWith(
+      1,
+      expect.anything(),
+      expect.objectContaining({
+        workflowId: "rollout-restore-1-stage-2",
+      }),
+    );
+    expect(mockExecuteChild).toHaveBeenNthCalledWith(
+      2,
+      expect.anything(),
+      expect.objectContaining({
+        workflowId: "rollout-restore-1-stage-3",
+      }),
+    );
+    expect(result.completed).toBe(true);
+    expect(result.stageResults).toHaveLength(4);
+    expect(result.restoredFromCheckpointId).toBe("checkpoint-rollout-restore-1");
+    expect(mockEmitSpan).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: "progressive-rollout-restored",
+      }),
+    );
+    expect(mockCaptureProgressiveRolloutCheckpoint).toHaveBeenCalled();
   });
 });

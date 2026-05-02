@@ -56,6 +56,9 @@ For durable workflow execution:
 | `NEON_CLICKHOUSE_BACKUP_RETENTION_DAYS` | Retention window for ClickHouse backups | `30` |
 | `NEON_POSTGRES_BACKUP_INTERVAL_SECONDS` | Seconds between PostgreSQL backup attempts | `86400` |
 | `NEON_POSTGRES_BACKUP_RETENTION_DAYS` | Retention window for PostgreSQL backups | `30` |
+| `NEON_CHECKPOINT_DIR` | Filesystem path for durable checkpoint bodies used by replay/restore flows | `./.neon/checkpoints` |
+| `NEON_CHECKPOINT_BACKUP_INTERVAL_SECONDS` | Seconds between checkpoint archive backup attempts | `86400` |
+| `NEON_CHECKPOINT_BACKUP_RETENTION_DAYS` | Retention window for checkpoint archive backups | `30` |
 
 ## SDK Configuration
 

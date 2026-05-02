@@ -1,7 +1,7 @@
 {
-  "pid": 44012,
-  "parent_pid": 43991,
+  "pid": 443345,
+  "parent_pid": 443281,
   "database": "/home/seanm/repos/neon/.beads/neon.db",
   "version": "0.49.3",
-  "started_at": "2026-02-03T05:59:03.542669585Z"
+  "started_at": "2026-05-02T02:18:35.27607084Z"
 }

@@ -10,7 +10,12 @@
 
 import { type NextRequest, NextResponse } from 'next/server'
 import { logger } from '@/lib/logger'
-import { broadcastToTrace, sessionStates } from '../stream/route'
+import type { CheckpointManifest } from '@/lib/traces/trace-bundle'
+import {
+  broadcastToTrace,
+  ensureSessionState,
+  hydrateSessionState,
+} from '../stream/route'
 
 // ============================================================================
 // Types
@@ -25,6 +30,7 @@ interface DebugEvent {
     | 'paused'
     | 'resumed'
     | 'stepCompleted'
+    | 'hydrated'
     | 'sessionEnded'
     | 'traceStarted'
     | 'traceCompleted'
@@ -83,15 +89,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Ensure session state exists
-    if (!sessionStates.has(event.traceId)) {
-      sessionStates.set(event.traceId, {
-        state: 'running',
-        currentSpanId: null,
-        pausedAt: null,
-      })
-    }
-
-    const session = sessionStates.get(event.traceId)
+    const session = ensureSessionState(event.traceId)
     if (!session) {
       return NextResponse.json(
         { error: 'Failed to initialize debug session state' },
@@ -122,7 +120,28 @@ export async function POST(request: NextRequest) {
         session.state =
           event.payload.state === 'stepping' ? 'stepping' : 'running'
         session.pausedAt = null
+        session.hydratedAt = null
+        session.hydratedFrom = null
         break
+
+      case 'hydrated': {
+        const manifest = event.payload.data?.manifest as
+          | CheckpointManifest
+          | undefined
+        if (manifest?.format === 'neon.checkpoint.v1') {
+          hydrateSessionState(
+            event.traceId,
+            manifest,
+            typeof event.payload.data?.hydratedAt === 'string'
+              ? event.payload.data.hydratedAt
+              : event.timestamp,
+          )
+        } else {
+          session.state = 'paused'
+          session.pausedAt = new Date()
+        }
+        break
+      }
 
       case 'sessionEnded':
       case 'traceCompleted':
@@ -173,6 +192,7 @@ type ClientEventType =
   | 'paused'
   | 'resumed'
   | 'stepCompleted'
+  | 'hydrated'
   | 'inspectResult'
   | 'traceCompleted'
   | 'error'

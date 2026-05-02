@@ -21,6 +21,7 @@
  */
 
 import type { Span, SpanType, Trace } from "@neon/shared";
+import type { EmitCheckpointManifest } from "../types";
 
 // Use NEON_API_URL to point to the Next.js frontend API
 const NEON_API_URL = process.env.NEON_API_URL || "http://localhost:3000";
@@ -79,6 +80,8 @@ export interface DebugSession {
   hitCounts: Record<string, number>;
   pausedAt: Date | null;
   createdAt: Date;
+  origin: "live" | "checkpoint";
+  hydratedFrom: HydratedDebugSessionContext | null;
 }
 
 /**
@@ -88,6 +91,35 @@ export interface InitDebugSessionParams {
   traceId: string;
   projectId: string;
   breakpoints?: DebugBreakpoint[];
+  origin?: DebugSession["origin"];
+  currentSpanId?: string | null;
+  initialState?: DebugState;
+  hydratedFrom?: HydratedDebugSessionContext | null;
+}
+
+export interface ResolvedCheckpointPayload {
+  kind: "uri" | "artifact" | "inline" | "reference" | "missing";
+  location?: string;
+  uri?: string;
+  artifactId?: string;
+  contentHash?: string;
+  mimeType?: string;
+  sizeBytes?: number;
+}
+
+export interface HydratedDebugSessionContext {
+  manifest: EmitCheckpointManifest;
+  payload: ResolvedCheckpointPayload;
+  hydratedAt: Date;
+  requestedMode: EmitCheckpointManifest["restore"]["mode"];
+}
+
+export interface HydrateDebugSessionParams {
+  manifest: EmitCheckpointManifest;
+  projectId?: string;
+  traceId?: string;
+  breakpoints?: DebugBreakpoint[];
+  mode?: EmitCheckpointManifest["restore"]["mode"];
 }
 
 /**
@@ -127,6 +159,7 @@ export interface DebugEvent {
     | "paused"
     | "resumed"
     | "stepCompleted"
+    | "hydrated"
     | "sessionEnded";
   traceId: string;
   timestamp: string;
@@ -136,6 +169,7 @@ export interface DebugEvent {
     breakpoint?: DebugBreakpoint;
     state?: DebugState;
     message?: string;
+    data?: Record<string, unknown>;
   };
 }
 
@@ -174,14 +208,16 @@ export async function initDebugSession(
   const session: DebugSession = {
     traceId: params.traceId,
     projectId: params.projectId,
-    state: "running",
-    currentSpanId: null,
+    state: params.initialState ?? "running",
+    currentSpanId: params.currentSpanId ?? null,
     stepMode: null,
     stepTargetDepth: null,
     breakpoints: params.breakpoints ?? [],
     hitCounts: {},
-    pausedAt: null,
+    pausedAt: (params.initialState ?? "running") === "running" ? null : new Date(),
     createdAt: new Date(),
+    origin: params.origin ?? "live",
+    hydratedFrom: params.hydratedFrom ?? null,
   };
 
   debugSessions.set(params.traceId, session);
@@ -190,7 +226,70 @@ export async function initDebugSession(
     type: "sessionStarted",
     traceId: params.traceId,
     timestamp: new Date().toISOString(),
-    payload: { state: "running" },
+    payload: { state: session.state },
+  });
+
+  return session;
+}
+
+/**
+ * Hydrate a debug session from a checkpoint manifest.
+ *
+ * This restores a debuggable session context without assuming that the
+ * underlying workflow runtime can fully deserialize checkpoint bodies yet.
+ */
+export async function hydrateDebugSession(
+  params: HydrateDebugSessionParams
+): Promise<DebugSession> {
+  const requestedMode = params.mode ?? params.manifest.restore.mode;
+  const traceId = params.traceId ?? params.manifest.runtime.traceId;
+  const projectId = params.projectId ?? params.manifest.runtime.projectId;
+
+  if (!traceId) {
+    throw new Error("Checkpoint manifest is missing runtime.traceId");
+  }
+
+  if (!projectId) {
+    throw new Error("Checkpoint manifest is missing runtime.projectId");
+  }
+
+  const existingSession = debugSessions.get(traceId);
+  const payload = resolveCheckpointPayload(params.manifest);
+  const hydratedFrom: HydratedDebugSessionContext = {
+    manifest: {
+      ...params.manifest,
+      restore: {
+        ...params.manifest.restore,
+        mode: requestedMode,
+      },
+    },
+    payload,
+    hydratedAt: new Date(),
+    requestedMode,
+  };
+
+  const session = await initDebugSession({
+    traceId,
+    projectId,
+    breakpoints: params.breakpoints ?? existingSession?.breakpoints ?? [],
+    origin: "checkpoint",
+    initialState: "paused",
+    currentSpanId:
+      hydratedFrom.manifest.restore.entrySpanId ??
+      hydratedFrom.manifest.runtime.spanId ??
+      null,
+    hydratedFrom,
+  });
+
+  await notifyDebugEvent({
+    type: "hydrated",
+    traceId,
+    timestamp: hydratedFrom.hydratedAt.toISOString(),
+    payload: {
+      state: session.state,
+      message: `Hydrated debug session from checkpoint ${hydratedFrom.manifest.checkpointId}`,
+      data: buildHydrationEventData(hydratedFrom),
+    },
   });
 
   return session;
@@ -498,6 +597,71 @@ function resolveWaitForResume(traceId: string, resumed: boolean): void {
   }
 }
 
+function resolveCheckpointPayload(
+  manifest: EmitCheckpointManifest
+): ResolvedCheckpointPayload {
+  const payload = manifest.payload;
+
+  if (!payload) {
+    return { kind: "missing" };
+  }
+
+  switch (payload.kind) {
+    case "uri":
+      return {
+        kind: "uri",
+        location: payload.uri,
+        uri: payload.uri,
+        contentHash: payload.contentHash,
+        mimeType: payload.mimeType,
+        sizeBytes: payload.sizeBytes,
+      };
+    case "artifact":
+      return {
+        kind: "artifact",
+        location: payload.artifactId ? `artifact:${payload.artifactId}` : undefined,
+        artifactId: payload.artifactId,
+        contentHash: payload.contentHash,
+        mimeType: payload.mimeType,
+        sizeBytes: payload.sizeBytes,
+      };
+    case "reference":
+      return {
+        kind: "reference",
+        location: payload.contentHash ? `reference:${payload.contentHash}` : undefined,
+        contentHash: payload.contentHash,
+        mimeType: payload.mimeType,
+        sizeBytes: payload.sizeBytes,
+      };
+    case "inline":
+      return {
+        kind: "inline",
+        location: "inline",
+        contentHash: payload.contentHash,
+        mimeType: payload.mimeType,
+        sizeBytes: payload.sizeBytes,
+      };
+    default:
+      return { kind: "missing" };
+  }
+}
+
+function buildHydrationEventData(
+  context: HydratedDebugSessionContext
+): Record<string, unknown> {
+  return {
+    manifest: context.manifest,
+    checkpointId: context.manifest.checkpointId,
+    snapshotId: context.manifest.snapshotId,
+    requestedMode: context.requestedMode,
+    restore: context.manifest.restore,
+    runtime: context.manifest.runtime,
+    integrity: context.manifest.integrity,
+    payload: context.payload,
+    hydratedAt: context.hydratedAt.toISOString(),
+  };
+}
+
 // ============================================================================
 // Breakpoint CRUD
 // ============================================================================
@@ -719,6 +883,7 @@ if (typeof process !== "undefined") {
  */
 export const debugActivities = {
   initDebugSession,
+  hydrateDebugSession,
   getDebugSession,
   updateDebugSession,
   endDebugSession,

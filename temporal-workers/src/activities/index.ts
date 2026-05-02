@@ -5,6 +5,23 @@
  */
 
 export { emitSpan, emitSpansBatch } from "./emit-span";
+export {
+  captureAgentCheckpoint,
+  captureEvalCaseCheckpoint,
+  captureEvalRunCheckpoint,
+  captureProgressiveRolloutCheckpoint,
+  captureTrainingLoopCheckpoint,
+  type CaptureAgentCheckpointParams,
+  type CaptureAgentCheckpointResult,
+  type CaptureEvalCaseCheckpointParams,
+  type CaptureEvalCaseCheckpointResult,
+  type CaptureEvalRunCheckpointParams,
+  type CaptureEvalRunCheckpointResult,
+  type CaptureProgressiveRolloutCheckpointParams,
+  type CaptureProgressiveRolloutCheckpointResult,
+  type CaptureTrainingLoopCheckpointParams,
+  type CaptureTrainingLoopCheckpointResult,
+} from "./checkpoint-store";
 export { llmCall, estimateCost } from "./llm-call";
 export { executeTool, registerTool, hasTool, executeMCPTool } from "./execute-tool";
 export {
@@ -32,12 +49,16 @@ export {
   type DebugBreakpoint,
   type DebugSession,
   type InitDebugSessionParams,
+  type HydrateDebugSessionParams,
+  type HydratedDebugSessionContext,
+  type ResolvedCheckpointPayload,
   type EvaluateBreakpointParams,
   type BreakpointEvalResult,
   type DebugControlParams,
   type DebugEvent,
   // Activities
   initDebugSession,
+  hydrateDebugSession,
   getDebugSession,
   updateDebugSession,
   endDebugSession,
