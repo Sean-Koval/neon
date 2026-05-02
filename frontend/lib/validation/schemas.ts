@@ -19,6 +19,14 @@ const uuid = z.string().uuid()
 /** Non-empty trimmed string */
 const nonEmpty = z.string().min(1)
 
+const scorerTypeSchema = z.enum([
+  'tool_selection',
+  'reasoning',
+  'grounding',
+  'efficiency',
+  'custom',
+])
+
 // =============================================================================
 // Runs API - POST /api/runs
 // =============================================================================
@@ -82,15 +90,33 @@ export const createScoreSchema = z.object({
 // Suites API - POST /api/suites
 // =============================================================================
 
+const evalCaseSchema = z.object({
+  name: nonEmpty,
+  description: z.string().nullable().optional(),
+  input: z.record(z.string(), z.unknown()),
+  expected_tools: z.array(z.string()).nullable().optional(),
+  expected_tool_sequence: z.array(z.string()).nullable().optional(),
+  expected_output_contains: z.array(z.string()).nullable().optional(),
+  expected_output_pattern: z.string().nullable().optional(),
+  scorers: z.array(scorerTypeSchema).min(1),
+  scorer_config: z.record(z.string(), z.unknown()).nullable().optional(),
+  min_score: z.number().min(0).max(1),
+  tags: z.array(z.string()),
+  timeout_seconds: z.number().int().min(1).max(3600),
+})
+
 export const createSuiteSchema = z.object({
   project_id: z.string().optional(),
   name: nonEmpty,
   description: z.string().nullable().optional(),
   agent_id: z.string().optional(),
-  default_scorers: z.array(z.string()).optional(),
+  default_scorers: z.array(scorerTypeSchema).optional(),
   default_min_score: z.number().min(0).max(1).optional(),
   default_timeout_seconds: z.number().int().min(1).max(3600).optional(),
+  parallel: z.boolean().optional(),
+  stop_on_failure: z.boolean().optional(),
   default_config: z.record(z.string(), z.unknown()).optional(),
+  cases: z.array(evalCaseSchema).optional(),
 })
 
 // =============================================================================
@@ -101,11 +127,17 @@ export const updateSuiteSchema = z.object({
   name: nonEmpty.optional(),
   description: z.string().nullable().optional(),
   agent_id: z.string().optional(),
-  default_scorers: z.array(z.string()).optional(),
+  default_scorers: z.array(scorerTypeSchema).optional(),
   default_min_score: z.number().min(0).max(1).optional(),
   default_timeout_seconds: z.number().int().min(1).max(3600).optional(),
+  parallel: z.boolean().optional(),
+  stop_on_failure: z.boolean().optional(),
   default_config: z.record(z.string(), z.unknown()).optional(),
 })
+
+export const createCaseSchema = evalCaseSchema
+
+export const updateCaseSchema = evalCaseSchema.partial()
 
 // =============================================================================
 // Traces API - POST /api/v1/traces (OTLP Ingestion)

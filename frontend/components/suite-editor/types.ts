@@ -5,6 +5,10 @@
 import { CONFIG } from '@/lib/config'
 import type { EvalCaseCreate, ScorerType } from '@/lib/types'
 
+export interface SuiteCaseFormData extends EvalCaseCreate {
+  id?: string
+}
+
 export interface SuiteFormData {
   /** Step 1: Basic info */
   name: string
@@ -19,14 +23,15 @@ export interface SuiteFormData {
   stop_on_failure: boolean
 
   /** Step 3: Test cases */
-  cases: EvalCaseCreate[]
+  cases: SuiteCaseFormData[]
 }
 
-export const EMPTY_CASE: EvalCaseCreate = {
+export const EMPTY_CASE: SuiteCaseFormData = {
   name: '',
   description: '',
   input: {},
   expected_tools: [],
+  expected_tool_sequence: [],
   expected_output_contains: [],
   expected_output_pattern: null,
   scorers: ['tool_selection'],

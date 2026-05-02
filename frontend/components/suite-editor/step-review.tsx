@@ -31,7 +31,7 @@ export function StepReview({ data }: StepReviewProps) {
       <div>
         <h3 className="text-lg font-medium text-zinc-100">Review Suite</h3>
         <p className="text-sm text-zinc-400 mt-1">
-          Review your configuration before creating the suite.
+          Review your configuration before saving the suite.
         </p>
       </div>
 
@@ -124,6 +124,19 @@ export function StepReview({ data }: StepReviewProps) {
                       {c.scorers.length} scorer
                       {c.scorers.length !== 1 ? 's' : ''}, min {c.min_score}
                     </span>
+                    {(c.expected_tool_sequence?.length ||
+                      c.expected_output_pattern ||
+                      c.scorer_config) && (
+                      <div className="mt-1 text-xs text-zinc-500">
+                        {c.expected_tool_sequence?.length
+                          ? 'Includes ordered tool checks.'
+                          : null}
+                        {c.expected_output_pattern
+                          ? ' Includes regex output checks.'
+                          : null}
+                        {c.scorer_config ? ' Includes scorer overrides.' : null}
+                      </div>
+                    )}
                   </div>
                 </li>
               ))}

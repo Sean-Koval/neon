@@ -7,77 +7,20 @@
  */
 
 import { type NextRequest, NextResponse } from 'next/server'
-import { Pool } from 'pg'
 import { logger } from '@/lib/logger'
 import { type AuthResult, withAuth } from '@/lib/middleware/auth'
 import { withRateLimit } from '@/lib/middleware/rate-limit'
-import type { EvalSuite, ScorerType } from '@/lib/types'
+import type { EvalSuite } from '@/lib/types'
 import { validateBody } from '@/lib/validation/middleware'
 import { updateSuiteSchema } from '@/lib/validation/schemas'
-
-// Connection pool (shared with main suites route via process-level singleton)
-let pool: Pool | null = null
-
-function getPool(): Pool {
-  if (!pool) {
-    const connectionString =
-      process.env.DATABASE_URL || 'postgresql://neon:neon@localhost:5432/neon'
-
-    pool = new Pool({
-      connectionString,
-      max: 5,
-      idleTimeoutMillis: 30000,
-      connectionTimeoutMillis: 2000,
-    })
-
-    pool.on('error', (err: Error) => {
-      logger.error({ err }, 'PostgreSQL pool error in suites/[id] route')
-    })
-  }
-  return pool
-}
-
-/**
- * Map database row to EvalSuite type
- */
-function mapRowToSuite(row: Record<string, unknown>): EvalSuite {
-  const config = (row.config as Record<string, unknown>) || {}
-
-  return {
-    id: row.id as string,
-    project_id: row.project_id as string,
-    name: row.name as string,
-    description: (row.description as string) || null,
-    agent_id: (row.agent_module_path as string) || '',
-    default_scorers: ((config.default_scorers as string[]) ||
-      []) as ScorerType[],
-    default_min_score: (config.default_min_score as number) ?? 0.7,
-    default_timeout_seconds: (config.default_timeout_seconds as number) ?? 300,
-    parallel: (config.parallel as boolean) ?? false,
-    stop_on_failure: (config.stop_on_failure as boolean) ?? false,
-    cases: [], // Cases are loaded separately via /api/suites/:id/cases
-    created_at: row.created_at
-      ? new Date(row.created_at as string).toISOString()
-      : new Date().toISOString(),
-    updated_at: row.updated_at
-      ? new Date(row.updated_at as string).toISOString()
-      : new Date().toISOString(),
-  }
-}
-
-/**
- * Check if error is a connection error for graceful degradation
- */
-function isConnectionError(error: unknown): boolean {
-  return (
-    error instanceof Error &&
-    (error.message.includes('ECONNREFUSED') ||
-      error.message.includes('connect') ||
-      error.message.includes('timeout') ||
-      error.message.includes('ETIMEDOUT') ||
-      error.message.includes('does not exist'))
-  )
-}
+import {
+  buildSuiteConfig,
+  getPool,
+  isConnectionError,
+  isValidUuid,
+  loadCases,
+  mapRowToSuite,
+} from '@/app/api/suites/shared'
 
 /**
  * GET /api/suites/:id
@@ -102,10 +45,7 @@ export const GET = withRateLimit(
 
       const { id } = await context.params
 
-      // Validate UUID format
-      const uuidRegex =
-        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-      if (!uuidRegex.test(id)) {
+      if (!isValidUuid(id)) {
         return NextResponse.json(
           { error: 'Invalid suite ID format' },
           { status: 400 },
@@ -133,7 +73,8 @@ export const GET = withRateLimit(
           )
         }
 
-        const suite = mapRowToSuite(result.rows[0])
+        const cases = await loadCases(pool, id)
+        const suite = mapRowToSuite(result.rows[0], cases)
         return NextResponse.json(suite)
       } catch (error) {
         logger.error({ err: error }, 'Error fetching suite')
@@ -191,10 +132,7 @@ export const PATCH = withRateLimit(
 
       const { id } = await context.params
 
-      // Validate UUID format
-      const uuidRegex =
-        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-      if (!uuidRegex.test(id)) {
+      if (!isValidUuid(id)) {
         return NextResponse.json(
           { error: 'Invalid suite ID format' },
           { status: 400 },
@@ -255,27 +193,17 @@ export const PATCH = withRateLimit(
           params.push(body.agent_id)
         }
 
-        // Merge config fields
-        const newConfig = { ...currentConfig }
-        if (body.default_scorers !== undefined) {
-          newConfig.default_scorers = body.default_scorers
-        }
-        if (body.default_min_score !== undefined) {
-          newConfig.default_min_score = body.default_min_score
-        }
-        if (body.default_timeout_seconds !== undefined) {
-          newConfig.default_timeout_seconds = body.default_timeout_seconds
-        }
-        if (body.default_config !== undefined) {
-          newConfig.default_config = body.default_config
-        }
+        const configUpdates = buildSuiteConfig(body)
+        const newConfig = { ...currentConfig, ...configUpdates }
 
         // Always update config if any config fields changed
         if (
           body.default_scorers !== undefined ||
           body.default_min_score !== undefined ||
           body.default_timeout_seconds !== undefined ||
-          body.default_config !== undefined
+          body.default_config !== undefined ||
+          body.parallel !== undefined ||
+          body.stop_on_failure !== undefined
         ) {
           updates.push(`config = $${paramIndex++}`)
           params.push(JSON.stringify(newConfig))
@@ -286,7 +214,8 @@ export const PATCH = withRateLimit(
 
         if (updates.length === 1) {
           // Only updated_at, no actual changes
-          return NextResponse.json(mapRowToSuite(currentRow))
+          const cases = await loadCases(pool, id)
+          return NextResponse.json(mapRowToSuite(currentRow, cases))
         }
 
         params.push(id)
@@ -298,7 +227,8 @@ export const PATCH = withRateLimit(
     `
 
         const result = await pool.query(updateQuery, params)
-        const suite = mapRowToSuite(result.rows[0])
+        const cases = await loadCases(pool, id)
+        const suite = mapRowToSuite(result.rows[0], cases)
 
         return NextResponse.json(suite)
       } catch (error) {
@@ -346,10 +276,7 @@ export const DELETE = withRateLimit(
 
       const { id } = await context.params
 
-      // Validate UUID format
-      const uuidRegex =
-        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-      if (!uuidRegex.test(id)) {
+      if (!isValidUuid(id)) {
         return NextResponse.json(
           { error: 'Invalid suite ID format' },
           { status: 400 },

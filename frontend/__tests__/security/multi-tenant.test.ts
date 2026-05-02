@@ -617,9 +617,13 @@ describe('Workspace Isolation - Suites', () => {
     const res = await POST(req)
     expect(res.status).toBe(201)
 
-    // INSERT should use workspace A as project_id
-    const insertCall = mockPgQuery.mock.calls[0]
-    expect(insertCall[1][0]).toBe(TEST_WORKSPACES.workspaceA.id) // $1 = project_id
+    // POST now wraps in a transaction, so calls[0] is BEGIN.
+    // Find the INSERT INTO suites call by content.
+    const insertCall = mockPgQuery.mock.calls.find((call) =>
+      typeof call[0] === 'string' && call[0].includes('INSERT INTO suites'),
+    )
+    expect(insertCall).toBeDefined()
+    expect(insertCall![1][0]).toBe(TEST_WORKSPACES.workspaceA.id) // $1 = project_id
   })
 
   it('POST /api/suites rejects mismatched project_id in body', async () => {

@@ -10,64 +10,21 @@
  */
 
 import { type NextRequest, NextResponse } from 'next/server'
-import { Pool } from 'pg'
 import { logger } from '@/lib/logger'
 import { type AuthResult, withAuth } from '@/lib/middleware/auth'
 import { withRateLimit } from '@/lib/middleware/rate-limit'
-import type { EvalSuite, EvalSuiteList, ScorerType } from '@/lib/types'
+import type { EvalCase, EvalSuite, EvalSuiteList } from '@/lib/types'
 import { validateBody } from '@/lib/validation/middleware'
 import { createSuiteSchema } from '@/lib/validation/schemas'
-
-// Create a connection pool for raw queries
-// (suites table is in postgres-init.sql, not Drizzle schema)
-let pool: Pool | null = null
-
-function getPool(): Pool {
-  if (!pool) {
-    const connectionString =
-      process.env.DATABASE_URL || 'postgresql://neon:neon@localhost:5432/neon'
-
-    pool = new Pool({
-      connectionString,
-      max: 5,
-      idleTimeoutMillis: 30000,
-      connectionTimeoutMillis: 2000,
-    })
-
-    pool.on('error', (err: Error) => {
-      logger.error({ err }, 'PostgreSQL pool error in suites route')
-    })
-  }
-  return pool
-}
-
-/**
- * Map database row to EvalSuite type
- */
-function mapRowToSuite(row: Record<string, unknown>): EvalSuite {
-  const config = (row.config as Record<string, unknown>) || {}
-
-  return {
-    id: row.id as string,
-    project_id: row.project_id as string,
-    name: row.name as string,
-    description: (row.description as string) || null,
-    agent_id: (row.agent_module_path as string) || '',
-    default_scorers: ((config.default_scorers as string[]) ||
-      []) as ScorerType[],
-    default_min_score: (config.default_min_score as number) ?? 0.7,
-    default_timeout_seconds: (config.default_timeout_seconds as number) ?? 300,
-    parallel: (config.parallel as boolean) ?? false,
-    stop_on_failure: (config.stop_on_failure as boolean) ?? false,
-    cases: [], // Cases are loaded separately via /api/suites/:id/cases
-    created_at: row.created_at
-      ? new Date(row.created_at as string).toISOString()
-      : new Date().toISOString(),
-    updated_at: row.updated_at
-      ? new Date(row.updated_at as string).toISOString()
-      : new Date().toISOString(),
-  }
-}
+import {
+  buildCaseConfig,
+  buildCaseExpected,
+  buildSuiteConfig,
+  getPool,
+  isConnectionError,
+  mapRowToCase,
+  mapRowToSuite,
+} from '@/app/api/suites/shared'
 
 /**
  * GET /api/suites
@@ -112,7 +69,9 @@ export const GET = withRateLimit(
       )
       const total = parseInt(countResult.rows[0]?.count || '0', 10)
 
-      const suites: EvalSuite[] = result.rows.map(mapRowToSuite)
+      const suites: EvalSuite[] = result.rows.map((row) =>
+        mapRowToSuite(row as Record<string, unknown>),
+      )
 
       const response: EvalSuiteList = {
         items: suites,
@@ -123,16 +82,7 @@ export const GET = withRateLimit(
     } catch (error) {
       logger.error({ err: error }, 'Error fetching suites')
 
-      // Graceful degradation - return empty list if database isn't available
-      const isConnectionError =
-        error instanceof Error &&
-        (error.message.includes('ECONNREFUSED') ||
-          error.message.includes('connect') ||
-          error.message.includes('timeout') ||
-          error.message.includes('ETIMEDOUT') ||
-          error.message.includes('does not exist'))
-
-      if (isConnectionError) {
+      if (isConnectionError(error)) {
         return NextResponse.json({
           items: [],
           total: 0,
@@ -193,20 +143,15 @@ export const POST = withRateLimit(
 
       const pool = getPool()
 
-      // Build config object from optional fields
-      const config: Record<string, unknown> = {}
-      if (data.default_scorers) config.default_scorers = data.default_scorers
-      if (data.default_min_score !== undefined)
-        config.default_min_score = data.default_min_score
-      if (data.default_timeout_seconds !== undefined)
-        config.default_timeout_seconds = data.default_timeout_seconds
-      if (data.default_config) config.default_config = data.default_config
+      const config = buildSuiteConfig(data)
+      const createdCases: EvalCase[] = []
 
-      // Always use auth workspace as project_id
+      await pool.query('BEGIN')
+
       const result = await pool.query(
         `INSERT INTO suites (project_id, name, description, agent_module_path, config)
-       VALUES ($1, $2, $3, $4, $5)
-       RETURNING *`,
+         VALUES ($1, $2, $3, $4, $5)
+         RETURNING *`,
         [
           projectId,
           data.name,
@@ -216,10 +161,41 @@ export const POST = withRateLimit(
         ],
       )
 
-      const suite = mapRowToSuite(result.rows[0])
+      const suiteRow = result.rows[0] as Record<string, unknown>
+
+      for (const testCase of data.cases ?? []) {
+        const caseResult = await pool.query(
+          `INSERT INTO cases (suite_id, name, description, input, expected, scorers, config)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)
+           RETURNING *`,
+          [
+            suiteRow.id,
+            testCase.name,
+            testCase.description || null,
+            JSON.stringify(testCase.input),
+            JSON.stringify(buildCaseExpected(testCase)),
+            JSON.stringify(testCase.scorers),
+            JSON.stringify(buildCaseConfig(testCase)),
+          ],
+        )
+
+        createdCases.push(
+          mapRowToCase(caseResult.rows[0] as Record<string, unknown>),
+        )
+      }
+
+      await pool.query('COMMIT')
+
+      const suite = mapRowToSuite(suiteRow, createdCases)
 
       return NextResponse.json(suite, { status: 201 })
     } catch (error) {
+      try {
+        await getPool().query('ROLLBACK')
+      } catch {
+        // Ignore rollback failures after a create error.
+      }
+
       logger.error({ err: error }, 'Error creating suite')
 
       // Check for foreign key violation (invalid project_id)
