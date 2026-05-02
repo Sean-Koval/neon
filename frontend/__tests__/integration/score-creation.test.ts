@@ -25,6 +25,13 @@ vi.mock('@/lib/clickhouse', () => ({
   getScoresForTrace: (...args: unknown[]) => mockGetScoresForTrace(...args),
 }))
 
+vi.mock('@/lib/db/clickhouse', () => ({
+  traces: {
+    getTraceScores: (...args: unknown[]) =>
+      mockGetScoresForTrace(...args).then((data: unknown) => ({ data })),
+  },
+}))
+
 vi.mock('@/lib/db', () => ({
   db: {
     query: { apiKeys: { findFirst: vi.fn() } },
