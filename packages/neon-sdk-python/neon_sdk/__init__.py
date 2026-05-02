@@ -91,6 +91,14 @@ from neon_sdk.scorers import (
     tool_selection_scorer,
 )
 
+# Test definition helpers
+from neon_sdk.testing import (
+    SuiteDefinition,
+    TestDefinition,
+    define_suite,
+    define_test,
+)
+
 # Tracing (convenience imports)
 from neon_sdk.tracing import (
     TraceContext,
@@ -106,14 +114,6 @@ from neon_sdk.tracing import (
     tool,
     trace,
     traced,
-)
-
-# Test definition helpers
-from neon_sdk.testing import (
-    SuiteDefinition,
-    TestDefinition,
-    define_suite,
-    define_test,
 )
 
 # Types
