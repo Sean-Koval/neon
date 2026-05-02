@@ -14,9 +14,11 @@
 import { relations } from 'drizzle-orm'
 import {
   index,
+  integer,
   jsonb,
   pgEnum,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   uniqueIndex,
@@ -45,7 +47,8 @@ export const users = pgTable(
     id: uuid('id').primaryKey().defaultRandom(),
     email: varchar('email', { length: 255 }).notNull(),
     name: varchar('name', { length: 255 }),
-    avatarUrl: text('avatar_url'),
+    image: text('image'),
+    emailVerified: timestamp('email_verified', { withTimezone: true }),
     // Auth provider info (for SSO integration later)
     authProvider: varchar('auth_provider', { length: 50 }),
     authProviderId: varchar('auth_provider_id', { length: 255 }),
@@ -267,6 +270,49 @@ export const invitations = pgTable(
 )
 
 // =============================================================================
+// NextAuth Accounts Table (OAuth provider links)
+// =============================================================================
+
+export const accounts = pgTable(
+  'accounts',
+  {
+    userId: uuid('userId')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    type: text('type').notNull(),
+    provider: text('provider').notNull(),
+    providerAccountId: text('providerAccountId').notNull(),
+    refresh_token: text('refresh_token'),
+    access_token: text('access_token'),
+    expires_at: integer('expires_at'),
+    token_type: text('token_type'),
+    scope: text('scope'),
+    id_token: text('id_token'),
+    session_state: text('session_state'),
+  },
+  (table) => [
+    primaryKey({ columns: [table.provider, table.providerAccountId] }),
+    index('accounts_user_id_idx').on(table.userId),
+  ],
+)
+
+// =============================================================================
+// NextAuth Verification Tokens Table (email magic links)
+// =============================================================================
+
+export const verificationTokens = pgTable(
+  'verification_tokens',
+  {
+    identifier: varchar('identifier', { length: 255 }).notNull(),
+    token: varchar('token', { length: 255 }).notNull(),
+    expires: timestamp('expires', { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.identifier, table.token] }),
+  ],
+)
+
+// =============================================================================
 // Agents Table (auto-discovered from traces, enriched by users)
 // =============================================================================
 
@@ -304,6 +350,14 @@ export const usersRelations = relations(users, ({ many }) => ({
   workspaceMemberships: many(workspaceMembers),
   createdApiKeys: many(apiKeys),
   sentInvitations: many(invitations),
+  accounts: many(accounts),
+}))
+
+export const accountsRelations = relations(accounts, ({ one }) => ({
+  user: one(users, {
+    fields: [accounts.userId],
+    references: [users.id],
+  }),
 }))
 
 export const organizationsRelations = relations(organizations, ({ many }) => ({
@@ -403,6 +457,9 @@ export type NewInvitation = typeof invitations.$inferInsert
 
 export type Agent = typeof agents.$inferSelect
 export type NewAgent = typeof agents.$inferInsert
+
+export type Account = typeof accounts.$inferSelect
+export type NewAccount = typeof accounts.$inferInsert
 
 export type OrgRole = 'owner' | 'admin' | 'member'
 export type WorkspaceRole = 'admin' | 'member' | 'viewer'

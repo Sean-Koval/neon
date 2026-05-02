@@ -9,6 +9,7 @@ import { type NextRequest, NextResponse } from 'next/server'
 import { v4 as uuidv4 } from 'uuid'
 import { type PromptRecord, prompts } from '@/lib/db/clickhouse'
 import { logger } from '@/lib/logger'
+import { withAuth, type AuthResult } from '@/lib/middleware/auth'
 import { withRateLimit } from '@/lib/middleware/rate-limit'
 import { READ_LIMIT, WRITE_LIMIT } from '@/lib/rate-limit'
 import type { Prompt, PromptVersionEntry } from '@/lib/types'
@@ -55,14 +56,15 @@ function transformPrompt(record: PromptRecord): Prompt {
  * - version: Specific version number (optional)
  * - history: If 'true', return version history instead of single prompt
  */
-export const GET = withRateLimit(async function GET(
+export const GET = withRateLimit(withAuth(async function GET(
   request: NextRequest,
+  auth: AuthResult,
   { params }: RouteParams,
 ) {
   try {
     const { id } = await params
     const searchParams = request.nextUrl.searchParams
-    const projectId = searchParams.get('projectId') || 'default'
+    const projectId = auth.workspaceId || searchParams.get('projectId') || 'default'
     const versionParam = searchParams.get('version')
     const historyParam = searchParams.get('history')
 
@@ -127,7 +129,7 @@ export const GET = withRateLimit(async function GET(
       { status: 500 },
     )
   }
-}, READ_LIMIT)
+}), READ_LIMIT)
 
 /**
  * PATCH /api/prompts/[id]
@@ -146,8 +148,9 @@ export const GET = withRateLimit(async function GET(
  *   commit_message?: string;
  * }
  */
-export const PATCH = withRateLimit(async function PATCH(
+export const PATCH = withRateLimit(withAuth(async function PATCH(
   request: NextRequest,
+  auth: AuthResult,
   { params }: RouteParams,
 ) {
   try {
@@ -158,7 +161,7 @@ export const PATCH = withRateLimit(async function PATCH(
     const validation = validateBody(updatePromptSchema, rawBody)
     if (!validation.success) return validation.response
     const body = validation.data
-    const projectId = body.projectId || 'default'
+    const projectId = auth.workspaceId || body.projectId || 'default'
 
     // Get existing prompt
     const isUuid =
@@ -246,4 +249,4 @@ export const PATCH = withRateLimit(async function PATCH(
       { status: 500 },
     )
   }
-}, WRITE_LIMIT)
+}), WRITE_LIMIT)

@@ -91,6 +91,14 @@ from neon_sdk.scorers import (
     tool_selection_scorer,
 )
 
+# Test definition helpers
+from neon_sdk.testing import (
+    SuiteDefinition,
+    TestDefinition,
+    define_suite,
+    define_test,
+)
+
 # Tracing (convenience imports)
 from neon_sdk.tracing import (
     TraceContext,
@@ -187,6 +195,11 @@ __all__ = [
     "memory",
     "TraceContext",
     "get_current_context",
+    # Test definitions
+    "SuiteDefinition",
+    "TestDefinition",
+    "define_suite",
+    "define_test",
     # Scorers - Base
     "EvalContext",
     "ScoreResult",

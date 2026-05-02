@@ -155,6 +155,84 @@ export interface EmitDecisionMetadata {
   approvalGranted?: boolean;
 }
 
+export interface EmitSessionContext {
+  sessionId: string;
+  conversationId?: string;
+  userId?: string;
+  threadId?: string;
+}
+
+export interface EmitMessageContentPart {
+  type: "text" | "image" | "audio" | "tool_call" | "tool_result" | "json" | "other";
+  text?: string;
+  mimeType?: string;
+  data?: string;
+  metadata?: Record<string, string>;
+}
+
+export interface EmitMessageToolCall {
+  id: string;
+  name: string;
+  arguments?: string;
+}
+
+export interface EmitTraceMessage {
+  role: "system" | "user" | "assistant" | "tool" | "developer" | "other";
+  content: string;
+  messageId?: string;
+  name?: string;
+  toolCallId?: string;
+  toolCalls?: EmitMessageToolCall[];
+  parts?: EmitMessageContentPart[];
+  metadata?: Record<string, string>;
+}
+
+export interface EmitHandoffMetadata {
+  handoffType: "handoff" | "delegation" | "routing";
+  fromAgentId?: string;
+  toAgentId: string;
+  fromSpanId?: string;
+  toSpanId?: string;
+  reason?: string;
+  taskDescription?: string;
+  contextSummary?: string;
+  messageId?: string;
+  metadata?: Record<string, string>;
+}
+
+export interface EmitArtifactReference {
+  artifactId?: string;
+  name: string;
+  kind: "file" | "document" | "image" | "audio" | "json" | "url" | "other";
+  uri?: string;
+  mimeType?: string;
+  contentHash?: string;
+  sizeBytes?: number;
+  metadata?: Record<string, string>;
+}
+
+export interface EmitStateSnapshotReference {
+  snapshotId: string;
+  name?: string;
+  stateType?: string;
+  uri?: string;
+  contentHash?: string;
+  artifactIds?: string[];
+  metadata?: Record<string, string>;
+}
+
+export interface EmitEvalAnnotation {
+  annotationId?: string;
+  name: string;
+  evaluatorType?: "human" | "llm_judge" | "rule" | "dataset" | "system";
+  status?: "expected" | "observed" | "pass" | "fail" | "note";
+  value?: string;
+  score?: number;
+  comment?: string;
+  referenceSpanId?: string;
+  metadata?: Record<string, string>;
+}
+
 /**
  * Input for span emission activity
  */
@@ -176,6 +254,13 @@ export interface EmitSpanParams {
   toolName?: string;
   toolInput?: string;
   toolOutput?: string;
+  session?: EmitSessionContext;
+  inputMessages?: EmitTraceMessage[];
+  outputMessages?: EmitTraceMessage[];
+  handoff?: EmitHandoffMetadata;
+  stateSnapshots?: EmitStateSnapshotReference[];
+  artifacts?: EmitArtifactReference[];
+  evalAnnotations?: EmitEvalAnnotation[];
   // Skill selection context (for debugging skill/tool selection)
   skillSelection?: EmitSkillSelectionContext;
   // MCP execution context (for MCP tool calls)

@@ -64,6 +64,18 @@ vi.mock('@/lib/db/permissions', () => ({
   hasWorkspacePermission: vi.fn(),
 }))
 
+// Mock auth middleware to always pass with dev user
+vi.mock('@/lib/middleware/auth', () => ({
+  withAuth: (handler: Function) => async (request: any, ...args: any[]) => {
+    const auth = {
+      user: { id: 'dev-user-001', email: 'dev@neon.local', name: 'Dev User' },
+      workspaceId: '00000000-0000-0000-0000-000000000001',
+      organizationId: 'dev-org-001',
+    }
+    return handler(request, auth, ...args)
+  },
+}))
+
 // =============================================================================
 // Helpers
 // =============================================================================
@@ -117,7 +129,6 @@ describe('Scores API Integration', () => {
       const res = await POST(
         createMockRequest('/api/scores', {
           method: 'POST',
-          headers: { 'x-project-id': 'proj-001' },
           body: {
             trace_id: 'trace-001',
             name: 'accuracy',
@@ -134,10 +145,14 @@ describe('Scores API Integration', () => {
       expect(body.score_id).toBeDefined()
       expect(mockBatchInsertScores).toHaveBeenCalledTimes(1)
 
-      // Verify the score record passed to batch insert
+      // Verify the score record passed to batch insert.
+      // project_id always comes from auth.workspaceId (mocked above),
+      // not from forged x-project-id headers.
       const insertedScores = mockBatchInsertScores.mock.calls[0][0]
       expect(insertedScores).toHaveLength(1)
-      expect(insertedScores[0].project_id).toBe('proj-001')
+      expect(insertedScores[0].project_id).toBe(
+        '00000000-0000-0000-0000-000000000001',
+      )
       expect(insertedScores[0].trace_id).toBe('trace-001')
       expect(insertedScores[0].name).toBe('accuracy')
       expect(insertedScores[0].value).toBe(0.95)

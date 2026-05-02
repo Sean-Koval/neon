@@ -3,11 +3,11 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
 import { type ReactNode, useCallback, useState } from 'react'
+import { SessionProvider } from 'next-auth/react'
 import { ErrorBoundary } from '@/components/error-boundary'
 import { ThemeProvider } from '@/components/theme-provider'
 import { ToastProvider, useToast } from '@/components/toast'
 import { workflowQueryKeys } from '@/hooks/use-workflow-runs'
-import { AuthProvider } from '@/lib/auth'
 import { queryKeys } from '@/lib/query-keys'
 import { createTRPCClientLinks, trpc } from '@/lib/trpc'
 
@@ -113,7 +113,7 @@ function QueryProvider({ children }: QueryProviderProps) {
   )
 
   return (
-    <AuthProvider>
+    <SessionProvider>
       <trpc.Provider client={trpcClient} queryClient={queryClient}>
         <QueryClientProvider client={queryClient}>
           {children}
@@ -126,7 +126,7 @@ function QueryProvider({ children }: QueryProviderProps) {
           )}
         </QueryClientProvider>
       </trpc.Provider>
-    </AuthProvider>
+    </SessionProvider>
   )
 }
 

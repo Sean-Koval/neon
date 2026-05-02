@@ -24,6 +24,19 @@ from neon_sdk.types import (
     TraceWithSpans,
 )
 
+
+def _normalize_suite_payload(suite: Any) -> dict[str, Any]:
+    """Normalize suite-like inputs to a request payload."""
+    if isinstance(suite, dict):
+        return suite
+    to_dict = getattr(suite, "to_dict", None)
+    if callable(to_dict):
+        normalized = to_dict()
+        if isinstance(normalized, dict):
+            return normalized
+    raise TypeError("suite must be a dict or expose to_dict()")
+
+
 # =============================================================================
 # Configuration
 # =============================================================================
@@ -161,9 +174,13 @@ class EvalAPI:
     def __init__(self, client: Neon) -> None:
         self._client = client
 
-    async def run_suite(self, suite: dict[str, Any]) -> EvalRun:
+    async def run_suite(self, suite: dict[str, Any] | object) -> EvalRun:
         """Run a test suite."""
-        data = await self._client._request("POST", "/api/eval/suite", json=suite)
+        data = await self._client._request(
+            "POST",
+            "/api/eval/suite",
+            json=_normalize_suite_payload(suite),
+        )
         return EvalRun.model_validate(data)
 
     async def run_tests(self, tests: list[dict[str, Any]]) -> EvalRunResult:
@@ -386,7 +403,7 @@ class SyncEvalAPI:
     def __init__(self, async_api: EvalAPI) -> None:
         self._async = async_api
 
-    def run_suite(self, suite: dict[str, Any]) -> EvalRun:
+    def run_suite(self, suite: dict[str, Any] | object) -> EvalRun:
         return _run_sync(self._async.run_suite(suite))
 
     def run_tests(self, tests: list[dict[str, Any]]) -> EvalRunResult:

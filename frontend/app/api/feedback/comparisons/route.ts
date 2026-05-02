@@ -8,6 +8,7 @@
 import { type NextRequest, NextResponse } from 'next/server'
 import { v4 as uuidv4 } from 'uuid'
 import { logger } from '@/lib/logger'
+import { withAuth } from '@/lib/middleware/auth'
 import { withRateLimit } from '@/lib/middleware/rate-limit'
 import { READ_LIMIT, WRITE_LIMIT } from '@/lib/rate-limit'
 import type { ComparisonPair } from '@/lib/types'
@@ -213,7 +214,7 @@ Test cases:
 // Seed on module load
 seedExampleComparisons()
 
-export const GET = withRateLimit(async function GET(request: NextRequest) {
+export const GET = withAuth(withRateLimit(async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams
 
@@ -254,9 +255,9 @@ export const GET = withRateLimit(async function GET(request: NextRequest) {
       { status: 500 },
     )
   }
-}, READ_LIMIT)
+}, READ_LIMIT))
 
-export const POST = withRateLimit(async function POST(request: NextRequest) {
+export const POST = withAuth(withRateLimit(async function POST(request: NextRequest) {
   try {
     const rawBody = await request.json()
 
@@ -302,4 +303,4 @@ export const POST = withRateLimit(async function POST(request: NextRequest) {
       { status: 500 },
     )
   }
-}, WRITE_LIMIT)
+}, WRITE_LIMIT))

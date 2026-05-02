@@ -18,7 +18,15 @@ from typing import TYPE_CHECKING, Any, ParamSpec, TypeVar
 if TYPE_CHECKING:
     pass  # Keep TYPE_CHECKING for potential future use
 
-from neon_sdk.tracing.exporter import ExportSpan, NeonExporter, create_neon_exporter
+from neon_sdk.tracing.exporter import (
+    ExportFilterConfig,
+    ExportFilterRule,
+    ExportMaskingConfig,
+    ExportSamplingConfig,
+    ExportSpan,
+    NeonExporter,
+    create_neon_exporter,
+)
 from neon_sdk.types import ComponentType
 
 # =============================================================================
@@ -602,6 +610,10 @@ __all__ = [
     # Exporter
     "NeonExporter",
     "ExportSpan",
+    "ExportMaskingConfig",
+    "ExportSamplingConfig",
+    "ExportFilterConfig",
+    "ExportFilterRule",
     "create_neon_exporter",
     # Propagation
     "inject_trace_context",

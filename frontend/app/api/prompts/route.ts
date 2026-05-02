@@ -9,6 +9,7 @@ import { type NextRequest, NextResponse } from 'next/server'
 import { v4 as uuidv4 } from 'uuid'
 import { type PromptRecord, prompts } from '@/lib/db/clickhouse'
 import { logger } from '@/lib/logger'
+import { withAuth, type AuthResult } from '@/lib/middleware/auth'
 import { withRateLimit } from '@/lib/middleware/rate-limit'
 import { READ_LIMIT, WRITE_LIMIT } from '@/lib/rate-limit'
 import type { Prompt, PromptList } from '@/lib/types'
@@ -53,10 +54,10 @@ function transformPrompt(record: PromptRecord): Prompt {
  * - limit: Number of results (default: 50)
  * - offset: Offset for pagination (default: 0)
  */
-export const GET = withRateLimit(async function GET(request: NextRequest) {
+export const GET = withRateLimit(withAuth(async function GET(request: NextRequest, auth: AuthResult) {
   try {
     const searchParams = request.nextUrl.searchParams
-    const projectId = searchParams.get('projectId') || 'default'
+    const projectId = auth.workspaceId || searchParams.get('projectId') || 'default'
     const tagsParam = searchParams.get('tags')
     const isProductionParam = searchParams.get('isProduction')
     const limit = parseInt(searchParams.get('limit') || '50', 10)
@@ -102,7 +103,7 @@ export const GET = withRateLimit(async function GET(request: NextRequest) {
       { status: 500 },
     )
   }
-}, READ_LIMIT)
+}), READ_LIMIT)
 
 /**
  * POST /api/prompts
@@ -123,7 +124,7 @@ export const GET = withRateLimit(async function GET(request: NextRequest) {
  *   commit_message?: string;
  * }
  */
-export const POST = withRateLimit(async function POST(request: NextRequest) {
+export const POST = withRateLimit(withAuth(async function POST(request: NextRequest, auth: AuthResult) {
   try {
     const rawBody = await request.json()
 
@@ -131,7 +132,7 @@ export const POST = withRateLimit(async function POST(request: NextRequest) {
     const validation = validateBody(createPromptSchema, rawBody)
     if (!validation.success) return validation.response
     const body = validation.data
-    const projectId = body.projectId || 'default'
+    const projectId = auth.workspaceId || body.projectId || 'default'
 
     // Check if prompt with this name already exists and get next version
     const { data: existingVersion } = await prompts.getLatestVersion(
@@ -184,4 +185,4 @@ export const POST = withRateLimit(async function POST(request: NextRequest) {
       { status: 500 },
     )
   }
-}, WRITE_LIMIT)
+}), WRITE_LIMIT)

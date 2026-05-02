@@ -10,12 +10,13 @@ import { v4 as uuidv4 } from 'uuid'
 import { batchInsertScores } from '@/lib/clickhouse-batch'
 import type { ScoreRecord } from '@/lib/db/clickhouse'
 import { logger } from '@/lib/logger'
+import { withAuth, type AuthResult } from '@/lib/middleware/auth'
 import { withRateLimit } from '@/lib/middleware/rate-limit'
 import { READ_LIMIT, WRITE_LIMIT } from '@/lib/rate-limit'
 import { validateBody } from '@/lib/validation/middleware'
 import { createScoreSchema } from '@/lib/validation/schemas'
 
-export const POST = withRateLimit(async function POST(request: NextRequest) {
+export const POST = withRateLimit(withAuth(async function POST(request: NextRequest, auth: AuthResult) {
   try {
     const body = await request.json()
 
@@ -24,8 +25,9 @@ export const POST = withRateLimit(async function POST(request: NextRequest) {
     if (!validation.success) return validation.response
     const data = validation.data
 
-    // Get project ID from header or body
+    // Get project ID from auth, header, or body
     const projectId =
+      auth.workspaceId ||
       request.headers.get('x-project-id') ||
       data.project_id ||
       '00000000-0000-0000-0000-000000000001'
@@ -61,13 +63,14 @@ export const POST = withRateLimit(async function POST(request: NextRequest) {
       { status: 500 },
     )
   }
-}, WRITE_LIMIT)
+}), WRITE_LIMIT)
 
-export const GET = withRateLimit(async function GET(request: NextRequest) {
+export const GET = withRateLimit(withAuth(async function GET(request: NextRequest, auth: AuthResult) {
   try {
     const searchParams = request.nextUrl.searchParams
 
     const projectId =
+      auth.workspaceId ||
       request.headers.get('x-project-id') ||
       searchParams.get('project_id') ||
       '00000000-0000-0000-0000-000000000001'
@@ -96,4 +99,4 @@ export const GET = withRateLimit(async function GET(request: NextRequest) {
       { status: 500 },
     )
   }
-}, READ_LIMIT)
+}), READ_LIMIT)

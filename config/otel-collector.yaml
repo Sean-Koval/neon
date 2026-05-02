@@ -31,6 +31,63 @@ processors:
         value: "development"
         action: upsert
 
+  # Redact common PII patterns from high-risk GenAI payload fields before export.
+  # Adjust the target attribute list or regexes below if your deployment needs
+  # stricter or looser masking semantics.
+  transform/pii_redaction:
+    error_mode: ignore
+    trace_statements:
+      - context: span
+        statements:
+          - replace_pattern(attributes["gen_ai.prompt"], "\\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}\\b", "[REDACTED:email]")
+          - replace_pattern(attributes["gen_ai.prompt"], "\\b\\d{3}-\\d{2}-\\d{4}\\b", "[REDACTED:ssn]")
+          - replace_pattern(attributes["gen_ai.prompt"], "\\b(?:sk|pk)_(?:live|test|proj)?[_-]?[A-Za-z0-9_-]{16,}\\b", "[REDACTED:api_key]")
+          - replace_pattern(attributes["gen_ai.completion"], "\\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}\\b", "[REDACTED:email]")
+          - replace_pattern(attributes["gen_ai.completion"], "\\b\\d{3}-\\d{2}-\\d{4}\\b", "[REDACTED:ssn]")
+          - replace_pattern(attributes["gen_ai.completion"], "\\b(?:sk|pk)_(?:live|test|proj)?[_-]?[A-Za-z0-9_-]{16,}\\b", "[REDACTED:api_key]")
+          - replace_pattern(attributes["tool.input"], "\\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}\\b", "[REDACTED:email]")
+          - replace_pattern(attributes["tool.input"], "\\b\\d{3}-\\d{2}-\\d{4}\\b", "[REDACTED:ssn]")
+          - replace_pattern(attributes["tool.input"], "\\b(?:sk|pk)_(?:live|test|proj)?[_-]?[A-Za-z0-9_-]{16,}\\b", "[REDACTED:api_key]")
+          - replace_pattern(attributes["tool.output"], "\\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}\\b", "[REDACTED:email]")
+          - replace_pattern(attributes["tool.output"], "\\b\\d{3}-\\d{2}-\\d{4}\\b", "[REDACTED:ssn]")
+          - replace_pattern(attributes["tool.output"], "\\b(?:sk|pk)_(?:live|test|proj)?[_-]?[A-Za-z0-9_-]{16,}\\b", "[REDACTED:api_key]")
+          - replace_pattern(attributes["gen_ai.input.messages"], "\\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}\\b", "[REDACTED:email]")
+          - replace_pattern(attributes["gen_ai.input.messages"], "\\b\\d{3}-\\d{2}-\\d{4}\\b", "[REDACTED:ssn]")
+          - replace_pattern(attributes["gen_ai.input.messages"], "\\b(?:sk|pk)_(?:live|test|proj)?[_-]?[A-Za-z0-9_-]{16,}\\b", "[REDACTED:api_key]")
+          - replace_pattern(attributes["gen_ai.output.messages"], "\\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}\\b", "[REDACTED:email]")
+          - replace_pattern(attributes["gen_ai.output.messages"], "\\b\\d{3}-\\d{2}-\\d{4}\\b", "[REDACTED:ssn]")
+          - replace_pattern(attributes["gen_ai.output.messages"], "\\b(?:sk|pk)_(?:live|test|proj)?[_-]?[A-Za-z0-9_-]{16,}\\b", "[REDACTED:api_key]")
+          - replace_pattern(attributes["retrieval.chunks"], "\\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}\\b", "[REDACTED:email]")
+          - replace_pattern(attributes["retrieval.chunks"], "\\b\\d{3}-\\d{2}-\\d{4}\\b", "[REDACTED:ssn]")
+          - replace_pattern(attributes["retrieval.chunks"], "\\b(?:sk|pk)_(?:live|test|proj)?[_-]?[A-Za-z0-9_-]{16,}\\b", "[REDACTED:api_key]")
+          - replace_pattern(attributes["neon.state_snapshots"], "\\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}\\b", "[REDACTED:email]")
+          - replace_pattern(attributes["neon.state_snapshots"], "\\b\\d{3}-\\d{2}-\\d{4}\\b", "[REDACTED:ssn]")
+          - replace_pattern(attributes["neon.state_snapshots"], "\\b(?:sk|pk)_(?:live|test|proj)?[_-]?[A-Za-z0-9_-]{16,}\\b", "[REDACTED:api_key]")
+          - replace_pattern(attributes["neon.artifacts"], "\\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}\\b", "[REDACTED:email]")
+          - replace_pattern(attributes["neon.artifacts"], "\\b\\d{3}-\\d{2}-\\d{4}\\b", "[REDACTED:ssn]")
+          - replace_pattern(attributes["neon.artifacts"], "\\b(?:sk|pk)_(?:live|test|proj)?[_-]?[A-Za-z0-9_-]{16,}\\b", "[REDACTED:api_key]")
+
+  # Tail-sampling keeps the traces that operators most need during sustained
+  # load: failures and slow traces. Everything else is retained at a lower
+  # baseline rate to keep self-hosted storage and query cost under control.
+  tail_sampling:
+    decision_wait: 10s
+    num_traces: 50000
+    expected_new_traces_per_sec: 100
+    policies:
+      - name: keep-errors
+        type: status_code
+        status_code:
+          status_codes: [ERROR]
+      - name: keep-slow-traces
+        type: latency
+        latency:
+          threshold_ms: ${env:NEON_TRACE_TAIL_SLOW_THRESHOLD_MS:-5000}
+      - name: baseline-probabilistic
+        type: probabilistic
+        probabilistic:
+          sampling_percentage: ${env:NEON_TRACE_TAIL_SAMPLING_PERCENT:-15}
+
 exporters:
   # Direct ClickHouse exporter - uses its own OTel-managed tables
   # The primary path for trace ingestion is through the Neon API (otlphttp/neon-api)
@@ -94,7 +151,7 @@ service:
   pipelines:
     traces:
       receivers: [otlp]
-      processors: [memory_limiter, attributes, batch]
+      processors: [memory_limiter, attributes, transform/pii_redaction, tail_sampling, batch]
       exporters: [otlphttp/neon-api, clickhouse, debug]
   telemetry:
     logs:
