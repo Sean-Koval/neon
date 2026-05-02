@@ -1,9 +1,8 @@
 'use client'
 
 import { Plus } from 'lucide-react'
-import type { EvalCaseCreate } from '@/lib/types'
 import { CaseEditor } from './case-editor'
-import { EMPTY_CASE, type SuiteFormData } from './types'
+import { EMPTY_CASE, type SuiteCaseFormData, type SuiteFormData } from './types'
 
 interface StepCasesProps {
   data: SuiteFormData
@@ -15,7 +14,7 @@ export function StepCases({ data, onChange }: StepCasesProps) {
     onChange({ cases: [...data.cases, { ...EMPTY_CASE }] })
   }
 
-  const updateCase = (index: number, updated: EvalCaseCreate) => {
+  const updateCase = (index: number, updated: SuiteCaseFormData) => {
     const cases = [...data.cases]
     cases[index] = updated
     onChange({ cases })
@@ -55,7 +54,7 @@ export function StepCases({ data, onChange }: StepCasesProps) {
         <div className="space-y-3">
           {data.cases.map((c, i) => (
             <CaseEditor
-              key={`case-${i}`}
+              key={c.id ?? `case-${i}`}
               caseData={c}
               index={i}
               onChange={(updated) => updateCase(i, updated)}
